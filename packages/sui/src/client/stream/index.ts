@@ -7,4 +7,4 @@ export { assertAdvanced, StreamDisconnected, SuiStreamError } from './errors.js'
 export type { SuiStreamErrorCode } from './errors.js';
 export { startBeyondTip } from './plan.js';
 export { createLedgerStream } from './run.js';
-export { compareCoverage, coverageBefore, maxCoverage } from './session.js';
+export * from './position.js';

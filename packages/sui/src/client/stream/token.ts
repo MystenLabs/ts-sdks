@@ -6,12 +6,19 @@ import { fromBase64 } from '@mysten/utils';
 import { blake2b } from '@noble/hashes/blake2.js';
 
 import type { SuiClientTypes } from '../types.js';
-import type { Coverage, PositionCodec, StreamFamily, StreamTransport } from './adapter.js';
+import type { Coverage, StreamFamily, StreamTransport } from './adapter.js';
 import { SuiStreamError } from './errors.js';
+import {
+	coverageFromBcs,
+	coverageToBcs,
+	positionSchema,
+	validatePosition,
+	type StreamPosition,
+} from './position.js';
 
 /**
  * Resume token format: `sui-stream:` + base64(BCS envelope). Every enum here is append-only.
- * Position bytes belong to the transport's codec.
+ * Positions use the shared encoding, so the envelope can carry any transport's.
  */
 const TOKEN_PREFIX = 'sui-stream:';
 /** The exclusive end after the largest checkpoint is one more than a u64. */
@@ -27,7 +34,7 @@ const Envelope = bcs.enum('StreamToken', {
 		filter: bcs.bytes(32),
 		/** Absent when unknown. */
 		coverage: bcs.option(bcs.enum('StreamCoverage', { None: null, Through: bcs.u64() })),
-		position: bcs.byteVector(),
+		position: positionSchema,
 		range: bcs.enum('StreamRange', {
 			Follow: null,
 			Finite: bcs.struct('FiniteStreamRange', {
@@ -35,7 +42,7 @@ const Envelope = bcs.enum('StreamToken', {
 				capturedTip: bcs.option(bcs.u64()),
 				end: bcs.enum('StreamEnd', {
 					Checkpoint: bcs.u128(),
-					Cursor: bcs.byteVector(),
+					Cursor: positionSchema,
 					IndexedTip: bcs.u64(),
 					Genesis: null,
 				}),
@@ -46,34 +53,25 @@ const Envelope = bcs.enum('StreamToken', {
 type EnvelopeV1 = InferBcsType<typeof Envelope>['V1'] & {};
 
 /** Where a finite range ends. `IndexedTip` ends after the captured indexed checkpoint. */
-export type RangeEnd<P> =
+export type RangeEnd =
 	| { $kind: 'Checkpoint'; checkpoint: bigint }
-	| { $kind: 'Cursor'; position: P }
+	| { $kind: 'Cursor'; position: StreamPosition }
 	| { $kind: 'IndexedTip'; checkpoint: bigint }
 	| { $kind: 'Genesis' };
 
-export type TokenRange<P> =
+export type TokenRange =
 	| { $kind: 'Follow' }
-	| { $kind: 'Finite'; order: SuiClientTypes.Order; capturedTip?: bigint; end: RangeEnd<P> };
+	| { $kind: 'Finite'; order: SuiClientTypes.Order; capturedTip?: bigint; end: RangeEnd };
 
-/** A decoded token. Positions are still the transport's codec bytes. */
+/** A decoded token. */
 export interface StreamToken {
 	transport: StreamTransport;
 	family: StreamFamily;
 	chain: string;
 	filter: Uint8Array;
 	coverage: Coverage;
-	position: Uint8Array;
-	range: TokenRange<Uint8Array>;
-}
-
-/** Converts the cursor end of a range, the only position a range holds. */
-export function mapRangePosition<A, B>(
-	range: TokenRange<A>,
-	map: (position: A) => B,
-): TokenRange<B> {
-	if (range.$kind === 'Follow' || range.end.$kind !== 'Cursor') return range as TokenRange<B>;
-	return { ...range, end: { $kind: 'Cursor', position: map(range.end.position) } };
+	position: StreamPosition;
+	range: TokenRange;
 }
 
 export function encodeToken(token: StreamToken): string {
@@ -92,22 +90,11 @@ export function decodeToken(value: string): StreamToken {
 	}
 	// Re-encoding rejects trailing bytes and non-canonical BCS or base64.
 	if (encodeToken(token) !== value) throw invalidToken();
+	validatePosition(token.position);
+	if (token.range.$kind === 'Finite' && token.range.end.$kind === 'Cursor') {
+		validatePosition(token.range.end.position);
+	}
 	return token;
-}
-
-/** Decodes and validates a position from token bytes with the transport's codec. */
-export function decodePosition<P>(codec: PositionCodec<P>, bytes: Uint8Array): P {
-	let position: P;
-	try {
-		position = codec.schema.parse(bytes);
-	} catch (cause) {
-		throw invalidToken(cause);
-	}
-	if (!sameBytes(codec.schema.serialize(position).toBytes(), bytes)) {
-		throw invalidToken();
-	}
-	codec.validate(position);
-	return position;
 }
 
 export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
@@ -147,7 +134,7 @@ function toEnvelope(token: StreamToken) {
 			{ checkpoints: true } | { transactions: true } | { events: true },
 		chain: token.chain,
 		filter: token.filter,
-		coverage: coverageToEnvelope(token.coverage),
+		coverage: coverageToBcs(token.coverage),
 		position: token.position,
 		range:
 			token.range.$kind === 'Follow'
@@ -162,18 +149,7 @@ function toEnvelope(token: StreamToken) {
 	};
 }
 
-function coverageToEnvelope(coverage: Coverage) {
-	switch (coverage.$kind) {
-		case 'Unknown':
-			return null;
-		case 'None':
-			return { None: true as const };
-		case 'Through':
-			return { Through: coverage.checkpoint };
-	}
-}
-
-function rangeEndToEnvelope(end: RangeEnd<Uint8Array>) {
+function rangeEndToEnvelope(end: RangeEnd) {
 	switch (end.$kind) {
 		case 'Checkpoint':
 			if (end.checkpoint > MAX_CHECKPOINT_END) throw new Error('Checkpoint end out of range');
@@ -193,24 +169,17 @@ function fromEnvelope(token: EnvelopeV1): StreamToken {
 		family: token.family.$kind,
 		chain: token.chain,
 		filter: Uint8Array.from(token.filter),
-		coverage: coverageFromEnvelope(token.coverage),
-		position: Uint8Array.from(token.position),
+		coverage: coverageFromBcs(token.coverage),
+		position: token.position,
 		range:
 			token.range.$kind === 'Follow' ? { $kind: 'Follow' } : finiteFromEnvelope(token.range.Finite),
 	};
 }
 
-function coverageFromEnvelope(coverage: EnvelopeV1['coverage']): Coverage {
-	if (!coverage) return { $kind: 'Unknown' };
-	return coverage.$kind === 'None'
-		? { $kind: 'None' }
-		: { $kind: 'Through', checkpoint: BigInt(coverage.Through) };
-}
-
 function finiteFromEnvelope(
 	finite: Extract<EnvelopeV1['range'], { $kind: 'Finite' }>['Finite'],
-): TokenRange<Uint8Array> {
-	let end: RangeEnd<Uint8Array>;
+): TokenRange {
+	let end: RangeEnd;
 	switch (finite.end.$kind) {
 		case 'Checkpoint': {
 			const checkpoint = BigInt(finite.end.Checkpoint);
@@ -219,7 +188,7 @@ function finiteFromEnvelope(
 			break;
 		}
 		case 'Cursor':
-			end = { $kind: 'Cursor', position: Uint8Array.from(finite.end.Cursor) };
+			end = { $kind: 'Cursor', position: finite.end.Cursor };
 			break;
 		case 'IndexedTip':
 			end = { $kind: 'IndexedTip', checkpoint: BigInt(finite.end.IndexedTip) };

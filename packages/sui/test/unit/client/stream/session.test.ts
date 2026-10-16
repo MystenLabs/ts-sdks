@@ -15,6 +15,7 @@ import {
 	stream,
 	take,
 	tokenOf,
+	positionOf,
 } from './fake-ledger.js';
 
 /** Checkpoints 0..`last`, one item each, indexed through `tip`. */
@@ -27,7 +28,13 @@ describe('deduplication', () => {
 			const ledger = ledgerOf(5);
 			const token = tokenOf(
 				(
-					await take(stream(fakeAdapter(ledger), { start: { checkpoint: 0 }, follow: false }), 2)
+					await take(
+						stream(fakeAdapter(ledger, { opaqueOrder }), {
+							start: { checkpoint: 0 },
+							follow: false,
+						}),
+						2,
+					)
 				)[1],
 			);
 			const adapter = fakeAdapter(ledger, {
@@ -205,7 +212,7 @@ describe('live delivery', () => {
 		const frames = await take(stream(adapter, { start: { checkpoint: 9 } }), 6);
 		expect(ids(frames)).toEqual(['9:0', '10:0', '11:0', '12:0', '13:0', '14:0']);
 		expect(adapter.calls.scans[1]).toMatchObject({
-			end: { position: { checkpoint: 13n, slot: 1 } },
+			end: { position: positionOf({ checkpoint: 13n, index: 0 }) },
 		});
 	});
 
@@ -236,7 +243,9 @@ describe('live delivery', () => {
 		});
 		const frames = await take(stream(adapter), 3);
 		expect(ids(frames)).toEqual(['6:0', '7:0', '8:0']);
-		expect(adapter.calls.scans[0].start).toEqual({ position: { checkpoint: 6n, slot: 1 } });
+		expect(adapter.calls.scans[0].start).toEqual({
+			position: positionOf({ checkpoint: 6n, index: 0 }),
+		});
 	});
 });
 

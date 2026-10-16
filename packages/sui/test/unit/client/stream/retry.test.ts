@@ -16,6 +16,7 @@ import {
 	statusLog,
 	stream,
 	take,
+	positionOf,
 } from './fake-ledger.js';
 
 describe('retry budget', () => {
@@ -85,7 +86,7 @@ describe('retries in a stream', () => {
 		const frames = await collect(stream(adapter, { start: { checkpoint: 0 }, follow: false }));
 		expect(ids(frames)).toEqual(['0:0', '1:0', '2:0', '3:0', '4:0', '5:0']);
 		expect(adapter.calls.scans[1]).toMatchObject({
-			start: { position: { checkpoint: 1n, slot: 1 } },
+			start: { position: positionOf({ checkpoint: 1n, index: 0 }) },
 			end: { checkpoint: 6n },
 		});
 		expect(adapter.calls.indexedTip).toBe(1);
