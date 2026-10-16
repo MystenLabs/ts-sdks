@@ -23,12 +23,14 @@ export async function* followLedger<Node>(
 	family: LedgerFamily<Node>,
 	session: Session<Node>,
 ): AsyncGenerator<CoreFrame<ItemFrame>, void> {
+	// A subscription resumed below the server's retention fails without saying why, so away from
+	// the live tip history is paged first, and its first page checks retention.
+	if (session.catchesUpFirst()) yield* session.replay('tip', 'history');
+	// A stream anchored at the tip has nothing committed. Filtered subscriptions report no progress,
+	// so commit the anchor for a token before the first match.
 	const start = session.start;
-	if (!session.committed && start && 'checkpoint' in start) {
-		// Nothing comes before genesis to resume after, so history is read first.
-		if (start.checkpoint === 0n) yield* session.replay('tip', 'history');
-		// Filtered subscriptions report no progress, so commit the start for a token before a match.
-		else yield* session.baseline(boundaryPosition(start.checkpoint - 1n));
+	if (!session.committed && start && 'checkpoint' in start && start.checkpoint > 0n) {
+		yield* session.baseline(boundaryPosition(start.checkpoint - 1n));
 	}
 
 	// Closing must not wait for a quiet feed's pending read: abort it first.
