@@ -134,7 +134,9 @@ export function mapTransactionEffects(
 	transaction: Pick<MappableTransaction, 'effects' | 'epoch' | 'transaction'>,
 ): TransactionEffects {
 	const effects = transaction.effects;
-	const inputVersions = getTransactionInputVersions(programmableBody(transaction.transaction));
+	const inputVersions = getTransactionInputVersions(
+		programmableBody(transaction.transaction) ?? NO_PROGRAMMABLE_BODY,
+	);
 	const created: OwnedObjectRef[] = [];
 	const mutated: OwnedObjectRef[] = [];
 	const unwrapped: OwnedObjectRef[] = [];
@@ -237,7 +239,9 @@ export function mapObjectChanges(
 	const objectTypes = transaction.objectTypes;
 	const transactionData = transaction.transaction;
 	const sender = transactionData.sender ?? transactionData.gasData.owner ?? '';
-	const publishModuleNames = getPublishedModuleNames(programmableBody(transactionData));
+	const publishModuleNames = getPublishedModuleNames(
+		programmableBody(transactionData) ?? NO_PROGRAMMABLE_BODY,
+	);
 	const changes: SuiObjectChange[] = [];
 
 	for (const change of effects.changedObjects) {
@@ -512,27 +516,30 @@ function getTransactionInputVersions(
 	return versions;
 }
 
+const NO_PROGRAMMABLE_BODY: SuiClientTypes.ProgrammableTransaction = { inputs: [], commands: [] };
+
 /**
- * The inputs and commands of a programmable transaction. Throws for other transaction kinds,
- * which have no JSON-RPC input mapping here.
+ * The inputs and commands of a programmable transaction, or `null` for other kinds: system
+ * transactions, and `Unknown` kinds the client could not map.
  */
 function programmableBody(
 	transaction: SuiClientTypes.TransactionData,
-): SuiClientTypes.ProgrammableTransaction {
-	const body =
-		transaction.kind.ProgrammableTransaction ?? transaction.kind.ProgrammableSystemTransaction;
-
-	if (!body) {
-		throw new Error(`Unsupported transaction kind ${transaction.kind.$kind}`);
-	}
-
-	return body;
+): SuiClientTypes.ProgrammableTransaction | null {
+	return (
+		transaction.kind.ProgrammableTransaction ??
+		transaction.kind.ProgrammableSystemTransaction ??
+		null
+	);
 }
 
 export function mapTransactionDataToInput(
 	transaction: SuiClientTypes.TransactionData,
 ): TransactionBlockData {
 	const body = programmableBody(transaction);
+	if (!body) {
+		// JSON-RPC inputs are only mapped for programmable transactions.
+		throw new Error(`Unsupported transaction kind ${transaction.kind.$kind}`);
+	}
 	const pureInputTypes = getPureInputTypes(body);
 
 	return {

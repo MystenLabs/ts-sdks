@@ -724,3 +724,21 @@ describe('partial includes', () => {
 		expect(response.balanceChanges).toHaveLength(2);
 	});
 });
+
+describe('transaction kinds the client could not map', () => {
+	test('map effects and object changes but leave out the input', () => {
+		const { kind: _, ...header } = transaction.transaction;
+		const unknown = executedTransaction({ ...header, kind: { $kind: 'Unknown', Unknown: true } });
+		const response = transactionBlockResponseFromExecution(unknown, {
+			bytes,
+			signatures: [SIGNATURE],
+			options: { showInput: true, showEffects: true, showObjectChanges: true },
+		});
+
+		expect(response.transaction).toBeUndefined();
+		expect(response.effects).toEqual(build({ options: { showEffects: true } }).effects);
+		expect(response.objectChanges).toEqual(
+			build({ options: { showObjectChanges: true } }).objectChanges,
+		);
+	});
+});

@@ -139,6 +139,9 @@ switch (data.kind.$kind) {
 	case 'Genesis':
 		console.log(data.kind.Genesis.objects.length);
 		break;
+	case 'Unknown':
+		console.log('Transaction kind not supported by this SDK version');
+		break;
 	default:
 		console.log('System transaction:', data.kind.$kind);
 }
@@ -146,6 +149,17 @@ switch (data.kind.$kind) {
 
 `ProgrammableTransaction` and `ProgrammableSystemTransaction` contain `inputs` and `commands`. Other
 kinds, such as `Genesis`, `ChangeEpoch`, and `RandomnessStateUpdate`, have their own payloads.
+
+Transaction data is mapped from the structured data each transport returns, so a network upgrade
+that adds new transaction kinds does not break reads in older SDK versions. A kind the SDK does not
+recognize, or a programmable transaction with an input or command it cannot map, is returned as
+`{ $kind: 'Unknown', Unknown: true }`, with `sender`, `gasData`, and `expiration` still populated.
+End-of-epoch operations it does not recognize are returned as `Unknown` entries in
+`EndOfEpochTransaction`, and an unrecognized expiration is returned as `null`.
+
+To decode transaction bytes yourself, use `parseTransactionDataBcs` from `@mysten/sui/client`. It
+returns the same shape but is strict: BCS cannot be partially decoded, so it throws on bytes that
+use a variant the SDK does not know.
 
 ## `waitForTransaction`
 
