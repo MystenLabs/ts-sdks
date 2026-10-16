@@ -19,5 +19,5 @@ Removed:
   normalized Move types to `SuiClientTypes.OpenSignature`. The core API's `getMoveFunction` already
   returns `OpenSignature`s.
 
-Raw (untyped) pure values, such as those in a transaction restored from v1 JSON, are now resolved
-on every client before server-side resolution, so the gRPC and GraphQL clients can build them.
+The gRPC and GraphQL clients can now build transactions that contain raw (untyped) pure values,
+such as those restored from v1 transaction JSON.

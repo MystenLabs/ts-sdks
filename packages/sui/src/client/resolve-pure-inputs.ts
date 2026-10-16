@@ -19,14 +19,9 @@ export interface ResolveUnresolvedPureInputsOptions {
 }
 
 /**
- * Resolve the `UnresolvedPure` inputs (raw JS values with no BCS type) of a transaction using the
- * signatures of the move functions they are passed to.
- *
- * Each value passed to a pure parameter is serialized with that parameter's BCS schema. A value
- * passed to an object parameter becomes an `UnresolvedObject` for the transport to resolve. The
- * signature of each distinct target is fetched once with `client.core.getMoveFunction`, and only
- * for move calls that need it. When the transaction has no `UnresolvedPure` inputs (and
- * `resolveObjectArgumentTypes` is off) this makes no requests and changes nothing.
+ * Serialize `UnresolvedPure` inputs (raw JS values with no BCS type) using the parameter types of
+ * the move functions they are passed to. Values passed to object parameters become
+ * `UnresolvedObject` inputs.
  */
 export async function resolveUnresolvedPureInputs(
 	transactionData: TransactionDataBuilder,
