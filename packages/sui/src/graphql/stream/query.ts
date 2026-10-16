@@ -58,15 +58,19 @@ export interface IndexState {
 	tip: bigint;
 }
 
-/** One request: the chain and the checkpoint range that `family` queries can read. */
+/**
+ * One request: the chain and the checkpoint range that `family` queries filtered by
+ * `filterFields` can read. Retention differs between filter indexes.
+ */
 export async function readIndexState(
 	client: SuiGraphQLClient,
 	family: StreamFamily,
+	filterFields: string[],
 	signal: AbortSignal,
 ): Promise<IndexState> {
 	const data = await queryData(client, {
 		query: LedgerStreamStateDocument,
-		variables: { field: family },
+		variables: { field: family, filters: filterFields },
 		signal,
 	});
 	const { first, last } = data.serviceConfig.availableRange;

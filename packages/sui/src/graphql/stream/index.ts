@@ -45,7 +45,8 @@ function adapterFor<Node>(
 	family: LedgerFamily<Node>,
 	follow: FollowOptions,
 ): LedgerStreamAdapter<GraphQLPosition, LedgerItem<Node>, ItemFrame> {
-	const indexState = (signal: AbortSignal) => readIndexState(client, family.name, signal);
+	const indexState = (signal: AbortSignal) =>
+		readIndexState(client, family.name, family.filterFields(), signal);
 	return {
 		transport: 'graphql',
 		family: family.name,

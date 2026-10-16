@@ -84,6 +84,8 @@ export interface LedgerFamily<Node> {
 	readonly onePerCheckpoint: boolean;
 	/** Resolves names in the caller's filter, once, before any page or subscription. */
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
+	/** The GraphQL filter fields page queries set, which choose the indexes (and retention). */
+	filterFields(): string[];
 	page(request: PageRequest): Promise<Connection<Node> | null>;
 	/** Live edges from now on; never resumed with `after`. `onOpen` runs once the server accepts. */
 	subscribe(signal: AbortSignal, onOpen: () => void): AsyncIterable<Edge<Node>>;
@@ -117,6 +119,7 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 		name: 'checkpoints',
 		onePerCheckpoint: true,
 		resolveFilter: async () => undefined,
+		filterFields: () => [],
 		page: async ({ range, signal, ...cursors }) =>
 			(
 				await queryData(client, {
@@ -153,6 +156,7 @@ function transactionsFamily(
 			filter = options.filter && (await resolveTransactionFilter(mvr, options.filter, signal));
 			return filter;
 		},
+		filterFields: () => setFields(toGraphQLTransactionFilter(filter, {})),
 		page: async ({ range, signal, ...cursors }) =>
 			(
 				await queryData(client, {
@@ -204,6 +208,7 @@ function eventsFamily(
 			filter = options.filter && (await resolveEventFilter(mvr, options.filter, signal));
 			return filter;
 		},
+		filterFields: () => setFields(toGraphQLEventFilter(filter, {})),
 		page: async ({ range, signal, ...cursors }) =>
 			(
 				await queryData(client, {
@@ -230,6 +235,12 @@ function eventsFamily(
 			event: parseGraphQLEvent(node, checkpoint.toString(), 'Event stream'),
 		}),
 	};
+}
+
+function setFields(filter: object): string[] {
+	return Object.entries(filter)
+		.filter(([, value]) => value != null)
+		.map(([key]) => key);
 }
 
 /**

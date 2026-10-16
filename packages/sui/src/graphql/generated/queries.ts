@@ -394,6 +394,7 @@ export type Object_Owner_FieldsFragment =
 
 export type LedgerStreamStateQueryVariables = Exact<{
   field: string;
+  filters: Array<string> | string;
 }>;
 
 
@@ -1233,10 +1234,10 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const LedgerStreamStateDocument = new TypedDocumentString(`
-    query ledgerStreamState($field: String!) {
+    query ledgerStreamState($field: String!, $filters: [String!]!) {
   chainIdentifier
   serviceConfig {
-    availableRange(type: "Query", field: $field) {
+    availableRange(type: "Query", field: $field, filters: $filters) {
       first {
         sequenceNumber
       }

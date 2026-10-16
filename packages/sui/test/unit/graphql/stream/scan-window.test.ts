@@ -88,6 +88,11 @@ describe('resolveScanWindow', () => {
 			{ lower: 9n, upper: 13n },
 		],
 		[
+			'a descending read to genesis stops at the oldest retained checkpoint',
+			{ start: at(10), descending: true },
+			{ lower: 5n, upper: 11n, pruned: true },
+		],
+		[
 			'descending item end bounds by cursor from its checkpoint',
 			{ start: at(12), end: item(8), descending: true },
 			{ lower: 8n, upper: 13n, after: 'c8' },
@@ -103,7 +108,6 @@ describe('resolveScanWindow', () => {
 		['an ascending start below the oldest checkpoint', { start: at(4) }],
 		['an item start below the oldest checkpoint', { start: item(4) }],
 		['a boundary start below the oldest checkpoint', { start: boundary(3) }],
-		['a descending read to genesis', { start: at(10), descending: true }],
 	])('rejects %s as HistoryUnavailable', (_name, { start, end, descending }) => {
 		const order = descending ? 'descending' : 'ascending';
 		expect(() => resolveScanWindow({ start, end, order }, indexed, false)).toThrow(
