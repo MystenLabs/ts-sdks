@@ -213,7 +213,11 @@ export namespace SuiClientTypes {
 	export interface StreamCompletion {
 		range: StreamRange;
 		order: Order;
-		reason: 'checkpointBound' | 'cursorBound' | 'indexedTip' | 'genesis';
+		/**
+		 * `retentionLimit`: a read toward genesis stopped at the oldest checkpoint the server
+		 * retains, because older history has been pruned.
+		 */
+		reason: 'checkpointBound' | 'cursorBound' | 'indexedTip' | 'genesis' | 'retentionLimit';
 		/** Last delivered position, if there is one. */
 		resumeToken?: StreamResumeToken;
 	}

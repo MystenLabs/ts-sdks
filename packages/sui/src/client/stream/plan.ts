@@ -43,6 +43,8 @@ export interface StreamPlan<P> {
 	pollInterval: number;
 	/** This invocation's start, reported as the completion's `range.start`. */
 	start?: Bound<P>;
+	/** No start was given, so `start` was set from the indexed tip. */
+	anchored: boolean;
 	/** The exclusive end of every scan in a finite stream. */
 	end?: Bound<P>;
 	/** Written into every token. */
@@ -209,9 +211,13 @@ export async function planStream<P>(
 	const resumesFinite = resumedRange?.$kind === 'Finite';
 
 	let tip: bigint | undefined;
+	let anchored = false;
 	if (needsIndexedTip({ mode, order, start, explicitEnd, resumesFinite, adapter })) {
 		tip = await readIndexedTip();
-		start ??= { checkpoint: order === 'descending' ? tip : tip + 1n };
+		if (!start) {
+			start = { checkpoint: order === 'descending' ? tip : tip + 1n };
+			anchored = true;
+		}
 	}
 
 	let range: TokenRange<P>;
@@ -228,6 +234,7 @@ export async function planStream<P>(
 		order,
 		pollInterval: traversal.pollInterval,
 		start,
+		anchored,
 		end,
 		range,
 		capturedTip: capturedTip(range),

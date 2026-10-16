@@ -22,7 +22,11 @@ import type {
 	ScanRequest,
 } from '../../../../src/client/stream/adapter.js';
 import { createLedgerStream } from '../../../../src/client/stream/run.js';
-import { coverageBefore, startBeyondTip } from '../../../../src/client/stream/index.js';
+import {
+	coverageBefore,
+	startBeyondTip,
+	SuiStreamError,
+} from '../../../../src/client/stream/index.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 
 export interface FakeItem {
@@ -140,6 +144,8 @@ export interface FakeOptions {
 	 * position (gRPC). `resume`: a subscription that resumes after the start position (GraphQL).
 	 */
 	handoff?: 'cursor' | 'resume';
+	/** The oldest retained checkpoint; older history is pruned. */
+	retainedFrom?: bigint;
 	/** Report scan frontiers as Progress events (gRPC watermarks). */
 	scanProgress?: boolean;
 	/** The transport cannot order positions. */
@@ -250,11 +256,15 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		}
 		const before = toPosition(request.start, 'descending') ?? boundary(ledger.indexedTip + 1n);
 		const after = toPosition(request.end, 'descending');
-		const items = ledger.between(after ?? boundary(-1), before).reverse();
+		const floor = options.retainedFrom ?? 0n;
+		if (after && after.checkpoint < floor) {
+			throw new SuiStreamError('HistoryUnavailable', `Checkpoint ${after.checkpoint} is pruned`);
+		}
+		const items = ledger.between(after ?? boundary(floor), before).reverse();
 		yield* pages(items, fault);
 		if (fault && 'omitEnd' in fault) return;
 		yield { $kind: 'Page', end: after ? 'bound' : 'indexedTip', coverage: { $kind: 'Unknown' } };
-		yield { $kind: 'End', complete: true };
+		yield { $kind: 'End', complete: true, retentionLimit: !after && floor > 0n };
 	}
 
 	async function* pages(
