@@ -141,15 +141,19 @@ export interface Edge {
 	node: Record<string, any>;
 }
 
-/** One history page. `cursor` overrides both page cursors (an opaque frontier). */
+/**
+ * One history page. `cursor` overrides both page cursors (an opaque frontier). `viewedAt` is the
+ * checkpoint the answering replica had indexed, when it is behind the reported tip.
+ */
 export function page(
 	family: Family,
 	edges: Edge[],
-	options: { more?: boolean; cursor?: string } = {},
+	options: { more?: boolean; cursor?: string; viewedAt?: number } = {},
 ): Answer {
 	const more = options.more ?? false;
 	return reply({
 		data: {
+			...(options.viewedAt !== undefined && { viewedAt: { sequenceNumber: options.viewedAt } }),
 			[family]: {
 				edges,
 				pageInfo: {
