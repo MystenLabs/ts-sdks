@@ -35,6 +35,11 @@ query scanCheckpoints(
 	$last: Int
 	$before: String
 ) {
+	# The checkpoint this response was read at: a load-balanced replica can lag the one that
+	# reported the indexed tip, and a page covers only what its own replica had indexed.
+	viewedAt: checkpoint {
+		sequenceNumber
+	}
 	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
 			...STREAM_PAGE_INFO
@@ -58,6 +63,11 @@ subscription subscribeCheckpoints {
 }
 
 query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	# The checkpoint this response was read at: a load-balanced replica can lag the one that
+	# reported the indexed tip, and a page covers only what its own replica had indexed.
+	viewedAt: checkpoint {
+		sequenceNumber
+	}
 	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
 			...STREAM_PAGE_INFO
@@ -94,6 +104,11 @@ query scanTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
+	# The checkpoint this response was read at: a load-balanced replica can lag the one that
+	# reported the indexed tip, and a page covers only what its own replica had indexed.
+	viewedAt: checkpoint {
+		sequenceNumber
+	}
 	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
 			...STREAM_PAGE_INFO

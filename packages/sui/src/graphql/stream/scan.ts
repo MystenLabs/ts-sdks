@@ -60,7 +60,8 @@ export function resolveScanWindow(
 	const window: ScanWindow = { lower: 0n, upper: indexed.tip + 1n };
 
 	if (low && 'position' in low) {
-		window.after = low.position.cursor;
+		// A boundary made without a page has no cursor; its checkpoint bounds the window alone.
+		if (low.position.cursor) window.after = low.position.cursor;
 		const checkpoint = low.position.checkpoint;
 		// A checkpoint or a boundary excludes its whole checkpoint; a transaction or event shares
 		// it with the items after it.
@@ -133,9 +134,15 @@ export async function* scanLedger<Node>(
 	}
 
 	const window = resolveScanWindow(request, indexed, family.onePerCheckpoint);
-	const complete = window.target === undefined || indexed.tip >= window.target;
+	const reaches = (tip: bigint) => window.target === undefined || tip >= window.target;
+	let complete = reaches(indexed.tip);
 	if (window.lower >= window.upper) {
 		assertNotPruned(window);
+		// Nothing to read yet. An ascending checkpoint start still gets a resumable position, so a
+		// quiet stream (such as a fresh follow anchored at the tip) has a token before any match.
+		if (!descending && start && 'checkpoint' in start && window.lower > 0n) {
+			yield { $kind: 'Progress', position: boundaryPosition('', window.lower - 1n) };
+		}
 		yield { $kind: 'End', complete };
 		return;
 	}
@@ -144,9 +151,12 @@ export async function* scanLedger<Node>(
 	const endItem = end && 'position' in end ? end.position : undefined;
 	let { after, before } = window;
 	let last = start && 'position' in start ? start.position : undefined;
+	// The last checkpoint the pages read so far could have returned, which a lagging replica
+	// answering a page can bring below the window's top.
+	let seen = window.upper - 1n;
 	const coverage = (exhausted: boolean): Coverage => {
 		if (descending) return { $kind: 'Unknown' };
-		if (exhausted && !window.before) return coverageBefore(window.upper);
+		if (exhausted && !window.before) return coverageBefore(seen + 1n);
 		return last ? positionCoverage(last, family.onePerCheckpoint) : { $kind: 'Unknown' };
 	};
 
@@ -156,7 +166,16 @@ export async function* scanLedger<Node>(
 			...pageCursors(order, PAGE_SIZE, after, before),
 			signal,
 		});
-		if (!page) throw new SuiStreamError('Protocol', `GraphQL ${family.name} connection is missing`);
+		if (page.viewedAt !== null) {
+			// A replica behind the start would silently miss the newest items: read again later.
+			const first = after === window.after && before === window.before;
+			if (first && resumesFromIndex && startBeyondTip(start, page.viewedAt, positionCheckpoint)) {
+				yield { $kind: 'End', complete: false };
+				return;
+			}
+			if (page.viewedAt < seen) seen = page.viewedAt;
+			complete &&= reaches(page.viewedAt);
+		}
 		const edges = descending ? [...page.edges].reverse() : page.edges;
 		for (const event of await itemEvents(client, family, edges, signal)) {
 			last = event.position;
@@ -178,7 +197,7 @@ export async function* scanLedger<Node>(
 		if (!more || (stalled && !endItem?.itemId)) {
 			// Where this pass stopped, so the next one (a resume, the next poll or the next wait
 			// for a future end) starts there instead of rereading the window.
-			const progress = cursor && edges.length === 0 && exhaustedProgress(cursor, window, request);
+			const progress = exhaustedProgress(cursor, edges.length > 0, window, seen, request);
 			if (progress) yield progress;
 			assertNotPruned(window);
 			yield {
@@ -194,7 +213,7 @@ export async function* scanLedger<Node>(
 			const reached = await reachedExcludedEndItem(family, {
 				range,
 				order,
-				from: last?.cursor,
+				from: last?.cursor || undefined,
 				endItemId: endItem.itemId,
 				signal,
 			});
@@ -207,7 +226,7 @@ export async function* scanLedger<Node>(
 		if (!cursor) throw new SuiStreamError('Protocol', 'Pagination did not advance: no cursor');
 		assertAdvanced(previous, cursor);
 
-		if (edges.length === 0 && (!end || !descending)) yield frontierProgress(cursor, window);
+		if (edges.length === 0 && (!end || !descending)) yield frontierProgress(cursor, seen);
 		yield { $kind: 'Page', end: 'limit', coverage: coverage(false) };
 		if (descending) before = cursor;
 		else after = cursor;
@@ -239,7 +258,6 @@ async function reachedExcludedEndItem<Node>(
 		const after = descending ? undefined : cursor;
 		const before = descending ? cursor : undefined;
 		const page = await family.page({ range, ...pageCursors(order, 1, after, before), signal });
-		if (!page) return false;
 		const next = descending ? page.edges.at(-1) : page.edges[0];
 		if (next) return family.identity(next.node) === endItemId;
 		const end = pageEnd(page, order);
@@ -262,27 +280,32 @@ function checkpointRange(window: ScanWindow, onePerCheckpoint: boolean): Resolve
 }
 
 /**
- * Where a pass that read its whole window stopped without new items. Ascending up to a checkpoint
- * bound or the tip, that is a boundary: every checkpoint below `upper` was read. Otherwise it is a
- * frontier, which only an unbounded descending scan or a cursor-bounded one can use.
+ * Where a pass that read its whole window stopped. Ascending up to a checkpoint bound or the tip,
+ * that is a boundary, after the last item if there was one: every checkpoint below `upper` was
+ * read, so a resume never rereads (or needs the retention of) anything before it. Otherwise, after
+ * an empty page, it is a frontier, which only an unbounded descending scan or a cursor-bounded one
+ * can use.
  */
 function exhaustedProgress(
-	cursor: string,
+	cursor: string | null,
+	hadItems: boolean,
 	window: ScanWindow,
+	seen: bigint,
 	{ order, end }: Pick<ScanRequest<GraphQLPosition>, 'order' | 'end'>,
 ): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> | undefined {
 	if (order === 'ascending' && !window.before) {
-		return { $kind: 'Progress', position: boundaryPosition(cursor, window.upper - 1n) };
+		return { $kind: 'Progress', position: boundaryPosition(cursor ?? '', seen) };
 	}
-	return !end || order === 'ascending' ? frontierProgress(cursor, window) : undefined;
+	if (hadItems || !cursor) return undefined;
+	return !end || order === 'ascending' ? frontierProgress(cursor, seen) : undefined;
 }
 
 /** Where a scan stopped part way, resumable once the index reaches the same tip again. */
 function frontierProgress(
 	cursor: string,
-	window: ScanWindow,
+	seen: bigint,
 ): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> {
-	return { $kind: 'Progress', position: frontierPosition(cursor, window.upper - 1n) };
+	return { $kind: 'Progress', position: frontierPosition(cursor, seen) };
 }
 
 /** A descending read to genesis that reached the oldest retained checkpoint above genesis. */

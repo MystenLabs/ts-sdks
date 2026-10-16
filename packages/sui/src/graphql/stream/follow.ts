@@ -155,6 +155,8 @@ async function* liveEvents<Node>(
 	{ pollInterval, state }: FollowOptions,
 ): AsyncGenerator<LiveEvent<GraphQLPosition, LedgerItem<Node>>> {
 	let connected = false;
+	// Consecutive events of one transaction share its checkpoint: look it up once.
+	let placed: { digest: string; checkpoint: bigint } | undefined;
 	for await (const edge of family.subscribe(signal, onOpen)) {
 		if (!connected) {
 			connected = true;
@@ -164,11 +166,14 @@ async function* liveEvents<Node>(
 		let checkpoint: bigint;
 		if (typeof reported === 'bigint') {
 			checkpoint = reported;
+		} else if (placed?.digest === reported.digest) {
+			checkpoint = placed.checkpoint;
 		} else {
 			// Kept if the lookup fails, so the next handoff still covers this item.
 			state.unplaced = reported.digest;
 			checkpoint = await placeTransaction(client, reported.digest, signal, pollInterval);
 			state.unplaced = undefined;
+			placed = { digest: reported.digest, checkpoint };
 		}
 		yield {
 			$kind: 'Item',
