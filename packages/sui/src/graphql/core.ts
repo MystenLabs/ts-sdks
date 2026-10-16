@@ -1081,9 +1081,8 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {
-	// effectsJson is fetched whenever effects or objectTypes are requested. Its changed objects
-	// carry the object types that the BCS effects lack, from the same source gRPC uses
-	// (`effects.changed_objects.object_type`).
+	// BCS effects lack object types, so take them from effectsJson, which matches the source gRPC
+	// uses (`effects.changed_objects.object_type`).
 	const effectsObjectTypes: Record<string, string> = {};
 	const effectsJson = transaction.effects?.effectsJson;
 	if (effectsJson) {
