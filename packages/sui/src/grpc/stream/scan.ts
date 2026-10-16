@@ -70,11 +70,7 @@ export async function* scanLedger(
 	const { order, signal } = request;
 	const family = calls.family;
 	// Items below an unindexed descending start would get tokens that skip the unindexed part.
-	if (
-		order === 'descending' &&
-		request.start &&
-		startBeyondTip(request.start, await calls.indexedTip(signal), locatePosition)
-	) {
+	if (order === 'descending' && !(await startIndexed(calls, request))) {
 		yield { $kind: 'End', complete: false };
 		return;
 	}
@@ -90,6 +86,7 @@ export async function* scanLedger(
 		const call = calls.list(listQuery(bounds, order), signal);
 		let reason: QueryEndReason | undefined;
 		let terminal: GrpcPosition | undefined;
+		let lowest: bigint | undefined;
 		try {
 			for await (const frame of call) {
 				if (!connected) {
@@ -115,6 +112,7 @@ export async function* scanLedger(
 				yield item ? { $kind: 'Item', position, item } : { $kind: 'Progress', position };
 				if (reason !== undefined) {
 					terminal = position;
+					lowest = frame.watermark?.checkpoint;
 					yield { $kind: 'Page', end: pageEnd(reason), coverage: position.coverage };
 				}
 			}
@@ -138,9 +136,25 @@ export async function* scanLedger(
 			else bounds.before = cursor;
 			continue;
 		}
-		yield { $kind: 'End', complete: reachedEnd(reason, terminal, request, bounds) };
+		// Without an end, the server stops a descending read at the oldest checkpoint it retains.
+		const retentionLimit = order === 'descending' && !request.end && !!lowest;
+		yield {
+			$kind: 'End',
+			complete: reachedEnd(reason, terminal, request, bounds),
+			...(retentionLimit && { retentionLimit }),
+		};
 		return;
 	}
+}
+
+/** Whether `start` is indexed. The tip captured when the range was planned answers without a call. */
+async function startIndexed(
+	calls: GrpcStreamCalls,
+	{ start, capturedTip, signal }: ScanRequest<GrpcPosition>,
+): Promise<boolean> {
+	if (!start) return true;
+	if (capturedTip !== undefined && !startBeyondTip(start, capturedTip, locatePosition)) return true;
+	return !startBeyondTip(start, await calls.indexedTip(signal), locatePosition);
 }
 
 /** The indexed tip: the newest checkpoint a List call can read. */

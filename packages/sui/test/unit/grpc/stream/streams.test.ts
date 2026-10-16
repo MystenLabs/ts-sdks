@@ -866,6 +866,40 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			]);
 		});
 
+		it('reads descending to the retention limit with one request per page, then completes', async () => {
+			const l = ledger().list(
+				'ListEvents',
+				[event(9, 0, { covered: null, end: 'ITEM_LIMIT' })],
+				[event(8, 0, { covered: null }), ended('CHECKPOINT_BOUND', 7)],
+			);
+			const frames = await collect(
+				l.client().streamEvents({ order: 'descending', frames: { completion: true } }),
+			);
+			expect(eventIds(frames)).toEqual(['9:0', '8:0']);
+			expect(frames.at(-1)).toMatchObject({
+				$kind: 'Complete',
+				completion: { reason: 'retentionLimit' },
+			});
+			expect(l.calls).toEqual(['GetServiceInfo', 'tip', 'ListEvents', 'ListEvents']);
+		});
+
+		it('fails an end below the retention limit with HistoryUnavailable after one request', async () => {
+			const l = ledger().list('ListEvents', {
+				frames: [],
+				end: new RpcError('pruned', 'OUT_OF_RANGE'),
+			});
+			await expect(
+				collect(
+					l.client().streamEvents({
+						order: 'descending',
+						end: { checkpoint: 2 },
+						retry: { maxAttempts: 5 },
+					}),
+				),
+			).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			expect(l.calls).toEqual(['GetServiceInfo', 'tip', 'ListEvents']);
+		});
+
 		it('makes one request per poll tick', async () => {
 			const l = ledger().list(
 				'ListEvents',
