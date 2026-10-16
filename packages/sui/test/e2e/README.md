@@ -27,5 +27,6 @@ SUI_GRAPHQL_IMAGE=mysten/sui-indexer-alt-graphql-preview:102843cdc9b87afebefbf90
 ```
 
 `clients/streams.test.ts` needs a fullnode and GraphQL service at version TODO or later, which
-resume subscriptions without gaps and fill every field of live items. Until a published `sui-tools`
-image has them, build one and point `SUI_TOOLS_TAG` at it.
+resume subscriptions without gaps and fill every field of live items. On older servers the harness
+detects this and skips the cases that depend on it. Until a published `sui-tools` image has them,
+build one and point `SUI_TOOLS_TAG` at it.
