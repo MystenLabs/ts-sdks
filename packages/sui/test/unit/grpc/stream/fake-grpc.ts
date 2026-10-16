@@ -87,6 +87,8 @@ export interface Request {
 export class FakeLedger implements RpcTransport {
 	readonly delivery: Delivery;
 	readonly requests: Request[] = [];
+	/** Every call the client made, in order, including tip reads and `GetServiceInfo`. */
+	readonly calls: string[] = [];
 	/** Frames handed to the consumer, per method. */
 	readonly reads: Record<string, number> = {};
 	/** Calls cancelled by the client, per method. */
@@ -142,6 +144,7 @@ export class FakeLedger implements RpcTransport {
 
 	#script(method: MethodInfo, input: object): Script {
 		if (method.name === 'ListCheckpoints' && isTipRead(input)) {
+			this.calls.push('tip');
 			this.tipReads++;
 			const tip = BigInt(this.#tip());
 			return {
@@ -154,6 +157,7 @@ export class FakeLedger implements RpcTransport {
 				],
 			};
 		}
+		this.calls.push(method.name);
 		this.requests.push({ method: method.name, input: input as Request['input'] });
 		const next = this.#scripts.get(method.name)?.shift();
 		if (next) return typeof next === 'function' ? next(input as GrpcTypes.ListEventsRequest) : next;
@@ -249,6 +253,7 @@ export class FakeLedger implements RpcTransport {
 
 	unary<I extends object, O extends object>(method: MethodInfo<I, O>, input: I): UnaryCall<I, O> {
 		if (method.name !== 'GetServiceInfo') throw new Error(`Unexpected unary ${method.name}`);
+		this.calls.push(method.name);
 		return new UnaryCall(
 			method,
 			{},
