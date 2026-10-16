@@ -13,8 +13,8 @@ import {
 } from './position.js';
 
 /**
- * The events of one subscription call. Checks the server's ordering guarantees and records
- * coverage carried on from `committed`: once the gap is replayed, the two are contiguous.
+ * The events of one subscription call, with coverage carried on from `committed` (contiguous once
+ * the gap is replayed).
  *
  * @yields `Connected` once, then one Item or Progress event per frame.
  */
