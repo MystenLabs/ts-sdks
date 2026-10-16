@@ -8,8 +8,10 @@ import type {
 } from '../bcs/transactions.js';
 import type {
 	TransactionPlugin,
-	SerializedTransactionDataV2,
 	Argument,
+	CallArg as BuilderCallArg,
+	Command as BuilderCommand,
+	TransactionData as BuilderTransactionData,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
 import type { Signer } from '../cryptography/keypair.js';
@@ -441,16 +443,20 @@ export namespace SuiClientTypes {
 	 * Ledger transaction data, including programmable and system kinds. Narrow `kind.$kind` to
 	 * read the transaction's payload, such as the inputs and commands of a programmable
 	 * transaction.
+	 *
+	 * These are read types: they describe the resolved values the clients return, with `$kind`
+	 * discriminants, and leave out builder-only variants such as unresolved inputs and intents.
 	 */
-	export interface TransactionData extends Omit<
-		SerializedTransactionDataV2,
-		'inputs' | 'commands' | 'digest'
-	> {
+	export interface TransactionData {
+		version: 2;
+		sender: string | null;
+		gasData: TransactionGasData;
+		expiration: TransactionExpiration | null;
 		kind: TransactionKind;
 	}
 
-	export type TransactionGasData = TransactionData['gasData'];
-	export type TransactionExpiration = TransactionData['expiration'];
+	export type TransactionGasData = BuilderTransactionData['gasData'];
+	export type TransactionExpiration = NonNullable<BuilderTransactionData['expiration']>;
 	/**
 	 * Discriminate ledger transaction kinds using `kind.$kind`. Kinds this SDK version does not
 	 * recognize, or whose contents it cannot map, are returned as `Unknown` rather than failing
@@ -465,9 +471,17 @@ export namespace SuiClientTypes {
 					? EndOfEpochTransactionKind[]
 					: NonNullable<BcsTransactionKind[Exclude<Kind, 'Unknown'>]>;
 	}>;
-	export type ProgrammableTransaction = Pick<SerializedTransactionDataV2, 'inputs' | 'commands'>;
-	export type TransactionInput = ProgrammableTransaction['inputs'][number];
-	export type TransactionCommand = ProgrammableTransaction['commands'][number];
+	export interface ProgrammableTransaction {
+		inputs: TransactionInput[];
+		commands: TransactionCommand[];
+	}
+	/** A resolved input; transactions on chain never contain unresolved inputs. */
+	export type TransactionInput = Exclude<
+		BuilderCallArg,
+		{ $kind: 'UnresolvedPure' | 'UnresolvedObject' }
+	>;
+	/** A command; transactions on chain never contain intents. */
+	export type TransactionCommand = Exclude<BuilderCommand, { $kind: '$Intent' }>;
 	export type TransactionArgument = Argument;
 	export type ChangeEpochTransaction = NonNullable<TransactionKind['ChangeEpoch']>;
 	export type GenesisTransaction = NonNullable<TransactionKind['Genesis']>;
