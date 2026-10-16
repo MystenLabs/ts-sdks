@@ -12,13 +12,9 @@ import type {
 } from '@protobuf-ts/runtime-rpc';
 
 /**
- * A server-streaming call whose response messages are read from the network only as `responses`
- * is pulled.
- *
- * `responses` has a single consumer. `return()` (a `break` out of `for await`) cancels the call,
- * including a read that is in progress. `status` and `trailers` settle once the consumer reaches
- * the end of the stream, or when the call fails or is cancelled; a call that is never iterated
- * settles only `headers`.
+ * A server-streaming call whose messages are read from the network only as `responses` is pulled.
+ * `responses` has a single consumer, and `return()` cancels the call. `status` and `trailers`
+ * settle only once the stream ends, fails or is cancelled.
  */
 export interface ServerStreamingIterableCall<I extends object = object, O extends object = object> {
 	readonly method: MethodInfo<I, O>;
@@ -31,10 +27,7 @@ export interface ServerStreamingIterableCall<I extends object = object, O extend
 	readonly trailers: Promise<RpcMetadata>;
 }
 
-/**
- * Starts an on-demand server-streaming call. `options` are per-call options; the transport merges
- * its defaults into them. Interceptors are not applied.
- */
+/** Starts an on-demand server-streaming call. Interceptors are not applied. */
 export type PullServerStreaming = <I extends object, O extends object>(
 	method: MethodInfo<I, O>,
 	input: I,
@@ -49,9 +42,8 @@ export interface PullServerStreamingTransport extends RpcTransport {
 }
 
 /**
- * The transport's on-demand server-streaming method, or `undefined` when it has none or when its
- * default options configure interceptors. Interceptors only see push-based `ServerStreamingCall`s,
- * so those transports must be called through `serverStreaming` for the interceptors to run.
+ * The transport's on-demand server-streaming method, or `undefined` when it has none or has
+ * interceptors, which only run through `serverStreaming`.
  */
 export function pullServerStreaming(transport: RpcTransport): PullServerStreaming | undefined {
 	const method = (transport as Partial<PullServerStreamingTransport>)[PULL_SERVER_STREAMING];
@@ -62,10 +54,7 @@ export function pullServerStreaming(transport: RpcTransport): PullServerStreamin
 
 const nonRetryable = new WeakSet<object>();
 
-/**
- * Marks `error` as one that fails the same way on every attempt (such as a response message over
- * the size limit), so a retrying caller surfaces it whatever its status code.
- */
+/** Marks `error` as failing the same way on every attempt, so a retrying caller surfaces it. */
 export function markNonRetryable<E extends object>(error: E): E {
 	nonRetryable.add(error);
 	return error;

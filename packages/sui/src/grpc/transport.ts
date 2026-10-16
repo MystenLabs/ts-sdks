@@ -211,10 +211,10 @@ function bodyChunks(body: unknown): BodyChunks | null {
 
 export interface GrpcWebFetchTransportOptions extends GrpcWebOptions {
 	/**
-	 * Largest response message, in bytes, accepted by the on-demand reader that the SDK uses for
-	 * server streams it reads incrementally. A larger message fails the call with a non-retryable
-	 * `RESOURCE_EXHAUSTED` before its payload is buffered. It does not apply to unary calls or to
-	 * `serverStreaming`. Defaults to 64 MiB.
+	 * Largest response message, in bytes, accepted by the SDK's incremental stream reader. A larger
+	 * message fails with a non-retryable `RESOURCE_EXHAUSTED`. Does not apply to unary calls or
+	 * `serverStreaming`.
+	 * @default 64 MiB
 	 */
 	maxResponseMessageBytes?: number;
 }
@@ -248,11 +248,7 @@ export class GrpcWebFetchTransport
 		this.#maxResponseMessageBytes = maxResponseMessageBytes ?? DEFAULT_MAX_RESPONSE_MESSAGE_BYTES;
 	}
 
-	/**
-	 * Internal: a server-streaming call whose response body is read, and messages decoded, only
-	 * while the consumer waits on `responses.next()`. Merges the transport's default options into
-	 * `options`. Interceptors are not applied; see `pullServerStreaming`.
-	 */
+	/** Internal: an on-demand server-streaming call. Interceptors are not applied. */
 	[PULL_SERVER_STREAMING]<I extends object, O extends object>(
 		method: MethodInfo<I, O>,
 		input: I,
