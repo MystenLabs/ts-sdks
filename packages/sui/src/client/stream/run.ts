@@ -5,6 +5,7 @@ import { abortableAsyncGenerator, sleep } from '../../utils/abort.js';
 import type { SuiClientTypes } from '../types.js';
 import type { CoreFrame, ErrorClass, LedgerStreamAdapter } from './adapter.js';
 import { isCallbackError, StreamDisconnected, SuiStreamError } from './errors.js';
+import { followLive } from './follow.js';
 import {
 	assertTokensCompatible,
 	decodeStreamTokens,
@@ -114,8 +115,8 @@ async function* runAttempt<Item, Frame extends { resumeToken: string }>(
 				await sleep(plan.pollInterval, session.signal);
 			}
 		case 'follow':
-			yield* adapter.follow(session);
-			// Unreachable for a correct adapter: `deliver()` only ends by throwing.
+			yield* followLive(session, adapter);
+			// Unreachable: `deliver()` only ends by throwing.
 			throw new SuiStreamError('Protocol', 'Live handoff ended without an error');
 	}
 }

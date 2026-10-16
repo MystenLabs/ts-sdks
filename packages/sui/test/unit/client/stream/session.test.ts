@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
-	boundary,
 	collect,
 	fakeAdapter,
 	ids,
@@ -15,7 +14,7 @@ import {
 	stream,
 	take,
 	tokenOf,
-	positionOf,
+	cursorOf,
 } from './fake-ledger.js';
 
 /** Checkpoints 0..`last`, one item each, indexed through `tip`. */
@@ -23,7 +22,7 @@ const ledgerOf = (last: number, tip = last) => new Ledger(Array(last + 1).fill(1
 
 describe('deduplication', () => {
 	it.each([false, true])(
-		'drops a scan item that repeats the resume cursor (unknown order: %s)',
+		'drops a page item that repeats the resume cursor (unknown order: %s)',
 		async (opaqueOrder) => {
 			const ledger = ledgerOf(5);
 			const token = tokenOf(
@@ -39,7 +38,7 @@ describe('deduplication', () => {
 			);
 			const adapter = fakeAdapter(ledger, {
 				opaqueOrder,
-				scanFaults: [{ repeatStartCursor: true }],
+				pageFaults: [{ repeatCursor: true }],
 			});
 			const frames = await collect(stream(adapter, { start: { resumeToken: token } }));
 			expect(ids(frames)).toEqual(['2:0', '3:0', '4:0', '5:0']);
@@ -49,7 +48,7 @@ describe('deduplication', () => {
 	it('drops live items the history already delivered', async () => {
 		const ledger = ledgerOf(11, 10);
 		const adapter = fakeAdapter(ledger, {
-			afterScan: () => (ledger.indexedTip = 11n),
+			afterRead: () => (ledger.indexedTip = 11n),
 			live: [{ events: ledger.liveFrom(5), end: 'hang' }],
 		});
 		const frames = await take(stream(adapter, { start: { checkpoint: 8 } }), 4);
@@ -60,7 +59,7 @@ describe('deduplication', () => {
 		const ledger = ledgerOf(9, 6);
 		const [i7, i8, i9] = [ledger.item(7), ledger.item(8), ledger.item(9)];
 		const adapter = fakeAdapter(ledger, {
-			afterScan: () => (ledger.indexedTip = 9n),
+			afterRead: () => (ledger.indexedTip = 9n),
 			live: [{ events: [i7, i8, i7, i8, i9], end: 'hang' }],
 		});
 		const frames = await take(stream(adapter, { start: { checkpoint: 7 } }), 3);
@@ -68,19 +67,25 @@ describe('deduplication', () => {
 	});
 
 	it.each([
-		[false, ['3:0', '3:1', '3:2', '4:0']],
-		[true, ['3:0', '3:1', '3:2', '3:0', '4:0']],
+		[false, ['3:0', '3:1', '4:0']],
+		[true, ['3:0', '3:1', '3:0', '4:0']],
 	])(
 		'with unknown order (%s), delivers a repeat rather than risk losing an item',
 		async (opaqueOrder, expected) => {
-			// History delivers all of checkpoint 3; the live feed then repeats its first item.
+			// The live feed repeats an item of a checkpoint it has not finished.
 			const ledger = new Ledger([0, 0, 0, 3, 1], 3);
+			ledger.opaque = opaqueOrder;
 			const adapter = fakeAdapter(ledger, {
 				opaqueOrder,
-				pageSize: 3,
-				live: [{ events: [ledger.item(3, 0), ledger.item(4, 0)], end: 'hang' }],
+				anchorsAtLiveTip: true,
+				live: [
+					{
+						events: [ledger.item(3, 0), ledger.item(3, 1), ledger.item(3, 0), ledger.item(4, 0)],
+						end: 'hang',
+					},
+				],
 			});
-			const frames = await take(stream(adapter, { start: { checkpoint: 3 } }), expected.length);
+			const frames = await take(stream(adapter), expected.length);
 			expect(ids(frames)).toEqual(expected);
 		},
 	);
@@ -95,7 +100,7 @@ describe('deduplication', () => {
 					end: 'hang',
 				},
 			],
-			afterScan: () => (ledger.indexedTip = 9n),
+			afterRead: () => (ledger.indexedTip = 9n),
 		});
 		const frames = await take(stream(adapter, { frames: { progress: true } }), 2);
 		expect(frames).toMatchObject([
@@ -110,7 +115,7 @@ describe('history replay', () => {
 		const ledger = ledgerOf(13, 10);
 		let scans = 0;
 		const adapter = fakeAdapter(ledger, {
-			afterScan: () => {
+			afterRead: () => {
 				if (++scans === 2) ledger.indexedTip = 13n;
 			},
 		});
@@ -123,34 +128,34 @@ describe('history replay', () => {
 		);
 		expect(ids(frames)).toEqual(['11:0', '12:0']);
 		expect(frames.at(-1)?.$kind).toBe('Complete');
-		expect(adapter.calls.scans).toHaveLength(3);
+		expect(adapter.calls.pages).toHaveLength(3);
 	});
 
 	it('waits for a descending start above the indexed tip to be indexed', async () => {
 		const ledger = ledgerOf(6, 3);
-		const adapter = fakeAdapter(ledger, { afterScan: () => (ledger.indexedTip += 1n) });
+		const adapter = fakeAdapter(ledger, { afterRead: () => (ledger.indexedTip += 1n) });
 		const frames = await collect(
 			stream(adapter, { order: 'descending', start: { checkpoint: 5 }, end: { checkpoint: 2 } }),
 		);
 		expect(ids(frames)).toEqual(['5:0', '4:0', '3:0']);
-		expect(adapter.calls.scans).toHaveLength(3);
+		// Tip reads find the start unindexed until it is; then one pass reads two pages.
+		expect(adapter.calls.indexedTip).toBe(3);
+		expect(adapter.calls.pages).toHaveLength(2);
 	});
 
 	it('resumes polling from scan progress, without emitting it by default', async () => {
 		const ledger = ledgerOf(12, 9);
-		const adapter = fakeAdapter(ledger, {
-			scanProgress: true,
-			afterScan: () => (ledger.indexedTip = 12n),
-		});
+		const adapter = fakeAdapter(ledger, { afterRead: () => (ledger.indexedTip = 12n) });
 		const frames = await take(stream(adapter, { start: { checkpoint: 9 }, delivery: 'poll' }), 4);
 		expect(ids(frames)).toEqual(['9:0', '10:0', '11:0', '12:0']);
 		expect(frames.every((frame) => frame.$kind === 'Item')).toBe(true);
-		expect(adapter.calls.scans[1].start).toEqual({ position: boundary(10) });
+		expect(adapter.calls.pages[1].range).toEqual({ start: 10n });
+		expect(adapter.calls.pages[1].after).toBeUndefined();
 	});
 
 	it('emits scan progress when requested', async () => {
 		const ledger = ledgerOf(5, 3);
-		const adapter = fakeAdapter(ledger, { scanProgress: true });
+		const adapter = fakeAdapter(ledger);
 		const frames = await take(
 			stream(adapter, { start: { checkpoint: 2 }, delivery: 'poll', frames: { progress: true } }),
 			3,
@@ -168,22 +173,6 @@ describe('history replay', () => {
 		expect(ids(rest)).toEqual(['4:0', '5:0']);
 	});
 
-	it('treats a scan without an End as a protocol error, not completion', async () => {
-		const adapter = fakeAdapter(ledgerOf(3), { scanFaults: [{ omitEnd: true }] });
-		const frames: string[] = [];
-		const error = await (async () => {
-			for await (const frame of stream(adapter, {
-				start: { checkpoint: 0 },
-				follow: false,
-				frames: { completion: true },
-			})) {
-				frames.push(frame.$kind);
-			}
-		})().catch((error: unknown) => error);
-		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'Protocol' });
-		expect(frames).not.toContain('Complete');
-	});
-
 	it('reports pages as statuses that carry no resume token', async () => {
 		const statuses: SuiClientTypes.StreamStatus[] = [];
 		await collect(
@@ -195,8 +184,8 @@ describe('history replay', () => {
 		);
 		const pages = statuses.filter((status) => status.$kind === 'Page');
 		expect(pages).toEqual([
-			{ $kind: 'Page', stage: 'history', end: 'limit' },
-			{ $kind: 'Page', stage: 'history', end: 'limit' },
+			{ $kind: 'Page', stage: 'history', end: 'limit', coveredCheckpoint: '0' },
+			{ $kind: 'Page', stage: 'history', end: 'limit', coveredCheckpoint: '2' },
 			{ $kind: 'Page', stage: 'history', end: 'bound', coveredCheckpoint: '5' },
 		]);
 	});
@@ -206,14 +195,13 @@ describe('live delivery', () => {
 	it('exposes live items only after the gap through the first live position is replayed', async () => {
 		const ledger = ledgerOf(14, 10);
 		const adapter = fakeAdapter(ledger, {
-			afterScan: () => (ledger.indexedTip = 14n),
+			afterRead: () => (ledger.indexedTip = 14n),
 			live: [{ events: ledger.liveFrom(13), end: 'hang' }],
 		});
 		const frames = await take(stream(adapter, { start: { checkpoint: 9 } }), 6);
 		expect(ids(frames)).toEqual(['9:0', '10:0', '11:0', '12:0', '13:0', '14:0']);
-		expect(adapter.calls.scans[1]).toMatchObject({
-			end: { position: positionOf({ checkpoint: 13n, index: 0 }) },
-		});
+		// The gap ends at the first live item's checkpoint; its coordinates stop the replay.
+		expect(adapter.calls.pages[1]).toMatchObject({ range: { start: 11n, end: 14n } });
 	});
 
 	it('commits a baseline on a fresh follow so the first token exists before the first match', async () => {
@@ -235,7 +223,7 @@ describe('live delivery', () => {
 		const ledger = ledgerOf(8, 6);
 		const adapter = fakeAdapter(ledger, {
 			anchorsAtLiveTip: true,
-			afterScan: () => (ledger.indexedTip = 8n),
+			afterRead: () => (ledger.indexedTip = 8n),
 			live: [
 				{ events: [ledger.item(6)], end: new NetworkError() },
 				{ events: [ledger.item(8)], end: 'hang' },
@@ -243,14 +231,20 @@ describe('live delivery', () => {
 		});
 		const frames = await take(stream(adapter), 3);
 		expect(ids(frames)).toEqual(['6:0', '7:0', '8:0']);
-		expect(adapter.calls.scans[0].start).toEqual({
-			position: positionOf({ checkpoint: 6n, index: 0 }),
+		expect(adapter.calls.pages[0]).toMatchObject({
+			range: { start: 6n },
+			after: cursorOf({ checkpoint: 6n, index: 0 }),
 		});
 	});
 });
 
 describe('status sequences', () => {
 	const ledger = () => ledgerOf(6, 4);
+	/** Runs `effect` once, after the history pass's last page. */
+	const afterReads = (count: number, effect: (ledger: Ledger) => void) => {
+		let reads = 0;
+		return (ledger: Ledger) => ++reads === count && effect(ledger);
+	};
 	const pages = (log: string[]) =>
 		log.map((status) => (status.startsWith('Page') ? 'Page' : status));
 	/** Collapses runs of Page into one entry. */
@@ -269,7 +263,7 @@ describe('status sequences', () => {
 		],
 		[
 			'polling',
-			{ pageSize: 1, afterScan: (l: Ledger) => (l.indexedTip = 6n) },
+			{ pageSize: 1, afterRead: afterReads(5, (l) => (l.indexedTip = 6n)) },
 			{ start: { checkpoint: 0 }, delivery: 'poll' },
 			7,
 			['Connecting(0)', 'Connected', 'Page', 'Live', 'Page'],
@@ -283,7 +277,7 @@ describe('status sequences', () => {
 		],
 		[
 			'a follow with a start',
-			{ afterScan: (l: Ledger) => (l.indexedTip = 6n) },
+			{ afterRead: afterReads(3, (l) => (l.indexedTip = 6n)) },
 			{ start: { checkpoint: 0 } },
 			7,
 			['Connecting(0)', 'Connected', 'Page', 'Recovering', 'Page', 'Live'],
@@ -310,7 +304,7 @@ describe('status sequences', () => {
 		const source = ledgerOf(8, 7);
 		const adapter = fakeAdapter(source, {
 			anchorsAtLiveTip: true,
-			afterScan: () => (source.indexedTip = 8n),
+			afterRead: () => (source.indexedTip = 8n),
 			live: [
 				{ events: [source.item(7)], end: 'eof' },
 				{ events: [source.item(8)], end: 'hang' },

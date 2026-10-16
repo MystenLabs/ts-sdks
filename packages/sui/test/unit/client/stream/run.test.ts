@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SuiClientError } from '../../../../src/client/errors.js';
-import { assertAdvanced, SuiStreamError } from '../../../../src/client/stream/errors.js';
+import { SuiStreamError } from '../../../../src/client/stream/errors.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
@@ -66,7 +66,7 @@ describe('frames', () => {
 			'Complete',
 		]);
 		expect(frames.at(-1)).toMatchObject({ completion: { reason: 'retentionLimit' } });
-		expect(adapter.calls.scans).toHaveLength(1);
+		expect(adapter.calls.pages).toHaveLength(2);
 	});
 
 	it('fails an end below the retention limit with HistoryUnavailable, without retrying', async () => {
@@ -74,22 +74,15 @@ describe('frames', () => {
 		await expect(
 			collect(stream(adapter, { order: 'descending', end: { checkpoint: 1 } })),
 		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-		expect(adapter.calls.scans).toHaveLength(1);
+		expect(adapter.calls.pages).toHaveLength(1);
 	});
 
 	it('advances tokens only through the item the consumer received', async () => {
 		const ledger = ledgerOf(5);
 		const adapter = fakeAdapter(ledger);
-		const pulled: string[] = [];
-		const scan = adapter.scan;
-		adapter.scan = async function* (request) {
-			for await (const event of scan(request)) {
-				if (event.$kind === 'Item') pulled.push(`${event.item.checkpoint}`);
-				yield event;
-			}
-		};
 		const [first] = await take(stream(adapter, { start: { checkpoint: 0 }, follow: false }), 1);
-		expect(pulled).toEqual(['0']);
+		// The page also held 1:0, but the consumer never received it.
+		expect(adapter.calls.pages).toHaveLength(1);
 		const rest = await collect(
 			stream(fakeAdapter(ledger), { start: { resumeToken: tokenOf(first) }, follow: false }),
 		);
@@ -135,7 +128,7 @@ describe('cancellation', () => {
 		const controller = new AbortController();
 		const { log, onStatus } = statusLog();
 		const adapter = fakeAdapter(ledgerOf(3), {
-			scanFaults: [{ failAfterItems: 0, error: new NetworkError() }],
+			pageFaults: [{ error: new NetworkError() }],
 		});
 		const frames = stream(adapter, {
 			start: { checkpoint: 0 },
@@ -149,7 +142,7 @@ describe('cancellation', () => {
 			},
 		});
 		await expect(collect(frames)).rejects.toMatchObject({ name: 'AbortError' });
-		expect(log).toEqual(['Connecting(0)', 'Connected', expect.stringMatching(/^Retrying\(1,/)]);
+		expect(log).toEqual(['Connecting(0)', expect.stringMatching(/^Retrying\(1,/)]);
 	});
 });
 
@@ -157,7 +150,7 @@ describe('errors', () => {
 	it('reports a fatal error once as an Error status and rethrows it unchanged', async () => {
 		const error = new TypeError('malformed');
 		const statuses: SuiClientTypes.StreamStatus[] = [];
-		const adapter = fakeAdapter(ledgerOf(3), { scanFaults: [{ failAfterItems: 1, error }] });
+		const adapter = fakeAdapter(ledgerOf(3), { pageFaults: [undefined, { error }] });
 		await expect(
 			collect(
 				stream(adapter, {
@@ -189,7 +182,7 @@ describe('errors', () => {
 			await expect(collect(frames)).rejects.toBe(error);
 			expect(seen).not.toContain('Retrying');
 			expect(seen).not.toContain('Error');
-			expect(adapter.calls.scans.length).toBeLessThanOrEqual(1);
+			expect(adapter.calls.pages.length).toBeLessThanOrEqual(1);
 		},
 	);
 
@@ -200,13 +193,5 @@ describe('errors', () => {
 		expect(error).toBeInstanceOf(SuiStreamError);
 		expect(error).toBeInstanceOf(SuiClientError);
 		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'InvalidOptions' });
-	});
-
-	it('gives adapters a protocol error for pagination that does not advance', () => {
-		expect(() => assertAdvanced(undefined, 'a')).not.toThrow();
-		expect(() => assertAdvanced('a', 'b')).not.toThrow();
-		expect(() => assertAdvanced('a', 'a')).toThrow(
-			expect.objectContaining({ name: 'SuiStreamError', code: 'Protocol' }),
-		);
 	});
 });
