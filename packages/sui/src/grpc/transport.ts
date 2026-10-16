@@ -174,31 +174,20 @@ async function* networkBody(
 	chunks: BodyChunks,
 	signal: AbortSignal | null | undefined,
 ): AsyncGenerator<Uint8Array> {
-	let done = false;
-	try {
-		while (true) {
-			let next: IteratorResult<Uint8Array>;
-			try {
-				next = await chunks.next();
-			} catch (error) {
-				done = true;
-				throw toNetworkRpcError(error, signal);
-			}
-			if (next.done) {
-				done = true;
-				return;
-			}
-			yield next.value;
+	while (true) {
+		let next: IteratorResult<Uint8Array>;
+		try {
+			next = await chunks.next();
+		} catch (error) {
+			throw toNetworkRpcError(error, signal);
 		}
-	} finally {
-		// Stopped early by the consumer: release the underlying body.
-		if (!done) await chunks.cancel(undefined);
+		if (next.done) return;
+		yield next.value;
 	}
 }
 
 interface BodyChunks {
 	next(): Promise<IteratorResult<Uint8Array>>;
-	cancel(reason: unknown): Promise<void>;
 }
 
 // A WHATWG stream is read through `getReader()`. A custom fetch such as `node-fetch` returns a
@@ -208,17 +197,11 @@ function bodyChunks(body: unknown): BodyChunks | null {
 
 	if (typeof (body as ReadableStream<Uint8Array>).getReader === 'function') {
 		const reader = (body as ReadableStream<Uint8Array>).getReader();
-		return { next: () => reader.read(), cancel: (reason) => reader.cancel(reason) };
+		return { next: () => reader.read() };
 	}
 
 	if (typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === 'function') {
-		const iterator = (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator]();
-		return {
-			next: () => iterator.next(),
-			cancel: async () => {
-				await iterator.return?.();
-			},
-		};
+		return (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator]();
 	}
 
 	return null;
