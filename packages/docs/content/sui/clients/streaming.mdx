@@ -122,6 +122,10 @@ client.streamTransactions({
 follows. `start` is still inclusive and `end` exclusive, so `start: { checkpoint: 2000 }` with
 `end: { checkpoint: 1000 }` reads 2000 down to 1001.
 
+On a server that has pruned old history, a descending read without an `end` stops at the oldest
+checkpoint the server keeps and completes with `reason: 'retentionLimit'`, while a `start` or `end`
+below that checkpoint fails with `SuiStreamError` code `HistoryUnavailable`.
+
 ```typescript
 client.streamTransactions({
 	filter: { sender: '0x123' },
