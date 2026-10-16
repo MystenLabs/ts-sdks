@@ -131,3 +131,5 @@ and decoded pure inputs are best-effort. `dryRunFromSimulation` similarly builds
 - Effects `changedObjects` and `gasObject` entries include `objectType`.
 - `doGasSelection` is available on every client's `simulateTransaction`.
 - A `listCheckpoints` method for paging through checkpoints.
+- Resumable checkpoint, transaction, and event streams on `SuiGrpcClient` and `SuiGraphQLClient`,
+  and typed GraphQL subscriptions. See [Resumable ledger streams](/sui/clients/streaming).

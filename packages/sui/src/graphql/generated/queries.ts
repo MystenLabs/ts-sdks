@@ -392,6 +392,88 @@ export type Object_Owner_FieldsFragment =
   | Object_Owner_Fields_Shared_Fragment
 ;
 
+export type LedgerStreamStateQueryVariables = Exact<{
+  field: string;
+}>;
+
+
+export type LedgerStreamStateQuery = { chainIdentifier: string, serviceConfig: { availableRange: { first: { sequenceNumber: number } | null, last: { sequenceNumber: number } | null } } };
+
+export type Stream_Page_InfoFragment = { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null };
+
+export type ScanCheckpointsQueryVariables = Exact<{
+  filter?: CheckpointFilter | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+}>;
+
+
+export type ScanCheckpointsQuery = { checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null } }> } | null };
+
+export type SubscribeCheckpointsSubscriptionVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SubscribeCheckpointsSubscription = { checkpoints: { cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null } } };
+
+export type ScanEventsQueryVariables = Exact<{
+  filter?: EventFilter | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+}>;
+
+
+export type ScanEventsQuery = { events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } }> } | null };
+
+export type SubscribeEventsSubscriptionVariables = Exact<{
+  filter?: EventFilter | null | undefined;
+}>;
+
+
+export type SubscribeEventsSubscription = { events: { cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } } };
+
+export type ScanTransactionsQueryVariables = Exact<{
+  filter?: TransactionFilter | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+  includeTransaction?: boolean | null | undefined;
+  includeEffects?: boolean | null | undefined;
+  includeEvents?: boolean | null | undefined;
+  includeBalanceChanges?: boolean | null | undefined;
+  includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
+  includeBcs?: boolean | null | undefined;
+}>;
+
+
+export type ScanTransactionsQuery = { transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
+
+export type SubscribeTransactionsSubscriptionVariables = Exact<{
+  filter?: TransactionFilter | null | undefined;
+  includeTransaction?: boolean | null | undefined;
+  includeEffects?: boolean | null | undefined;
+  includeEvents?: boolean | null | undefined;
+  includeBalanceChanges?: boolean | null | undefined;
+  includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
+  includeBcs?: boolean | null | undefined;
+}>;
+
+
+export type SubscribeTransactionsSubscription = { transactions: { cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } } };
+
+export type StreamTransactionCheckpointsQueryVariables = Exact<{
+  digests: Array<string> | string;
+}>;
+
+
+export type StreamTransactionCheckpointsQuery = { multiGetTransactionEffects: Array<{ checkpoint: { sequenceNumber: number } | null } | null> };
+
 export type SimulateTransactionQueryVariables = Exact<{
   transaction: unknown;
   includeTransaction?: boolean | null | undefined;
@@ -655,6 +737,14 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
     }
   }
 }`, {"fragmentName":"MOVE_OBJECT_FIELDS"}) as unknown as TypedDocumentString<Move_Object_FieldsFragment, unknown>;
+export const Stream_Page_InfoFragmentDoc = new TypedDocumentString(`
+    fragment STREAM_PAGE_INFO on PageInfo {
+  hasNextPage
+  hasPreviousPage
+  startCursor
+  endCursor
+}
+    `, {"fragmentName":"STREAM_PAGE_INFO"}) as unknown as TypedDocumentString<Stream_Page_InfoFragment, unknown>;
 export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     fragment TRANSACTION_FIELDS on Transaction {
   digest
@@ -815,7 +905,7 @@ export const GetCoinsDocument = new TypedDocumentString(`
     query getCoins($owner: SuiAddress!, $first: Int, $cursor: String, $type: String = "0x2::coin::Coin<0x2::sui::SUI>") {
   address(address: $owner) {
     address
-    objects(first: $first, after: $cursor, filter: {type: $type}) {
+    objects(first: $first, after: $cursor, filter: { type: $type }) {
       pageInfo {
         hasNextPage
         endCursor
@@ -1136,6 +1226,355 @@ fragment OBJECT_OWNER_FIELDS on Owner {
     }
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
+export const LedgerStreamStateDocument = new TypedDocumentString(`
+    query ledgerStreamState($field: String!) {
+  chainIdentifier
+  serviceConfig {
+    availableRange(type: "Query", field: $field) {
+      first {
+        sequenceNumber
+      }
+      last {
+        sequenceNumber
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<LedgerStreamStateQuery, LedgerStreamStateQueryVariables>;
+export const ScanCheckpointsDocument = new TypedDocumentString(`
+    query scanCheckpoints($filter: CheckpointFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  checkpoints(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      ...STREAM_PAGE_INFO
+    }
+    edges {
+      cursor
+      node {
+        ...CHECKPOINT_FIELDS
+      }
+    }
+  }
+}
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}
+fragment STREAM_PAGE_INFO on PageInfo {
+  hasNextPage
+  hasPreviousPage
+  startCursor
+  endCursor
+}`) as unknown as TypedDocumentString<ScanCheckpointsQuery, ScanCheckpointsQueryVariables>;
+export const SubscribeCheckpointsDocument = new TypedDocumentString(`
+    subscription subscribeCheckpoints {
+  checkpoints {
+    cursor
+    node {
+      ...CHECKPOINT_FIELDS
+    }
+  }
+}
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}`) as unknown as TypedDocumentString<SubscribeCheckpointsSubscription, SubscribeCheckpointsSubscriptionVariables>;
+export const ScanEventsDocument = new TypedDocumentString(`
+    query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  events(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      ...STREAM_PAGE_INFO
+    }
+    edges {
+      cursor
+      node {
+        ...EVENT_FIELDS
+      }
+    }
+  }
+}
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+fragment STREAM_PAGE_INFO on PageInfo {
+  hasNextPage
+  hasPreviousPage
+  startCursor
+  endCursor
+}`) as unknown as TypedDocumentString<ScanEventsQuery, ScanEventsQueryVariables>;
+export const SubscribeEventsDocument = new TypedDocumentString(`
+    subscription subscribeEvents($filter: EventFilter) {
+  events(filter: $filter) {
+    cursor
+    node {
+      ...EVENT_FIELDS
+    }
+  }
+}
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}`) as unknown as TypedDocumentString<SubscribeEventsSubscription, SubscribeEventsSubscriptionVariables>;
+export const ScanTransactionsDocument = new TypedDocumentString(`
+    query scanTransactions($filter: TransactionFilter, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  transactions(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      ...STREAM_PAGE_INFO
+    }
+    edges {
+      cursor
+      node {
+        ...TRANSACTION_FIELDS
+      }
+    }
+  }
+}
+    fragment STREAM_PAGE_INFO on PageInfo {
+  hasNextPage
+  hasPreviousPage
+  startCursor
+  endCursor
+}
+fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    timestamp
+    checkpoint {
+      sequenceNumber
+    }
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeEffectsJson)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<ScanTransactionsQuery, ScanTransactionsQueryVariables>;
+export const SubscribeTransactionsDocument = new TypedDocumentString(`
+    subscription subscribeTransactions($filter: TransactionFilter, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  transactions(filter: $filter) {
+    cursor
+    node {
+      ...TRANSACTION_FIELDS
+    }
+  }
+}
+    fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    timestamp
+    checkpoint {
+      sequenceNumber
+    }
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeEffectsJson)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<SubscribeTransactionsSubscription, SubscribeTransactionsSubscriptionVariables>;
+export const StreamTransactionCheckpointsDocument = new TypedDocumentString(`
+    query streamTransactionCheckpoints($digests: [String!]!) {
+  multiGetTransactionEffects(keys: $digests) {
+    checkpoint {
+      sequenceNumber
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<StreamTransactionCheckpointsQuery, StreamTransactionCheckpointsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
     query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false, $doGasSelection: Boolean = false, $checksEnabled: Boolean = true) {
   simulateTransaction(
