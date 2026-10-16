@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ErrorClass, StreamFamily } from '../../client/stream/adapter.js';
+import type { ErrorClass } from '../../client/stream/adapter.js';
 import { SuiStreamError } from '../../client/stream/index.js';
 import type { GraphQLQueryOptions, GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
 import { SuiGraphQLRequestError } from '../errors.js';
@@ -43,29 +43,12 @@ export async function queryData<Result, Variables>(
 	return unwrap(await client.query(options));
 }
 
-export interface IndexState {
-	chain: string;
-	first: bigint | null;
-	tip: bigint;
-}
-
-/** Retention differs between filter indexes, so the range is read for the filter in use. */
-export async function readIndexState(
+/** The chain identity and the indexed tip, read together at startup. */
+export async function readChainTip(
 	client: SuiGraphQLClient,
-	family: StreamFamily,
-	filterFields: string[],
 	signal: AbortSignal,
-): Promise<IndexState> {
-	const data = await queryData(client, {
-		query: LedgerStreamStateDocument,
-		variables: { field: family, filters: filterFields },
-		signal,
-	});
-	const { first, last } = data.serviceConfig.availableRange;
-	if (!last) throw notIndexedYet('No checkpoint has been indexed yet');
-	return {
-		chain: data.chainIdentifier,
-		first: first ? BigInt(first.sequenceNumber) : null,
-		tip: BigInt(last.sequenceNumber),
-	};
+): Promise<{ chain: string; tip: bigint }> {
+	const data = await queryData(client, { query: LedgerStreamStateDocument, signal });
+	if (!data.checkpoint) throw notIndexedYet('No checkpoint has been indexed yet');
+	return { chain: data.chainIdentifier, tip: BigInt(data.checkpoint.sequenceNumber) };
 }
