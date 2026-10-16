@@ -15,7 +15,8 @@ export async function* readGraphQLSSE<Result>(
 	maxMessageSize: number,
 ): AsyncGenerator<GraphQLQueryResult<Result>> {
 	if (!response.ok) {
-		await response.body?.cancel();
+		// Best effort: a body that has already failed must not hide the error below.
+		await response.body?.cancel().catch(() => {});
 		throw new SuiGraphQLRequestError(
 			`GraphQL subscription failed: ${response.statusText} (${response.status})`,
 			{ status: response.status, retryable: isRetryableStatus(response.status) },
@@ -26,7 +27,7 @@ export async function* readGraphQLSSE<Result>(
 			'text/event-stream' ||
 		!response.body
 	) {
-		await response.body?.cancel();
+		await response.body?.cancel().catch(() => {});
 		throw new SuiGraphQLRequestError('GraphQL subscription requires a text/event-stream response');
 	}
 	const reader = response.body.getReader();

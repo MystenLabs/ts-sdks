@@ -25,15 +25,22 @@ const LINE_BREAK = /[\r\n]/g;
  */
 export class ServerSentEventParser {
 	#maxMessageSize: number;
-	/** The text of a line whose terminator has not arrived yet. */
+	/** The text of a line whose terminator has not arrived yet. Comment lines are not kept. */
 	#line = '';
+	/** The current line is a comment, so its text is discarded instead of buffered. */
+	#comment = false;
 	/** The previous chunk ended with CR, so an LF at the start of the next one ends the same line. */
 	#skipLF = false;
 	#event = '';
 	#data: string[] = [];
+	/** Characters in the current message's completed lines, each counting one for its line break. */
 	#size = 0;
 
-	/** @param maxMessageSize the maximum characters buffered for one message, including the unterminated line. */
+	/**
+	 * @param maxMessageSize the maximum size of one message: the characters of its lines other than
+	 * comments, counting each line break as one. An unterminated line counts as it arrives, so the
+	 * limit applies the same way however the stream is split into chunks.
+	 */
 	constructor(maxMessageSize: number) {
 		this.#maxMessageSize = maxMessageSize;
 	}
@@ -50,21 +57,26 @@ export class ServerSentEventParser {
 			if (chunk[0] === '\n') start = 1;
 		}
 		while (start < chunk.length) {
+			// `#line` is empty only at the start of a line or inside a comment.
+			if (this.#line === '' && chunk[start] === ':') this.#comment = true;
 			LINE_BREAK.lastIndex = start;
 			const match = LINE_BREAK.exec(chunk);
+			const end = match ? match.index : chunk.length;
+			if (!this.#comment) this.#line += chunk.slice(start, end);
 			if (!match) {
-				this.#line += chunk.slice(start);
 				this.#checkSize();
 				return;
 			}
-			const end = match.index;
-			const line = this.#line + chunk.slice(start, end);
+			const line = this.#line;
+			const comment = this.#comment;
 			this.#line = '';
+			this.#comment = false;
 			start = end + 1;
 			if (chunk[end] === '\r') {
 				if (start === chunk.length) this.#skipLF = true;
 				else if (chunk[start] === '\n') start++;
 			}
+			if (comment) continue; // e.g. a keepalive
 			const message = this.#processLine(line);
 			if (message) yield message;
 		}
@@ -81,7 +93,8 @@ export class ServerSentEventParser {
 			this.#size = 0;
 			return message;
 		}
-		if (line[0] === ':') return undefined; // comment, e.g. a keepalive
+		this.#size += line.length + 1;
+		this.#checkSize();
 		const colon = line.indexOf(':');
 		const field = colon === -1 ? line : line.slice(0, colon);
 		let value = colon === -1 ? '' : line.slice(colon + 1);
@@ -90,12 +103,11 @@ export class ServerSentEventParser {
 			this.#event = value;
 		} else if (field === 'data') {
 			this.#data.push(value);
-			this.#size += value.length + 1;
-			this.#checkSize();
 		}
 		return undefined;
 	}
 
+	/** Every partial count is below the count once the line completes, so chunking cannot change the result. */
 	#checkSize() {
 		if (this.#size + this.#line.length > this.#maxMessageSize) {
 			throw new SuiGraphQLRequestError('GraphQL SSE message exceeds maxMessageSize');

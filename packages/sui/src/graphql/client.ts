@@ -54,7 +54,10 @@ export type GraphQLSubscriptionOptions<
 		: Variables extends { [key: string]: never }
 			? { variables?: Variables }
 			: { variables: Variables }) & {
-		/** Maximum buffered SSE message length in characters. Defaults to 16 Mi characters. */
+		/**
+		 * Maximum size of one SSE message: the characters of its lines other than comments, counting
+		 * each line break as one. Defaults to 16 Mi characters.
+		 */
 		maxMessageSize?: number;
 	};
 
