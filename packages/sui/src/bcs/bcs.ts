@@ -126,9 +126,8 @@ const SharedObjectRefStruct = bcs.struct('SharedObjectRef', {
 });
 
 /**
- * A shared object input. `mutable` is set for exclusive (`Mutable`) access. System transactions
- * can also take non-exclusive write access, which parses as `mutable: false` with
- * `mutability: 'NonExclusiveWrite'` (the field is omitted for the other modes).
+ * A shared object input. Non-exclusive write access, used only by system transactions, parses as
+ * `mutable: false` with `mutability: 'NonExclusiveWrite'`.
  */
 export const SharedObjectRef = SharedObjectRefStruct.transform({
 	name: 'SharedObjectRef',
