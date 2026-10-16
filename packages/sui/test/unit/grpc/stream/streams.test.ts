@@ -363,6 +363,20 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.requestsTo('ListEvents')).toHaveLength(2);
 			expect(l.cancelled.SubscribeEvents).toBe(1);
 		});
+
+		it('surfaces an INTERNAL error for pruned events as fatal, not HistoryUnavailable', async () => {
+			// The server cannot yet tell pruned events apart from a fault (see CORE_API_FOLLOW_UPS).
+			const failure = new RpcError('missing checkpoint 3 while resolving tx boundary', 'INTERNAL');
+			const l = ledger().list('ListEvents', { frames: [], end: failure });
+			await expect(
+				collect(
+					l
+						.client()
+						.streamEvents({ start: { checkpoint: 4 }, end: { checkpoint: 9 }, retry: noDelay }),
+				),
+			).rejects.toBe(failure);
+			expect(l.requestsTo('ListEvents')).toHaveLength(1);
+		});
 	});
 
 	describe('live', () => {
