@@ -8,23 +8,10 @@ import type {
 	ItemFrame,
 	PositionEvent,
 } from '../../client/stream/index.js';
-import { compareBounds } from '../../client/stream/index.js';
+import { boundaryPosition, compareBounds } from '../../client/stream/index.js';
 import type { GrpcItem } from './families.js';
 import { liveEvents } from './live.js';
-import {
-	baselineBefore,
-	comparePositions,
-	grpcPositionCodec,
-	locatePosition,
-	type GrpcPosition,
-} from './position.js';
 import type { GrpcStreamCalls } from './scan.js';
-
-const ordering = {
-	compare: comparePositions,
-	locate: locatePosition,
-	position: grpcPositionCodec(),
-};
 
 /**
  * The live handoff: history, subscribe, gap, live. Each reconnect reruns it.
@@ -33,7 +20,7 @@ const ordering = {
  */
 export async function* followLedger(
 	calls: GrpcStreamCalls,
-	session: FollowSession<GrpcPosition, GrpcItem, ItemFrame>,
+	session: FollowSession<GrpcItem, ItemFrame>,
 ): AsyncGenerator<CoreFrame<ItemFrame>, void> {
 	// A subscription starts at the live tip, so history comes first.
 	if (session.catchesUpFirst()) yield* session.replay('tip', 'history');
@@ -45,7 +32,8 @@ export async function* followLedger(
 
 		if (!session.start) {
 			// Commit a baseline so a fresh follow has a token before its first match.
-			if (first.$kind === 'Item') yield* session.baseline(baselineBefore(first.position));
+			if (first.$kind === 'Item')
+				yield* session.baseline(boundaryPosition(first.position.checkpoint!));
 		} else {
 			const end = gapEnd(first);
 			// The index can be ahead of the server that took the subscription: then there is no gap.
@@ -70,15 +58,16 @@ export async function* followLedger(
 
 /**
  * Where the gap replay ends. List and Subscribe share cursors, so the first live cursor is an
- * exclusive List bound. A progress-only first checkpoint frame's checkpoint is replayed.
+ * exclusive List bound. Checkpoint subscriptions report no cursor: their first checkpoint is
+ * replayed.
  */
-function gapEnd(first: PositionEvent<GrpcPosition, GrpcItem>): Bound<GrpcPosition> {
-	const { cursor } = first.position;
-	if (cursor.$kind !== 'Checkpoint') return { position: first.position };
-	return { checkpoint: first.$kind === 'Item' ? cursor.checkpoint : cursor.checkpoint + 1n };
+function gapEnd(first: PositionEvent<GrpcItem>): Bound {
+	const { position } = first;
+	if (position.cursor !== null) return { position };
+	return { checkpoint: position.checkpoint! };
 }
 
-function reaches(start: Bound<GrpcPosition>, end: Bound<GrpcPosition>): boolean {
-	const comparison = compareBounds(start, end, 'ascending', ordering);
+function reaches(start: Bound, end: Bound): boolean {
+	const comparison = compareBounds(start, end, 'ascending');
 	return comparison !== undefined && comparison >= 0;
 }

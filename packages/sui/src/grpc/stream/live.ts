@@ -1,16 +1,15 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { LiveEvent } from '../../client/stream/index.js';
-import { SuiStreamError } from '../../client/stream/index.js';
-import type { LedgerCall } from './call.js';
-import type { GrpcFamily, GrpcItem, LiveFrame } from './families.js';
+import type { LiveEvent, StreamPosition } from '../../client/stream/index.js';
 import {
 	assertAdvancing,
 	CoverageTracker,
 	positionCoverage,
-	type GrpcPosition,
-} from './position.js';
+	SuiStreamError,
+} from '../../client/stream/index.js';
+import type { LedgerCall } from './call.js';
+import type { GrpcFamily, GrpcItem, LiveFrame } from './families.js';
 
 /**
  * The events of one subscription call, with coverage carried on from `committed` (contiguous once
@@ -21,14 +20,14 @@ import {
 export async function* liveEvents(
 	call: LedgerCall<LiveFrame>,
 	family: GrpcFamily,
-	committed: GrpcPosition | undefined,
-): AsyncGenerator<LiveEvent<GrpcPosition, GrpcItem>> {
+	committed: StreamPosition | undefined,
+): AsyncGenerator<LiveEvent<GrpcItem>> {
 	const tracker = new CoverageTracker(
 		'ascending',
 		family.name,
 		committed ? positionCoverage(committed, family.name) : { $kind: 'Unknown' },
 	);
-	let previous: GrpcPosition | undefined;
+	let previous: StreamPosition | undefined;
 	let connected = false;
 	for await (const frame of call) {
 		if (!connected) {

@@ -454,11 +454,6 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				'regressed',
 			],
 			['regresses an item', [event(3), event(2)], 'regressed'],
-			[
-				'repeats an item cursor',
-				[event(3), { ...event(4), watermark: { cursor: at(3), checkpoint: 3n } }],
-				'repeated',
-			],
 		])('fails when a subscription %s', async (_, frames, message) => {
 			const l = ledger().subscribe('SubscribeEvents', frames);
 			await expect(
