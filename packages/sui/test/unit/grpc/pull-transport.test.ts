@@ -592,6 +592,56 @@ describe('error paths', () => {
 		expect(b.cancelled).toHaveLength(1);
 	});
 
+	it('the message limit does not apply to the trailer', async () => {
+		const b = body([dataFrame(new Uint8Array([8, 7])), trailerFrame()]);
+		const call = transport(
+			server(() => grpcWeb(b)),
+			{
+				maxResponseMessageBytes: 8,
+			},
+		).serverStreamingIterable(countingMethod().method, {}, {});
+		const seen = [];
+		for await (const m of call.responses) seen.push(m.cursor);
+		expect(seen).toEqual([7n]);
+		await expect(call.status).resolves.toEqual({ code: 'OK', detail: 'OK' });
+	});
+
+	it('an AbortError from a custom fetch that combines signals is CANCELLED', async () => {
+		const own = new AbortController();
+		const s = server(() => 'hang');
+		const fetch = ((url: string, init: RequestInit) => {
+			const signal = AbortSignal.any([init.signal!, own.signal]);
+			return s.fetch(url, { ...init, signal });
+		}) as typeof globalThis.fetch;
+		const call = transport({ fetch }).serverStreamingIterable(countingMethod().method, {}, {});
+		const pending = rejection(call.responses.next());
+		await settle();
+		own.abort();
+		const error = await pending;
+		expect(error).toBeInstanceOf(RpcError);
+		expect(error.code).toBe('CANCELLED');
+		expect(error.message).toBe('This operation was aborted');
+		expect(await rejection(call.status)).toBe(error);
+	});
+
+	it('an AbortError from a body that ignores the call signal is CANCELLED', async () => {
+		const own = new AbortController();
+		const stream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(dataFrame(message(0)));
+				own.signal.addEventListener('abort', () => controller.error(own.signal.reason));
+			},
+		});
+		const call = transport(
+			server(() => grpcWeb({ stream, pulls: 0, cancelled: [] })),
+		).serverStreamingIterable(countingMethod().method, {}, {});
+		expect((await call.responses.next()).value?.cursor).toBe(0n);
+		const pending = rejection(call.responses.next());
+		await settle();
+		own.abort();
+		expect((await pending).code).toBe('CANCELLED');
+	});
+
 	it('invalid request metadata is INTERNAL and sends no request', async () => {
 		const s = server(() => grpcWeb(body([trailerFrame()])));
 		const { method } = countingMethod();
@@ -699,17 +749,30 @@ describe('pullServerStreaming', () => {
 		expect(s.headers?.get('x-call')).toBe('c');
 	});
 
-	it('is available on the transport SuiGrpcClient builds', () => {
-		// `maxResponseMessageBytes` is accepted by the client and passed to its transport.
-		const client = new SuiGrpcClient({
-			network: 'testnet',
-			baseUrl: 'http://localhost',
-			maxResponseMessageBytes: 1024,
-		});
-		expect(client.ledgerService).toBeDefined();
-		expect(
-			pullServerStreaming(new GrpcWebFetchTransport({ baseUrl: 'http://localhost' })),
-		).toBeTypeOf('function');
+	it('is available on the transport SuiGrpcClient builds, with its message limit', async () => {
+		const call = (limit: number) => {
+			const b = body([dataFrame(message(1)), trailerFrame()]);
+			const s = server(() => grpcWeb(b));
+			const client = new SuiGrpcClient({
+				network: 'testnet',
+				baseUrl: 'http://localhost',
+				fetch: s.fetch,
+				maxResponseMessageBytes: limit,
+			});
+			// The transport the client's generated service clients were built with.
+			const pull = pullServerStreaming(client.subscriptionService['_transport'])!;
+			expect(pull).toBeTypeOf('function');
+			return { call: pull(countingMethod().method, {}), s };
+		};
+
+		const size = message(1).length;
+		const within = call(size);
+		expect((await within.call.responses.next()).value?.cursor).toBe(1n);
+		expect(within.s.headers?.get('x-sui-client-protocol-version')).toBeTruthy();
+
+		const error = await rejection(call(size - 1).call.responses.next());
+		expect(error.code).toBe('RESOURCE_EXHAUSTED');
+		expect(isNonRetryable(error)).toBe(true);
 	});
 
 	it('is unavailable on a transport without the capability', () => {
