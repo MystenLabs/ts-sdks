@@ -208,16 +208,16 @@ describe('range planning', () => {
 		ledger.indexedTip = 7n;
 		const adapter = fakeAdapter(ledger, {
 			// The first connection ends before any match; meanwhile checkpoints 8..10 get indexed.
-			live: [{ events: [], end: 'eof' }],
-			afterScan: () => (ledger.indexedTip = 10n),
+			live: (connection) => {
+				ledger.indexedTip = 10n;
+				return connection === 0 ? { events: [], end: 'eof' } : { events: [], end: 'hang' };
+			},
 		});
 		const frames = await take(stream(adapter), 1);
 		expect(ids(frames)).toEqual(['8:0']);
 		expect(adapter.calls.indexedTip).toBe(1);
-		expect(adapter.calls.scans.map((scan) => scan.start)).toEqual([
-			{ checkpoint: 8n },
-			{ checkpoint: 8n },
-		]);
+		// At the tip it subscribes at once; the reconnect, never live, reads history first.
+		expect(adapter.calls.scans.map((scan) => scan.start)).toEqual([{ checkpoint: 8n }]);
 	});
 
 	it('uses the indexed tip that initialize returned instead of reading it again', async () => {

@@ -48,8 +48,11 @@ export type ScanEvent<P, Item> =
 	| { $kind: 'Item'; position: P; item: Item }
 	| { $kind: 'Progress'; position: P }
 	| { $kind: 'Page'; end: SuiClientTypes.StreamPageEnd; coverage: Coverage }
-	/** `complete: false`: the index has not reached the requested bound yet. */
-	| { $kind: 'End'; complete: boolean };
+	/**
+	 * `complete: false`: the index has not reached the requested bound yet. `retentionLimit`: a read
+	 * toward genesis stopped at the oldest retained checkpoint.
+	 */
+	| { $kind: 'End'; complete: boolean; retentionLimit?: boolean };
 
 export type LiveEvent<P, Item> =
 	| { $kind: 'Connected' }
@@ -138,9 +141,9 @@ export interface FollowSession<P, Item, Frame> {
 	readonly start: Bound<P> | undefined;
 	readonly committed: P | undefined;
 	/**
-	 * Whether to replay history before subscribing, for a subscription that cannot resume: a long
-	 * replay could overflow it. False after an attempt that failed during live delivery with
-	 * progress, whose gap replay covers what was missed.
+	 * Whether to replay history before subscribing: a long replay could overflow a subscription, and
+	 * reading pages detects pruned history. False when the stream is near the live tip: anchored at
+	 * it, or after an attempt that failed during live delivery with progress.
 	 */
 	catchesUpFirst(): boolean;
 	/**
