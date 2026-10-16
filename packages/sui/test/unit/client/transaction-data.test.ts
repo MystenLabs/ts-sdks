@@ -102,7 +102,10 @@ const kinds = {
 			{ ForwardingAddressRegistryCreate: true },
 		],
 	},
-} satisfies Record<SuiClientTypes.TransactionKind['$kind'], typeof bcs.TransactionKind.$inferInput>;
+} satisfies Record<
+	Exclude<SuiClientTypes.TransactionKind['$kind'], 'Unknown'>,
+	typeof bcs.TransactionKind.$inferInput
+>;
 
 function serialize(kind: typeof bcs.TransactionKind.$inferInput) {
 	return bcs.TransactionData.serialize({
@@ -144,7 +147,7 @@ describe('ledger transaction data', () => {
 				expect(body).toEqual({ inputs, commands });
 				const { kind: _, ...rest } = result;
 				expect(rest).toEqual(header);
-			} else {
+			} else if (result.kind.$kind !== 'EndOfEpochTransaction') {
 				expect(result.kind).toEqual(bcs.TransactionData.parse(bytes).V1.kind);
 			}
 			expect(result).not.toHaveProperty('inputs');
@@ -219,6 +222,15 @@ describe('ledger transaction data', () => {
 		const { kind } = parseTransactionDataBcs(serialize(kinds.EndOfEpochTransaction));
 		if (kind.$kind !== 'EndOfEpochTransaction') throw new Error('Expected end of epoch');
 		expect(kind.EndOfEpochTransaction).toHaveLength(14);
+		const parsed = bcs.TransactionData.parse(serialize(kinds.EndOfEpochTransaction)).V1.kind;
+		expect(
+			kind.EndOfEpochTransaction.filter((entry) => entry.$kind !== 'BridgeStateCreate'),
+		).toEqual(parsed.EndOfEpochTransaction!.filter((entry) => entry.$kind !== 'BridgeStateCreate'));
+		// The chain identifier is reported as the RPC APIs do: the digest's first 4 bytes in hex.
+		expect(kind.EndOfEpochTransaction[5]).toEqual({
+			$kind: 'BridgeStateCreate',
+			BridgeStateCreate: { chainId: '00000000' },
+		});
 		expect(kind.EndOfEpochTransaction.at(-2)).toEqual({
 			$kind: 'WriteAccumulatorStorageCost',
 			WriteAccumulatorStorageCost: { storageCost: '123' },
