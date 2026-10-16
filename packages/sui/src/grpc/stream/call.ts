@@ -14,6 +14,10 @@
  * Abort ownership: each call owns one controller linked to the stream's signal. The stream signal
  * aborts every open call when the stream ends; `return()` aborts only its own call. Callers close
  * every call they open with `return()` in a `finally`.
+ *
+ * Cancellation takes effect immediately: once the stream signal aborts, queued responses are
+ * dropped and every `next()` rejects with the abort reason. A buffer overflow is not a
+ * cancellation; the responses queued before it are still delivered, then the overflow error.
  */
 
 import { RpcError, stackIntercept } from '@protobuf-ts/runtime-rpc';
@@ -130,6 +134,7 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 	protected readonly queue: BoundedQueue<T>;
 	readonly #linked: ReturnType<typeof linkedAbortController>;
 	#ended = false;
+	#returned = false;
 	#failure: unknown;
 	#wake: (() => void) | undefined;
 
@@ -137,8 +142,8 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		this.queue = queue;
 		this.#linked = linked;
 		const signal = linked.controller.signal;
-		if (signal.aborted) this.end(signal.reason);
-		else signal.addEventListener('abort', () => this.end(signal.reason), { once: true });
+		if (signal.aborted) this.#cancel(signal.reason);
+		else signal.addEventListener('abort', () => this.#cancel(signal.reason), { once: true });
 	}
 
 	[Symbol.asyncIterator]() {
@@ -164,6 +169,18 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		this.#ended = true;
 		const signal = this.#linked.controller.signal;
 		this.#failure = signal.aborted ? signal.reason : error;
+		this.wake();
+	}
+
+	/**
+	 * Cancels the call: drops queued responses and fails every later `next()` with `reason`, even
+	 * if the call had already ended. Our own overflow abort and `return()` are not cancellations.
+	 */
+	#cancel(reason: unknown) {
+		if (this.#returned || isBufferOverflow(reason)) return;
+		this.#ended = true;
+		this.#failure = reason;
+		this.queue.clear();
 		this.wake();
 	}
 
@@ -196,6 +213,7 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 
 	async return(): Promise<IteratorReturnResult<undefined>> {
 		this.end();
+		this.#returned = true;
 		this.queue.clear();
 		this.#linked.controller.abort();
 		this.#linked.dispose();
@@ -264,24 +282,16 @@ class PullLedgerCall<T> extends QueuedLedgerCall<T> {
 
 /** The transport pushes responses as they arrive; they go straight into the bounded queue. */
 class PushLedgerCall<T extends object> extends QueuedLedgerCall<T> {
-	readonly #removeListener: () => void;
-
 	constructor(
 		call: ServerStreamingCall<object, T>,
 		queue: BoundedQueue<T>,
 		linked: ReturnType<typeof linkedAbortController>,
 	) {
 		super(queue, linked);
-		// protobuf-ts also queues every response for its own iterator, without a limit. Draining
-		// that iterator on every callback keeps only the bounded queue holding responses.
-		const iterator = call.responses[Symbol.asyncIterator]();
-		this.#removeListener = call.responses.onNext((response, error, complete) => {
-			void iterator.next().catch(() => {});
-			if (this.ended) return;
-			if (error || complete) this.end(error);
-			else if (response) this.enqueue(response);
-			this.wake();
-		});
+		// Consume protobuf-ts's own iterator rather than `onNext`: it replays responses delivered
+		// before the call was returned (a cached or immediately rejected call), and draining it
+		// eagerly keeps only the bounded queue holding responses.
+		void this.#drain(call.responses[Symbol.asyncIterator]());
 	}
 
 	readAhead() {}
@@ -290,8 +300,20 @@ class PushLedgerCall<T extends object> extends QueuedLedgerCall<T> {
 		return this.waitForWake();
 	}
 
-	protected async release() {
-		this.#removeListener();
+	protected async release() {}
+
+	async #drain(responses: AsyncIterator<T>) {
+		try {
+			while (!this.ended) {
+				const result = await responses.next();
+				if (this.ended) return;
+				if (result.done) return this.end();
+				this.enqueue(result.value);
+				this.wake();
+			}
+		} catch (error) {
+			this.end(error);
+		}
 	}
 }
 
