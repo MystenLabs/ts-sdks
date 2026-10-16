@@ -30,9 +30,9 @@ const LIVE: [ClientKind, Delivery][] = [
 const KINDS: ClientKind[] = ['grpc', 'graphql'];
 const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
 
-/** A GraphQL subscription can't report `Live` before its first match, only `Recovering`. */
+/** A GraphQL subscription reports `Live` only with its first match; until then it is `Connected`. */
 function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
-	return kind === 'graphql' && delivery === 'subscribe' ? 'Recovering' : 'Live';
+	return kind === 'graphql' && delivery === 'subscribe' ? 'Connected' : 'Live';
 }
 
 function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
@@ -210,7 +210,7 @@ class Reader<F> {
 	}
 }
 
-/** A fetch that resets matching response bodies after `after` ms, like mainnet's 30 s resets. */
+/** A fetch that resets matching response bodies after `after` ms, as a server or proxy may. */
 function resettingFetch(match: (url: string) => boolean, after: number) {
 	const resets = { count: 0 };
 	const wrapped: typeof fetch = async (input, init) => {
@@ -286,46 +286,6 @@ function differingFields(actual: unknown, expected: unknown): string[] {
 	};
 	walk(actual, expected, '', false);
 	return [...paths].sort();
-}
-
-/**
- * Fields subscription responses leave out or get wrong (sui v1.82.1, sui-indexer-alt-graphql
- * v1.83). Empty an entry when the server is fixed.
- */
-const SUBSCRIPTION_GAPS: Record<ClientKind, Record<'transactions' | 'events', string[]>> = {
-	grpc: {
-		transactions: [
-			'[].Transaction.effects.changedObjects[].objectType',
-			'[].Transaction.effects.gasObject.objectType',
-			'[].Transaction.events[].json',
-			'[].Transaction.objectTypes.*',
-		],
-		events: [],
-	},
-	graphql: {
-		transactions: [
-			'[].Transaction.effects.changedObjects[].objectType',
-			'[].Transaction.effects.gasObject.objectType',
-		],
-		events: ['[].packageId'],
-	},
-};
-
-/** Drops the `SUBSCRIPTION_GAPS` fields so the rest of each item can be compared exactly. */
-function withoutSubscriptionGaps(
-	kind: ClientKind,
-	family: 'checkpoints' | 'transactions' | 'events',
-	value: unknown,
-): unknown {
-	const fields =
-		family === 'checkpoints'
-			? new Set<string>()
-			: new Set(
-					SUBSCRIPTION_GAPS[kind][family].map((path) =>
-						path.replace(/\.\*$/, '').split('.').at(-1)!,
-					),
-				);
-	return JSON.parse(JSON.stringify(value, (key, field) => (fields.has(key) ? undefined : field)));
 }
 
 /** A fetch that counts the body chunks read from matching responses, read only on demand. */
@@ -970,9 +930,7 @@ describe('ledger streams', () => {
 
 		const keys = delivered.map((frame) => frame.key);
 		expect(new Set(keys).size, 'duplicates').toBe(keys.length);
-		const normalize = (value: unknown) =>
-			delivery === 'subscribe' ? withoutSubscriptionGaps(options.kind, family, value) : value;
-		expect(normalize(delivered.map((frame) => frame.value))).toEqual(normalize(expected));
+		expect(delivered.map((frame) => frame.value)).toEqual(expected);
 		if (family !== 'checkpoints') {
 			const seen = new Set(delivered.map((frame) => frame.key.split(':')[0]));
 			for (const { digest } of submitted) expect(seen).toContain(digest);
@@ -1082,7 +1040,7 @@ describe('ledger streams', () => {
 					digest,
 				]);
 				const live = log.log.find(({ status }) => status.$kind === 'Live');
-				expect(live?.frames).toBe(sparseGraphQL ? 1 : 0);
+				expect(live?.frames).toBe(0);
 				const [resumed] = await take(
 					client(kind).core.streamEvents({
 						start: { resumeToken: baseline!.resumeToken },
@@ -1162,57 +1120,54 @@ describe('ledger streams', () => {
 		});
 	});
 
-	describe.each(KINDS)(
-		'live items match the list methods except for known server gaps (%s)',
-		(kind) => {
-			for (const family of ['transactions', 'events'] as const) {
-				it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async () => {
-					const from = await newSigner();
-					const filter = { sender: from.address };
-					const include = {
-						transaction: true,
-						effects: true,
-						events: true,
-						balanceChanges: true,
-						objectTypes: true,
-					} as const;
-					const log = statusLog();
-					const reader = new Reader<unknown>((signal) => {
-						async function* values() {
-							if (family === 'transactions') {
-								for await (const frame of client(kind).core.streamTransactions({
-									filter,
-									include,
-									onStatus: log.onStatus,
-									signal,
-								}))
-									yield frame.transaction;
-							} else {
-								for await (const frame of client(kind).core.streamEvents({
-									filter,
-									onStatus: log.onStatus,
-									signal,
-								}))
-									yield frame.event;
-							}
+	describe.each(KINDS)('live items match the list methods (%s)', (kind) => {
+		for (const family of ['transactions', 'events'] as const) {
+			it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async () => {
+				const from = await newSigner();
+				const filter = { sender: from.address };
+				const include = {
+					transaction: true,
+					effects: true,
+					events: true,
+					balanceChanges: true,
+					objectTypes: true,
+				} as const;
+				const log = statusLog();
+				const reader = new Reader<unknown>((signal) => {
+					async function* values() {
+						if (family === 'transactions') {
+							for await (const frame of client(kind).core.streamTransactions({
+								filter,
+								include,
+								onStatus: log.onStatus,
+								signal,
+							}))
+								yield frame.transaction;
+						} else {
+							for await (const frame of client(kind).core.streamEvents({
+								filter,
+								onStatus: log.onStatus,
+								signal,
+							}))
+								yield frame.event;
 						}
-						return values();
-					});
-					await waitFor(() => log.kinds().includes(listening(kind, 'subscribe')));
-					await emitEvents(from, 1);
-					await emitEvents(from, 1);
-					await reader.until((frames) => frames.length >= 2);
-					await reader.settle(1_000);
-					const listed =
-						family === 'transactions'
-							? await listTransactions(kind, { filter, include })
-							: await listEvents(kind, { filter });
-					expect(reader.frames).toHaveLength(listed.length);
-					expect(differingFields(reader.frames, listed)).toEqual(SUBSCRIPTION_GAPS[kind][family]);
+					}
+					return values();
 				});
-			}
-		},
-	);
+				await waitFor(() => log.kinds().includes(listening(kind, 'subscribe')));
+				await emitEvents(from, 1);
+				await emitEvents(from, 1);
+				await reader.until((frames) => frames.length >= 2);
+				await reader.settle(1_000);
+				const listed =
+					family === 'transactions'
+						? await listTransactions(kind, { filter, include })
+						: await listEvents(kind, { filter });
+				expect(reader.frames).toHaveLength(listed.length);
+				expect(differingFields(reader.frames, listed)).toEqual([]);
+			});
+		}
+	});
 
 	describe.each(KINDS)('forced reconnects (%s)', (kind) => {
 		const skip = missingSubscriptions(kind, 'subscribe');
@@ -1574,7 +1529,7 @@ describe('ledger streams', () => {
 			});
 			const firstEvent = events.next();
 			const firstTransaction = transactions.next();
-			// Subscriptions have no backfill: submit once both are open.
+			// Without `after`, subscriptions start live: submit once both are open.
 			await Promise.all([eventsOpen.wait(firstEvent), transactionsOpen.wait(firstTransaction)]);
 			const first = await emitEvents(from, 2);
 			const second = await emitEvents(from, 2);
@@ -1618,7 +1573,7 @@ describe('ledger streams', () => {
 			expect(transactionsAfter.data?.transactions.nodes).toEqual([{ digest: second.digest }]);
 		});
 
-		it('resolves checkpoints of freshly executed transactions through multiGetTransactionEffects', async () => {
+		it('reports the checkpoint of live transactions', async () => {
 			const from = await newSigner();
 			const open = opening();
 			const subscription = toolbox.graphqlClient.subscribe<
@@ -1641,25 +1596,41 @@ describe('ledger streams', () => {
 			const { digest } = await emitEvents(from, 1, { fast: true });
 			const edge = (await pending).value!;
 			expect(edge.data?.transactions.node.digest).toBe(digest);
-			const deadline = Date.now() + 30_000;
-			let checkpoint: number | undefined;
-			while (checkpoint === undefined && Date.now() < deadline) {
-				const result = await toolbox.graphqlClient.query<{
-					multiGetTransactionEffects: ({ checkpoint: { sequenceNumber: number } | null } | null)[];
-				}>({
-					query: `query ($digests: [String!]!) {
-						multiGetTransactionEffects(keys: $digests) { checkpoint { sequenceNumber } }
-					}`,
-					variables: { digests: [digest] },
-				});
-				expect(result.errors).toBeUndefined();
-				checkpoint = result.data?.multiGetTransactionEffects[0]?.checkpoint?.sequenceNumber;
-				if (checkpoint === undefined) await sleep(250);
-			}
 			const { Transaction: executed } = await toolbox.grpcClient.core.getTransaction({ digest });
-			expect(String(checkpoint)).toBe(executed!.checkpoint);
-			const nodeCheckpoint = edge.data?.transactions.node.effects?.checkpoint?.sequenceNumber;
-			if (nodeCheckpoint !== undefined) expect(String(nodeCheckpoint)).toBe(executed!.checkpoint);
+			expect(String(edge.data?.transactions.node.effects?.checkpoint?.sequenceNumber)).toBe(
+				executed!.checkpoint,
+			);
+		});
+
+		it('backfills a subscription resumed after a query cursor, then continues live', async () => {
+			const from = await newSigner();
+			const first = await emitEvents(from, 1);
+			const second = await emitEvents(from, 1);
+			const listed = await toolbox.graphqlClient.query<{
+				transactions: { edges: { cursor: string; node: { digest: string } }[] };
+			}>({
+				query: `query ($filter: TransactionFilter) {
+					transactions(filter: $filter) { edges { cursor node { digest } } }
+				}`,
+				variables: { filter: { sentAddress: from.address } },
+			});
+			const [firstEdge] = listed.data!.transactions.edges;
+			expect(firstEdge.node.digest).toBe(first.digest);
+			const subscription = toolbox.graphqlClient.subscribe<
+				EdgeResult<'transactions', { digest: string }>
+			>({
+				query: `subscription ($filter: TransactionFilter, $after: String) {
+					transactions(filter: $filter, after: $after) { cursor node { digest } }
+				}`,
+				variables: { filter: { sentAddress: from.address }, after: firstEdge.cursor },
+				signal: signal(),
+			});
+			const backfilled = (await subscription.next()).value!;
+			expect(backfilled.data?.transactions.node.digest).toBe(second.digest);
+			const third = await emitEvents(from, 1);
+			const live = (await subscription.next()).value!;
+			expect(live.data?.transactions.node.digest).toBe(third.digest);
+			await subscription.return(undefined);
 		});
 
 		it('finishes a raw GraphQL operation when Sui closes the SSE response', async () => {
