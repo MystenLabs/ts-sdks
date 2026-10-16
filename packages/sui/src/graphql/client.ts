@@ -55,8 +55,8 @@ export type GraphQLSubscriptionOptions<
 			? { variables?: Variables }
 			: { variables: Variables }) & {
 		/**
-		 * Maximum size of one SSE message: the characters of its lines other than comments, counting
-		 * each line break as one. Defaults to 16 Mi characters.
+		 * Largest SSE event, in characters, before the subscription fails.
+		 * @default 16 * 1024 * 1024
 		 */
 		maxMessageSize?: number;
 	};
@@ -204,12 +204,8 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	}
 
 	/**
-	 * Subscribe to a GraphQL subscription document over HTTP server-sent events.
-	 *
-	 * The request starts on the first `next()`. Each yielded result keeps its GraphQL `errors`;
-	 * transport and protocol failures throw `SuiGraphQLRequestError`. Iteration ends when the
-	 * server completes or closes the stream, and there is no automatic reconnect. `return()` or
-	 * aborting `signal` closes the connection, including while a `next()` is pending.
+	 * Run a GraphQL subscription over server-sent events. Does not reconnect; transport failures
+	 * throw `SuiGraphQLRequestError`.
 	 */
 	subscribe<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLSubscriptionOptions<Result, Variables>,
