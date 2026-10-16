@@ -35,5 +35,5 @@ GraphQL build must support the schema and startup flags used by the harness. The
 (`clients/streams.test.ts`) were last run against a native `sui-indexer-alt-graphql` v1.83.0 build;
 the preview image predates the subscription fixes they rely on.
 
-`clients/streams.test.ts` pins known gaps in subscription responses with `it.fails` (see
-`SUBSCRIPTION_GAPS`). When a server fix lands, those tests start failing: turn them into `it`.
+`clients/streams.test.ts` pins the exact fields that subscription responses leave out or get wrong
+(`SUBSCRIPTION_GAPS`). When a server fix lands, those tests fail until the entry is emptied.

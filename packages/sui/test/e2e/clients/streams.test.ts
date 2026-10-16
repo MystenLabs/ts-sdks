@@ -40,6 +40,14 @@ const LIVE: [ClientKind, Delivery][] = [
 const KINDS: ClientKind[] = ['grpc', 'graphql'];
 const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
 
+/**
+ * The status that shows a live stream is listening: a GraphQL subscription replays the gap
+ * (`Recovering`) once the server accepts it; gRPC subscriptions and poll passes report `Live`.
+ */
+function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
+	return kind === 'graphql' && delivery === 'subscribe' ? 'Recovering' : 'Live';
+}
+
 function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
 	return kind === 'graphql' && delivery === 'subscribe' && !graphqlSubscriptions;
 }
@@ -134,6 +142,9 @@ function causedByReset(error: unknown): boolean {
 	return false;
 }
 
+/** Readers still running; `afterEach` stops them even when a test fails before `close()`. */
+const openReaders = new Set<{ close(): Promise<void> }>();
+
 /**
  * Reads a stream in the background, so the test can submit transactions while it runs. Stops
  * when `close()` aborts the stream's signal.
@@ -149,6 +160,7 @@ class Reader<F> {
 	constructor(open: (signal: AbortSignal) => AsyncIterable<F>, options: { delay?: number } = {}) {
 		const controller = new AbortController();
 		this.#controller = controller;
+		openReaders.add(this);
 		const stream = open(controller.signal);
 		this.#task = (async () => {
 			try {
@@ -184,6 +196,7 @@ class Reader<F> {
 	}
 
 	async close() {
+		openReaders.delete(this);
 		this.#controller.abort(new Error('test finished'));
 		await this.#task;
 		if (this.#error) throw this.#error;
@@ -241,15 +254,117 @@ function resettingFetch(match: (url: string) => boolean, after: number) {
 }
 
 /**
- * Drops fields that the servers leave out of subscription responses (see the
- * `live items carry every field` tests), so the rest of each item can be compared exactly.
+ * The fields where `actual` and `expected` differ, as sorted paths with array indexes and map
+ * keys elided (`effects.changedObjects[].objectType`).
  */
-function withoutSubscriptionGaps(value: unknown): unknown {
-	return JSON.parse(
-		JSON.stringify(value, (key, field) =>
-			key === 'objectType' || key === 'json' || key === 'packageId' ? undefined : field,
-		),
-	);
+function differingFields(actual: unknown, expected: unknown): string[] {
+	const paths = new Set<string>();
+	const walk = (a: unknown, b: unknown, path: string, keyed: boolean) => {
+		if (Object.is(a, b)) return;
+		const objects = typeof a === 'object' && a !== null && typeof b === 'object' && b !== null;
+		if (!objects || Array.isArray(a) !== Array.isArray(b)) {
+			paths.add(path);
+			return;
+		}
+		if (Array.isArray(a) && Array.isArray(b)) {
+			if (a.length !== b.length) paths.add(`${path}.length`);
+			for (let i = 0; i < Math.min(a.length, b.length); i++) walk(a[i], b[i], `${path}[]`, false);
+			return;
+		}
+		const ao = a as Record<string, unknown>;
+		const bo = b as Record<string, unknown>;
+		for (const key of new Set([...Object.keys(ao), ...Object.keys(bo)])) {
+			// `objectTypes` maps object ids to types; elide the ids.
+			walk(
+				ao[key],
+				bo[key],
+				keyed ? `${path}.*` : path ? `${path}.${key}` : key,
+				key === 'objectTypes',
+			);
+		}
+	};
+	walk(actual, expected, '', false);
+	return [...paths].sort();
+}
+
+/**
+ * Fields that the servers leave out of (or get wrong in) subscription responses, found by
+ * these tests (sui v1.82.1 fullnode, sui-indexer-alt-graphql v1.83). Streams pass live items
+ * through as the servers send them, so they differ from what the list methods return:
+ * - gRPC `SubscribeTransactions` leaves out `effects.changed_objects.object_type` and
+ *   `events.events.json`, even when the read mask asks for them (`SubscribeEvents` is fine);
+ * - GraphQL subscription transactions have no `objectType` in `effectsJson`;
+ * - GraphQL subscription events report a wrong `transactionModule.package.address`.
+ * The tests below require these exact differences and nothing else: when a server is fixed,
+ * its entry must be emptied.
+ */
+const SUBSCRIPTION_GAPS: Record<ClientKind, Record<'transactions' | 'events', string[]>> = {
+	grpc: {
+		transactions: [
+			'[].Transaction.effects.changedObjects[].objectType',
+			'[].Transaction.effects.gasObject.objectType',
+			'[].Transaction.events[].json',
+			'[].Transaction.objectTypes.*',
+		],
+		events: [],
+	},
+	graphql: {
+		transactions: [
+			'[].Transaction.effects.changedObjects[].objectType',
+			'[].Transaction.effects.gasObject.objectType',
+		],
+		events: ['[].packageId'],
+	},
+};
+
+/**
+ * Drops the fields that `SUBSCRIPTION_GAPS` lists for `kind` and `family` (the live-item tests
+ * pin them), so the rest of each item can be compared exactly.
+ */
+function withoutSubscriptionGaps(
+	kind: ClientKind,
+	family: 'checkpoints' | 'transactions' | 'events',
+	value: unknown,
+): unknown {
+	const fields =
+		family === 'checkpoints'
+			? new Set<string>()
+			: new Set(
+					SUBSCRIPTION_GAPS[kind][family].map((path) =>
+						path.replace(/\.\*$/, '').split('.').at(-1)!,
+					),
+				);
+	return JSON.parse(JSON.stringify(value, (key, field) => (fields.has(key) ? undefined : field)));
+}
+
+/** A fetch that counts the body chunks read from matching responses, read only on demand. */
+function countingFetch(match: (url: string) => boolean) {
+	const pulls = { count: 0 };
+	const wrapped: typeof fetch = async (input, init) => {
+		const response = await fetch(input, init);
+		const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+		if (!match(url) || !response.body) return response;
+		const reader = response.body.getReader();
+		const body = new ReadableStream<Uint8Array>(
+			{
+				async pull(controller) {
+					const { done, value } = await reader.read();
+					if (done) return controller.close();
+					pulls.count++;
+					controller.enqueue(value);
+				},
+				cancel: (reason) => reader.cancel(reason),
+			},
+			// No internal buffering: a chunk is read from the network only when the client reads.
+			{ highWaterMark: 0 },
+		);
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
+	};
+	return { fetch: wrapped, pulls };
 }
 
 const isSubscriptionUrl = (url: string) =>
@@ -387,8 +502,9 @@ describe('ledger streams', () => {
 		expect(BigInt(firstCheckpoint)).toBeGreaterThan(0n);
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		for (const controller of controllers.splice(0)) controller.abort();
+		await Promise.all([...openReaders].map((reader) => reader.close().catch(() => {})));
 	});
 
 	describe('finite reads', () => {
@@ -627,7 +743,7 @@ describe('ledger streams', () => {
 		});
 
 		describe.each(KINDS)('%s', (kind) => {
-			it('resumes from every 7th token to exactly the remaining items', async () => {
+			it('resumes from every 7th event token and every 2nd checkpoint token to exactly the remaining items', async () => {
 				const filter = { sender: manySigner.address };
 				const frames = await collect(client(kind).core.streamEvents({ ...range(), filter }));
 				expect(frames).toHaveLength(MANY_EVENTS);
@@ -645,14 +761,16 @@ describe('ledger streams', () => {
 					).toEqual(frames.slice(i + 1).map((frame) => frame.event));
 				}
 
+				// A fixed range: localnet keeps adding checkpoints while other files run.
 				const checkpoints = await collect(
 					client(kind).core.streamCheckpoints({
-						start: { checkpoint: 0 },
+						start: { checkpoint: firstCheckpoint },
 						end: { checkpoint: lastCheckpoint },
 						signal: signal(),
 					}),
 				);
-				for (let i = 0; i < checkpoints.length; i += 7) {
+				expect(checkpoints.length).toBeGreaterThan(1);
+				for (let i = 0; i < checkpoints.length; i += 2) {
 					const remainder = await collect(
 						client(kind).core.streamCheckpoints({
 							start: { resumeToken: checkpoints[i].resumeToken },
@@ -770,6 +888,11 @@ describe('ledger streams', () => {
 		delay?: number;
 		/** Resume from a token half way through. */
 		resume?: boolean;
+		/**
+		 * Wait for a reconnect after the submissions, then submit one more transaction that the
+		 * stream must deliver: delivery recovered after a reset.
+		 */
+		afterReconnect?: boolean;
 	}) {
 		const { family, delivery } = options;
 		const from = await newSigner();
@@ -832,6 +955,12 @@ describe('ledger streams', () => {
 			});
 		}
 		await submitting;
+		if (options.afterReconnect) {
+			const reconnects = () => log.kinds().filter((k) => k === 'Connecting').length - 1;
+			const before = reconnects();
+			await waitFor(() => reconnects() > before, 30_000);
+			submitted.push(await emitEvents(from, 1, { fast: true }));
+		}
 		const last = submitted.at(-1)!.checkpoint;
 		await reader.until((frames) => {
 			const lastFrame = frames.at(-1) ?? delivered.at(-1);
@@ -865,11 +994,15 @@ describe('ledger streams', () => {
 
 		const keys = delivered.map((frame) => frame.key);
 		expect(new Set(keys).size, 'duplicates').toBe(keys.length);
-		// Live items lack a few fields the servers do not fill in on subscriptions; the
-		// `live items carry every field` tests below pin those gaps.
-		expect(withoutSubscriptionGaps(delivered.map((frame) => frame.value))).toEqual(
-			withoutSubscriptionGaps(expected),
-		);
+		// Live items lack a few fields the servers do not fill in on subscriptions
+		// (`SUBSCRIPTION_GAPS`, pinned by the live-item tests below).
+		expect(
+			withoutSubscriptionGaps(
+				options.kind,
+				family,
+				delivered.map((frame) => frame.value),
+			),
+		).toEqual(withoutSubscriptionGaps(options.kind, family, expected));
 		if (family !== 'checkpoints') {
 			// Every submitted transaction is in there.
 			const seen = new Set(delivered.map((frame) => frame.key.split(':')[0]));
@@ -950,16 +1083,21 @@ describe('ledger streams', () => {
 			'reports Live for a sparse filter before its first match, and stays connected while quiet',
 			async () => {
 				const from = await newSigner();
-				let reader: Reader<SuiClientTypes.StreamEventFrame> | undefined;
-				const log = statusLog(() => reader?.frames.length ?? 0);
+				type Frame = SuiClientTypes.StreamEventResult<{ progress: true }>;
+				const events = (frames: Frame[]) => frames.filter((frame) => frame.$kind === 'Event');
+				let reader: Reader<Frame> | undefined;
+				const log = statusLog(() => (reader ? events(reader.frames).length : 0));
 				reader = new Reader((signal) =>
 					client(kind).core.streamEvents({
 						filter: { sender: from.address },
 						delivery,
+						frames: { progress: true },
 						onStatus: log.onStatus,
 						signal,
 					}),
 				);
+				// Once listening, a quiet period with no match must not disconnect or report errors.
+				await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 				await sleep(5_000);
 				const quiet = log.kinds();
 				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
@@ -970,16 +1108,33 @@ describe('ledger streams', () => {
 				// its first live frame is the first match, so it is Live only once one arrives.
 				const sparseGraphQL = kind === 'graphql' && delivery === 'subscribe';
 				expect(quiet.includes('Live')).toBe(!sparseGraphQL);
+				// A quiet fresh follow still hands out a resumable position before any match.
+				const baseline = reader.frames.findLast((frame) => frame.$kind === 'Progress');
+				expect(baseline).toBeDefined();
+				expect(events(reader.frames)).toEqual([]);
 
 				const { digest } = await emitEvents(from, 1);
-				await reader.until((frames) => frames.length === 1);
+				await reader.until((frames) => events(frames).length === 1);
 				await reader.settle(1_000);
-				expect(reader.frames.map((frame) => frame.event.transactionDigest)).toEqual([digest]);
+				expect(events(reader.frames).map((frame) => frame.event.transactionDigest)).toEqual([
+					digest,
+				]);
 				const live = log.log.find(({ status }) => status.$kind === 'Live');
 				// Live is reported before the first item is handed out, except on a GraphQL
 				// subscription: its first match is replayed from history with the rest of that
 				// checkpoint (the gap), and Live follows.
 				expect(live?.frames).toBe(sparseGraphQL ? 1 : 0);
+				// The baseline resumes to exactly the match that followed it.
+				const [resumed] = await take(
+					client(kind).core.streamEvents({
+						start: { resumeToken: baseline!.resumeToken },
+						filter: { sender: from.address },
+						delivery,
+						signal: signal(),
+					}),
+					1,
+				);
+				expect(resumed.event.transactionDigest).toBe(digest);
 				expect(log.kinds()).not.toContain('Retrying');
 			},
 		);
@@ -987,30 +1142,34 @@ describe('ledger streams', () => {
 		it.skipIf(skip)(
 			'catches up through history and continues with a newly submitted event',
 			async () => {
+				const log = statusLog();
+				const filter = { sender: signer.address };
+				// Other tests add events from `signer`, so read the whole history first.
+				const history = await listEvents(kind, { filter, startCheckpoint: firstCheckpoint });
 				const stream = client(kind).core.streamEvents({
 					start: { checkpoint: firstCheckpoint },
-					filter: { sender: signer.address },
+					filter,
 					delivery,
+					onStatus: log.onStatus,
 					signal: signal(),
 				});
 				try {
-					for (let i = 0; i < 9; i++) {
+					for (let i = 0; i < history.length; i++) {
 						const next = await stream.next();
 						expect(next.done).toBe(false);
-						if (!next.done)
-							expect(next.value.event.transactionDigest).toBe(digests[Math.floor(i / 3)]);
+						if (!next.done) expect(next.value.event).toEqual(history[i]);
 					}
-					// Attach rejection handling before submitting, so a failure stays observable.
-					// Attach rejection handling before submitting, so a failure stays observable. The
-					// read is pending before the pause: streams are pulled, so history only finishes and
-					// the live feed only opens while a read is pending. A GraphQL subscription carries no
-					// progress, so a match executed after history read the indexed tip but before the
-					// subscription opened would only be replayed once a later match arrives.
+					expect(history.slice(0, 9).map((event) => event.transactionDigest)).toEqual(
+						digests.flatMap((digest) => [digest, digest, digest]),
+					);
+					// Streams are pulled: history only finishes, and the live feed only opens, while
+					// a read is pending. Attach rejection handling before submitting, so a failure
+					// stays observable, and submit once the stream is listening.
 					const pending = stream.next().then(
 						(value) => ({ value }),
 						(error: unknown) => ({ error }),
 					);
-					await sleep(3_000);
+					await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 					const live = await emitEvents(signer, 1);
 					let next = await pending;
 					if ('error' in next) throw next.error;
@@ -1026,80 +1185,75 @@ describe('ledger streams', () => {
 
 		it.skipIf(skip)('cancels a quiet filter while its next item is pending', async () => {
 			const controller = new AbortController();
+			const log = statusLog();
 			const stream = client(kind).core.streamEvents({
 				filter: { sender: `0x${'cd'.repeat(32)}` },
 				delivery,
+				onStatus: log.onStatus,
 				signal: controller.signal,
 			});
 			const pending = stream.next();
 			const rejection = expect(pending).rejects.toThrow('stream cancelled');
-			await sleep(1_000);
+			// Cancel while the live read is pending, not while history is still being read.
+			await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 			controller.abort(new Error('stream cancelled'));
 			await rejection;
 			await stream.return(undefined);
 		});
 	});
 
-	/**
-	 * Server gaps in subscription responses, found by these tests (sui v1.82.1 fullnode and
-	 * sui-indexer-alt-graphql v1.83). Streams pass live items through as the servers send them,
-	 * so live items differ from what the list methods return for the same transaction:
-	 * - gRPC `SubscribeTransactions` leaves out `effects.changed_objects.object_type` and
-	 *   `events.events.json`, even when the read mask asks for them (`SubscribeEvents` is fine);
-	 * - GraphQL subscription transactions have no `objectType` in `effectsJson`;
-	 * - GraphQL subscription events report a wrong `transactionModule.package.address`.
-	 * Each `it.fails` starts failing once its server is fixed; turn it into `it` then.
-	 */
-	const SUBSCRIPTION_GAPS: Record<ClientKind, Record<'transactions' | 'events', boolean>> = {
-		grpc: { transactions: true, events: false },
-		graphql: { transactions: true, events: true },
-	};
-
-	describe.each(KINDS)('live items carry every field the list methods return (%s)', (kind) => {
-		for (const family of ['transactions', 'events'] as const) {
-			const gap = SUBSCRIPTION_GAPS[kind][family];
-			const test = missingSubscriptions(kind, 'subscribe') ? it.skip : gap ? it.fails : it;
-			test(`${family}${gap ? ' (known server gap)' : ''}`, async () => {
-				const from = await newSigner();
-				const filter = { sender: from.address };
-				const include = {
-					transaction: true,
-					effects: true,
-					events: true,
-					balanceChanges: true,
-					objectTypes: true,
-				} as const;
-				const reader = new Reader<unknown>((signal) => {
-					async function* values() {
-						if (family === 'transactions') {
-							for await (const frame of client(kind).core.streamTransactions({
-								filter,
-								include,
-								signal,
-							}))
-								yield frame.transaction;
-						} else {
-							for await (const frame of client(kind).core.streamEvents({ filter, signal }))
-								yield frame.event;
+	describe.each(KINDS)(
+		'live items match the list methods except for known server gaps (%s)',
+		(kind) => {
+			for (const family of ['transactions', 'events'] as const) {
+				it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async () => {
+					const from = await newSigner();
+					const filter = { sender: from.address };
+					const include = {
+						transaction: true,
+						effects: true,
+						events: true,
+						balanceChanges: true,
+						objectTypes: true,
+					} as const;
+					const log = statusLog();
+					const reader = new Reader<unknown>((signal) => {
+						async function* values() {
+							if (family === 'transactions') {
+								for await (const frame of client(kind).core.streamTransactions({
+									filter,
+									include,
+									onStatus: log.onStatus,
+									signal,
+								}))
+									yield frame.transaction;
+							} else {
+								for await (const frame of client(kind).core.streamEvents({
+									filter,
+									onStatus: log.onStatus,
+									signal,
+								}))
+									yield frame.event;
+							}
 						}
-					}
-					return values();
+						return values();
+					});
+					// Submit once the subscription is open, so both items arrive live.
+					await waitFor(() => log.kinds().includes(listening(kind, 'subscribe')));
+					await emitEvents(from, 1);
+					await emitEvents(from, 1);
+					await reader.until((frames) => frames.length >= 2);
+					await reader.settle(1_000);
+					const listed =
+						family === 'transactions'
+							? await listTransactions(kind, { filter, include })
+							: await listEvents(kind, { filter });
+					expect(reader.frames).toHaveLength(listed.length);
+					expect(differingFields(reader.frames, listed)).toEqual(SUBSCRIPTION_GAPS[kind][family]);
 				});
-				await sleep(3_000);
-				// On GraphQL the first match is replayed from history with its checkpoint; the
-				// second one is delivered live.
-				await emitEvents(from, 1);
-				await emitEvents(from, 1);
-				await reader.until((frames) => frames.length >= 2);
-				await reader.settle(1_000);
-				expect(reader.frames).toEqual(
-					family === 'transactions'
-						? await listTransactions(kind, { filter, include })
-						: await listEvents(kind, { filter }),
-				);
-			});
-		}
-	});
+			}
+		},
+	);
 
 	describe.each(KINDS)('forced reconnects (%s)', (kind) => {
 		const skip = missingSubscriptions(kind, 'subscribe');
@@ -1115,10 +1269,15 @@ describe('ledger streams', () => {
 					delivery: 'subscribe',
 					// A slow consumer: the gRPC pull path must not overflow meanwhile.
 					delay: kind === 'grpc' ? 150 : 0,
+					afterReconnect: true,
 				});
-				expect(resets.count).toBeGreaterThan(0);
+				// The resets happened, each reconnect followed one, and a transaction submitted
+				// after a reconnect was delivered (`afterReconnect`).
 				const retries = statuses.filter((s) => s.$kind === 'Retrying');
+				const connecting = statuses.filter((s) => s.$kind === 'Connecting');
 				expect(retries.length).toBeGreaterThan(0);
+				expect(connecting).toHaveLength(retries.length + 1);
+				expect(resets.count).toBeGreaterThanOrEqual(retries.length);
 				// Every reconnect was caused by an injected reset: nothing overflowed.
 				for (const retry of retries) {
 					expect(causedByReset(retry.error), String(retry.error)).toBe(true);
@@ -1126,11 +1285,13 @@ describe('ledger streams', () => {
 				expect(statuses.filter((s) => s.$kind === 'Error')).toEqual([]);
 				const [, ...reconnects] = attempts(statuses);
 				expect(reconnects.length).toBeGreaterThan(0);
+				// At least one reconnect went live again before the next reset.
+				expect(reconnects.some((attempt) => attempt.some((s) => s.$kind === 'Live'))).toBe(true);
 				for (const attempt of reconnects) {
 					const pages = attempt.filter((s) => s.$kind === 'Page');
 					// One history pass from the committed position to the indexed tip: it ends at the
-					// tip after at most one full page.
-					// (none when the committed position is already at the indexed tip).
+					// tip after at most one full page (no page when the committed position is already
+					// at the indexed tip).
 					const history = pages.filter((page) => page.stage === 'history');
 					expect(history.filter((page) => page.end !== 'limit').length).toBeLessThanOrEqual(1);
 					expect(history.length).toBeLessThanOrEqual(2);
@@ -1166,10 +1327,16 @@ describe('ledger streams', () => {
 			expect(log.kinds().filter((k) => k === 'Retrying' || k === 'Error')).toEqual([]);
 		});
 
-		it('pauses a live subscription without overflowing and ends promptly on return', async () => {
+		it('pauses a live subscription without reading ahead or overflowing, and ends promptly on return', async () => {
+			const { fetch, pulls } = countingFetch((url) => url.endsWith('/SubscribeCheckpoints'));
+			const grpc = new SuiGrpcClient({
+				network: 'localnet',
+				baseUrl: `http://127.0.0.1:${inject('localnetPort')}`,
+				fetch,
+			});
 			const log = statusLog();
 			const start = await tip();
-			const stream = toolbox.grpcClient.streamCheckpoints({
+			const stream = grpc.streamCheckpoints({
 				start: { checkpoint: start },
 				delivery: 'subscribe',
 				onStatus: log.onStatus,
@@ -1181,10 +1348,18 @@ describe('ledger streams', () => {
 				expect(result.done).toBe(false);
 				if (!result.done) sequence.push(BigInt(result.value.checkpoint.sequenceNumber));
 			};
+			// Read into live delivery, so the pause holds an open subscription.
+			while (!log.kinds().includes('Live')) await next();
 			await next();
+			const pulled = pulls.count;
+			const before = await tip();
 			await sleep(3_000);
-			// Read past what was produced before and during the pause, so live delivery resumed.
 			const after = await tip();
+			// The ledger moved on during the pause, but the pull path read nothing ahead: the
+			// subscription body is only read when the consumer asks (at most one read in flight).
+			expect(BigInt(after) - BigInt(before)).toBeGreaterThanOrEqual(4n);
+			expect(pulls.count - pulled).toBeLessThanOrEqual(1);
+			// Read past what was produced before and during the pause, so live delivery resumed.
 			while (sequence.at(-1)! < BigInt(after) + 2n) await next();
 			const pending = stream.next();
 			const started = Date.now();
@@ -1430,6 +1605,8 @@ describe('ledger streams', () => {
 
 		it('accepts subscription edge cursors as query `after` cursors', async () => {
 			const from = await newSigner();
+			const eventsOpen = Promise.withResolvers<void>();
+			const transactionsOpen = Promise.withResolvers<void>();
 			const events = toolbox.graphqlClient.subscribe<
 				EdgeResult<'events', { sequenceNumber: number; transaction: { digest: string } }>
 			>({
@@ -1437,6 +1614,7 @@ describe('ledger streams', () => {
 					events(filter: $filter) { cursor node { sequenceNumber transaction { digest } } }
 				}`,
 				variables: { filter: { sender: from.address } },
+				onOpen: eventsOpen.resolve,
 				signal: signal(),
 			});
 			const transactions = toolbox.graphqlClient.subscribe<
@@ -1446,12 +1624,13 @@ describe('ledger streams', () => {
 					transactions(filter: $filter) { cursor node { digest } }
 				}`,
 				variables: { filter: { sentAddress: from.address } },
+				onOpen: transactionsOpen.resolve,
 				signal: signal(),
 			});
 			const firstEvent = events.next();
 			const firstTransaction = transactions.next();
-			// Give both subscriptions time to open before the transactions they should see.
-			await sleep(2_000);
+			// Subscriptions have no backfill: submit once both are open.
+			await Promise.all([eventsOpen.promise, transactionsOpen.promise]);
 			const first = await emitEvents(from, 2);
 			const second = await emitEvents(from, 2);
 
@@ -1496,6 +1675,7 @@ describe('ledger streams', () => {
 
 		it('resolves checkpoints of freshly executed transactions through multiGetTransactionEffects', async () => {
 			const from = await newSigner();
+			const open = Promise.withResolvers<void>();
 			const subscription = toolbox.graphqlClient.subscribe<
 				EdgeResult<
 					'transactions',
@@ -1508,10 +1688,11 @@ describe('ledger streams', () => {
 					}
 				}`,
 				variables: { filter: { sentAddress: from.address } },
+				onOpen: open.resolve,
 				signal: signal(),
 			});
 			const pending = subscription.next();
-			await sleep(2_000);
+			await open.promise;
 			const { digest } = await emitEvents(from, 1, { fast: true });
 			const edge = (await pending).value!;
 			expect(edge.data?.transactions.node.digest).toBe(digest);

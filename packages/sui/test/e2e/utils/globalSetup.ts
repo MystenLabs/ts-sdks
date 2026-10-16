@@ -10,6 +10,7 @@ import {
 	Network,
 	PullPolicy,
 	Wait,
+	type StartedTestContainer,
 } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
@@ -166,6 +167,36 @@ export default async function setup(project: TestProject) {
 	} else {
 		graphqlPort = localnet.getMappedPort(9125);
 	}
+	const teardown = () => {
+		if (stopGraphQL) {
+			process.removeListener('exit', stopGraphQL);
+			stopGraphQL();
+		}
+	};
+	try {
+		await finishSetup(project, { localnet, localnetPort, faucetPort, graphqlPort });
+	} catch (error) {
+		// Stop the native GraphQL process when anything after it started fails.
+		teardown();
+		throw error;
+	}
+	return teardown;
+}
+
+async function finishSetup(
+	project: TestProject,
+	{
+		localnet,
+		localnetPort,
+		faucetPort,
+		graphqlPort,
+	}: {
+		localnet: StartedTestContainer;
+		localnetPort: number;
+		faucetPort: number;
+		graphqlPort: number;
+	},
+) {
 	const graphqlSubscriptions = await supportsGraphQLSubscriptions(graphqlPort);
 	if (!graphqlSubscriptions) {
 		console.warn(
@@ -198,12 +229,6 @@ export default async function setup(project: TestProject) {
 		containerId,
 	});
 	project.provide('prePublishedPackages', prePublished);
-	return () => {
-		if (stopGraphQL) {
-			process.removeListener('exit', stopGraphQL);
-			stopGraphQL();
-		}
-	};
 }
 
 async function unusedPort(): Promise<number> {
