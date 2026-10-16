@@ -48,7 +48,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 it.skipIf(!gc)('releases consumed chunks while the stream stays open', async () => {
 	const N = 2000;
-	const refs: WeakRef<Uint8Array>[] = [];
+	const refs: WeakRef<ArrayBufferLike>[] = [];
 	let index = 0;
 	const stream = new ReadableStream<Uint8Array>(
 		{
@@ -56,7 +56,7 @@ it.skipIf(!gc)('releases consumed chunks while the stream stays open', async () 
 				// The stream stays open after the last frame.
 				if (index >= N) return new Promise(() => {});
 				const chunk = dataFrame(largeMessage(index++, 64 * 1024));
-				refs.push(new WeakRef(chunk));
+				refs.push(new WeakRef(chunk.buffer));
 				controller.enqueue(chunk);
 			},
 		},
