@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
 import { toNetworkRpcError } from '../../../src/grpc/network-error.js';
 
@@ -69,6 +69,37 @@ it('reads async-iterable response bodies from Node.js-stream fetch implementatio
 	for await (const message of call.responses) messages.push(message);
 	expect(messages).toHaveLength(1);
 	await expect(call.status).resolves.toMatchObject({ code: 'OK' });
+});
+
+it('reads stream bodies without global ReadableStream or Response', async () => {
+	vi.stubGlobal('ReadableStream', undefined);
+	vi.stubGlobal('Response', undefined);
+	try {
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			baseUrl: 'http://localhost',
+			fetch: nodeStyleResponse(async function* () {
+				yield EMPTY_MESSAGE;
+				yield TRAILER_FRAME;
+			}),
+		});
+		const call = client.ledgerService.listEvents({});
+		const messages = [];
+		for await (const message of call.responses) messages.push(message);
+		expect(messages).toHaveLength(1);
+		await expect(call.status).resolves.toMatchObject({ code: 'OK' });
+
+		await expect(
+			read(
+				nodeStyleResponse(async function* () {
+					yield EMPTY_MESSAGE;
+					throw new Error('socket hang up');
+				}),
+			),
+		).rejects.toMatchObject({ code: 'UNAVAILABLE', message: 'socket hang up' });
+	} finally {
+		vi.unstubAllGlobals();
+	}
 });
 
 it('codes async-iterable body read failures as UNAVAILABLE', async () => {

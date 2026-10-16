@@ -144,26 +144,56 @@ function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 		}
 		const chunks = bodyChunks(response.body);
 		if (!chunks) return response;
-		const body = new ReadableStream<Uint8Array>({
-			async pull(controller) {
-				try {
-					const next = await chunks.next();
-					if (next.done) controller.close();
-					else controller.enqueue(next.value);
-				} catch (error) {
-					controller.error(toNetworkRpcError(error, init?.signal));
-				}
+		const signal = init?.signal;
+		// Upstream reads only this metadata and the body, and reads a body without `getReader()`
+		// through async iteration. Returning that shape needs no global `Response` or
+		// `ReadableStream`, which some runtimes with a custom fetch lack. The getters stay lazy:
+		// Cloudflare Workers throw on `type`, which upstream catches.
+		return {
+			get ok() {
+				return response.ok;
 			},
-			cancel(reason) {
-				return chunks.cancel(reason);
+			get status() {
+				return response.status;
 			},
-		});
-		return new Response(body, {
-			status: response.status,
-			statusText: response.statusText,
-			headers: response.headers,
-		});
+			get statusText() {
+				return response.statusText;
+			},
+			get headers() {
+				return response.headers;
+			},
+			get type() {
+				return response.type;
+			},
+			body: { [Symbol.asyncIterator]: () => networkBody(chunks, signal) },
+		} as unknown as Response;
 	};
+}
+
+async function* networkBody(
+	chunks: BodyChunks,
+	signal: AbortSignal | null | undefined,
+): AsyncGenerator<Uint8Array> {
+	let done = false;
+	try {
+		while (true) {
+			let next: IteratorResult<Uint8Array>;
+			try {
+				next = await chunks.next();
+			} catch (error) {
+				done = true;
+				throw toNetworkRpcError(error, signal);
+			}
+			if (next.done) {
+				done = true;
+				return;
+			}
+			yield next.value;
+		}
+	} finally {
+		// Stopped early by the consumer: release the underlying body.
+		if (!done) await chunks.cancel(undefined);
+	}
 }
 
 interface BodyChunks {
