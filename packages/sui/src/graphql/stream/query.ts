@@ -7,13 +7,6 @@ import type { GraphQLQueryOptions, GraphQLQueryResult, SuiGraphQLClient } from '
 import { SuiGraphQLRequestError } from '../errors.js';
 import { LedgerStreamStateDocument } from '../generated/queries.js';
 
-/**
- * How stream failures surface:
- * - Transport failures, response `errors`, and an index that has not caught up yet throw
- *   `SuiGraphQLRequestError`. Its `retryable` flag decides whether the stream retries.
- * - A successful response that breaks the API's shape throws `SuiStreamError('Protocol')`.
- */
-
 /** Response error codes that mean the same request may succeed later. */
 const TRANSIENT_ERROR_CODES = new Set([
 	'INTERNAL_SERVER_ERROR',
@@ -52,16 +45,11 @@ export async function queryData<Result, Variables>(
 
 export interface IndexState {
 	chain: string;
-	/** Oldest checkpoint still queryable, if the server prunes. */
 	first: bigint | null;
-	/** Newest indexed checkpoint. */
 	tip: bigint;
 }
 
-/**
- * One request: the chain and the checkpoint range that `family` queries filtered by
- * `filterFields` can read. Retention differs between filter indexes.
- */
+/** Retention differs between filter indexes, so the range is read for the filter in use. */
 export async function readIndexState(
 	client: SuiGraphQLClient,
 	family: StreamFamily,

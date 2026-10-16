@@ -59,10 +59,7 @@ export type GraphQLSubscriptionOptions<
 		 * @default 16 * 1024 * 1024
 		 */
 		maxMessageSize?: number;
-		/**
-		 * Called once the server has accepted the subscription (a successful response arrived),
-		 * before the first result.
-		 */
+		/** Called once the server accepts the subscription, before the first result. */
 		onOpen?: () => void;
 	};
 

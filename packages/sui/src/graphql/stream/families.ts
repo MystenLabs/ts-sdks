@@ -54,19 +54,16 @@ export interface Connection<Node> {
 	edges: Edge<Node>[];
 }
 
-/** A history page and the checkpoint the server read it at, when it reports one. */
 export interface Page<Node> extends Connection<Node> {
 	viewedAt: bigint | null;
 }
 
-/** A delivered node and its checkpoint, which live nodes may need looked up. */
 export interface LedgerItem<Node> {
 	node: Node;
 	checkpoint: bigint;
 }
 
 export interface PageRequest {
-	/** Checkpoint bounds for the filter; cursors page within them. */
 	range: ResolvedCheckpointRange;
 	first?: number;
 	last?: number;
@@ -75,29 +72,18 @@ export interface PageRequest {
 	signal: AbortSignal;
 }
 
-/**
- * Everything that differs between checkpoint, transaction and event streams. Each family reads
- * with the same fragment and mapper as its list method, so streamed items match list results,
- * including the first-50 limit on a transaction's nested events and object changes.
- */
+/** Each family reads with its list method's fragment and mapper, so streamed items match list results. */
 export interface LedgerFamily<Node> {
 	readonly name: StreamFamily;
-	/**
-	 * One item per checkpoint (checkpoints): an item covers its own checkpoint, and the unfiltered
-	 * live feed must not skip any.
-	 */
 	readonly onePerCheckpoint: boolean;
-	/** Resolves names in the caller's filter, once, before any page or subscription. */
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
-	/** The GraphQL filter fields page queries set, which choose the indexes (and retention). */
+	/** The filter fields set, which pick the indexes and so the retention range. */
 	filterFields(): string[];
-	/** One page. A response without a well-formed connection throws `SuiStreamError('Protocol')`. */
 	page(request: PageRequest): Promise<Page<Node>>;
-	/** Live edges from now on; never resumed with `after`. `onOpen` runs once the server accepts. */
+	/** Never resumed with `after`, which loses data on the server. */
 	subscribe(signal: AbortSignal, onOpen: () => void): AsyncIterable<Edge<Node>>;
-	/** Public identity: compared with an excluded end item's `itemId`. */
 	identity(node: Node): string;
-	/** The node's checkpoint, or its transaction digest when the index has not assigned one yet. */
+	/** A digest when the index has not assigned the node's checkpoint yet. */
 	checkpoint(node: Node): bigint | { digest: string };
 	map(item: LedgerItem<Node>): Omit<ItemFrame, 'resumeToken'>;
 }
@@ -255,10 +241,7 @@ function setFields(filter: object): string[] {
 		.map(([key]) => key);
 }
 
-/**
- * Item events for `edges`, in order. Checkpoints the index has not assigned yet are looked up in
- * one request; a node still without one is retried later rather than delivered without it.
- */
+/** Live nodes can lack a checkpoint; look them up, and retry rather than deliver one without it. */
 export async function itemEvents<Node>(
 	client: SuiGraphQLClient,
 	family: LedgerFamily<Node>,
@@ -321,7 +304,6 @@ function eventDigest(node: Event_FieldsFragment): string {
 	return digest;
 }
 
-/** One history page, its connection checked before anything reads it. */
 function scanPage<Result extends { viewedAt?: { sequenceNumber: number } | null }, Node>(
 	name: string,
 	data: Result,
@@ -334,7 +316,6 @@ function scanPage<Result extends { viewedAt?: { sequenceNumber: number } | null 
 	};
 }
 
-/** `value` as a connection, checked before anything reads it. */
 function connection<Node>(name: string, value: unknown): Connection<Node> {
 	const page = value as Partial<Connection<Node>> | null | undefined;
 	const info = page?.pageInfo;
@@ -361,7 +342,7 @@ function isEdge(edge: unknown): edge is Edge<unknown> {
 
 /**
  * Subscription results as edges.
- * @yields Each result's edge; a result without one breaks the API's shape.
+ * @yields each result's edge.
  */
 async function* edges<Result, Node>(
 	results: AsyncIterable<GraphQLQueryResult<Result>>,

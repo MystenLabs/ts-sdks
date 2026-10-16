@@ -7,22 +7,15 @@ import type { Coverage, PositionCodec } from '../../client/stream/adapter.js';
 import { coverageBefore, SuiStreamError } from '../../client/stream/index.js';
 
 /**
- * A GraphQL stream position. GraphQL cursors are opaque, so positions are only ordered through the
- * checkpoints they report, never by reading cursor bytes. There are three kinds:
- *
- * - Item: a delivered node. `checkpoint` and `itemId` are set.
- * - Boundary: every checkpoint through `checkpoint` was read. `itemId` is null, `indexedCheckpoint`
- *   equals `checkpoint`, and `cursor` is empty. It is a checkpoint bound, like gRPC's checkpoint
- *   baseline: as a start it resumes at `checkpoint + 1`; as an end it includes everything through
- *   `checkpoint`. (Pre-release tokens may carry a cursor here; it is ignored.)
- * - Frontier: an empty, scan-limited page part way through a window. `checkpoint` and `itemId`
- *   are null; `indexedCheckpoint` is the highest checkpoint that scan could see, so a resumed scan
- *   waits until the index has caught up to it before trusting the cursor. It covers nothing.
+ * GraphQL cursors are opaque, so positions are ordered only by the checkpoints they carry. A
+ * position is an item (`checkpoint` and `itemId`), a boundary after `checkpoint` (no `itemId`), or
+ * a frontier: an empty scan page, which needs the index to reach `indexedCheckpoint` before its
+ * cursor can be trusted.
  */
 export interface GraphQLPosition {
 	cursor: string;
 	checkpoint: bigint | null;
-	/** Public identity of the node: a checkpoint number, a digest, or `digest:eventIndex`. */
+	/** A checkpoint number, a digest, or `digest:eventIndex`. */
 	itemId: string | null;
 	indexedCheckpoint: bigint | null;
 }
@@ -61,7 +54,6 @@ export function itemPosition(cursor: string, checkpoint: bigint, itemId: string)
 	return { cursor, checkpoint, itemId, indexedCheckpoint: null };
 }
 
-/** Every checkpoint through `checkpoint` was read. */
 export function boundaryPosition(checkpoint: bigint): GraphQLPosition {
 	return { cursor: '', checkpoint, itemId: null, indexedCheckpoint: checkpoint };
 }
@@ -74,12 +66,7 @@ export function frontierPosition(cursor: string, indexedCheckpoint: bigint): Gra
 	return { cursor, checkpoint: null, itemId: null, indexedCheckpoint };
 }
 
-/**
- * Equal cursors are the same position. Otherwise only positions in different checkpoints can be
- * ordered, plus an item before the boundary closing its checkpoint, and two boundaries of one
- * checkpoint, which are equal: cursors from different connections cannot be compared within a
- * checkpoint.
- */
+/** Cursors from different connections can't be compared, so items within one checkpoint are unordered. */
 export function comparePositions(a: GraphQLPosition, b: GraphQLPosition): -1 | 0 | 1 | undefined {
 	if (a.cursor && a.cursor === b.cursor) return 0;
 	if (a.checkpoint === null || b.checkpoint === null) return undefined;
@@ -89,12 +76,7 @@ export function comparePositions(a: GraphQLPosition, b: GraphQLPosition): -1 | 0
 	return isBoundary(a) ? 1 : -1;
 }
 
-/**
- * Ascending coverage after delivering everything through `position`. A transaction or event may
- * be followed by more of its checkpoint, so it covers the checkpoints before it. A checkpoint is
- * the only item of its checkpoint, so it covers itself; reporting less would make every live
- * checkpoint look like a gap. A boundary covers its checkpoint; a frontier makes no claim.
- */
+/** A transaction or event may have more of its checkpoint after it, so it covers only earlier checkpoints. */
 export function positionCoverage(position: GraphQLPosition, onePerCheckpoint: boolean): Coverage {
 	if (position.checkpoint === null) return { $kind: 'Unknown' };
 	return onePerCheckpoint || isBoundary(position)
@@ -102,7 +84,6 @@ export function positionCoverage(position: GraphQLPosition, onePerCheckpoint: bo
 		: coverageBefore(position.checkpoint);
 }
 
-/** A boundary after checkpoint `c` is the boundary before `c + 1`. */
 export function locatePosition(position: GraphQLPosition): {
 	checkpoint: bigint | null;
 	boundary: boolean;
@@ -113,7 +94,6 @@ export function locatePosition(position: GraphQLPosition): {
 	return { checkpoint: position.checkpoint + 1n, boundary: true };
 }
 
-/** The checkpoint the index must reach before a scan can start from `position`. */
 export function requiredCheckpoint(position: GraphQLPosition): bigint | null {
 	return position.checkpoint ?? position.indexedCheckpoint;
 }

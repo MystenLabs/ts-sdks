@@ -1145,10 +1145,7 @@ function withObjectTypes(
 	};
 }
 
-/**
- * The `TRANSACTION_FIELDS` selection for `include`. Every query that maps transactions with
- * `parseTransaction` passes these, so the same include returns the same fields everywhere.
- */
+/** `TRANSACTION_FIELDS` variables for `include`, shared so every query selects the same fields. */
 export function transactionIncludeVariables(include: SuiClientTypes.TransactionInclude = {}) {
 	return {
 		includeTransaction: include.transaction ?? false,
@@ -1161,10 +1158,7 @@ export function transactionIncludeVariables(include: SuiClientTypes.TransactionI
 	};
 }
 
-/**
- * Nested lists are not paginated: `TRANSACTION_FIELDS` reads the first 50 events and object
- * changes of a transaction, for single reads, list pages and ledger streams alike.
- */
+/** Nested lists are not paginated: only the first 50 events and object changes are read. */
 export function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
