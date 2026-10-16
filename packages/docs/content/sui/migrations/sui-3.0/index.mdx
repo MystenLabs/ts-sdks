@@ -40,11 +40,9 @@ goal:
 [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), which maps every JSON-RPC
 method to its replacement. Code that already runs on gRPC or GraphQL needs few or no changes.
 
-Every `@mysten/*` package that depends on `@mysten/sui` gets a major release alongside it, because
-its peer dependency moves to `@mysten/sui@^3`. Apart from the items called out below, those packages
-have no API changes of their own: upgrade them together with `@mysten/sui` and nothing else is
-required. Packages that depend on `@mysten/sui` directly rather than as a peer (`@mysten/codegen`,
-`@mysten/create-dapp`, `@mysten/mvr-static`) get patch releases.
+Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a major release that requires
+`@mysten/sui@^3`. Apart from the items below, those packages have no API changes: upgrade them
+together with `@mysten/sui`.
 
 ## Breaking changes
 
@@ -69,14 +67,10 @@ required. Packages that depend on `@mysten/sui` directly rather than as a peer (
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
   [Querying](/sui/clients/querying) for the current rules.
 
-`@mysten/wallet-standard` and `@mysten/kiosk` users have nothing to change: their types no longer
-import from `@mysten/sui/jsonRpc` (wallet-standard defines the legacy
-`sui:signAndExecuteTransactionBlock` types locally, and kiosk's `TransferPolicy.owner` is typed as
-`SuiClientTypes.ObjectOwner`, matching the value it always returned).
+`@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`;
+their users have nothing to change.
 
 ## New in 3.0
-
-These are additive, but they were held back until JSON-RPC was gone:
 
 - `listTransactions` filters accept `affectedAddress` and `affectedObject`, and `sender` combines
   with other predicates.

@@ -136,12 +136,9 @@ const { balance } = await client.getBalance({ owner: myAddress });
 It also accepts a `digest` instead of a result, along with `timeout` and a `pollSchedule` array of
 backoff delays.
 
-On `SuiGrpcClient`, `waitForTransaction` resolves only once the node has applied the transaction's
-checkpoint to its live-object index, so reads of current state on that node (`listOwnedObjects`,
-`listDynamicFields`, balances) observe the transaction afterwards. History queries such as
-`listEvents` and `listTransactions` use a separate history index that can lag on a node that is
-still backfilling. On `SuiGraphQLClient`, the indexer makes a transaction visible only after
-indexing it, so reads after `waitForTransaction` observe it.
+After `waitForTransaction` resolves, reads of current state (objects, dynamic fields, balances)
+observe the transaction. On `SuiGrpcClient`, history queries such as `listEvents` and
+`listTransactions` can still lag on a node that is backfilling its history index.
 
 ## `simulateTransaction`
 
