@@ -142,6 +142,34 @@ function causedByReset(error: unknown): boolean {
 	return false;
 }
 
+/**
+ * Readiness of a raw GraphQL subscription. `wait(first)` resolves once the server accepted it
+ * (`onOpen`), and rejects if the pending first read fails first (no `onOpen` then) or after
+ * `timeout`, so a failed subscription never leaves the test waiting.
+ */
+function opening(timeout = 30_000) {
+	const opened = Promise.withResolvers<void>();
+	return {
+		onOpen: () => opened.resolve(),
+		async wait(first: Promise<unknown>) {
+			// The caller awaits `first` later; this keeps an early failure from going unhandled.
+			first.catch(() => {});
+			let timer: ReturnType<typeof setTimeout> | undefined;
+			try {
+				await Promise.race([
+					opened.promise,
+					first.then(() => {}),
+					new Promise<never>((_, reject) => {
+						timer = setTimeout(() => reject(new Error('Subscription did not open')), timeout);
+					}),
+				]);
+			} finally {
+				clearTimeout(timer);
+			}
+		},
+	};
+}
+
 /** Readers still running; `afterEach` stops them even when a test fails before `close()`. */
 const openReaders = new Set<{ close(): Promise<void> }>();
 
@@ -996,13 +1024,10 @@ describe('ledger streams', () => {
 		expect(new Set(keys).size, 'duplicates').toBe(keys.length);
 		// Live items lack a few fields the servers do not fill in on subscriptions
 		// (`SUBSCRIPTION_GAPS`, pinned by the live-item tests below).
-		expect(
-			withoutSubscriptionGaps(
-				options.kind,
-				family,
-				delivered.map((frame) => frame.value),
-			),
-		).toEqual(withoutSubscriptionGaps(options.kind, family, expected));
+		// Polling reads history only, so it must match exactly.
+		const normalize = (value: unknown) =>
+			delivery === 'subscribe' ? withoutSubscriptionGaps(options.kind, family, value) : value;
+		expect(normalize(delivered.map((frame) => frame.value))).toEqual(normalize(expected));
 		if (family !== 'checkpoints') {
 			// Every submitted transaction is in there.
 			const seen = new Set(delivered.map((frame) => frame.key.split(':')[0]));
@@ -1194,11 +1219,17 @@ describe('ledger streams', () => {
 			});
 			const pending = stream.next();
 			const rejection = expect(pending).rejects.toThrow('stream cancelled');
-			// Cancel while the live read is pending, not while history is still being read.
-			await waitFor(() => log.kinds().includes(listening(kind, delivery)));
-			controller.abort(new Error('stream cancelled'));
-			await rejection;
-			await stream.return(undefined);
+			try {
+				// Cancel while the live read is pending, not while history is still being read.
+				await waitFor(() => log.kinds().includes(listening(kind, delivery)));
+				controller.abort(new Error('stream cancelled'));
+				await rejection;
+			} finally {
+				// Also when waiting failed: never leave the stream running into later tests.
+				controller.abort(new Error('stream cancelled'));
+				await rejection.catch(() => {});
+				await stream.return(undefined);
+			}
 		});
 	});
 
@@ -1276,7 +1307,10 @@ describe('ledger streams', () => {
 				const retries = statuses.filter((s) => s.$kind === 'Retrying');
 				const connecting = statuses.filter((s) => s.$kind === 'Connecting');
 				expect(retries.length).toBeGreaterThan(0);
-				expect(connecting).toHaveLength(retries.length + 1);
+				// `Retrying` is reported before the backoff and `Connecting` after it, so a reader
+				// closed during a backoff leaves one retry without its reconnect.
+				const pendingRetry = statuses.at(-1)?.$kind === 'Retrying' ? 1 : 0;
+				expect(connecting).toHaveLength(retries.length + 1 - pendingRetry);
 				expect(resets.count).toBeGreaterThanOrEqual(retries.length);
 				// Every reconnect was caused by an injected reset: nothing overflowed.
 				for (const retry of retries) {
@@ -1352,15 +1386,21 @@ describe('ledger streams', () => {
 			while (!log.kinds().includes('Live')) await next();
 			await next();
 			const pulled = pulls.count;
-			const before = await tip();
-			await sleep(3_000);
-			const after = await tip();
-			// The ledger moved on during the pause, but the pull path read nothing ahead: the
-			// subscription body is only read when the consumer asks (at most one read in flight).
-			expect(BigInt(after) - BigInt(before)).toBeGreaterThanOrEqual(4n);
+			const before = BigInt(await tip());
+			// Stay paused until the ledger has produced several checkpoints the consumer has not
+			// asked for. Bounded: localnet produces several per second.
+			let after = before;
+			const deadline = Date.now() + 60_000;
+			while (after < before + 4n) {
+				if (Date.now() > deadline) throw new Error('The ledger did not advance during the pause');
+				await sleep(250);
+				after = BigInt(await tip());
+			}
+			// The pull path read nothing ahead meanwhile: the subscription body is only read when
+			// the consumer asks (at most one read in flight).
 			expect(pulls.count - pulled).toBeLessThanOrEqual(1);
 			// Read past what was produced before and during the pause, so live delivery resumed.
-			while (sequence.at(-1)! < BigInt(after) + 2n) await next();
+			while (sequence.at(-1)! < after + 2n) await next();
 			const pending = stream.next();
 			const started = Date.now();
 			await stream.return(undefined);
@@ -1402,7 +1442,7 @@ describe('ledger streams', () => {
 			controllers.push(controller);
 			const subscription = toolbox.grpcClient.subscriptionService.subscribeEvents(
 				{ readMask: { paths: ['transaction_digest', 'event_index', 'checkpoint'] }, filter },
-				{ abort: controller.signal },
+				{ abort: AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]) },
 			);
 			const live = subscription.responses[Symbol.asyncIterator]();
 			const first = await live.next();
@@ -1450,7 +1490,7 @@ describe('ledger streams', () => {
 				controllers.push(controller);
 				const call = toolbox.grpcClient.subscriptionService.subscribeCheckpoints(
 					{ readMask: { paths: ['sequence_number'] }, filter },
-					{ abort: controller.signal },
+					{ abort: AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]) },
 				);
 				const { value } = await call.responses[Symbol.asyncIterator]().next();
 				controller.abort();
@@ -1537,7 +1577,7 @@ describe('ledger streams', () => {
 					hold = undefined;
 					preopened = fetch(subscribeRequest.url, {
 						...subscribeRequest.init,
-						signal: preopen.signal,
+						signal: AbortSignal.any([preopen.signal, AbortSignal.timeout(60_000)]),
 					});
 					await preopened;
 					await wait();
@@ -1605,8 +1645,8 @@ describe('ledger streams', () => {
 
 		it('accepts subscription edge cursors as query `after` cursors', async () => {
 			const from = await newSigner();
-			const eventsOpen = Promise.withResolvers<void>();
-			const transactionsOpen = Promise.withResolvers<void>();
+			const eventsOpen = opening();
+			const transactionsOpen = opening();
 			const events = toolbox.graphqlClient.subscribe<
 				EdgeResult<'events', { sequenceNumber: number; transaction: { digest: string } }>
 			>({
@@ -1614,7 +1654,7 @@ describe('ledger streams', () => {
 					events(filter: $filter) { cursor node { sequenceNumber transaction { digest } } }
 				}`,
 				variables: { filter: { sender: from.address } },
-				onOpen: eventsOpen.resolve,
+				onOpen: eventsOpen.onOpen,
 				signal: signal(),
 			});
 			const transactions = toolbox.graphqlClient.subscribe<
@@ -1624,13 +1664,13 @@ describe('ledger streams', () => {
 					transactions(filter: $filter) { cursor node { digest } }
 				}`,
 				variables: { filter: { sentAddress: from.address } },
-				onOpen: transactionsOpen.resolve,
+				onOpen: transactionsOpen.onOpen,
 				signal: signal(),
 			});
 			const firstEvent = events.next();
 			const firstTransaction = transactions.next();
 			// Subscriptions have no backfill: submit once both are open.
-			await Promise.all([eventsOpen.promise, transactionsOpen.promise]);
+			await Promise.all([eventsOpen.wait(firstEvent), transactionsOpen.wait(firstTransaction)]);
 			const first = await emitEvents(from, 2);
 			const second = await emitEvents(from, 2);
 
@@ -1675,7 +1715,7 @@ describe('ledger streams', () => {
 
 		it('resolves checkpoints of freshly executed transactions through multiGetTransactionEffects', async () => {
 			const from = await newSigner();
-			const open = Promise.withResolvers<void>();
+			const open = opening();
 			const subscription = toolbox.graphqlClient.subscribe<
 				EdgeResult<
 					'transactions',
@@ -1688,11 +1728,11 @@ describe('ledger streams', () => {
 					}
 				}`,
 				variables: { filter: { sentAddress: from.address } },
-				onOpen: open.resolve,
+				onOpen: open.onOpen,
 				signal: signal(),
 			});
 			const pending = subscription.next();
-			await open.promise;
+			await open.wait(pending);
 			const { digest } = await emitEvents(from, 1, { fast: true });
 			const edge = (await pending).value!;
 			expect(edge.data?.transactions.node.digest).toBe(digest);
