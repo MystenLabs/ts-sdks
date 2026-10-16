@@ -352,8 +352,9 @@ export class GrpcWebPullCall<
 	// Set by a trailers-only response, whose status arrives in the HTTP headers.
 	#headerStatus: RpcStatus | undefined;
 	#eof = false;
-	// `next()` calls are serialized; `return()` is not, so it can cancel a pending read.
-	#tail: Promise<unknown> = Promise.resolve();
+	// `next()` calls are serialized; `return()` is not, so it can cancel a pending read. Settles
+	// with `undefined`, never the last message, which may be a view into a large network chunk.
+	#tail: Promise<void> = Promise.resolve();
 
 	constructor(method: MethodInfo<I, O>, input: I, call: GrpcWebPullCallOptions) {
 		this.method = method;
@@ -386,7 +387,10 @@ export class GrpcWebPullCall<
 			},
 			next: () => {
 				const result = this.#tail.then(() => this.#pull());
-				this.#tail = result.catch(() => {});
+				this.#tail = result.then(
+					() => {},
+					() => {},
+				);
 				return result;
 			},
 			return: async () => {
