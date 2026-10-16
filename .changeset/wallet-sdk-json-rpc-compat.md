@@ -2,4 +2,4 @@
 '@mysten/wallet-sdk': minor
 ---
 
-Add `@mysten/wallet-sdk/json-rpc-compat`, helpers for wallets that still implement the deprecated `sui:signAndExecuteTransactionBlock` wallet-standard feature on top of the gRPC or GraphQL Core API. `transactionBlockResponseFromExecution` builds the legacy `SuiTransactionBlockResponse` from an executed transaction (with `mappableIncludeFor` giving the `include` to execute with), and `dryRunFromSimulation` / `tryDryRunFromSimulation` build the legacy `DryRunTransactionBlockResponse` from a simulated one.
+Add `@mysten/wallet-sdk/json-rpc-compat`, which builds legacy JSON-RPC responses from gRPC or GraphQL results for wallets that still implement the deprecated `sui:signAndExecuteTransactionBlock` feature: `transactionBlockResponseFromExecution` (with `mappableIncludeFor`) for executions, and `dryRunFromSimulation` / `tryDryRunFromSimulation` for simulations.

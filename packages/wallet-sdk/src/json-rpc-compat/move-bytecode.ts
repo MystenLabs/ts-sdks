@@ -14,14 +14,8 @@ interface MoveTable {
 const textDecoder = new TextDecoder();
 
 /**
- * Extract the self module name from serialized Move `CompiledModule` bytes.
- *
- * Publish commands carry raw compiled module bytecode, not a Sui BCS object.
- * Sui BCS models package modules as opaque byte vectors in `MovePackage.moduleMap`.
- *
- * This mirrors the Move binary-format header/table layout just far enough to
- * resolve `self_module_handle_idx.name`. It does not deserialize instructions,
- * signatures, definitions, constants, or metadata.
+ * Extract the self module name from serialized Move `CompiledModule` bytes. Only the header and
+ * the tables needed to resolve `self_module_handle_idx.name` are read.
  */
 export function readMoveModuleName(bytes: Uint8Array): string {
 	const reader = new MoveBytecodeReader(bytes);
