@@ -208,6 +208,8 @@ export type ListCheckpointsQueryVariables = Exact<{
 
 export type ListCheckpointsQuery = { checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, nodes: Array<{ sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null }> } | null };
 
+export type Checkpoint_FieldsFragment = { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null };
+
 export type GetAllBalancesQueryVariables = Exact<{
   owner: string;
   limit?: number | null | undefined;
@@ -300,6 +302,8 @@ export type ListEventsQueryVariables = Exact<{
 
 
 export type ListEventsQuery = { events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string }>, nodes: Array<{ sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null };
+
+export type Event_FieldsFragment = { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null };
 
 export type DefaultSuinsNameQueryVariables = Exact<{
   address: string;
@@ -491,6 +495,45 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
+export const Checkpoint_FieldsFragmentDoc = new TypedDocumentString(`
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}
+    `, {"fragmentName":"CHECKPOINT_FIELDS"}) as unknown as TypedDocumentString<Checkpoint_FieldsFragment, unknown>;
+export const Event_FieldsFragmentDoc = new TypedDocumentString(`
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+    `, {"fragmentName":"EVENT_FIELDS"}) as unknown as TypedDocumentString<Event_FieldsFragment, unknown>;
 export const Object_Owner_FieldsFragmentDoc = new TypedDocumentString(`
     fragment OBJECT_OWNER_FIELDS on Owner {
   __typename
@@ -705,16 +748,18 @@ export const ListCheckpointsDocument = new TypedDocumentString(`
       endCursor
     }
     nodes {
-      sequenceNumber
-      digest
-      timestamp
-      epoch {
-        epochId
-      }
+      ...CHECKPOINT_FIELDS
     }
   }
 }
-    `) as unknown as TypedDocumentString<ListCheckpointsQuery, ListCheckpointsQueryVariables>;
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}`) as unknown as TypedDocumentString<ListCheckpointsQuery, ListCheckpointsQueryVariables>;
 export const GetAllBalancesDocument = new TypedDocumentString(`
     query getAllBalances($owner: SuiAddress!, $limit: Int, $cursor: String) {
   address(address: $owner) {
@@ -932,35 +977,37 @@ export const ListEventsDocument = new TypedDocumentString(`
       cursor
     }
     nodes {
-      sequenceNumber
-      transaction {
-        digest
-        effects {
-          checkpoint {
-            sequenceNumber
-          }
-        }
-      }
-      transactionModule {
-        package {
-          address
-        }
-        name
-      }
-      sender {
-        address
-      }
-      contents {
-        type {
-          repr
-        }
-        bcs
-        json
-      }
+      ...EVENT_FIELDS
     }
   }
 }
-    `) as unknown as TypedDocumentString<ListEventsQuery, ListEventsQueryVariables>;
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}`) as unknown as TypedDocumentString<ListEventsQuery, ListEventsQueryVariables>;
 export const DefaultSuinsNameDocument = new TypedDocumentString(`
     query defaultSuinsName($address: SuiAddress!) {
   address(address: $address) {
