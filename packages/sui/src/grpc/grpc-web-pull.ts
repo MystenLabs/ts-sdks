@@ -9,12 +9,8 @@
  * (`grpc-web-format.ts`, `grpc-web-transport.ts`), Copyright (c) Timo Stamm, licensed under the
  * Apache License, Version 2.0: https://github.com/timostamm/protobuf-ts
  *
- * Differences from upstream: the body is read one chunk at a time while the consumer waits for a
- * message, frames are decoded one at a time, received chunks are not concatenated, declared frame
- * sizes are checked before their payload is buffered (an oversized frame is a non-retryable
- * `RESOURCE_EXHAUSTED`), compressed frames are rejected, request serialization failures are
- * reported as `INTERNAL` before any request is sent, and fetch or body failures are reported as
- * `UNAVAILABLE`.
+ * Unlike upstream, the body is read only while the consumer waits for a message, and frame sizes
+ * are checked before their payload is buffered.
  */
 
 import { base64decode } from '@protobuf-ts/runtime';
@@ -36,10 +32,7 @@ import type { ServerStreamingIterableCall } from './pull-call.js';
 
 export const DEFAULT_MAX_RESPONSE_MESSAGE_BYTES = 64 * 1024 * 1024;
 
-/**
- * Largest trailer frame accepted. Trailers are status metadata, not response messages, so
- * `maxResponseMessageBytes` does not apply to them; this bounds what a trailer can buffer instead.
- */
+/** Largest trailer frame accepted; `maxResponseMessageBytes` does not cover trailers. */
 export const MAX_TRAILER_BYTES = 1024 * 1024;
 
 const code = (status: GrpcStatusCode) => GrpcStatusCode[status];
@@ -52,9 +45,8 @@ export interface GrpcWebRequest {
 }
 
 /**
- * Serializes the request and builds its headers. Runs before the request is sent, outside the
- * network error boundary, so an invalid request is reported as `INTERNAL` (or the `RpcError` the
- * helper threw, such as an expired deadline) rather than as a retryable network failure.
+ * Serializes the request and builds its headers. Runs outside the network error boundary, so an
+ * invalid request is `INTERNAL` rather than a retryable network failure.
  */
 export function prepareGrpcWebRequest<I extends object>(
 	method: MethodInfo<I, object>,
@@ -143,9 +135,8 @@ class ByteQueue {
 const CHAR_BATCH = 8192;
 
 /**
- * Splits a gRPC-web response body into frames. Pure and synchronous: `push` the body's chunks,
- * take frames with `next` until it returns `undefined`, and call `end` once the body is exhausted.
- * Errors are thrown as `RpcError`s.
+ * Splits a gRPC-web response body into frames: `push` chunks, take frames with `next` until it
+ * returns `undefined`, and call `end` at EOF.
  */
 export class GrpcWebFrameDecoder {
 	readonly #text: boolean;
@@ -156,10 +147,6 @@ export class GrpcWebFrameDecoder {
 	#sawData = false;
 	#sawTrailer = false;
 
-	/**
-	 * `contentType` is the response's; it selects the binary or base64 text format.
-	 * `maxMessageBytes` bounds data frames and `maxTrailerBytes` the trailer frame.
-	 */
 	constructor(
 		contentType: string | null,
 		maxMessageBytes: number,
@@ -183,9 +170,8 @@ export class GrpcWebFrameDecoder {
 	}
 
 	/**
-	 * The next complete frame, or `undefined` until more bytes arrive. A frame whose declared size
-	 * is over its limit (the message limit for data, the trailer limit for a trailer) is rejected as
-	 * soon as its 5-byte prefix is buffered.
+	 * The next complete frame, or `undefined` until more bytes arrive. An oversized frame is
+	 * rejected as soon as its 5-byte prefix is buffered.
 	 */
 	next(): GrpcWebResponseFrame | undefined {
 		const bytes = this.#bytes;
@@ -232,10 +218,7 @@ export class GrpcWebFrameDecoder {
 		};
 	}
 
-	/**
-	 * Checks the body ended cleanly, after `next` returned `undefined` at EOF: no partial frame is
-	 * left, and messages were followed by a trailer.
-	 */
+	/** Throws unless the body ended on a frame boundary, with a trailer after any messages. */
 	end(): void {
 		if (this.#bytes.length > 0 || this.#base64.length > 0) {
 			throw new RpcError('premature EOF', code(GrpcStatusCode.DATA_LOSS));
@@ -313,12 +296,11 @@ const DONE = { done: true, value: undefined } as const;
 type State = 'open' | 'done' | 'failed' | 'cancelled';
 
 /**
- * A gRPC-web server-streaming call whose body is read, and messages decoded, only while the
- * consumer waits on `responses.next()`.
+ * A gRPC-web server-streaming call whose body is read only while the consumer waits on
+ * `responses.next()`.
  *
- * Two rules keep it correct when an abort, `return()` or a failure lands during an await:
- * every await is followed by `#throwIfFailed()` and an `#isOpen()` check, and the first failure is
- * sticky (a later frame, trailer or error never replaces it).
+ * An abort, `return()` or failure can land during any await, so every await is followed by
+ * `#throwIfFailed()` and `#isOpen()`, and the first failure is sticky.
  */
 export class GrpcWebPullCall<
 	I extends object,
@@ -367,9 +349,8 @@ export class GrpcWebPullCall<
 
 		const request = prepareGrpcWebRequest(method, input, call.options);
 
-		// Some fetch implementations do not error the body on abort, so pending reads are interrupted
-		// by `#fail`. Registered before an already-aborted caller signal is applied, so that abort
-		// fails the call too.
+		// Some fetch implementations ignore the abort, so `#fail` interrupts pending reads. Registered
+		// before an already-aborted caller signal is applied, so that abort fails the call too.
 		this.#controller.signal.addEventListener(
 			'abort',
 			() => this.#fail(this.#controller.signal.reason),
@@ -515,10 +496,8 @@ export class GrpcWebPullCall<
 	}
 
 	/**
-	 * Settles with `operation`, or with `undefined` once the call settles early, so a read does not
-	 * wait on a fetch or body that ignores the abort signal. Its interrupt callback is removed as
-	 * soon as `operation` settles, so nothing keeps a settled read's result alive (no
-	 * `Promise.race` against a long-lived promise).
+	 * Settles with `operation`, or with `undefined` once the call settles early, for a fetch or body
+	 * that ignores the abort. Not `Promise.race`, which would keep each settled read's result alive.
 	 */
 	#interruptible<T>(operation: Promise<T>): Promise<T | undefined> {
 		return new Promise<T | undefined>((resolve, reject) => {
