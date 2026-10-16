@@ -137,8 +137,7 @@ import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	format: 'binary', // a transport built directly defaults to 'text'
-	// Additional transport options like fetchInit
+	// Same options as SuiGrpcClient, including format (default 'binary') and fetchInit
 });
 
 const client = new SuiGrpcClient({

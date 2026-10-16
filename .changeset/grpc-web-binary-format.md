@@ -1,7 +1,8 @@
 ---
-'@mysten/sui': minor
+'@mysten/sui': major
 ---
 
-`SuiGrpcClient` now creates its gRPC-web transport with the binary wire format by default, which
-removes the base64 overhead (about a third of the bytes on the wire) of the text format. Pass
-`format: 'text'` for proxies that only support base64 gRPC-web framing.
+The gRPC-web transport now uses the binary wire format by default, both when `SuiGrpcClient` builds
+it and when `GrpcWebFetchTransport` from `@mysten/sui/grpc` is constructed directly. This removes the
+base64 overhead of the text format (about a third more bytes than binary). Pass `format: 'text'` for
+proxies that only support base64 gRPC-web framing.
