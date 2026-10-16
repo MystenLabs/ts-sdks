@@ -537,12 +537,8 @@ while (page.hasNextPage) {
 }
 ```
 
-GraphQL treats cursors as inclusive bounds, so a windowed read (`after` and `before` together) may
-report `hasNextPage: true` on the page that reaches the bound and then return one final empty page
-with `hasNextPage: false`. The same applies to a read that travels toward a lone bound, such as
-`after` with `order: 'descending'`. gRPC reports `hasNextPage: false` on the last page itself. Loops
-driven by `hasNextPage`, like the one above, handle both: accept empty pages, as you already must
-for gRPC's scan-limited pages, and stop when `hasNextPage` is `false`.
+On GraphQL, the page that reaches a cursor bound may report `hasNextPage: true` and be followed by
+one empty page. Loops driven by `hasNextPage`, like the one above, handle this.
 
 Cursors are only valid for the query that produced them: pass them back with the same filter and
 checkpoint range.
@@ -550,8 +546,7 @@ checkpoint range.
 ### Checkpoint ranges
 
 `startCheckpoint` (inclusive) and `endCheckpoint` (exclusive) limit either method to a range of
-checkpoints, and combine with filters and cursors. `endCheckpoint` must not be less than
-`startCheckpoint`, and both accept a string, number, or bigint:
+checkpoints, and combine with filters and cursors. Both accept a string, number, or bigint:
 
 ```typescript
 // Events of one type emitted in checkpoints 1000 through 1999
