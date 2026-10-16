@@ -8,12 +8,14 @@ import { coverageBefore, SuiStreamError } from '../../client/stream/index.js';
 
 /**
  * A GraphQL stream position. GraphQL cursors are opaque, so positions are only ordered through the
- * checkpoints they report, never by reading cursor bytes. There are two kinds:
+ * checkpoints they report, never by reading cursor bytes. There are three kinds:
  *
  * - Item: a delivered node. `checkpoint` and `itemId` are set.
- * - Frontier: where an unbounded history scan stopped with nothing left to read. `checkpoint` and
- *   `itemId` are null; `indexedCheckpoint` is the highest checkpoint that scan could see, so a
- *   resumed scan waits until the index has caught up to it before trusting the cursor.
+ * - Boundary: a scan read every checkpoint through `checkpoint` and found nothing more. `itemId`
+ *   is null and `indexedCheckpoint` equals `checkpoint`. Everything through it is covered.
+ * - Frontier: an empty, scan-limited page part way through a window. `checkpoint` and `itemId`
+ *   are null; `indexedCheckpoint` is the highest checkpoint that scan could see, so a resumed scan
+ *   waits until the index has caught up to it before trusting the cursor. It covers nothing.
  */
 export interface GraphQLPosition {
 	cursor: string;
@@ -43,12 +45,11 @@ const PositionSchema = bcs
 export const graphQLPositionCodec: PositionCodec<GraphQLPosition> = {
 	schema: PositionSchema,
 	validate(position) {
-		const item = position.checkpoint !== null && position.itemId !== null;
-		const frontier =
-			position.checkpoint === null &&
-			position.itemId === null &&
-			position.indexedCheckpoint !== null;
-		if (!position.cursor || !(item || frontier)) {
+		const { checkpoint, itemId, indexedCheckpoint } = position;
+		const item = checkpoint !== null && itemId !== null;
+		const boundary = checkpoint !== null && itemId === null && indexedCheckpoint === checkpoint;
+		const frontier = checkpoint === null && itemId === null && indexedCheckpoint !== null;
+		if (!position.cursor || !(item || boundary || frontier)) {
 			throw new SuiStreamError('InvalidToken', 'Invalid GraphQL stream position');
 		}
 	},
@@ -58,33 +59,54 @@ export function itemPosition(cursor: string, checkpoint: bigint, itemId: string)
 	return { cursor, checkpoint, itemId, indexedCheckpoint: null };
 }
 
+/** The scan read every checkpoint through `checkpoint`; `cursor` is where it stopped. */
+export function boundaryPosition(cursor: string, checkpoint: bigint): GraphQLPosition {
+	return { cursor, checkpoint, itemId: null, indexedCheckpoint: checkpoint };
+}
+
+export function isBoundary(position: GraphQLPosition): boolean {
+	return position.checkpoint !== null && position.itemId === null;
+}
+
 export function frontierPosition(cursor: string, indexedCheckpoint: bigint): GraphQLPosition {
 	return { cursor, checkpoint: null, itemId: null, indexedCheckpoint };
 }
 
 /**
- * Equal cursors are the same position. Otherwise only items in different checkpoints can be
- * ordered: cursors from different connections cannot be compared within a checkpoint.
+ * Equal cursors are the same position. Otherwise only positions in different checkpoints can be
+ * ordered, plus an item before the boundary closing its checkpoint: cursors from different
+ * connections cannot be compared within a checkpoint.
  */
 export function comparePositions(a: GraphQLPosition, b: GraphQLPosition): -1 | 0 | 1 | undefined {
 	if (a.cursor === b.cursor) return 0;
-	if (a.checkpoint === null || b.checkpoint === null || a.checkpoint === b.checkpoint) {
-		return undefined;
-	}
-	return a.checkpoint < b.checkpoint ? -1 : 1;
+	if (a.checkpoint === null || b.checkpoint === null) return undefined;
+	if (a.checkpoint !== b.checkpoint) return a.checkpoint < b.checkpoint ? -1 : 1;
+	if (isBoundary(a) === isBoundary(b)) return undefined;
+	return isBoundary(a) ? 1 : -1;
 }
 
 /**
  * Ascending coverage after delivering everything through `position`. A transaction or event may
  * be followed by more of its checkpoint, so it covers the checkpoints before it. A checkpoint is
  * the only item of its checkpoint, so it covers itself; reporting less would make every live
- * checkpoint look like a gap. A frontier makes no claim.
+ * checkpoint look like a gap. A boundary covers its checkpoint; a frontier makes no claim.
  */
 export function positionCoverage(position: GraphQLPosition, onePerCheckpoint: boolean): Coverage {
 	if (position.checkpoint === null) return { $kind: 'Unknown' };
-	return onePerCheckpoint
+	return onePerCheckpoint || isBoundary(position)
 		? { $kind: 'Through', checkpoint: position.checkpoint }
 		: coverageBefore(position.checkpoint);
+}
+
+/** A boundary after checkpoint `c` is the boundary before `c + 1`. */
+export function locatePosition(position: GraphQLPosition): {
+	checkpoint: bigint | null;
+	boundary: boolean;
+} {
+	if (position.checkpoint === null || !isBoundary(position)) {
+		return { checkpoint: position.checkpoint, boundary: false };
+	}
+	return { checkpoint: position.checkpoint + 1n, boundary: true };
 }
 
 /** The checkpoint the index must reach before a scan can start from `position`. */

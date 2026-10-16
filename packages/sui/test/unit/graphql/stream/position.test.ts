@@ -4,10 +4,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	boundaryPosition,
 	comparePositions,
 	frontierPosition,
 	graphQLPositionCodec,
 	itemPosition,
+	locatePosition,
 	positionCoverage,
 	type GraphQLPosition,
 } from '../../../../src/graphql/stream/position.js';
@@ -22,6 +24,15 @@ describe('GraphQL stream positions', () => {
 		['later checkpoint', item('a', 3), item('b', 2), 1],
 		['same checkpoint, different cursors', item('a', 2), item('b', 2), undefined],
 		['a frontier', frontierPosition('f', 9n), item('b', 2), undefined],
+		['a boundary after its checkpoint', boundaryPosition('z', 2n), item('b', 2), 1],
+		['an item before the boundary closing it', item('a', 2), boundaryPosition('z', 2n), -1],
+		['a boundary before a later item', boundaryPosition('z', 2n), item('b', 3), -1],
+		[
+			'two boundaries of one checkpoint',
+			boundaryPosition('y', 2n),
+			boundaryPosition('z', 2n),
+			undefined,
+		],
 	])('compares %s', (_name, a, b, expected) => {
 		expect(comparePositions(a, b)).toBe(expected);
 	});
@@ -36,11 +47,22 @@ describe('GraphQL stream positions', () => {
 		['an item at genesis covers nothing yet', item('a', 0), false, { $kind: 'None' }],
 		['a checkpoint covers itself', item('a', 5), true, { $kind: 'Through', checkpoint: 5n }],
 		['a frontier makes no claim', frontierPosition('f', 9n), false, { $kind: 'Unknown' }],
+		[
+			'a boundary covers its checkpoint',
+			boundaryPosition('z', 5n),
+			false,
+			{ $kind: 'Through', checkpoint: 5n },
+		],
 	])('%s', (_name, position, onePerCheckpoint, coverage) => {
 		expect(positionCoverage(position, onePerCheckpoint)).toEqual(coverage);
 	});
 
-	it.each([item('a', 5), frontierPosition('f', 9n)])(
+	it('locates a boundary as the boundary before the next checkpoint', () => {
+		expect(locatePosition(boundaryPosition('z', 5n))).toEqual({ checkpoint: 6n, boundary: true });
+		expect(locatePosition(item('a', 5))).toEqual({ checkpoint: 5n, boundary: false });
+	});
+
+	it.each([item('a', 5), frontierPosition('f', 9n), boundaryPosition('z', 5n)])(
 		'round-trips %o through its bytes',
 		(position) => {
 			const schema = graphQLPositionCodec.schema;
@@ -55,6 +77,10 @@ describe('GraphQL stream positions', () => {
 		[
 			'a frontier without its indexed checkpoint',
 			{ ...frontierPosition('f', 9n), indexedCheckpoint: null },
+		],
+		[
+			'a boundary whose indexed checkpoint differs',
+			{ ...boundaryPosition('z', 5n), indexedCheckpoint: 6n },
 		],
 	])('rejects %s as InvalidToken', (_name, position) => {
 		expect(() => graphQLPositionCodec.validate(position)).toThrow(

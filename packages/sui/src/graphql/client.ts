@@ -60,6 +60,11 @@ export type GraphQLSubscriptionOptions<
 		 * @default 16 * 1024 * 1024
 		 */
 		maxMessageSize?: number;
+		/**
+		 * Called once the server has accepted the subscription (a successful response arrived),
+		 * before the first result.
+		 */
+		onOpen?: () => void;
 	};
 
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
@@ -251,6 +256,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 					signal,
 				},
 			);
+			if (response.ok) options.onOpen?.();
 			yield* readGraphQLSSE<Result>(
 				response,
 				signal,

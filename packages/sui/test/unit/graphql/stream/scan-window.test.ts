@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Bound } from '../../../../src/client/stream/adapter.js';
 import {
+	boundaryPosition,
 	frontierPosition,
 	itemPosition,
 	type GraphQLPosition,
@@ -16,6 +17,9 @@ const item = (checkpoint: number) => ({
 	position: itemPosition(`c${checkpoint}`, BigInt(checkpoint), 'id'),
 });
 const frontier = (tip: number) => ({ position: frontierPosition('f', BigInt(tip)) });
+const boundary = (checkpoint: number) => ({
+	position: boundaryPosition('b', BigInt(checkpoint)),
+});
 const at = (checkpoint: number) => ({ checkpoint: BigInt(checkpoint) });
 
 type Row = [
@@ -59,6 +63,21 @@ describe('resolveScanWindow', () => {
 			{ lower: 0n, upper: 21n, after: 'f' },
 		],
 		[
+			'a boundary start excludes every checkpoint it read',
+			{ start: boundary(15) },
+			{ lower: 16n, upper: 21n, after: 'b' },
+		],
+		[
+			'a boundary start at the gap end leaves an empty window',
+			{ start: boundary(15), end: at(16) },
+			{ lower: 16n, upper: 16n, after: 'b', target: 15n },
+		],
+		[
+			'a boundary end bounds by cursor and by its checkpoint',
+			{ start: at(8), end: boundary(12) },
+			{ lower: 8n, upper: 13n, before: 'b', target: 12n },
+		],
+		[
 			'an item end bounds by cursor; the target is its checkpoint',
 			{ start: at(8), end: item(12) },
 			{ lower: 8n, upper: 21n, before: 'c12', target: 12n },
@@ -83,6 +102,7 @@ describe('resolveScanWindow', () => {
 	>([
 		['an ascending start below the oldest checkpoint', { start: at(4) }],
 		['an item start below the oldest checkpoint', { start: item(4) }],
+		['a boundary start below the oldest checkpoint', { start: boundary(3) }],
 		['a descending read to genesis', { start: at(10), descending: true }],
 	])('rejects %s as HistoryUnavailable', (_name, { start, end, descending }) => {
 		const order = descending ? 'descending' : 'ascending';
