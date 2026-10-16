@@ -28,7 +28,6 @@ import {
 	ScanCheckpointsDocument,
 	ScanEventsDocument,
 	ScanTransactionsDocument,
-	StreamTransactionCheckpointsDocument,
 	SubscribeCheckpointsDocument,
 	SubscribeEventsDocument,
 	SubscribeTransactionsDocument,
@@ -55,12 +54,21 @@ export interface Connection<Node> {
 }
 
 export interface Page<Node> extends Connection<Node> {
-	viewedAt: bigint | null;
+	/** The checkpoint this page was read at: the indexed tip of the replica that answered. */
+	viewedAt: bigint;
+	/** The oldest checkpoint the filter's indexes retain. */
+	retainedFrom: bigint | null;
 }
 
 export interface LedgerItem<Node> {
 	node: Node;
 	checkpoint: bigint;
+}
+
+/** Where a subscription resumes: after a cursor, or from a checkpoint. */
+export interface ResumePoint {
+	after?: string;
+	start?: bigint;
 }
 
 export interface PageRequest {
@@ -77,14 +85,12 @@ export interface LedgerFamily<Node> {
 	readonly name: StreamFamily;
 	readonly onePerCheckpoint: boolean;
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
-	/** The filter fields set, which pick the indexes and so the retention range. */
-	filterFields(): string[];
 	page(request: PageRequest): Promise<Page<Node>>;
-	/** Never resumed with `after`, which loses data on the server. */
-	subscribe(signal: AbortSignal, onOpen: () => void): AsyncIterable<Edge<Node>>;
+	/** Backfills from the resume point, then continues live. */
+	subscribe(signal: AbortSignal, resume: ResumePoint): AsyncIterable<Edge<Node>>;
 	identity(node: Node): string;
-	/** A digest when the index has not assigned the node's checkpoint yet. */
-	checkpoint(node: Node): bigint | { digest: string };
+	/** The node's checkpoint; null where the server left it out. */
+	checkpoint(node: Node): bigint | null;
 	map(item: LedgerItem<Node>): Omit<ItemFrame, 'resumeToken'>;
 }
 
@@ -111,20 +117,23 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 		name: 'checkpoints',
 		onePerCheckpoint: true,
 		resolveFilter: async () => undefined,
-		filterFields: () => [],
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'checkpoints',
 				await queryData(client, {
 					query: ScanCheckpointsDocument,
-					variables: { filter: toGraphQLCheckpointBounds(range), ...cursors },
+					variables: { filter: toGraphQLCheckpointBounds(range), filters: [], ...cursors },
 					signal,
 				}),
 				(data) => data.checkpoints,
 			),
-		subscribe: (signal, onOpen) =>
+		subscribe: (signal, { after, start }) =>
 			edges(
-				client.subscribe({ query: SubscribeCheckpointsDocument, signal, onOpen }),
+				client.subscribe({
+					query: SubscribeCheckpointsDocument,
+					variables: { after, ...toGraphQLCheckpointBounds({ start }) },
+					signal,
+				}),
 				(data) => data.checkpoints,
 			),
 		identity: (node) => String(node.sequenceNumber),
@@ -150,7 +159,6 @@ function transactionsFamily(
 			filter = options.filter && (await resolveTransactionFilter(mvr, options.filter, signal));
 			return filter;
 		},
-		filterFields: () => setFields(toGraphQLTransactionFilter(filter, {})),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'transactions',
@@ -158,6 +166,7 @@ function transactionsFamily(
 					query: ScanTransactionsDocument,
 					variables: {
 						filter: toGraphQLTransactionFilter(filter, range),
+						filters: setFields(toGraphQLTransactionFilter(filter, {})),
 						...cursors,
 						...selection,
 					},
@@ -165,28 +174,22 @@ function transactionsFamily(
 				}),
 				(data) => data.transactions,
 			),
-		subscribe: (signal, onOpen) =>
+		subscribe: (signal, { after, start }) =>
 			edges(
 				client.subscribe({
 					query: SubscribeTransactionsDocument,
-					variables: { filter: toGraphQLTransactionFilter(filter, {}), ...selection },
+					variables: { filter: toGraphQLTransactionFilter(filter, { start }), after, ...selection },
 					signal,
-					onOpen,
 				}),
 				(data) => data.transactions,
 			),
 		identity: (node) => node.digest,
-		checkpoint: (node) => checkpointOrDigest(node.effects?.checkpoint, node.digest),
-		map: ({ node, checkpoint }) => {
+		checkpoint: (node) => optionalCheckpoint(node.effects?.checkpoint),
+		map: ({ node }) => {
 			if (!node.effects?.status) {
 				throw new SuiStreamError('Protocol', `Transaction ${node.digest} has no effects`);
 			}
-			// A live node may carry its checkpoint only through the lookup.
-			const effects = { ...node.effects, checkpoint: { sequenceNumber: Number(checkpoint) } };
-			return {
-				$kind: 'Transaction',
-				transaction: parseTransaction({ ...node, effects }, options.include),
-			};
+			return { $kind: 'Transaction', transaction: parseTransaction(node, options.include) };
 		},
 	};
 }
@@ -204,30 +207,31 @@ function eventsFamily(
 			filter = options.filter && (await resolveEventFilter(mvr, options.filter, signal));
 			return filter;
 		},
-		filterFields: () => setFields(toGraphQLEventFilter(filter, {})),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'events',
 				await queryData(client, {
 					query: ScanEventsDocument,
-					variables: { filter: toGraphQLEventFilter(filter, range), ...cursors },
+					variables: {
+						filter: toGraphQLEventFilter(filter, range),
+						filters: setFields(toGraphQLEventFilter(filter, {})),
+						...cursors,
+					},
 					signal,
 				}),
 				(data) => data.events,
 			),
-		subscribe: (signal, onOpen) =>
+		subscribe: (signal, { after, start }) =>
 			edges(
 				client.subscribe({
 					query: SubscribeEventsDocument,
-					variables: { filter: toGraphQLEventFilter(filter, {}) },
+					variables: { filter: toGraphQLEventFilter(filter, { start }), after },
 					signal,
-					onOpen,
 				}),
 				(data) => data.events,
 			),
 		identity: (node) => `${eventDigest(node)}:${node.sequenceNumber}`,
-		checkpoint: (node) =>
-			checkpointOrDigest(node.transaction?.effects?.checkpoint, eventDigest(node)),
+		checkpoint: (node) => optionalCheckpoint(node.transaction?.effects?.checkpoint),
 		map: ({ node, checkpoint }) => ({
 			$kind: 'Event',
 			event: parseGraphQLEvent(node, checkpoint.toString(), 'Event stream'),
@@ -235,32 +239,23 @@ function eventsFamily(
 	};
 }
 
+/** The filter fields set, which pick the indexes and so the retention range. */
 function setFields(filter: object): string[] {
 	return Object.entries(filter)
 		.filter(([, value]) => value != null)
 		.map(([key]) => key);
 }
 
-/** Live nodes can lack a checkpoint; look them up, and retry rather than deliver one without it. */
-export async function itemEvents<Node>(
-	client: SuiGraphQLClient,
+/** Index-backed pages always carry each node's checkpoint. */
+export function itemEvents<Node>(
 	family: LedgerFamily<Node>,
 	edges: Edge<Node>[],
-	signal: AbortSignal,
-): Promise<Extract<PositionEvent<GraphQLPosition, LedgerItem<Node>>, { $kind: 'Item' }>[]> {
-	const known = edges.map((edge) => family.checkpoint(edge.node));
-	const digests = [
-		...new Set(
-			known.flatMap((checkpoint) => (typeof checkpoint === 'bigint' ? [] : [checkpoint.digest])),
-		),
-	];
-	const looked = digests.length > 0 ? await lookupCheckpoints(client, digests, signal) : new Map();
-	return edges.map((edge, i) => {
-		const reported = known[i];
-		const checkpoint =
-			typeof reported === 'bigint'
-				? reported
-				: (looked.get(reported.digest) ?? notIndexed(reported));
+): Extract<PositionEvent<GraphQLPosition, LedgerItem<Node>>, { $kind: 'Item' }>[] {
+	return edges.map((edge) => {
+		const checkpoint = family.checkpoint(edge.node);
+		if (checkpoint === null) {
+			throw new SuiStreamError('Protocol', `${family.name} page item has no checkpoint`);
+		}
 		return {
 			$kind: 'Item',
 			position: itemPosition(edge.cursor, checkpoint, family.identity(edge.node)),
@@ -269,33 +264,8 @@ export async function itemEvents<Node>(
 	});
 }
 
-export async function lookupCheckpoints(
-	client: SuiGraphQLClient,
-	digests: string[],
-	signal: AbortSignal,
-): Promise<Map<string, bigint>> {
-	const data = await queryData(client, {
-		query: StreamTransactionCheckpointsDocument,
-		variables: { digests },
-		signal,
-	});
-	const found = new Map<string, bigint>();
-	digests.forEach((digest, i) => {
-		const checkpoint = data.multiGetTransactionEffects[i]?.checkpoint;
-		if (checkpoint) found.set(digest, BigInt(checkpoint.sequenceNumber));
-	});
-	return found;
-}
-
-function notIndexed({ digest }: { digest: string }): never {
-	throw notIndexedYet(`Transaction ${digest} has no indexed checkpoint yet`);
-}
-
-function checkpointOrDigest(
-	checkpoint: { sequenceNumber: number } | null | undefined,
-	digest: string,
-): bigint | { digest: string } {
-	return checkpoint ? BigInt(checkpoint.sequenceNumber) : { digest };
+function optionalCheckpoint(checkpoint: { sequenceNumber: number } | null | undefined) {
+	return checkpoint ? BigInt(checkpoint.sequenceNumber) : null;
 }
 
 function eventDigest(node: Event_FieldsFragment): string {
@@ -304,15 +274,24 @@ function eventDigest(node: Event_FieldsFragment): string {
 	return digest;
 }
 
-function scanPage<Result extends { viewedAt?: { sequenceNumber: number } | null }, Node>(
+interface AvailableRange {
+	first: { sequenceNumber: number } | null;
+	last: { sequenceNumber: number } | null;
+}
+
+function scanPage<Result extends { serviceConfig?: { availableRange?: AvailableRange } }, Node>(
 	name: string,
 	data: Result,
 	select: (data: Result) => unknown,
 ): Page<Node> {
-	const viewedAt = data.viewedAt?.sequenceNumber;
+	const page = connection<Node>(name, select(data));
+	const range = data.serviceConfig?.availableRange;
+	if (!range) throw new SuiStreamError('Protocol', `GraphQL ${name} page has no availableRange`);
+	if (!range.last) throw notIndexedYet('No checkpoint has been indexed yet');
 	return {
-		...connection<Node>(name, select(data)),
-		viewedAt: viewedAt == null ? null : BigInt(viewedAt),
+		...page,
+		viewedAt: BigInt(range.last.sequenceNumber),
+		retainedFrom: range.first ? BigInt(range.first.sequenceNumber) : null,
 	};
 }
 

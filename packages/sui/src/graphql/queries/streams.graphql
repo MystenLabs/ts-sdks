@@ -2,20 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Ledger streams use the list methods' fragments so streamed items match list results.
-# Subscriptions never take `after`, which loses data on current servers.
 
-# Retention differs between filter indexes, so the range is read for the filters in use.
-query ledgerStreamState($field: String!, $filters: [String!]!) {
+query ledgerStreamState {
 	chainIdentifier
-	serviceConfig {
-		availableRange(type: "Query", field: $field, filters: $filters) {
-			first {
-				sequenceNumber
-			}
-			last {
-				sequenceNumber
-			}
-		}
+	checkpoint {
+		sequenceNumber
 	}
 }
 
@@ -28,14 +19,22 @@ fragment STREAM_PAGE_INFO on PageInfo {
 
 query scanCheckpoints(
 	$filter: CheckpointFilter
+	$filters: [String!]!
 	$first: Int
 	$after: String
 	$last: Int
 	$before: String
 ) {
-	# Load-balanced replicas can lag the reported tip.
-	viewedAt: checkpoint {
-		sequenceNumber
+	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
+	serviceConfig {
+		availableRange(type: "Query", field: "checkpoints", filters: $filters) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
 	}
 	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
@@ -50,8 +49,8 @@ query scanCheckpoints(
 	}
 }
 
-subscription subscribeCheckpoints {
-	checkpoints {
+subscription subscribeCheckpoints($after: String, $afterCheckpoint: UInt53) {
+	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
 		cursor
 		node {
 			...CHECKPOINT_FIELDS
@@ -59,10 +58,24 @@ subscription subscribeCheckpoints {
 	}
 }
 
-query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
-	# Load-balanced replicas can lag the reported tip.
-	viewedAt: checkpoint {
-		sequenceNumber
+query scanEvents(
+	$filter: EventFilter
+	$filters: [String!]!
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+) {
+	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
+	serviceConfig {
+		availableRange(type: "Query", field: "events", filters: $filters) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
 	}
 	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
@@ -77,8 +90,8 @@ query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, 
 	}
 }
 
-subscription subscribeEvents($filter: EventFilter) {
-	events(filter: $filter) {
+subscription subscribeEvents($filter: EventFilter, $after: String) {
+	events(filter: $filter, after: $after) {
 		cursor
 		node {
 			...EVENT_FIELDS
@@ -88,6 +101,7 @@ subscription subscribeEvents($filter: EventFilter) {
 
 query scanTransactions(
 	$filter: TransactionFilter
+	$filters: [String!]!
 	$first: Int
 	$after: String
 	$last: Int
@@ -100,9 +114,16 @@ query scanTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
-	# Load-balanced replicas can lag the reported tip.
-	viewedAt: checkpoint {
-		sequenceNumber
+	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
+	serviceConfig {
+		availableRange(type: "Query", field: "transactions", filters: $filters) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
 	}
 	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
@@ -119,6 +140,7 @@ query scanTransactions(
 
 subscription subscribeTransactions(
 	$filter: TransactionFilter
+	$after: String
 	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
@@ -127,19 +149,10 @@ subscription subscribeTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
-	transactions(filter: $filter) {
+	transactions(filter: $filter, after: $after) {
 		cursor
 		node {
 			...TRANSACTION_FIELDS
-		}
-	}
-}
-
-# Live nodes can arrive before the index assigns their checkpoint.
-query streamTransactionCheckpoints($digests: [String!]!) {
-	multiGetTransactionEffects(keys: $digests) {
-		checkpoint {
-			sequenceNumber
 		}
 	}
 }
