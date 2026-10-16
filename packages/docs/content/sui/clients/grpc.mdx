@@ -153,8 +153,11 @@ transport from `@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HT
 gRPC protocol rather than the gRPC-web translation layer.
 
 Use the default transport for ledger streams (`streamCheckpoints`, `streamTransactions` and
-`streamEvents`). It reads stream responses only as they are consumed, and reports dropped
-connections as retryable `UNAVAILABLE` errors so streams reconnect. The native transport reads
+`streamEvents`). Without interceptors, it reads stream responses only as they are consumed, apart
+from a bounded read-ahead while a stream switches from history to live delivery. It also reports
+dropped connections as retryable `UNAVAILABLE` errors so streams reconnect. With interceptors
+configured, streams fall back to push delivery: responses are buffered as they arrive, up to a fixed
+limit, and the stream reconnects if the consumer falls that far behind. The native transport reads
 responses as they arrive whether or not they are consumed, and can report a server-side stream reset
 as a non-retryable error, which ends the stream instead of reconnecting it.
 
