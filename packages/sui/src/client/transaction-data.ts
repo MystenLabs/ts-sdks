@@ -43,13 +43,8 @@ type HeaderInput = Omit<BuilderTransactionData, 'inputs' | 'commands' | 'digest'
 const UNKNOWN_KIND = { $kind: 'Unknown', Unknown: true } as const;
 
 /**
- * Decode ledger transaction data from BCS, normalizing the inputs and commands of programmable
- * kinds.
- *
- * This is strict: BCS is not self-describing, so bytes that use a transaction kind or a nested
- * variant this SDK version does not know cannot be decoded and throw. Client reads with
- * `include: { transaction: true }` map the transports' structured data instead, and return
- * `Unknown` kinds rather than failing.
+ * Decode ledger transaction data from BCS. Throws on bytes that use a kind or variant this SDK
+ * version does not know.
  */
 export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.TransactionData {
 	const data = bcs.TransactionData.parse(bytes).V1;
@@ -92,13 +87,8 @@ export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.Trans
 }
 
 /**
- * Map a gRPC `Transaction` (read with the `sender`, `gas_payment`, `expiration` and `kind`
- * fields, or decoded from the gRPC JSON GraphQL returns as `transactionJson`) to ledger
- * transaction data.
- *
- * Kinds, end-of-epoch operations, inputs or commands this SDK version cannot map yield an
- * `Unknown` kind (or end-of-epoch operation) and keep the sender, gas data and expiration. An
- * expiration kind this SDK does not know maps to `null`.
+ * Map a gRPC `Transaction`, or GraphQL's `transactionJson`, to ledger transaction data. Anything
+ * in the kind this SDK cannot map makes the whole kind `Unknown`.
  */
 export function grpcTransactionToLedgerTransactionData(
 	grpcTx: GrpcTransaction,
@@ -254,10 +244,8 @@ const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 const SUI_SYSTEM = normalizeSuiAddress('0x3');
 
 /**
- * Genesis objects are not sent with their BCS: the RPC fills the owner, ID, version, type,
- * public-transfer flag and contents of Move objects, or the modules, type origins and linkage of
- * packages. Rebuild the raw object from those fields, then round-trip it through BCS so it has the
- * same shape as the BCS decoder's output.
+ * The RPC returns genesis objects as fields rather than BCS, so rebuild the raw object and
+ * round-trip it through BCS to match the BCS decoder's output.
  */
 function grpcGenesisObject(object: GrpcObject): SuiClientTypes.GenesisObject {
 	const version = u64(object.version, 'object version');
