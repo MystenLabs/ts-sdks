@@ -62,6 +62,11 @@ together with `@mysten/sui`.
   wherever you construct `ChangedObject` values yourself, such as test mocks.
 - **`EventEntry.checkpoint` is now `string`** instead of `string | null`. Drop any `null` handling
   your types flag.
+- **Transaction data (`include: { transaction: true }`) has a `kind` instead of top-level `inputs`
+  and `commands`.** Read programmable transactions from `kind.ProgrammableTransaction.inputs` and
+  `kind.ProgrammableTransaction.commands`. System transactions such as genesis and consensus commits
+  decode into their own `kind` variants. See
+  [transaction data](/sui/clients/executing#transaction-data).
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
