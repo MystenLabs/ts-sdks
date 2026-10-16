@@ -37,7 +37,7 @@ export async function* followLedger<Node>(
 		liveEvents(family, attempt.controller.signal, resumePoint(session.start)),
 	);
 	try {
-		// The first result shows the subscription is open, so `Connected` comes before `Live`.
+		// Filtered subscriptions report no progress, so `Live` waits for the first item.
 		await feed.first();
 		yield* session.deliver(feed);
 	} finally {
@@ -57,7 +57,7 @@ function resumePoint(start: Bound<GraphQLPosition> | undefined): ResumePoint {
 
 /**
  * Live item events.
- * @yields `Connected` with the first result, then one item event per edge.
+ * @yields `Connected` once the subscription opens, then one item event per edge.
  * @throws {StreamDisconnected} for an item without a checkpoint, so the next connection resumes
  * before it and the server backfills it from the index.
  */
@@ -66,18 +66,25 @@ async function* liveEvents<Node>(
 	signal: AbortSignal,
 	resume: ResumePoint,
 ): AsyncGenerator<LiveEvent<GraphQLPosition, LedgerItem<Node>>> {
-	let connected = false;
-	for await (const edge of family.subscribe(signal, resume)) {
-		if (!connected) {
-			connected = true;
-			yield { $kind: 'Connected' };
+	let opened!: () => void;
+	const open = new Promise<void>((resolve) => (opened = resolve));
+	const edges = family.subscribe(signal, resume, opened)[Symbol.asyncIterator]();
+	try {
+		const first = edges.next();
+		// A filtered subscription can stay quiet for a long time after it opens.
+		await Promise.race([open, first]);
+		yield { $kind: 'Connected' };
+		for (let result = await first; !result.done; result = await edges.next()) {
+			const { node, cursor } = result.value;
+			const checkpoint = family.checkpoint(node);
+			if (checkpoint === null) throw new StreamDisconnected('Live item has no checkpoint');
+			yield {
+				$kind: 'Item',
+				position: itemPosition(cursor, checkpoint, family.identity(node)),
+				item: { node, checkpoint },
+			};
 		}
-		const checkpoint = family.checkpoint(edge.node);
-		if (checkpoint === null) throw new StreamDisconnected('Live item has no checkpoint');
-		yield {
-			$kind: 'Item',
-			position: itemPosition(edge.cursor, checkpoint, family.identity(edge.node)),
-			item: { node: edge.node, checkpoint },
-		};
+	} finally {
+		await edges.return?.();
 	}
 }

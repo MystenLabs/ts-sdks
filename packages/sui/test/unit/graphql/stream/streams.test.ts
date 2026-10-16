@@ -760,6 +760,16 @@ describe('live handoff', () => {
 		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
 	});
 
+	it('reports Connected when a quiet subscription opens, and Live with its first item', async () => {
+		const server = fakeGraphQL({ tip: 10 }).on('subscribeEvents', live('events', []));
+		const log = statusLog();
+		const source = stream(server.client, 'events', { onStatus: log.onStatus });
+		const pending = source.next().catch(() => {});
+		await expect.poll(() => log.log).toEqual(['Connecting(0)', 'Connected']);
+		await source.return(undefined);
+		await pending;
+	});
+
 	it('reads history before subscribing from genesis, then resumes after it', async () => {
 		const server = fakeGraphQL({ tip: 1 });
 		server.on('scanCheckpoints', page('checkpoints', [checkpoint(0), checkpoint(1)]));
