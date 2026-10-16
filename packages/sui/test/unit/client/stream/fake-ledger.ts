@@ -7,7 +7,7 @@
  * Positions are points in one total order: `{ checkpoint: c, slot: 0 }` is the boundary before
  * checkpoint `c`, and `{ checkpoint: c, slot: i + 1 }` is the `i`th matching item of `c`. Scans
  * page through the indexed part of the ledger; live connections replay a script. `follow()` has
- * the same four phases as the real transports.
+ * the same phases as the real transports.
  */
 
 import { bcs } from '@mysten/bcs';
@@ -135,20 +135,25 @@ export interface FakeOptions {
 	family?: 'checkpoints' | 'transactions' | 'events';
 	transport?: 'grpc' | 'graphql';
 	anchorsAtLiveTip?: boolean;
-	/** `cursor`: the gap ends at the first live position (gRPC). `checkpoint`: it ends after the first live checkpoint (GraphQL). */
-	handoff?: 'cursor' | 'checkpoint';
-	contiguousCheckpoints?: boolean;
+	/**
+	 * `cursor`: history, then a subscription at the live tip and a gap replay up to its first
+	 * position (gRPC). `resume`: a subscription that resumes after the start position (GraphQL).
+	 */
+	handoff?: 'cursor' | 'resume';
 	/** Report scan frontiers as Progress events (gRPC watermarks). */
 	scanProgress?: boolean;
 	/** The transport cannot order positions. */
 	opaqueOrder?: boolean;
 	validate?: (position: FakePosition) => void;
+	/** `initialize` also returns the indexed tip, as GraphQL does. */
+	initializeReadsTip?: boolean;
 	initializeFaults?: Error[];
 	tipFaults?: Error[];
 	scanFaults?: (ScanFault | undefined)[];
 	/** Called after each scan pass (e.g. to advance the index). */
 	afterScan?: (ledger: Ledger) => void;
-	live?: LiveScript[] | ((connection: number) => LiveScript);
+	/** `after` is where a `resume` subscription starts. */
+	live?: LiveScript[] | ((connection: number, after: FakePosition | undefined) => LiveScript);
 }
 
 export interface FakeAdapter extends LedgerStreamAdapter<FakePosition, FakeItem, FakeFrame> {
@@ -167,15 +172,16 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 	const scanFaults = [...(options.scanFaults ?? [])];
 	const calls: FakeAdapter['calls'] = { initialize: 0, indexedTip: 0, scans: [], subscriptions: 0 };
 
-	function liveScript(connection: number): LiveScript {
-		if (typeof options.live === 'function') return options.live(connection);
+	function liveScript(connection: number, after: FakePosition | undefined): LiveScript {
+		if (typeof options.live === 'function') return options.live(connection, after);
 		return options.live?.[connection] ?? { events: [], end: 'hang' };
 	}
 
 	async function* subscribe(
 		signal: AbortSignal,
+		after?: FakePosition,
 	): AsyncGenerator<LiveEvent<FakePosition, FakeItem>> {
-		const script = liveScript(calls.subscriptions++);
+		const script = liveScript(calls.subscriptions++, after);
 		yield { $kind: 'Connected' };
 		for (const event of script.events) {
 			signal.throwIfAborted();
@@ -280,7 +286,11 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 			calls.initialize++;
 			const fault = initializeFaults.shift();
 			if (fault) throw fault;
-			return { chain: options.chain ?? 'test-chain', filter: options.filter ?? { sender: '0x1' } };
+			return {
+				chain: options.chain ?? 'test-chain',
+				filter: options.filter ?? { sender: '0x1' },
+				indexedTip: options.initializeReadsTip ? ledger.indexedTip : undefined,
+			};
 		},
 		async indexedTip() {
 			calls.indexedTip++;
@@ -290,24 +300,30 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		},
 		scan,
 		async *follow(session) {
-			// Phase 1: history, with no live connection open.
-			if (session.start) yield* session.replay('tip', 'history');
-			// Phase 2: subscribe.
+			if (options.handoff === 'resume') {
+				const after = toPosition(session.start, 'ascending');
+				// A checkpoint start: commit it, so a token exists before the first match.
+				if (!session.committed && after) yield* session.baseline(after);
+				const feed = session.openFeed(subscribe(session.signal, after));
+				try {
+					yield* session.deliver(feed);
+				} finally {
+					await feed.close();
+				}
+			}
+			if (session.catchesUpFirst()) yield* session.replay('tip', 'history');
 			const feed = session.openFeed(subscribe(session.signal));
 			try {
 				const first = await feed.first();
-				// Phase 3: the gap between the resume point and the first live event.
+				// The gap between the resume point and the first live event.
 				if (!session.start) {
 					if (first.$kind === 'Item') {
 						yield* session.baseline(boundary(first.position.checkpoint));
 					}
-				} else if ((options.handoff ?? 'cursor') === 'cursor') {
-					yield* session.replay({ position: first.position }, 'gap');
 				} else {
-					yield* session.replay({ checkpoint: first.position.checkpoint + 1n }, 'gap');
+					yield* session.replay({ position: first.position }, 'gap');
 				}
-				// Phase 4: live.
-				yield* session.deliver(feed, { contiguousCheckpoints: options.contiguousCheckpoints });
+				yield* session.deliver(feed);
 			} finally {
 				await feed.close();
 			}
