@@ -59,6 +59,8 @@ import {
 	SimulateTransactionResponse,
 } from './proto/sui/rpc/v2/transaction_execution_service.js';
 import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
+import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
+import type { Event } from './proto/sui/rpc/v2/event.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
@@ -685,19 +687,7 @@ export class GrpcCoreClient extends CoreClient {
 			: undefined;
 		const call = this.#client.ledgerService.listEvents(
 			{
-				readMask: {
-					paths: [
-						'package_id',
-						'module',
-						'sender',
-						'event_type',
-						'contents',
-						'json',
-						'checkpoint',
-						'transaction_digest',
-						'event_index',
-					],
-				},
+				readMask: { paths: EVENT_READ_MASK_PATHS },
 				filter: toGrpcEventFilter(filter),
 				startCheckpoint: range.start,
 				endCheckpoint: range.end,
@@ -711,30 +701,7 @@ export class GrpcCoreClient extends CoreClient {
 			call.responses,
 			pagination.limit,
 			(frame) => frame.event,
-			(event): SuiClientTypes.EventEntry => {
-				if (
-					!event.packageId ||
-					!event.module ||
-					!event.sender ||
-					!event.eventType ||
-					event.checkpoint == null ||
-					!event.transactionDigest ||
-					event.eventIndex == null
-				) {
-					throw new Error('listEvents response is missing expected event fields');
-				}
-				return {
-					packageId: normalizeSuiAddress(event.packageId),
-					module: event.module,
-					sender: normalizeSuiAddress(event.sender),
-					eventType: normalizeStructTag(event.eventType),
-					bcs: event.contents?.value ?? new Uint8Array(),
-					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
-					checkpoint: event.checkpoint.toString(),
-					transactionDigest: event.transactionDigest,
-					eventIndex: event.eventIndex,
-				};
-			},
+			(event) => parseGrpcEvent(event, 'listEvents'),
 		);
 
 		return { events: items, ...page };
@@ -747,9 +714,7 @@ export class GrpcCoreClient extends CoreClient {
 		const range = resolveCheckpointRange(options);
 		const call = this.#client.ledgerService.listCheckpoints(
 			{
-				readMask: {
-					paths: ['sequence_number', 'digest', 'summary.epoch', 'summary.timestamp'],
-				},
+				readMask: { paths: CHECKPOINT_READ_MASK_PATHS },
 				startCheckpoint: range.start,
 				endCheckpoint: range.end,
 				// Request one extra item as lookahead (see collectListPage)
@@ -762,25 +727,7 @@ export class GrpcCoreClient extends CoreClient {
 			call.responses,
 			pagination.limit,
 			(frame) => frame.checkpoint,
-			(checkpoint): SuiClientTypes.Checkpoint => {
-				const timestamp = checkpoint.summary?.timestamp;
-				if (
-					checkpoint.sequenceNumber == null ||
-					!checkpoint.digest ||
-					checkpoint.summary?.epoch == null ||
-					!timestamp
-				) {
-					throw new Error('listCheckpoints response is missing expected checkpoint fields');
-				}
-				return {
-					sequenceNumber: checkpoint.sequenceNumber.toString(),
-					digest: checkpoint.digest,
-					epoch: checkpoint.summary.epoch.toString(),
-					timestampMs: Number(
-						timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000)),
-					),
-				};
-			},
+			(checkpoint) => parseGrpcCheckpoint(checkpoint, 'listCheckpoints'),
 		);
 
 		return { checkpoints: items, ...page };
@@ -1030,6 +977,75 @@ export class GrpcCoreClient extends CoreClient {
 			return await next();
 		};
 	}
+}
+
+export const CHECKPOINT_READ_MASK_PATHS = [
+	'sequence_number',
+	'digest',
+	'summary.epoch',
+	'summary.timestamp',
+];
+
+export const EVENT_READ_MASK_PATHS = [
+	'package_id',
+	'module',
+	'sender',
+	'event_type',
+	'contents',
+	'json',
+	'checkpoint',
+	'transaction_digest',
+	'event_index',
+];
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGrpcCheckpoint(
+	checkpoint: Checkpoint,
+	source: string,
+): SuiClientTypes.Checkpoint {
+	const timestamp = checkpoint.summary?.timestamp;
+	if (
+		checkpoint.sequenceNumber == null ||
+		!checkpoint.digest ||
+		checkpoint.summary?.epoch == null ||
+		!timestamp
+	) {
+		throw new Error(`${source} response is missing expected checkpoint fields`);
+	}
+	return {
+		sequenceNumber: checkpoint.sequenceNumber.toString(),
+		digest: checkpoint.digest,
+		epoch: checkpoint.summary.epoch.toString(),
+		timestampMs: Number(
+			timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000)),
+		),
+	};
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGrpcEvent(event: Event, source: string): SuiClientTypes.EventEntry {
+	if (
+		!event.packageId ||
+		!event.module ||
+		!event.sender ||
+		!event.eventType ||
+		event.checkpoint == null ||
+		!event.transactionDigest ||
+		event.eventIndex == null
+	) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+	return {
+		packageId: normalizeSuiAddress(event.packageId),
+		module: event.module,
+		sender: normalizeSuiAddress(event.sender),
+		eventType: normalizeStructTag(event.eventType),
+		bcs: event.contents?.value ?? new Uint8Array(),
+		json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+		checkpoint: event.checkpoint.toString(),
+		transactionDigest: event.transactionDigest,
+		eventIndex: event.eventIndex,
+	};
 }
 
 /**
