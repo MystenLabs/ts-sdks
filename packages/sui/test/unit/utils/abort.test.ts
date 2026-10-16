@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { abortableAsyncGenerator, sleep } from '../../../src/utils/abort.js';
 
 describe('abortableAsyncGenerator', () => {
@@ -59,6 +59,37 @@ describe('sleep', () => {
 		const remove = vi.spyOn(controller.signal, 'removeEventListener');
 		await sleep(1, controller.signal);
 		expect(remove).toHaveBeenCalledOnce();
+	});
+
+	describe('with delays setTimeout cannot hold', () => {
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it.each([2 ** 31, 2 ** 33 + 5])('waits the full %d ms', async (delay) => {
+			vi.useFakeTimers();
+			let resolved = false;
+			const pending = sleep(delay, new AbortController().signal).then(() => (resolved = true));
+			await vi.advanceTimersByTimeAsync(1000);
+			expect(resolved).toBe(false);
+			await vi.advanceTimersByTimeAsync(delay - 1001);
+			expect(resolved).toBe(false);
+			await vi.advanceTimersByTimeAsync(1);
+			expect(resolved).toBe(true);
+			await pending;
+		});
+
+		it('waits for an infinite delay until aborted', async () => {
+			vi.useFakeTimers();
+			const controller = new AbortController();
+			let settled = false;
+			const pending = sleep(Infinity, controller.signal).finally(() => (settled = true));
+			await vi.advanceTimersByTimeAsync(2 ** 32);
+			expect(settled).toBe(false);
+			controller.abort(new Error('stop'));
+			await expect(pending).rejects.toThrow('stop');
+			expect(vi.getTimerCount()).toBe(0);
+		});
 	});
 
 	it('rejects with the abort reason', async () => {
