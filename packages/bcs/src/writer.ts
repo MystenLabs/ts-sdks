@@ -34,6 +34,7 @@ export interface BcsWriterOptions {
  */
 export class BcsWriter {
 	private dataView: DataView<ArrayBuffer>;
+	private bytes: Uint8Array<ArrayBuffer>;
 	private bytePosition: number = 0;
 	private size: number;
 	private maxSize: number;
@@ -48,6 +49,7 @@ export class BcsWriter {
 		this.maxSize = maxSize;
 		this.allocateSize = allocateSize;
 		this.dataView = new DataView(new ArrayBuffer(initialSize));
+		this.bytes = new Uint8Array(this.dataView.buffer);
 	}
 
 	private ensureSizeOrGrow(bytes: number) {
@@ -65,8 +67,10 @@ export class BcsWriter {
 
 			this.size = nextSize;
 			const nextBuffer = new ArrayBuffer(this.size);
-			new Uint8Array(nextBuffer).set(new Uint8Array(this.dataView.buffer));
+			const nextBytes = new Uint8Array(nextBuffer);
+			nextBytes.set(this.bytes);
 			this.dataView = new DataView(nextBuffer);
+			this.bytes = nextBytes;
 		}
 	}
 
@@ -87,7 +91,7 @@ export class BcsWriter {
 	 */
 	write8(value: number | bigint): this {
 		this.ensureSizeOrGrow(1);
-		this.dataView.setUint8(this.bytePosition, Number(value));
+		this.bytes[this.bytePosition] = Number(value);
 		return this.shift(1);
 	}
 
@@ -98,10 +102,7 @@ export class BcsWriter {
 	 */
 	writeBytes(bytes: Uint8Array): this {
 		this.ensureSizeOrGrow(bytes.length);
-
-		for (let i = 0; i < bytes.length; i++) {
-			this.dataView.setUint8(this.bytePosition + i, bytes[i]);
-		}
+		this.bytes.set(bytes, this.bytePosition);
 
 		return this.shift(bytes.length);
 	}
@@ -131,9 +132,7 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write64(value: number | bigint): this {
-		toLittleEndian(BigInt(value), 8).forEach((el) => this.write8(el));
-
-		return this;
+		return this.writeBigLittleEndian(BigInt(value), 8);
 	}
 	/**
 	 * Write a U128 value into a buffer and shift cursor position by 16.
@@ -142,9 +141,7 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write128(value: number | bigint): this {
-		toLittleEndian(BigInt(value), 16).forEach((el) => this.write8(el));
-
-		return this;
+		return this.writeBigLittleEndian(BigInt(value), 16);
 	}
 	/**
 	 * Write a U256 value into a buffer and shift cursor position by 16.
@@ -153,9 +150,19 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write256(value: number | bigint): this {
-		toLittleEndian(BigInt(value), 32).forEach((el) => this.write8(el));
+		return this.writeBigLittleEndian(BigInt(value), 32);
+	}
 
-		return this;
+	// Negative values encode as zero and values that overflow `size` keep their low bytes
+	private writeBigLittleEndian(value: bigint, size: number): this {
+		this.ensureSizeOrGrow(size);
+		let remaining = value > 0n ? value : 0n;
+		for (let offset = 0; offset < size; offset += 8) {
+			this.dataView.setBigUint64(this.bytePosition + offset, BigInt.asUintN(64, remaining), true);
+			remaining >>= 64n;
+		}
+
+		return this.shift(size);
 	}
 	/**
 	 * Write a ULEB value into a buffer and shift cursor position by number of bytes
@@ -164,6 +171,15 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	writeULEB(value: number): this {
+		if (value >= 0 && Number.isSafeInteger(value)) {
+			let remaining = value;
+			while (remaining >= 0x80) {
+				this.write8((remaining % 0x80) | 0x80);
+				remaining = Math.floor(remaining / 0x80);
+			}
+			return this.write8(remaining);
+		}
+
 		ulebEncode(value).forEach((el) => this.write8(el));
 		return this;
 	}
@@ -208,15 +224,4 @@ export class BcsWriter {
 	toString(encoding: Encoding): string {
 		return encodeStr(this.toBytes(), encoding);
 	}
-}
-
-function toLittleEndian(bigint: bigint, size: number) {
-	const result = new Uint8Array(size);
-	let i = 0;
-	while (bigint > 0) {
-		result[i] = Number(bigint % BigInt(256));
-		bigint = bigint / BigInt(256);
-		i += 1;
-	}
-	return result;
 }

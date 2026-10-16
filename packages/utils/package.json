@@ -23,6 +23,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"test": "vitest run",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -44,8 +45,5 @@
 	"devDependencies": {
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.11"
-	},
-	"dependencies": {
-		"@scure/base": "^2.3.0"
 	}
 }

@@ -22,6 +22,12 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 	validate: (value: Input) => void;
 	#write: (value: Input, writer: BcsWriter) => void;
 	#serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
+	// Set by transform: validates and writes while converting the input only once. Only used
+	// while validate is still the one transform created, so a reassigned validate is honoured.
+	#validatedWrite: ((value: Input, writer: BcsWriter) => void) | null = null;
+	#validatedSerialize:
+		((value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>) | null = null;
+	#transformValidate: ((value: Input) => void) | null = null;
 
 	constructor(
 		options: {
@@ -52,11 +58,18 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 	}
 
 	write(value: Input, writer: BcsWriter) {
+		if (this.#validatedWrite && this.validate === this.#transformValidate) {
+			this.#validatedWrite(value, writer);
+			return;
+		}
 		this.validate(value);
 		this.#write(value, writer);
 	}
 
 	serialize(value: Input, options?: BcsWriterOptions) {
+		if (this.#validatedSerialize && this.validate === this.#transformValidate) {
+			return new SerializedBcs(this, this.#validatedSerialize(value, options));
+		}
 		this.validate(value);
 		return new SerializedBcs(this, this.#serialize(value, options));
 	}
@@ -87,7 +100,7 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 		input?: (val: Input2) => Input;
 		output?: (value: T) => T2;
 	} & BcsTypeOptions<T2, Input2, NewName>) {
-		return new BcsType<T2, Input2, NewName>({
+		const type = new BcsType<T2, Input2, NewName>({
 			name: (name ?? this.name) as NewName,
 			read: (reader) => (output ? output(this.read(reader)) : (this.read(reader) as never)),
 			write: (value, writer) => this.#write(input ? input(value) : (value as never), writer),
@@ -99,6 +112,23 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 				this.validate(input ? input(value) : (value as never));
 			},
 		});
+
+		// Equivalent to validate() followed by the write above, but calls input() once instead of twice
+		type.#transformValidate = type.validate;
+		type.#validatedWrite = (value, writer) => {
+			validate?.(value);
+			const converted = input ? input(value) : (value as never);
+			this.validate(converted);
+			this.#write(converted, writer);
+		};
+		type.#validatedSerialize = (value, options) => {
+			validate?.(value);
+			const converted = input ? input(value) : (value as never);
+			this.validate(converted);
+			return this.#serialize(converted, options);
+		};
+
+		return type;
 	}
 }
 
@@ -253,9 +283,7 @@ export function stringLikeBcsType<const Name extends string = string>({
 		write: (hex, writer) => {
 			const bytes = toBytes(hex);
 			writer.writeULEB(bytes.length);
-			for (let i = 0; i < bytes.length; i++) {
-				writer.write8(bytes[i]);
-			}
+			writer.writeBytes(bytes);
 		},
 		serialize: (value) => {
 			const bytes = toBytes(value);
@@ -325,14 +353,16 @@ export class BcsStruct<
 	Name
 > {
 	constructor({ name, fields, ...options }: BcsStructOptions<T, Name>) {
-		const canonicalOrder = Object.entries(fields);
+		const fieldNames = Object.keys(fields);
+		const fieldTypes = fieldNames.map((field) => fields[field]);
+		const fieldCount = fieldNames.length;
 
 		super({
 			name,
 			serializedSize: (values) => {
 				let total = 0;
-				for (const [field, type] of canonicalOrder) {
-					const size = type.serializedSize(values[field]);
+				for (let i = 0; i < fieldCount; i++) {
+					const size = fieldTypes[i].serializedSize(values[fieldNames[i]]);
 					if (size == null) {
 						return null;
 					}
@@ -344,15 +374,15 @@ export class BcsStruct<
 			},
 			read: (reader) => {
 				const result: Record<string, unknown> = {};
-				for (const [field, type] of canonicalOrder) {
-					result[field] = type.read(reader);
+				for (let i = 0; i < fieldCount; i++) {
+					result[fieldNames[i]] = fieldTypes[i].read(reader);
 				}
 
 				return result as never;
 			},
 			write: (value, writer) => {
-				for (const [field, type] of canonicalOrder) {
-					type.write(value[field], writer);
+				for (let i = 0; i < fieldCount; i++) {
+					fieldTypes[i].write(value[fieldNames[i]], writer);
 				}
 			},
 			...options,
@@ -399,6 +429,7 @@ export class BcsEnum<
 > {
 	constructor({ fields, ...options }: BcsEnumOptions<T, Name>) {
 		const canonicalOrder = Object.entries(fields as object);
+		const variantIndex = new Map(canonicalOrder.map(([name], i) => [name, i]));
 		super({
 			read: (reader) => {
 				const index = reader.readULEB();
@@ -410,21 +441,26 @@ export class BcsEnum<
 
 				const [kind, type] = enumEntry;
 
-				return {
-					[kind]: type?.read(reader) ?? true,
-					$kind: kind,
-				} as never;
+				const value = type?.read(reader) ?? true;
+				// Assigning to __proto__ would set the prototype rather than add a property
+				if (kind === '__proto__') {
+					return { [kind]: value, $kind: kind } as never;
+				}
+
+				// Avoid a computed-key object literal, which V8 builds through a slow runtime path
+				const result: Record<string, unknown> = {};
+				result[kind] = value;
+				result.$kind = kind;
+
+				return result as never;
 			},
 			write: (value, writer) => {
-				const [name, val] = Object.entries(value).filter(([name]) =>
-					Object.hasOwn(fields, name),
-				)[0];
-
-				for (let i = 0; i < canonicalOrder.length; i++) {
-					const [optionName, optionType] = canonicalOrder[i];
-					if (optionName === name) {
-						writer.writeULEB(i);
-						optionType?.write(val, writer);
+				// The first own key that names a variant selects it
+				for (const name of Object.keys(value)) {
+					const index = variantIndex.get(name);
+					if (index !== undefined) {
+						writer.writeULEB(index);
+						canonicalOrder[index][1]?.write(value[name], writer);
 						return;
 					}
 				}
@@ -436,20 +472,17 @@ export class BcsEnum<
 					throw new TypeError(`Expected object, found ${typeof value}`);
 				}
 
-				const keys = Object.keys(value).filter(
-					(k) => value[k] !== undefined && Object.hasOwn(fields, k),
-				);
-
-				if (keys.length !== 1) {
-					throw new TypeError(
-						`Expected object with one key, but found ${keys.length} for type ${options.name}}`,
-					);
+				let variantCount = 0;
+				for (const key of Object.keys(value)) {
+					if (value[key] !== undefined && variantIndex.has(key)) {
+						variantCount++;
+					}
 				}
 
-				const [variant] = keys;
-
-				if (!Object.hasOwn(fields, variant)) {
-					throw new TypeError(`Invalid enum variant ${variant}`);
+				if (variantCount !== 1) {
+					throw new TypeError(
+						`Expected object with one key, but found ${variantCount} for type ${options.name}}`,
+					);
 				}
 			},
 		});

@@ -1,8 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ulebDecode } from './uleb.js';
-
 /**
  * Class used for reading BCS data chunk by chunk. Meant to be used
  * by some wrapper, which will make sure that data is valid and is
@@ -35,6 +33,7 @@ import { ulebDecode } from './uleb.js';
  */
 export class BcsReader {
 	private dataView: DataView;
+	private bytes: Uint8Array;
 	private bytePosition: number = 0;
 
 	/**
@@ -42,6 +41,7 @@ export class BcsReader {
 	 */
 	constructor(data: Uint8Array) {
 		this.dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
+		this.bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 	}
 	/**
 	 * Shift current cursor position by `bytes`.
@@ -58,9 +58,12 @@ export class BcsReader {
 	 * @returns
 	 */
 	read8(): number {
-		const value = this.dataView.getUint8(this.bytePosition);
-		this.shift(1);
-		return value;
+		const position = this.bytePosition;
+		if (position >= this.bytes.length) {
+			throw new RangeError('Offset is outside the bounds of the DataView');
+		}
+		this.bytePosition = position + 1;
+		return this.bytes[position];
 	}
 	/**
 	 * Read U16 value from the buffer and shift cursor by 2.
@@ -85,12 +88,9 @@ export class BcsReader {
 	 * @returns
 	 */
 	read64(): string {
-		const value1 = this.read32();
-		const value2 = this.read32();
-
-		const result = value2.toString(16) + value1.toString(16).padStart(8, '0');
-
-		return BigInt('0x' + result).toString(10);
+		const value = this.dataView.getBigUint64(this.bytePosition, true);
+		this.shift(8);
+		return value.toString(10);
 	}
 	/**
 	 * Read U128 value from the buffer and shift cursor by 16.
@@ -118,6 +118,10 @@ export class BcsReader {
 	 * @param num Number of bytes to read.
 	 */
 	readBytes(num: number): Uint8Array {
+		// The underlying buffer may extend past this view, so check against the view's own length
+		if (this.bytePosition + num > this.bytes.length) {
+			throw new RangeError('Offset is outside the bounds of the DataView');
+		}
 		const start = this.bytePosition + this.dataView.byteOffset;
 		const value = new Uint8Array(this.dataView.buffer, start, num);
 
@@ -131,12 +135,31 @@ export class BcsReader {
 	 * @returns {Number} The ULEB value.
 	 */
 	readULEB(): number {
-		const start = this.bytePosition + this.dataView.byteOffset;
-		const buffer = new Uint8Array(this.dataView.buffer, start);
-		const { value, length } = ulebDecode(buffer);
+		const bytes = this.bytes;
+		let position = this.bytePosition;
+		let value = 0;
+		let multiplier = 1;
+		while (true) {
+			if (position >= bytes.length) {
+				throw new Error('ULEB decode error: buffer overflow');
+			}
+			const byte = bytes[position++];
+			value += (byte & 0x7f) * multiplier;
+			if ((byte & 0x80) === 0) {
+				// A trailing zero group adds no value, so the encoding is not minimal
+				if (byte === 0 && position - this.bytePosition > 1) {
+					throw new Error('ULEB decode error: non-canonical encoding');
+				}
+				break;
+			}
+			multiplier *= 128;
+		}
 
-		this.shift(length);
-
+		// Also rejects NaN, from very long encodings where multiplier overflows to Infinity
+		if (!(value <= Number.MAX_SAFE_INTEGER)) {
+			throw new Error('ULEB decode error: value exceeds MAX_SAFE_INTEGER');
+		}
+		this.bytePosition = position;
 		return value;
 	}
 	/**
