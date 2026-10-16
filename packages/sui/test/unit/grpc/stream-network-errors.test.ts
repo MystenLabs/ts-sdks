@@ -38,6 +38,58 @@ it('preserves response-body network failures for reconnect classification', asyn
 	});
 });
 
+// A `node-fetch` style response: the body is a Node.js stream, read through async iteration.
+function nodeStyleResponse(chunks: () => AsyncIterable<Uint8Array>) {
+	return async () =>
+		({
+			ok: true,
+			status: 200,
+			statusText: 'OK',
+			type: 'default',
+			headers: new Headers({ 'content-type': 'application/grpc-web+proto' }),
+			body: { [Symbol.asyncIterator]: () => chunks()[Symbol.asyncIterator]() },
+		}) as unknown as Response;
+}
+
+const OK_TRAILER = new TextEncoder().encode('grpc-status: 0\r\n');
+const EMPTY_MESSAGE = new Uint8Array([0, 0, 0, 0, 0]);
+const TRAILER_FRAME = new Uint8Array([0x80, 0, 0, 0, OK_TRAILER.length, ...OK_TRAILER]);
+
+it('reads async-iterable response bodies from Node.js-stream fetch implementations', async () => {
+	const client = new SuiGrpcClient({
+		network: 'testnet',
+		baseUrl: 'http://localhost',
+		fetch: nodeStyleResponse(async function* () {
+			yield EMPTY_MESSAGE;
+			yield TRAILER_FRAME;
+		}),
+	});
+	const call = client.ledgerService.listEvents({});
+	const messages = [];
+	for await (const message of call.responses) messages.push(message);
+	expect(messages).toHaveLength(1);
+	await expect(call.status).resolves.toMatchObject({ code: 'OK' });
+});
+
+it('codes async-iterable body read failures as UNAVAILABLE', async () => {
+	await expect(
+		read(
+			nodeStyleResponse(async function* () {
+				yield EMPTY_MESSAGE;
+				throw new Error('socket hang up');
+			}),
+		),
+	).rejects.toMatchObject({ code: 'UNAVAILABLE', message: 'socket hang up' });
+});
+
+it('keeps an AbortError from a signal other than the call signal as CANCELLED', async () => {
+	await expect(
+		read(async () => {
+			throw new DOMException('shutdown', 'AbortError');
+		}),
+	).rejects.toMatchObject({ code: 'CANCELLED' });
+});
+
 it('keeps server INTERNAL statuses terminal', async () => {
 	await expect(
 		read(
@@ -84,5 +136,10 @@ describe('toNetworkRpcError', () => {
 		controller.abort();
 		const aborted = new TypeError('aborted');
 		expect(toNetworkRpcError(aborted, controller.signal)).toBe(aborted);
+
+		const independentAbort = new DOMException('shutdown', 'AbortError');
+		expect(toNetworkRpcError(independentAbort, new AbortController().signal)).toBe(
+			independentAbort,
+		);
 	});
 });

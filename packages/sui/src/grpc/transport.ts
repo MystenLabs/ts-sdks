@@ -142,12 +142,12 @@ function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 		} catch (error) {
 			throw toNetworkRpcError(error, init?.signal);
 		}
-		if (!response.body) return response;
-		const reader = response.body.getReader();
+		const chunks = bodyChunks(response.body);
+		if (!chunks) return response;
 		const body = new ReadableStream<Uint8Array>({
 			async pull(controller) {
 				try {
-					const next = await reader.read();
+					const next = await chunks.next();
 					if (next.done) controller.close();
 					else controller.enqueue(next.value);
 				} catch (error) {
@@ -155,7 +155,7 @@ function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 				}
 			},
 			cancel(reason) {
-				return reader.cancel(reason);
+				return chunks.cancel(reason);
 			},
 		});
 		return new Response(body, {
@@ -164,6 +164,34 @@ function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 			headers: response.headers,
 		});
 	};
+}
+
+interface BodyChunks {
+	next(): Promise<IteratorResult<Uint8Array>>;
+	cancel(reason: unknown): Promise<void>;
+}
+
+// A WHATWG stream is read through `getReader()`. A custom fetch such as `node-fetch` returns a
+// Node.js stream, which upstream reads through async iteration; that path is kept here.
+function bodyChunks(body: unknown): BodyChunks | null {
+	if (!body || typeof body !== 'object') return null;
+
+	if (typeof (body as ReadableStream<Uint8Array>).getReader === 'function') {
+		const reader = (body as ReadableStream<Uint8Array>).getReader();
+		return { next: () => reader.read(), cancel: (reason) => reader.cancel(reason) };
+	}
+
+	if (typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === 'function') {
+		const iterator = (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator]();
+		return {
+			next: () => iterator.next(),
+			cancel: async () => {
+				await iterator.return?.();
+			},
+		};
+	}
+
+	return null;
 }
 
 /**
