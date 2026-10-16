@@ -1,8 +1,5 @@
 # Core API follow-ups gated on the JSON-RPC sunset
 
-> The JSON-RPC transport was removed in `@mysten/sui` 3.0, so the gated items below can now be
-> promoted.
-
 The core APIs, notably the query APIs (`listTransactions`, `listEvents`), are intentionally
 restricted to what all three transports (gRPC, GraphQL, JSON-RPC) can support with identical
 behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. Several
