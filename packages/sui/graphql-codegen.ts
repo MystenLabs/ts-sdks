@@ -11,7 +11,7 @@ const header = `
 
 const config: CodegenConfig = {
 	overwrite: true,
-	schema: 'src/graphql/generated/schema.graphql',
+	schema: ['src/graphql/generated/schema.graphql', 'src/graphql/generated/schema-pending.graphql'],
 	documents: ['src/graphql/queries/*.graphql'],
 	ignoreNoDocuments: true,
 	generates: {

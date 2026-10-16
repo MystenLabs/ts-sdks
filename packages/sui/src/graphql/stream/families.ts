@@ -10,7 +10,7 @@ import {
 	type ResolvedTransactionFilter,
 } from '../../client/query-filters.js';
 import type { ItemFrame, PositionEvent, StreamFamily } from '../../client/stream/adapter.js';
-import { SuiStreamError } from '../../client/stream/index.js';
+import { itemPosition, SuiStreamError, type StreamPosition } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
 import {
@@ -35,12 +35,39 @@ import {
 	type Event_FieldsFragment,
 	type Transaction_FieldsFragment,
 } from '../generated/queries.js';
-import { itemPosition, type GraphQLPosition } from './position.js';
 import { notIndexedYet, queryData, unwrap } from './query.js';
 
 export interface Edge<Node> {
 	cursor: string;
 	node: Node;
+}
+
+/** A subscription edge. Filtered subscriptions also send progress: an edge without a node. */
+export interface LiveEdge<Node> {
+	cursor: string;
+	node: Node | null;
+}
+
+/**
+ * Checkpoints between the progress edges a filtered subscription sends, so a quiet stream's
+ * resume token stays a few seconds old at mainnet's pace without a message per checkpoint.
+ */
+export const PROGRESS_INTERVAL = 10;
+
+/** GraphQL cursors are strings. Positions hold them as bytes, never read. */
+export const cursorBytes = (cursor: string) => new TextEncoder().encode(cursor);
+export const cursorString = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+
+/** The position of an item at `checkpoint`; its place in the checkpoint is not reported. */
+export function edgePosition<Node>(
+	family: LedgerFamily<Node>,
+	edge: Edge<Node>,
+	checkpoint: bigint,
+): StreamPosition {
+	return itemPosition(checkpoint, {
+		cursor: cursorBytes(edge.cursor),
+		itemId: family.identity(edge.node),
+	});
 }
 
 export interface Connection<Node> {
@@ -91,7 +118,7 @@ export interface LedgerFamily<Node> {
 		signal: AbortSignal,
 		resume: ResumePoint,
 		onOpen: () => void,
-	): AsyncIterable<Edge<Node>>;
+	): AsyncIterable<LiveEdge<Node>>;
 	identity(node: Node): string;
 	/** The node's checkpoint; null where the server left it out. */
 	checkpoint(node: Node): bigint | null;
@@ -183,7 +210,12 @@ function transactionsFamily(
 			edges(
 				client.subscribe({
 					query: SubscribeTransactionsDocument,
-					variables: { filter: toGraphQLTransactionFilter(filter, { start }), after, ...selection },
+					variables: {
+						filter: toGraphQLTransactionFilter(filter, { start }),
+						after,
+						progressInterval: PROGRESS_INTERVAL,
+						...selection,
+					},
 					signal,
 					onOpen,
 				}),
@@ -231,7 +263,11 @@ function eventsFamily(
 			edges(
 				client.subscribe({
 					query: SubscribeEventsDocument,
-					variables: { filter: toGraphQLEventFilter(filter, { start }), after },
+					variables: {
+						filter: toGraphQLEventFilter(filter, { start }),
+						after,
+						progressInterval: PROGRESS_INTERVAL,
+					},
 					signal,
 					onOpen,
 				}),
@@ -257,7 +293,7 @@ function setFields(filter: object): string[] {
 export function itemEvents<Node>(
 	family: LedgerFamily<Node>,
 	edges: Edge<Node>[],
-): Extract<PositionEvent<GraphQLPosition, LedgerItem<Node>>, { $kind: 'Item' }>[] {
+): Extract<PositionEvent<LedgerItem<Node>>, { $kind: 'Item' }>[] {
 	return edges.map((edge) => {
 		const checkpoint = family.checkpoint(edge.node);
 		if (checkpoint === null) {
@@ -265,7 +301,7 @@ export function itemEvents<Node>(
 		}
 		return {
 			$kind: 'Item',
-			position: itemPosition(edge.cursor, checkpoint, family.identity(edge.node)),
+			position: edgePosition(family, edge, checkpoint),
 			item: { node: edge.node, checkpoint },
 		};
 	});
@@ -332,13 +368,13 @@ function isEdge(edge: unknown): edge is Edge<unknown> {
  */
 async function* edges<Result, Node>(
 	results: AsyncIterable<GraphQLQueryResult<Result>>,
-	edge: (data: Result) => Edge<Node> | null | undefined,
-): AsyncGenerator<Edge<Node>> {
+	edge: (data: Result) => LiveEdge<Node> | null | undefined,
+): AsyncGenerator<LiveEdge<Node>> {
 	for await (const result of results) {
 		const value = edge(unwrap(result));
-		if (!isEdge(value)) {
+		if (!value || typeof value.cursor !== 'string' || value.cursor === '') {
 			throw new SuiStreamError('Protocol', 'GraphQL subscription response has no edge');
 		}
-		yield value;
+		yield { cursor: value.cursor, node: value.node ?? null };
 	}
 }

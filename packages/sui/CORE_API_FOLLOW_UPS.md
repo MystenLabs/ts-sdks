@@ -48,9 +48,6 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
 - **A quiet gRPC stream doesn't page forward during gap recovery** — on gRPC, a stream that stays
   quiet during gap recovery while the index advances doesn't page forward until its first live item.
   Resuming is unaffected.
-- **GraphQL subscriptions carry no progress** — a filtered subscription sends nothing while no item
-  matches, so a sparse GraphQL follow reports `Live` only at its first live match, and its resume
-  token does not advance until then.
 - **Event and progress frames carry no timestamp** — measuring lag needs a second checkpoint stream
   or a lookup; `EventEntry.checkpoint` is the only ordering information.
 - **Per-frame CPU** — the full gRPC transaction path costs about 96 µs per transaction (about 10,000
