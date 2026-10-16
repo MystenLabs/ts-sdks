@@ -4,7 +4,11 @@
 import { SuiClientError } from '../errors.js';
 
 export type SuiStreamErrorCode =
-	/** An option combination or bound value was rejected before any request. */
+	/**
+	 * An option combination or bound value was rejected. Everything that can be decided locally
+	 * fails before any request; bounds that depend on the indexed tip (such as a finite ascending
+	 * `start` above it) fail after the tip is read, and are never retried.
+	 */
 	| 'InvalidOptions'
 	/** Not a resume token, an unsupported version, or a non-canonical encoding. */
 	| 'InvalidToken'
