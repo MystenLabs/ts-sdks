@@ -26,6 +26,6 @@ SUI_GRAPHQL_IMAGE=mysten/sui-indexer-alt-graphql-preview:102843cdc9b87afebefbf90
   pnpm --filter @mysten/sui test:e2e
 ```
 
-`clients/streams.test.ts` was last run against `sui-indexer-alt-graphql` v1.83.0; the preview image
-predates fixes it relies on. When a server fixes a field listed in `SUBSCRIPTION_GAPS`, empty that
-entry.
+`clients/streams.test.ts` needs a fullnode and GraphQL service at version TODO or later, which
+resume subscriptions without gaps and fill every field of live items. Until a published `sui-tools`
+image has them, build one and point `SUI_TOOLS_TAG` at it.
