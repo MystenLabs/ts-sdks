@@ -361,18 +361,21 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.cancelled.SubscribeEvents).toBe(1);
 		});
 
-		it('surfaces an INTERNAL error for pruned events as fatal, not HistoryUnavailable', async () => {
-			// The server cannot yet tell pruned events apart from a fault (see CORE_API_FOLLOW_UPS).
-			const failure = new RpcError('missing checkpoint 3 while resolving tx boundary', 'INTERNAL');
-			const l = ledger().list('ListEvents', { frames: [], end: failure });
+		it('fails pruned transaction history with HistoryUnavailable, without retrying', async () => {
+			const l = ledger().list('ListTransactions', {
+				frames: [],
+				end: new RpcError('pruned', 'OUT_OF_RANGE'),
+			});
 			await expect(
 				collect(
-					l
-						.client()
-						.streamEvents({ start: { checkpoint: 4 }, end: { checkpoint: 9 }, retry: noDelay }),
+					l.client().streamTransactions({
+						start: { checkpoint: 4 },
+						end: { checkpoint: 9 },
+						retry: noDelay,
+					}),
 				),
-			).rejects.toBe(failure);
-			expect(l.requestsTo('ListEvents')).toHaveLength(1);
+			).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			expect(l.requestsTo('ListTransactions')).toHaveLength(1);
 		});
 	});
 
