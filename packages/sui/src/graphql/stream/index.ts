@@ -1,14 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * GraphQL ledger streams: the transport adapter behind `GraphQLCoreClient.streamCheckpoints`,
- * `streamTransactions` and `streamEvents`. The shared core (`client/stream/`) owns tokens,
- * retries, deduplication and gap repair; this adapter supplies one scan pass (`scan.ts`), the live
- * handoff (`follow.ts`) and position ordering (`position.ts`) over the per-family queries
- * (`families.ts`).
- */
-
 import type { LedgerStreamRequest } from '../../client/core.js';
 import type {
 	AnyLedgerStreamAdapter,
@@ -29,13 +21,11 @@ import {
 import { classifyGraphQLError, readIndexState } from './query.js';
 import { scanLedger } from './scan.js';
 
-/** Builds the adapter for `request`. Performs no I/O. */
 export function graphQLLedgerStreamAdapter(
 	client: SuiGraphQLClient,
 	mvr: SuiClientTypes.MvrMethods,
 	request: LedgerStreamRequest,
 ): AnyLedgerStreamAdapter {
-	// The core validated `pollInterval` and defaults it to the same value.
 	const follow = { pollInterval: request.options.pollInterval ?? 1000, state: {} };
 	return adapterFor(client, ledgerFamily(client, mvr, request), follow);
 }

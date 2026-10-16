@@ -3,9 +3,7 @@
 
 /**
  * A transport or protocol failure of a GraphQL query or subscription. GraphQL errors delivered in
- * a response body are returned in `errors` instead, except by ledger streams: they throw this
- * error for response `errors` (retryable for transient error codes) and while the index has not
- * caught up with the data they need (retryable).
+ * a response body are returned in `errors` instead, except by ledger streams, which throw them.
  */
 export class SuiGraphQLRequestError extends Error {
 	/** The HTTP status, when the server responded with a non-2xx status. */

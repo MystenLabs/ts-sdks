@@ -803,9 +803,7 @@ describe('live handoff', () => {
 		]);
 	});
 
-	// Server bug S1: a replica whose live feed runs ahead of its index skips that checkpoint
-	// without an error. The handoff gap replay must recover it whether the stream starts at a
-	// checkpoint or resumes from a cursor (`after` on the history query).
+	// A live feed ahead of its index skips checkpoints without an error.
 	it.each(['a checkpoint start', 'a resume token'] as const)(
 		'replays checkpoints skipped when the first live item lands two past history (%s)',
 		async (start) => {
