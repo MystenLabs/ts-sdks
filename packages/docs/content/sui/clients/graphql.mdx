@@ -239,9 +239,10 @@ try {
 
 `subscribe` accepts the same options as `query`, plus:
 
-| Option           | Default            | Description                                                 |
-| ---------------- | ------------------ | ----------------------------------------------------------- |
-| `maxMessageSize` | `16 * 1024 * 1024` | Largest event, in characters, before the subscription fails |
+| Option           | Default            | Description                                                              |
+| ---------------- | ------------------ | ------------------------------------------------------------------------ |
+| `maxMessageSize` | `16 * 1024 * 1024` | Largest event, in characters, before the subscription fails              |
+| `onOpen`         |                    | Called when the server accepts the subscription, before the first result |
 
 To follow checkpoints, transactions, or events with history replay, resume tokens, and reconnection,
 use [ledger streams](./streaming.mdx).

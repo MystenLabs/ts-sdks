@@ -18,10 +18,11 @@ import type {
 import type { SuiClientTypes } from '../../client/types.js';
 import type { SuiGraphQLClient } from '../client.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
-import { followLedger } from './follow.js';
+import { followLedger, type FollowOptions } from './follow.js';
 import {
 	comparePositions,
 	graphQLPositionCodec,
+	locatePosition,
 	positionCoverage,
 	type GraphQLPosition,
 } from './position.js';
@@ -34,12 +35,15 @@ export function graphQLLedgerStreamAdapter(
 	mvr: SuiClientTypes.MvrMethods,
 	request: LedgerStreamRequest,
 ): AnyLedgerStreamAdapter {
-	return adapterFor(client, ledgerFamily(client, mvr, request));
+	// The core validated `pollInterval` and defaults it to the same value.
+	const follow = { pollInterval: request.options.pollInterval ?? 1000, state: {} };
+	return adapterFor(client, ledgerFamily(client, mvr, request), follow);
 }
 
 function adapterFor<Node>(
 	client: SuiGraphQLClient,
 	family: LedgerFamily<Node>,
+	follow: FollowOptions,
 ): LedgerStreamAdapter<GraphQLPosition, LedgerItem<Node>, ItemFrame> {
 	const indexState = (signal: AbortSignal) => readIndexState(client, family.name, signal);
 	return {
@@ -60,11 +64,11 @@ function adapterFor<Node>(
 		async *scan(request) {
 			yield* scanLedger(client, family, request, await indexState(request.signal));
 		},
-		follow: (session) => followLedger(client, family, session),
+		follow: (session) => followLedger(client, family, session, follow),
 
 		compare: comparePositions,
 		coverage: (position) => positionCoverage(position, family.onePerCheckpoint),
-		locate: (position) => ({ checkpoint: position.checkpoint, boundary: false }),
+		locate: locatePosition,
 		mapItem: (item) => family.map(item),
 		classify: classifyGraphQLError,
 	};

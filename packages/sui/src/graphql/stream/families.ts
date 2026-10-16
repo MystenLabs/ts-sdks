@@ -85,8 +85,8 @@ export interface LedgerFamily<Node> {
 	/** Resolves names in the caller's filter, once, before any page or subscription. */
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	page(request: PageRequest): Promise<Connection<Node> | null>;
-	/** Live edges from now on; never resumed with `after`. */
-	subscribe(signal: AbortSignal): AsyncIterable<Edge<Node>>;
+	/** Live edges from now on; never resumed with `after`. `onOpen` runs once the server accepts. */
+	subscribe(signal: AbortSignal, onOpen: () => void): AsyncIterable<Edge<Node>>;
 	/** Public identity: compared with an excluded end item's `itemId`. */
 	identity(node: Node): string;
 	/** The node's checkpoint, or its transaction digest when the index has not assigned one yet. */
@@ -125,9 +125,9 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 					signal,
 				})
 			).checkpoints,
-		subscribe: (signal) =>
+		subscribe: (signal, onOpen) =>
 			edges(
-				client.subscribe({ query: SubscribeCheckpointsDocument, signal }),
+				client.subscribe({ query: SubscribeCheckpointsDocument, signal, onOpen }),
 				(data) => data.checkpoints,
 			),
 		identity: (node) => String(node.sequenceNumber),
@@ -165,12 +165,13 @@ function transactionsFamily(
 					signal,
 				})
 			).transactions,
-		subscribe: (signal) =>
+		subscribe: (signal, onOpen) =>
 			edges(
 				client.subscribe({
 					query: SubscribeTransactionsDocument,
 					variables: { filter: toGraphQLTransactionFilter(filter, {}), ...selection },
 					signal,
+					onOpen,
 				}),
 				(data) => data.transactions,
 			),
@@ -211,12 +212,13 @@ function eventsFamily(
 					signal,
 				})
 			).events,
-		subscribe: (signal) =>
+		subscribe: (signal, onOpen) =>
 			edges(
 				client.subscribe({
 					query: SubscribeEventsDocument,
 					variables: { filter: toGraphQLEventFilter(filter, {}) },
 					signal,
+					onOpen,
 				}),
 				(data) => data.events,
 			),
@@ -261,7 +263,7 @@ export async function itemEvents<Node>(
 	});
 }
 
-async function lookupCheckpoints(
+export async function lookupCheckpoints(
 	client: SuiGraphQLClient,
 	digests: string[],
 	signal: AbortSignal,
