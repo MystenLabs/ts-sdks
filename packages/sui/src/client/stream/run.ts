@@ -18,9 +18,9 @@ import { StreamSession } from './session.js';
 import { StatusReporter } from './status.js';
 
 /** A resumable ledger stream. Nothing runs, not even `createAdapter`, before the first `next()`. */
-export function createLedgerStream<P, Item, Frame extends { resumeToken: string }>(
+export function createLedgerStream<Item, Frame extends { resumeToken: string }>(
 	options: SuiClientTypes.StreamOptions<SuiClientTypes.StreamFrameOptions>,
-	createAdapter: () => LedgerStreamAdapter<P, Item, Frame>,
+	createAdapter: () => LedgerStreamAdapter<Item, Frame>,
 ): AsyncGenerator<CoreFrame<Frame>> {
 	return abortableAsyncGenerator(async function* (signal) {
 		const status = new StatusReporter(options.onStatus);
@@ -33,9 +33,9 @@ export function createLedgerStream<P, Item, Frame extends { resumeToken: string 
 	}, options.signal);
 }
 
-async function* runStream<P, Item, Frame extends { resumeToken: string }>(
+async function* runStream<Item, Frame extends { resumeToken: string }>(
 	options: SuiClientTypes.StreamOptions<SuiClientTypes.StreamFrameOptions>,
-	adapter: LedgerStreamAdapter<P, Item, Frame>,
+	adapter: LedgerStreamAdapter<Item, Frame>,
 	status: StatusReporter,
 	signal: AbortSignal,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
@@ -97,10 +97,10 @@ async function* runStream<P, Item, Frame extends { resumeToken: string }>(
 }
 
 // One attempt. Only a finite stream returns; the other modes end by throwing.
-async function* runAttempt<P, Item, Frame extends { resumeToken: string }>(
-	plan: StreamPlan<P>,
-	session: StreamSession<P, Item, Frame>,
-	adapter: LedgerStreamAdapter<P, Item, Frame>,
+async function* runAttempt<Item, Frame extends { resumeToken: string }>(
+	plan: StreamPlan,
+	session: StreamSession<Item, Frame>,
+	adapter: LedgerStreamAdapter<Item, Frame>,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
 	switch (plan.mode) {
 		case 'finite':
@@ -123,7 +123,7 @@ async function* runAttempt<P, Item, Frame extends { resumeToken: string }>(
 /** The core decides what it can; transport errors are left to the adapter. */
 function classify(
 	error: unknown,
-	adapter: Pick<LedgerStreamAdapter<never, never, never>, 'classify'>,
+	adapter: Pick<LedgerStreamAdapter<never, never>, 'classify'>,
 ): ErrorClass {
 	if (typeof error !== 'object' || error === null) return 'fatal';
 	if (isCallbackError(error) || error instanceof SuiStreamError) return 'fatal';

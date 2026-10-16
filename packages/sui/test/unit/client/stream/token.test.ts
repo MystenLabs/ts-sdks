@@ -7,7 +7,11 @@ import { describe, expect, it } from 'vitest';
 
 import { SuiStreamError } from '../../../../src/client/stream/errors.js';
 import {
-	decodePosition,
+	boundaryPosition,
+	itemPosition,
+	progressPosition,
+} from '../../../../src/client/stream/position.js';
+import {
 	decodeToken,
 	encodeToken,
 	filterHash,
@@ -22,7 +26,7 @@ const token: StreamToken = {
 	chain: 'test-chain',
 	filter: filterHash({ sender: '0x1' }),
 	coverage: { $kind: 'Through', checkpoint: 122n },
-	position: new Uint8Array([255, 0, 128, 1]),
+	position: progressPosition(new Uint8Array([255, 0, 128, 1])),
 	range: { $kind: 'Follow' },
 };
 
@@ -40,13 +44,13 @@ describe('resume token format', () => {
 		['a follow range', {}],
 		['GraphQL with unknown coverage', { transport: 'graphql', coverage: { $kind: 'Unknown' } }],
 		['coverage before genesis', { coverage: { $kind: 'None' } }],
-		['an empty position', { position: new Uint8Array() }],
+		['a boundary position', { position: boundaryPosition(5n) }],
 	])('round-trips %s', (_, overrides) => {
 		const input = { ...token, ...overrides };
 		expect(decodeToken(encodeToken(input))).toEqual(input);
 	});
 
-	it.each<TokenRange<Uint8Array>>([
+	it.each<TokenRange>([
 		{ $kind: 'Finite', order: 'ascending', end: { $kind: 'Checkpoint', checkpoint: 1n << 64n } },
 		{ $kind: 'Finite', order: 'descending', capturedTip: 500n, end: { $kind: 'Genesis' } },
 		{
@@ -58,7 +62,7 @@ describe('resume token format', () => {
 			$kind: 'Finite',
 			order: 'ascending',
 			capturedTip: 9n,
-			end: { $kind: 'Cursor', position: new Uint8Array([1, 2, 3]) },
+			end: { $kind: 'Cursor', position: itemPosition(3n, { transactionIndex: 2n }) },
 		},
 	])('round-trips a finite range ending at $end.$kind', (range) => {
 		const input = { ...token, range };
@@ -80,7 +84,7 @@ describe('resume token format', () => {
 	});
 
 	it('rejects a checkpoint end beyond the exclusive end of the u64 range', () => {
-		const range: TokenRange<Uint8Array> = {
+		const range: TokenRange = {
 			$kind: 'Finite',
 			order: 'ascending',
 			end: { $kind: 'Checkpoint', checkpoint: (1n << 64n) + 1n },
@@ -132,11 +136,15 @@ describe('rejecting tokens this SDK did not produce', () => {
 		expectInvalid(withBytes(bytesOf(finite).slice(0, -8)));
 	});
 
-	it('rejects position bytes the transport codec would not produce', () => {
-		const codec = { schema: bcs.u16(), validate: () => {} };
-		expect(decodePosition(codec, new Uint8Array([1, 0]))).toBe(1);
-		for (const bytes of [new Uint8Array([1]), new Uint8Array([1, 0, 0])]) {
-			expect(() => decodePosition(codec, bytes)).toThrow(SuiStreamError);
-		}
+	it.each([
+		['progress without a cursor', { ...progressPosition(new Uint8Array([1])), cursor: null }],
+		['an empty cursor', progressPosition(new Uint8Array())],
+		[
+			'a boundary claiming its own checkpoint',
+			boundaryPosition(5n, { coverage: { $kind: 'Through', checkpoint: 5n } }),
+		],
+		['an event index without a transaction index', itemPosition(5n, { eventIndex: 1 })],
+	])('rejects a position this SDK cannot have produced: %s', (_, position) => {
+		expect(() => decodeToken(encodeToken({ ...token, position }))).toThrow(SuiStreamError);
 	});
 });

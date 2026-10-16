@@ -14,10 +14,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
-	comparePositions,
 	fakeAdapter,
 	itemId,
-	itemPosition,
+	ledgerOrder,
+	positionOf,
 	Ledger,
 	NetworkError,
 	Overflow,
@@ -210,8 +210,8 @@ function resumeScript(
 ): LiveScript {
 	const events: LiveScript['events'] = [];
 	for (const item of ledger.items) {
-		if (after && comparePositions(itemPosition(item), after) <= 0) continue;
-		events.push({ $kind: 'Item', position: itemPosition(item), item });
+		if (after && ledgerOrder(positionOf(item), after) <= 0) continue;
+		events.push({ $kind: 'Item', position: positionOf(item), item });
 		if (rng.chance(0.1)) events.push(events[rng.int(0, events.length - 1)]);
 	}
 	if (connection >= 6) return { events, end: 'hang' };

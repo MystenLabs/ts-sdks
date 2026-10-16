@@ -4,6 +4,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { SuiStreamError } from '../../../../src/client/stream/errors.js';
+import { progressPosition } from '../../../../src/client/stream/position.js';
+import { compareBounds } from '../../../../src/client/stream/plan.js';
+import { decodeToken, encodeToken } from '../../../../src/client/stream/token.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
@@ -16,6 +19,7 @@ import {
 	take,
 	tokenOf,
 	type FakeOptions,
+	positionOf,
 } from './fake-ledger.js';
 
 type Options = SuiClientTypes.StreamOptions<SuiClientTypes.StreamFrameOptions>;
@@ -31,6 +35,14 @@ async function tokenAt(options: Options, count = 1, fake: FakeOptions = {}) {
 const followToken = () => tokenAt({ start: { checkpoint: 2 } }, 1, { live: [] }); // after 2:0
 const finiteToken = () => tokenAt({ start: { checkpoint: 0 }, follow: false }); // range ends at tip + 1
 const descendingToken = () => tokenAt({ order: 'descending' }); // range ends at genesis
+/** A token whose position no SDK stream produces: progress without a cursor. */
+async function invalidToken() {
+	const token = decodeToken(await followToken());
+	return encodeToken({
+		...token,
+		position: { ...token.position, kind: 'Progress', checkpoint: null },
+	});
+}
 
 async function failure(options: Options, adapter = fakeAdapter(tenCheckpoints())) {
 	const error = await stream(adapter, options)
@@ -147,15 +159,10 @@ describe('option errors', () => {
 			expect(log).toEqual(['Error']);
 		});
 
-		it('a token position the codec rejects', async () => {
-			const token = await followToken();
-			const adapter = unreachable({
-				validate: () => {
-					throw new SuiStreamError('InvalidToken', 'not from this SDK');
-				},
-			});
-			const { error } = await failure({ start: { resumeToken: token } }, adapter);
-			expect(error).toMatchObject({ code: 'InvalidToken', message: 'not from this SDK' });
+		it('a token position this SDK cannot have produced', async () => {
+			const adapter = unreachable();
+			const { error } = await failure({ start: { resumeToken: await invalidToken() } }, adapter);
+			expect(error).toMatchObject({ code: 'InvalidToken' });
 			expect(adapter.calls.initialize).toBe(0);
 		});
 	});
@@ -185,18 +192,14 @@ describe('option errors', () => {
 	it.each(['start', 'end'] as const)(
 		'validates %s token positions even when the interval is empty',
 		async (side) => {
-			const token = await followToken();
-			const adapter = fakeAdapter(tenCheckpoints(), {
-				validate: () => {
-					throw new SuiStreamError('InvalidToken', 'not from this SDK');
-				},
-			});
+			const token = await invalidToken();
+			const adapter = fakeAdapter(tenCheckpoints());
 			const options: Options =
 				side === 'start'
 					? { start: { resumeToken: token }, end: { checkpoint: 3 } }
 					: { start: { checkpoint: 3 }, end: { resumeToken: token } };
 			const { error } = await failure(options, adapter);
-			expect(error.message).toBe('not from this SDK');
+			expect(error.code).toBe('InvalidToken');
 			expect(adapter.calls.scans).toHaveLength(0);
 		},
 	);
@@ -358,25 +361,17 @@ describe('range planning', () => {
 		);
 		expect(adapter.calls.scans[0]).toMatchObject({
 			order: 'ascending',
-			end: { position: { checkpoint: 6n, slot: 1 } },
+			end: { position: positionOf({ checkpoint: 6n, index: 0 }) },
 		});
 		expect(ids(frames)).toEqual(['3:0', '4:0', '5:0']);
 	});
 
-	it('leaves positions it cannot order to the server', async () => {
-		const later = await tokenAt({ start: { checkpoint: 8 } }, 1, { live: [] });
-		const earlier = await followToken();
-		// Reversed, but neither `compare` nor checkpoint coordinates can tell.
-		const adapter = fakeAdapter(tenCheckpoints(), { opaqueOrder: true });
-		const locateless = { ...adapter, locate: () => ({ checkpoint: null, boundary: false }) };
-		const frames = await collect(
-			stream(locateless as typeof adapter, {
-				start: { resumeToken: later },
-				end: { resumeToken: earlier },
-			}),
-		);
-		expect(frames).toEqual([]);
-		expect(adapter.calls.scans).toHaveLength(1);
+	it('leaves positions it cannot order to the server', () => {
+		// Progress cursors carry no coordinates, and cursors are never compared.
+		const a = { position: progressPosition(new Uint8Array([2])) };
+		const b = { position: progressPosition(new Uint8Array([1])) };
+		expect(compareBounds(a, b, 'ascending')).toBeUndefined();
+		expect(compareBounds(a, a, 'ascending')).toBeUndefined();
 	});
 
 	it.each(['ascending', 'descending'] as const)(
