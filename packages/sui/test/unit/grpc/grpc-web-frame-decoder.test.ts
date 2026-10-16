@@ -87,6 +87,19 @@ describe('GrpcWebFrameDecoder', () => {
 		expect(decode(chunks(base64(body), size), { contentType: TEXT })).toEqual(expected);
 	});
 
+	it('drains thousands of buffered one-byte chunks in order', () => {
+		const frames = Array.from({ length: 600 }, (_, i) => data(i % 256, 7));
+		const decoder = new GrpcWebFrameDecoder(BINARY, 1024);
+		for (const chunk of chunks(concat([...frames, ok]), 1)) decoder.push(chunk);
+		const out: GrpcWebResponseFrame[] = [];
+		for (let f = decoder.next(); f; f = decoder.next()) out.push(f);
+		decoder.end();
+		expect(out.slice(0, -1)).toEqual(
+			frames.map((_, i) => ({ type: 'data', data: new Uint8Array([i % 256, 7]) })),
+		);
+		expect(out.at(-1)).toEqual(okTrailer);
+	});
+
 	it('decodes text bodies that pad every frame separately', () => {
 		const padded = concat([base64(data(1)), base64(data(2, 3)), base64(ok)]);
 		expect(decode(chunks(padded, 3), { contentType: TEXT })).toEqual([
@@ -201,6 +214,19 @@ describe('GrpcWebFrameDecoder', () => {
 		expect(error.code).toBe(code);
 		expect(error.message).toBe(message);
 		expect(isNonRetryable(error)).toBe(false);
+	});
+
+	it.each([
+		['a lone high byte', [0x80]],
+		['a UTF-8 sequence', [0xc3, 0x81]],
+	])('rejects %s in a text body, whole or split', (_, bytes) => {
+		const text = base64(concat([data(1), ok]));
+		const body = concat([text.subarray(0, 4), new Uint8Array(bytes), new Uint8Array([65, 65, 65])]);
+		for (const size of [1, body.length]) {
+			expect(() => decode(chunks(body, size), { contentType: TEXT })).toThrow(
+				'invalid base64 string',
+			);
+		}
 	});
 
 	it('rejects leftover base64 characters at EOF', () => {
