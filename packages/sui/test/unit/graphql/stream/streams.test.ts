@@ -716,6 +716,55 @@ describe('exclusive end probe', () => {
 		},
 	);
 
+	it.each(['ascending', 'descending'] as const)(
+		'stops %s at the end item by its coordinates, whatever its cursor',
+		async (order) => {
+			const descending = order === 'descending';
+			const endEdge = descending
+				? event(1, 0, { source: 'live' })
+				: event(1, 2, { source: 'live' });
+			const seed = fakeGraphQL().on('scanEvents', page('events', [endEdge]));
+			const [endItem] = await take(
+				stream(seed.client, 'events', { start: { checkpoint: 1 }, follow: false }),
+				1,
+			);
+			// The server returns the end item under another cursor and reports more pages.
+			const server = fakeGraphQL().on(
+				'scanEvents',
+				page('events', descending ? [event(1, 0), event(1, 1)] : [event(1, 1), event(1, 2)], {
+					more: true,
+				}),
+			);
+			const frames = await collect(
+				stream(server.client, 'events', {
+					start: { checkpoint: 1 },
+					end: { resumeToken: token(endItem) },
+					order,
+					frames: { completion: true },
+				}),
+			);
+			expect(frames.map(label)).toEqual(['1:1', 'Complete']);
+			expect(server.sent('scanEvents')).toHaveLength(1);
+		},
+	);
+
+	it('stops at an item past the end item', async () => {
+		const [endItem] = await followTokens('events', [event(1, 2, { source: 'live' })]);
+		const server = fakeGraphQL().on(
+			'scanEvents',
+			page('events', [event(1, 1), event(2, 0)], { more: true }),
+		);
+		const frames = await collect(
+			stream(server.client, 'events', {
+				start: { checkpoint: 1 },
+				end: { resumeToken: endItem },
+				frames: { completion: true },
+			}),
+		);
+		expect(frames.map(label)).toEqual(['1:1', 'Complete']);
+		expect(server.sent('scanEvents')).toHaveLength(1);
+	});
+
 	it('does not complete when the probe finds another transaction with the same event index', async () => {
 		const [endItem] = await followTokens('events', [event(1, 2)]);
 		const stalled = 'opaque-stalled-frontier';
