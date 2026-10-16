@@ -74,11 +74,8 @@ together with `@mysten/sui`.
   intents are no longer part of the type. Mocks that build `TransactionData` by hand need a `kind`
   and the `$kind` fields.
 - **Use `parseTransactionDataBcs` to decode transaction bytes into
-  `SuiClientTypes.TransactionData`.** `parseTransactionBcs` from `@mysten/sui/client` is still
-  exported but returns the builder's `TransactionDataBuilder` snapshot (top-level `inputs` and
-  `commands`), which no longer satisfies `SuiClientTypes.TransactionData`. Code that assigns its
-  result to that type, such as transaction-result mocks, should call `parseTransactionDataBcs`
-  instead.
+  `SuiClientTypes.TransactionData`.** `parseTransactionBcs` now returns the builder's snapshot
+  (top-level `inputs` and `commands`), which no longer satisfies `SuiClientTypes.TransactionData`.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see

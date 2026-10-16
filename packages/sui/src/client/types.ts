@@ -439,14 +439,7 @@ export namespace SuiClientTypes {
 		amount: string;
 	}
 
-	/**
-	 * Ledger transaction data, including programmable and system kinds. Narrow `kind.$kind` to
-	 * read the transaction's payload, such as the inputs and commands of a programmable
-	 * transaction.
-	 *
-	 * These are read types: they describe the resolved values the clients return, with `$kind`
-	 * discriminants, and leave out builder-only variants such as unresolved inputs and intents.
-	 */
+	/** Ledger transaction data. Narrow `kind.$kind` to read the transaction's payload. */
 	export interface TransactionData {
 		version: 2;
 		sender: string | null;
@@ -457,11 +450,7 @@ export namespace SuiClientTypes {
 
 	export type TransactionGasData = BuilderTransactionData['gasData'];
 	export type TransactionExpiration = NonNullable<BuilderTransactionData['expiration']>;
-	/**
-	 * Discriminate ledger transaction kinds using `kind.$kind`. Kinds this SDK version does not
-	 * recognize, or whose contents it cannot map, are returned as `Unknown` rather than failing
-	 * the request.
-	 */
+	/** A kind this SDK cannot fully map, inputs and commands included, is `Unknown`. */
 	export type TransactionKind = EnumOutputShape<{
 		[Kind in BcsTransactionKind['$kind'] | 'Unknown']: Kind extends 'Unknown'
 			? true
@@ -494,10 +483,7 @@ export namespace SuiClientTypes {
 	export type ActiveJwk = AuthenticatorStateUpdate['newActiveJwks'][number];
 	export type RandomnessStateUpdate = NonNullable<TransactionKind['RandomnessStateUpdate']>;
 	export type EndOfEpochTransaction = EndOfEpochTransactionKind[];
-	/**
-	 * An operation run by an end-of-epoch transaction. Operations this SDK version does not
-	 * recognize are returned as `Unknown`.
-	 */
+	/** An end-of-epoch operation; ones this SDK version does not recognize are `Unknown`. */
 	export type EndOfEpochTransactionKind = EnumOutputShape<{
 		[Kind in BcsEndOfEpochTransactionKind['$kind'] | 'Unknown']: Kind extends 'Unknown'
 			? true
