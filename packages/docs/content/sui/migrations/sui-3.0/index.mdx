@@ -60,12 +60,12 @@ together with `@mysten/sui`.
   `SuiClientTypes.SimulateTransactionOptions`, which now includes `doGasSelection`.
 - **`SuiClientTypes.ChangedObject` has a new required `objectType: string | null` field.** Set it
   wherever you construct `ChangedObject` values yourself, such as test mocks.
-- **Transaction data (`include: { transaction: true }`) has a `kind` instead of top-level `inputs`
-  and `commands`.** Read programmable transactions from `kind.ProgrammableTransaction.inputs` and
-  `kind.ProgrammableTransaction.commands`. System transactions such as genesis and consensus commits
-  map to their own `kind` variants, and kinds the SDK does not recognize map to
-  `{ $kind: 'Unknown', Unknown: true }`; handle `Unknown` wherever you switch on `kind.$kind`. See
-  [transaction data](/sui/clients/executing#transaction-data).
+- **Transaction data (`include: { transaction: true }`) has a `kind`.** Programmable transactions
+  are `kind.ProgrammableTransaction`, system transactions such as genesis and consensus commits map
+  to their own `kind` variants, and kinds the SDK does not recognize map to
+  `{ $kind: 'Unknown', Unknown: true }`; handle `Unknown` wherever you switch on `kind.$kind`.
+  `inputs` and `commands` stay at the top level and are empty for every kind other than
+  `ProgrammableTransaction`. See [transaction data](/sui/clients/executing#transaction-data).
 - **`SuiClientTypes.TransactionData` is a read type.** Inputs, commands, and expirations carry their
   `$kind` discriminant (narrow with `input.$kind === 'Pure'` rather than `'Pure' in input`), shared
   object inputs can have `mutability: 'NonExclusiveWrite'`, and builder-only unresolved inputs and

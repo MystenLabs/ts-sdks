@@ -135,6 +135,7 @@ describe('ledger transaction data', () => {
 			expect(result.gasData.payment![0].version).toBe('9007199254740993');
 			expect(result.expiration).toEqual({ $kind: 'None', None: true });
 			expect(result.version).toBe(2);
+			const { kind: _, inputs: topInputs, commands: topCommands, ...rest } = result;
 			if (
 				result.kind.$kind === 'ProgrammableTransaction' ||
 				result.kind.$kind === 'ProgrammableSystemTransaction'
@@ -145,13 +146,19 @@ describe('ledger transaction data', () => {
 					serialize(kinds.ProgrammableTransaction),
 				).getData();
 				expect(body).toEqual({ inputs, commands });
-				const { kind: _, ...rest } = result;
 				expect(rest).toEqual(header);
 			} else if (result.kind.$kind !== 'EndOfEpochTransaction') {
 				expect(result.kind).toEqual(bcs.TransactionData.parse(bytes).V1.kind);
 			}
-			expect(result).not.toHaveProperty('inputs');
-			expect(result).not.toHaveProperty('commands');
+			if (result.kind.$kind === 'ProgrammableTransaction') {
+				expect({ inputs: topInputs, commands: topCommands }).toEqual(
+					result.kind.ProgrammableTransaction,
+				);
+				expect(topCommands).toHaveLength(1);
+			} else {
+				expect(topInputs).toEqual([]);
+				expect(topCommands).toEqual([]);
+			}
 		},
 	);
 
@@ -208,9 +215,12 @@ describe('ledger transaction data', () => {
 						: { ProgrammableSystemTransaction: body },
 				),
 			);
-			const { kind, ...rest } = result;
+			const { kind, inputs: topInputs, commands: topCommands, ...rest } = result;
 			const { inputs, commands, ...header } = expected;
 			expect(rest).toEqual(header);
+			const programmable = name === 'ProgrammableTransaction';
+			expect(topInputs).toEqual(programmable ? inputs : []);
+			expect(topCommands).toEqual(programmable ? commands : []);
 			const parsed = kind.ProgrammableTransaction ?? kind.ProgrammableSystemTransaction;
 			expect(parsed).toEqual({ inputs, commands });
 			expect(parsed?.commands[1]).toMatchObject({ MakeMoveVec: { type: null } });
