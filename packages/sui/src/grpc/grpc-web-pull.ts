@@ -81,9 +81,13 @@ export function prepareGrpcWebRequest<I extends object>(
 export type GrpcWebResponseFrame =
 	{ type: 'data'; data: Uint8Array } | { type: 'trailer'; status: RpcStatus; meta: RpcMetadata };
 
-/** Received bytes as a list of chunks, so a frame is copied only when it spans chunks. */
+/**
+ * Received bytes as a list of chunks, so a frame is copied only when it spans chunks. Consumed
+ * chunks are dropped by advancing `#head`, not by `shift()`, which is linear in the queue length.
+ */
 class ByteQueue {
-	#chunks: Uint8Array[] = [];
+	#chunks: (Uint8Array | undefined)[] = [];
+	#head = 0;
 	#offset = 0;
 	length = 0;
 
@@ -95,7 +99,8 @@ class ByteQueue {
 
 	byteAt(index: number): number {
 		let i = index + this.#offset;
-		for (const chunk of this.#chunks) {
+		for (let k = this.#head; k < this.#chunks.length; k++) {
+			const chunk = this.#chunks[k]!;
 			if (i < chunk.length) return chunk[i];
 			i -= chunk.length;
 		}
@@ -103,7 +108,7 @@ class ByteQueue {
 	}
 
 	take(n: number): Uint8Array {
-		const first = this.#chunks[0];
+		const first = this.#chunks[this.#head];
 		if (first && first.length - this.#offset >= n) {
 			const out = first.subarray(this.#offset, this.#offset + n);
 			this.#advance(n);
@@ -112,7 +117,7 @@ class ByteQueue {
 		const out = new Uint8Array(n);
 		let written = 0;
 		while (written < n) {
-			const chunk = this.#chunks[0];
+			const chunk = this.#chunks[this.#head]!;
 			const count = Math.min(n - written, chunk.length - this.#offset);
 			out.set(chunk.subarray(this.#offset, this.#offset + count), written);
 			written += count;
@@ -124,15 +129,25 @@ class ByteQueue {
 	#advance(n: number) {
 		this.length -= n;
 		this.#offset += n;
-		while (this.#chunks.length && this.#offset >= this.#chunks[0].length) {
-			this.#offset -= this.#chunks[0].length;
-			this.#chunks.shift();
+		while (this.#head < this.#chunks.length) {
+			const chunk = this.#chunks[this.#head]!;
+			if (this.#offset < chunk.length) break;
+			this.#offset -= chunk.length;
+			// Released at once, so a consumed chunk is never retained.
+			this.#chunks[this.#head++] = undefined;
+		}
+		if (this.#head === this.#chunks.length) {
+			this.#chunks = [];
+			this.#head = 0;
+		} else if (this.#head >= 1024 && this.#head * 2 >= this.#chunks.length) {
+			this.#chunks = this.#chunks.slice(this.#head);
+			this.#head = 0;
 		}
 	}
 }
 
-// Characters per `String.fromCharCode` call, well under engine argument limits.
-const CHAR_BATCH = 8192;
+// Base64 is ASCII. Any other byte decodes to a character that `base64decode` rejects.
+const ascii = new TextDecoder();
 
 /**
  * Splits a gRPC-web response body into frames: `push` chunks, take frames with `next` until it
@@ -160,9 +175,7 @@ export class GrpcWebFrameDecoder {
 	push(chunk: Uint8Array): void {
 		if (!this.#text) return this.#bytes.push(chunk);
 		// Whole base64 quanta are decoded; the rest waits for the next chunk.
-		for (let i = 0; i < chunk.length; i += CHAR_BATCH) {
-			this.#base64 += String.fromCharCode(...chunk.subarray(i, i + CHAR_BATCH));
-		}
+		this.#base64 += ascii.decode(chunk);
 		const whole = this.#base64.length - (this.#base64.length % 4);
 		if (whole === 0) return;
 		this.#bytes.push(base64decode(this.#base64.substring(0, whole)));
