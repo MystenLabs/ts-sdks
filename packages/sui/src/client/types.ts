@@ -218,12 +218,21 @@ export namespace SuiClientTypes {
 		completion: StreamCompletion;
 	}
 
-	/** `T` when `Frames[Key]` may be true; includes non-literal booleans. */
+	/**
+	 * `T` when `Frames[Key]` may be true; includes non-literal booleans. Distributes over a union of
+	 * option objects, so a frame that any member enables is included.
+	 */
 	type EnabledFrame<
 		Frames extends StreamFrameOptions,
 		Key extends keyof StreamFrameOptions,
 		T,
-	> = Key extends keyof Frames ? (true extends Frames[Key] ? T : never) : never;
+	> = Frames extends unknown
+		? Key extends keyof Frames
+			? true extends Frames[Key]
+				? T
+				: never
+			: never
+		: never;
 
 	export type StreamResult<Item, Frames extends StreamFrameOptions = {}> =
 		| Item
