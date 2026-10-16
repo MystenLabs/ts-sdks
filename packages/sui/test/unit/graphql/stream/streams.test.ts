@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SuiStreamError, type SuiClientTypes } from '../../../../src/client/index.js';
 import { SuiGraphQLRequestError, type SuiGraphQLClient } from '../../../../src/graphql/index.js';
+import { PROGRESS_INTERVAL } from '../../../../src/graphql/stream/families.js';
 import {
 	Transaction as GrpcTransaction,
 	TransactionExpiration_TransactionExpirationKind as ExpirationKind,
@@ -750,7 +751,9 @@ describe('live handoff', () => {
 			3,
 		);
 		expect(frames.map(label)).toEqual(['5:0', '9:0', '11:0']);
-		expect(server.sent('subscribeEvents')).toEqual([{ filter: { afterCheckpoint: 10 } }]);
+		expect(server.sent('subscribeEvents')).toEqual([
+			{ filter: { afterCheckpoint: 10 }, progressInterval: PROGRESS_INTERVAL },
+		]);
 		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Page(history,indexedTip)', 'Live']);
 	});
 
@@ -778,6 +781,7 @@ describe('live handoff', () => {
 		expect(server.sent('subscribeEvents')[1]).toEqual({
 			filter: {},
 			after: event(3, 0, { source: 'live' }).cursor,
+			progressInterval: PROGRESS_INTERVAL,
 		});
 	});
 
@@ -792,8 +796,8 @@ describe('live handoff', () => {
 		const [frame] = await take(stream(server.client, 'events', { retry: noDelay }), 1);
 		expect(label(frame)).toBe('11:0');
 		expect(server.sent('subscribeEvents')).toEqual([
-			{ filter: { afterCheckpoint: 10 } },
-			{ filter: { afterCheckpoint: 10 } },
+			{ filter: { afterCheckpoint: 10 }, progressInterval: PROGRESS_INTERVAL },
+			{ filter: { afterCheckpoint: 10 }, progressInterval: PROGRESS_INTERVAL },
 		]);
 	});
 
@@ -813,6 +817,7 @@ describe('live handoff', () => {
 		expect(server.sent('subscribeTransactions')).toEqual([
 			{
 				filter: { sentAddress: sender, afterCheckpoint: 1 },
+				progressInterval: PROGRESS_INTERVAL,
 				includeTransaction: false,
 				includeEffects: false,
 				includeEvents: true,
@@ -822,6 +827,52 @@ describe('live handoff', () => {
 				includeBcs: false,
 			},
 		]);
+	});
+});
+
+describe('subscription progress', () => {
+	const progressEdge = (label: string) => ({ cursor: `live:progress:${label}`, node: null });
+
+	it('advances a quiet filtered stream through progress edges and reports Live with the first', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live('events', [progressEdge('a'), progressEdge('b')] as unknown as Edge[]),
+		);
+		const log = statusLog();
+		const frames = await take(
+			stream(server.client, 'events', {
+				filter: { sender: `0x${'5'.padStart(64, '0')}` },
+				frames: { progress: true },
+				onStatus: log.onStatus,
+			}),
+			3,
+		);
+		expect(frames.map(label)).toEqual(['Progress', 'Progress', 'Progress']);
+		expect(new Set(frames.map(token)).size).toBe(3);
+		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
+		// Progress carries no checkpoint, so it claims no coverage.
+		expect(frames[2]).not.toHaveProperty('coveredCheckpoint');
+	});
+
+	it('resumes from a progress token without re-reading anything before it', async () => {
+		const seed = fakeGraphQL({ tip: 10 });
+		seed.on('subscribeEvents', live('events', [progressEdge('a')] as unknown as Edge[]));
+		const [, progress] = await take(
+			stream(seed.client, 'events', { frames: { progress: true } }),
+			2,
+		);
+
+		const server = fakeGraphQL({ tip: 12 });
+		server.on('scanEvents', page('events', [event(12)]));
+		server.on('subscribeEvents', live('events', []));
+		const [frame] = await take(
+			stream(server.client, 'events', { start: { resumeToken: token(progress) } }),
+			1,
+		);
+		expect(label(frame)).toBe('12:0');
+		// History continues after the progress cursor itself.
+		expect(server.sent('scanEvents')[0].after).toBe('live:progress:a');
 	});
 });
 

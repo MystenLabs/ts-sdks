@@ -5,20 +5,23 @@ import type { ResolvedCheckpointRange } from '../../client/query-filters.js';
 import type { Coverage, ScanEvent, ScanRequest } from '../../client/stream/adapter.js';
 import {
 	assertAdvanced,
+	boundaryPosition,
 	coverageBefore,
+	indexedThrough,
+	positionCoverage,
+	progressPosition,
 	startBeyondTip,
 	SuiStreamError,
 } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
-import { itemEvents, type Connection, type LedgerFamily, type LedgerItem } from './families.js';
 import {
-	boundaryPosition,
-	frontierPosition,
-	isBoundary,
-	positionCoverage,
-	requiredCheckpoint,
-	type GraphQLPosition,
-} from './position.js';
+	cursorBytes,
+	cursorString,
+	itemEvents,
+	type Connection,
+	type LedgerFamily,
+	type LedgerItem,
+} from './families.js';
 
 export const PAGE_SIZE = 50;
 /** GraphQL checkpoint arguments are UInt53. */
@@ -46,7 +49,7 @@ export interface ScanWindow {
 	retentionLimit?: true;
 }
 
-type Request = Pick<ScanRequest<GraphQLPosition>, 'start' | 'end' | 'order'>;
+type Request = Pick<ScanRequest, 'start' | 'end' | 'order'>;
 
 /** @throws {SuiStreamError} `HistoryUnavailable` when the window starts below retention. */
 export function resolveScanWindow(
@@ -59,10 +62,10 @@ export function resolveScanWindow(
 	const high = ascending ? request.end : request.start;
 	const window: ScanWindow = { lower: 0n, upper: indexed.tip + 1n };
 
-	if (low && 'position' in low && isBoundary(low.position)) {
-		window.lower = low.position.checkpoint! + 1n;
+	if (low && 'position' in low && low.position.kind === 'Boundary') {
+		window.lower = low.position.checkpoint!;
 	} else if (low && 'position' in low) {
-		window.after = low.position.cursor;
+		window.after = cursorString(low.position.cursor!);
 		const checkpoint = low.position.checkpoint;
 		// Other items of a transaction's or event's checkpoint can still follow it.
 		if (checkpoint !== null) window.lower = onePerCheckpoint ? checkpoint + 1n : checkpoint;
@@ -70,11 +73,11 @@ export function resolveScanWindow(
 		window.lower = checkpointBound(low) + (ascending ? 0n : 1n);
 	}
 
-	if (high && 'position' in high && isBoundary(high.position)) {
-		const upper = high.position.checkpoint! + 1n;
+	if (high && 'position' in high && high.position.kind === 'Boundary') {
+		const upper = high.position.checkpoint!;
 		if (upper < window.upper) window.upper = upper;
 	} else if (high && 'position' in high) {
-		window.before = high.position.cursor;
+		window.before = cursorString(high.position.cursor!);
 	} else if (high) {
 		const upper = checkpointBound(high) + (ascending ? 0n : 1n);
 		if (upper < window.upper) window.upper = upper;
@@ -84,7 +87,7 @@ export function resolveScanWindow(
 		window.target =
 			'checkpoint' in request.end
 				? request.end.checkpoint - 1n
-				: (requiredCheckpoint(request.end.position) ?? undefined);
+				: (indexedThrough(request.end.position) ?? undefined);
 	}
 
 	if (!low) {
@@ -111,8 +114,8 @@ export function resolveScanWindow(
  */
 export async function* scanLedger<Node>(
 	family: LedgerFamily<Node>,
-	request: ScanRequest<GraphQLPosition>,
-): AsyncGenerator<ScanEvent<GraphQLPosition, LedgerItem<Node>>> {
+	request: ScanRequest,
+): AsyncGenerator<ScanEvent<LedgerItem<Node>>> {
 	const { order, start, end, signal } = request;
 	const descending = order === 'descending';
 	yield { $kind: 'Connected' };
@@ -126,7 +129,7 @@ export async function* scanLedger<Node>(
 	const indexed = { first: page.retainedFrom, tip: page.viewedAt };
 
 	const resumesFromIndex = start && (descending || 'position' in start);
-	if (resumesFromIndex && startBeyondTip(start, indexed.tip, positionCheckpoint)) {
+	if (resumesFromIndex && startBeyondTip(start, indexed.tip)) {
 		yield { $kind: 'End', complete: false };
 		return;
 	}
@@ -138,14 +141,16 @@ export async function* scanLedger<Node>(
 	if (window.lower >= window.upper) {
 		// A quiet stream still needs a token before its first match.
 		if (!descending && start && 'checkpoint' in start && window.lower > 0n) {
-			yield { $kind: 'Progress', position: boundaryPosition(window.lower - 1n) };
+			yield { $kind: 'Progress', position: boundaryPosition(window.lower) };
 		}
 		yield { $kind: 'End', complete, retentionLimit };
 		return;
 	}
 
 	const range = checkpointRange(window);
-	const endItem = end && 'position' in end && !isBoundary(end.position) ? end.position : undefined;
+	const endItem =
+		end && 'position' in end && end.position.kind === 'Item' ? end.position : undefined;
+	const endCursor = endItem?.cursor ? cursorString(endItem.cursor) : undefined;
 	let { after, before } = window;
 	let last = start && 'position' in start ? start.position : undefined;
 	// Load-balanced replicas can lag, so track the lowest checkpoint a page was read at.
@@ -153,7 +158,7 @@ export async function* scanLedger<Node>(
 	const coverage = (exhausted: boolean): Coverage => {
 		if (descending) return { $kind: 'Unknown' };
 		if (exhausted && !window.before) return coverageBefore(seen + 1n);
-		return last ? positionCoverage(last, family.onePerCheckpoint) : { $kind: 'Unknown' };
+		return last ? positionCoverage(last, family.name) : { $kind: 'Unknown' };
 	};
 
 	while (true) {
@@ -161,10 +166,10 @@ export async function* scanLedger<Node>(
 		const first = after === window.after && before === window.before;
 		const from = descending
 			? last
-				? requiredCheckpoint(last)
+				? indexedThrough(last)
 				: window.upper - 1n
 			: first && start && 'position' in start
-				? requiredCheckpoint(start.position)
+				? indexedThrough(start.position)
 				: null;
 		if (from !== null && page.viewedAt < from) {
 			yield { $kind: 'End', complete: false };
@@ -183,7 +188,7 @@ export async function* scanLedger<Node>(
 		// Server quirk: an empty window can report more pages while returning the cursor sent.
 		const stalled = edges.length === 0 && cursor !== null && cursor === previous;
 
-		if (cursor && cursor === endItem?.cursor) {
+		if (cursor && cursor === endCursor) {
 			yield { $kind: 'Page', end: 'bound', coverage: coverage(false) };
 			yield { $kind: 'End', complete: true };
 			return;
@@ -206,7 +211,7 @@ export async function* scanLedger<Node>(
 			const reached = await reachedExcludedEndItem(family, {
 				range,
 				order,
-				from: last?.cursor || undefined,
+				from: last?.cursor ? cursorString(last.cursor) : undefined,
 				endItemId: endItem.itemId,
 				signal,
 			});
@@ -270,10 +275,10 @@ function exhaustedProgress(
 	hadItems: boolean,
 	window: ScanWindow,
 	seen: bigint,
-	{ order, end }: Pick<ScanRequest<GraphQLPosition>, 'order' | 'end'>,
-): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> | undefined {
+	{ order, end }: Pick<ScanRequest, 'order' | 'end'>,
+): Extract<ScanEvent<never>, { $kind: 'Progress' }> | undefined {
 	if (order === 'ascending' && !window.before) {
-		return { $kind: 'Progress', position: boundaryPosition(seen) };
+		return { $kind: 'Progress', position: boundaryPosition(seen + 1n) };
 	}
 	if (hadItems || !cursor) return undefined;
 	return !end || order === 'ascending' ? frontierProgress(cursor, seen) : undefined;
@@ -282,8 +287,11 @@ function exhaustedProgress(
 function frontierProgress(
 	cursor: string,
 	seen: bigint,
-): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> {
-	return { $kind: 'Progress', position: frontierPosition(cursor, seen) };
+): Extract<ScanEvent<never>, { $kind: 'Progress' }> {
+	return {
+		$kind: 'Progress',
+		position: progressPosition(cursorBytes(cursor), { indexedCheckpoint: seen }),
+	};
 }
 
 function pageCursors(
@@ -300,10 +308,6 @@ function pageEnd(page: Connection<unknown>, order: SuiClientTypes.Order) {
 	return order === 'descending'
 		? { more: pageInfo.hasPreviousPage, cursor: pageInfo.startCursor }
 		: { more: pageInfo.hasNextPage, cursor: pageInfo.endCursor };
-}
-
-function positionCheckpoint(position: GraphQLPosition) {
-	return { checkpoint: requiredCheckpoint(position) };
 }
 
 function checkpointBound(bound: { checkpoint: bigint }): bigint {
