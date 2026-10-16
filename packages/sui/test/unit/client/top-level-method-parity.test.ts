@@ -9,10 +9,20 @@ import { GrpcCoreClient } from '../../../src/grpc/core.js';
 import { SuiGrpcClient } from '../../../src/grpc/client.js';
 
 /**
- * Methods that intentionally stay on `client.core`. `resolveTransactionPlugin` is an internal hook
- * the transaction builder calls rather than something application code reaches for.
+ * Methods that intentionally stay on `client.core`. `resolveTransactionPlugin` and
+ * `createLedgerStreamAdapter` are internal hooks rather than something application code reaches
+ * for.
+ *
+ * The ledger stream methods are forwarded by the transport PRs that implement them (gRPC options
+ * add `grpcFilter`); remove them from this set when those forwards land.
  */
-const CORE_ONLY_METHODS = new Set(['resolveTransactionPlugin']);
+const CORE_ONLY_METHODS = new Set([
+	'resolveTransactionPlugin',
+	'createLedgerStreamAdapter',
+	'streamCheckpoints',
+	'streamTransactions',
+	'streamEvents',
+]);
 
 /**
  * Collect the methods callable on `client.core`.
