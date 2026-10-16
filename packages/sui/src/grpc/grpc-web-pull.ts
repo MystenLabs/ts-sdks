@@ -339,6 +339,7 @@ export class GrpcWebPullCall<
 	// One callback per in-flight `#interruptible` operation, run when the call settles early.
 	readonly #interrupts = new Set<() => void>();
 	readonly #opened: Promise<void>;
+	#responded = false;
 
 	#state: State = 'open';
 	#failure: RpcError | undefined;
@@ -373,7 +374,10 @@ export class GrpcWebPullCall<
 		else this.#userSignal?.addEventListener('abort', this.#onUserAbort, { once: true });
 
 		this.#opened = this.#open(request, call.url);
-		this.#opened.catch((error: unknown) => this.#fail(error));
+		this.#opened.then(
+			() => (this.#responded = true),
+			(error: unknown) => this.#fail(error),
+		);
 
 		this.responses = {
 			[Symbol.asyncIterator]() {
@@ -466,7 +470,14 @@ export class GrpcWebPullCall<
 
 	async #pull(): Promise<IteratorResult<O, undefined>> {
 		try {
-			await this.#interruptible(this.#opened);
+			if (!this.#responded) {
+				await this.#interruptible(this.#opened);
+			} else {
+				// The same two microtasks as the wait above, so an abort is seen just as early, without
+				// a new promise per message.
+				await this.#opened;
+				await this.#opened;
+			}
 			for (;;) {
 				this.#throwIfFailed();
 				if (!this.#isOpen()) return DONE;
