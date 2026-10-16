@@ -54,6 +54,11 @@ export interface Connection<Node> {
 	edges: Edge<Node>[];
 }
 
+/** A history page and the checkpoint the server read it at, when it reports one. */
+export interface Page<Node> extends Connection<Node> {
+	viewedAt: bigint | null;
+}
+
 /** A delivered node and its checkpoint, which live nodes may need looked up. */
 export interface LedgerItem<Node> {
 	node: Node;
@@ -86,7 +91,8 @@ export interface LedgerFamily<Node> {
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	/** The GraphQL filter fields page queries set, which choose the indexes (and retention). */
 	filterFields(): string[];
-	page(request: PageRequest): Promise<Connection<Node> | null>;
+	/** One page. A response without a well-formed connection throws `SuiStreamError('Protocol')`. */
+	page(request: PageRequest): Promise<Page<Node>>;
 	/** Live edges from now on; never resumed with `after`. `onOpen` runs once the server accepts. */
 	subscribe(signal: AbortSignal, onOpen: () => void): AsyncIterable<Edge<Node>>;
 	/** Public identity: compared with an excluded end item's `itemId`. */
@@ -121,13 +127,15 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 		resolveFilter: async () => undefined,
 		filterFields: () => [],
 		page: async ({ range, signal, ...cursors }) =>
-			(
+			scanPage(
+				'checkpoints',
 				await queryData(client, {
 					query: ScanCheckpointsDocument,
 					variables: { filter: toGraphQLCheckpointBounds(range), ...cursors },
 					signal,
-				})
-			).checkpoints,
+				}),
+				(data) => data.checkpoints,
+			),
 		subscribe: (signal, onOpen) =>
 			edges(
 				client.subscribe({ query: SubscribeCheckpointsDocument, signal, onOpen }),
@@ -158,7 +166,8 @@ function transactionsFamily(
 		},
 		filterFields: () => setFields(toGraphQLTransactionFilter(filter, {})),
 		page: async ({ range, signal, ...cursors }) =>
-			(
+			scanPage(
+				'transactions',
 				await queryData(client, {
 					query: ScanTransactionsDocument,
 					variables: {
@@ -167,8 +176,9 @@ function transactionsFamily(
 						...selection,
 					},
 					signal,
-				})
-			).transactions,
+				}),
+				(data) => data.transactions,
+			),
 		subscribe: (signal, onOpen) =>
 			edges(
 				client.subscribe({
@@ -210,13 +220,15 @@ function eventsFamily(
 		},
 		filterFields: () => setFields(toGraphQLEventFilter(filter, {})),
 		page: async ({ range, signal, ...cursors }) =>
-			(
+			scanPage(
+				'events',
 				await queryData(client, {
 					query: ScanEventsDocument,
 					variables: { filter: toGraphQLEventFilter(filter, range), ...cursors },
 					signal,
-				})
-			).events,
+				}),
+				(data) => data.events,
+			),
 		subscribe: (signal, onOpen) =>
 			edges(
 				client.subscribe({
@@ -309,6 +321,44 @@ function eventDigest(node: Event_FieldsFragment): string {
 	return digest;
 }
 
+/** One history page, its connection checked before anything reads it. */
+function scanPage<Result extends { viewedAt?: { sequenceNumber: number } | null }, Node>(
+	name: string,
+	data: Result,
+	select: (data: Result) => unknown,
+): Page<Node> {
+	const viewedAt = data.viewedAt?.sequenceNumber;
+	return {
+		...connection<Node>(name, select(data)),
+		viewedAt: viewedAt == null ? null : BigInt(viewedAt),
+	};
+}
+
+/** `value` as a connection, checked before anything reads it. */
+function connection<Node>(name: string, value: unknown): Connection<Node> {
+	const page = value as Partial<Connection<Node>> | null | undefined;
+	const info = page?.pageInfo;
+	const cursorOrNull = (cursor: unknown) => cursor === null || typeof cursor === 'string';
+	if (
+		!page ||
+		!Array.isArray(page.edges) ||
+		!page.edges.every(isEdge) ||
+		!info ||
+		typeof info.hasNextPage !== 'boolean' ||
+		typeof info.hasPreviousPage !== 'boolean' ||
+		!cursorOrNull(info.startCursor) ||
+		!cursorOrNull(info.endCursor)
+	) {
+		throw new SuiStreamError('Protocol', `GraphQL ${name} connection is missing or malformed`);
+	}
+	return page as Connection<Node>;
+}
+
+function isEdge(edge: unknown): edge is Edge<unknown> {
+	const value = edge as Partial<Edge<unknown>> | null;
+	return !!value && typeof value.cursor === 'string' && value.cursor !== '' && !!value.node;
+}
+
 /**
  * Subscription results as edges.
  * @yields Each result's edge; a result without one breaks the API's shape.
@@ -319,7 +369,9 @@ async function* edges<Result, Node>(
 ): AsyncGenerator<Edge<Node>> {
 	for await (const result of results) {
 		const value = edge(unwrap(result));
-		if (!value) throw new SuiStreamError('Protocol', 'GraphQL subscription response has no edge');
+		if (!isEdge(value)) {
+			throw new SuiStreamError('Protocol', 'GraphQL subscription response has no edge');
+		}
 		yield value;
 	}
 }

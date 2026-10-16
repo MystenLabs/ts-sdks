@@ -11,8 +11,9 @@ import { coverageBefore, SuiStreamError } from '../../client/stream/index.js';
  * checkpoints they report, never by reading cursor bytes. There are three kinds:
  *
  * - Item: a delivered node. `checkpoint` and `itemId` are set.
- * - Boundary: a scan read every checkpoint through `checkpoint` and found nothing more. `itemId`
- *   is null and `indexedCheckpoint` equals `checkpoint`. Everything through it is covered.
+ * - Boundary: a scan read every checkpoint through `checkpoint`. `itemId` is null and
+ *   `indexedCheckpoint` equals `checkpoint`. Everything through it is covered. `cursor` is where the
+ *   scan stopped, or empty when no page was read (a start before anything was indexed).
  * - Frontier: an empty, scan-limited page part way through a window. `checkpoint` and `itemId`
  *   are null; `indexedCheckpoint` is the highest checkpoint that scan could see, so a resumed scan
  *   waits until the index has caught up to it before trusting the cursor. It covers nothing.
@@ -49,7 +50,7 @@ export const graphQLPositionCodec: PositionCodec<GraphQLPosition> = {
 		const item = checkpoint !== null && itemId !== null;
 		const boundary = checkpoint !== null && itemId === null && indexedCheckpoint === checkpoint;
 		const frontier = checkpoint === null && itemId === null && indexedCheckpoint !== null;
-		if (!position.cursor || !(item || boundary || frontier)) {
+		if ((!position.cursor && !boundary) || !(item || boundary || frontier)) {
 			throw new SuiStreamError('InvalidToken', 'Invalid GraphQL stream position');
 		}
 	},
@@ -74,13 +75,15 @@ export function frontierPosition(cursor: string, indexedCheckpoint: bigint): Gra
 
 /**
  * Equal cursors are the same position. Otherwise only positions in different checkpoints can be
- * ordered, plus an item before the boundary closing its checkpoint: cursors from different
- * connections cannot be compared within a checkpoint.
+ * ordered, plus an item before the boundary closing its checkpoint, and two boundaries of one
+ * checkpoint when either has no cursor: cursors from different connections cannot be compared
+ * within a checkpoint.
  */
 export function comparePositions(a: GraphQLPosition, b: GraphQLPosition): -1 | 0 | 1 | undefined {
-	if (a.cursor === b.cursor) return 0;
+	if (a.cursor && a.cursor === b.cursor) return 0;
 	if (a.checkpoint === null || b.checkpoint === null) return undefined;
 	if (a.checkpoint !== b.checkpoint) return a.checkpoint < b.checkpoint ? -1 : 1;
+	if (isBoundary(a) && isBoundary(b)) return !a.cursor || !b.cursor ? 0 : undefined;
 	if (isBoundary(a) === isBoundary(b)) return undefined;
 	return isBoundary(a) ? 1 : -1;
 }

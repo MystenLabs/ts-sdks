@@ -411,7 +411,7 @@ export type ScanCheckpointsQueryVariables = Exact<{
 }>;
 
 
-export type ScanCheckpointsQuery = { checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null } }> } | null };
+export type ScanCheckpointsQuery = { viewedAt: { sequenceNumber: number } | null, checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null } }> } | null };
 
 export type SubscribeCheckpointsSubscriptionVariables = Exact<{ [key: string]: never; }>;
 
@@ -427,7 +427,7 @@ export type ScanEventsQueryVariables = Exact<{
 }>;
 
 
-export type ScanEventsQuery = { events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } }> } | null };
+export type ScanEventsQuery = { viewedAt: { sequenceNumber: number } | null, events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } }> } | null };
 
 export type SubscribeEventsSubscriptionVariables = Exact<{
   filter?: EventFilter | null | undefined;
@@ -452,7 +452,7 @@ export type ScanTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type ScanTransactionsQuery = { transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
+export type ScanTransactionsQuery = { viewedAt: { sequenceNumber: number } | null, transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
 
 export type SubscribeTransactionsSubscriptionVariables = Exact<{
   filter?: TransactionFilter | null | undefined;
@@ -1250,6 +1250,9 @@ export const LedgerStreamStateDocument = new TypedDocumentString(`
     `) as unknown as TypedDocumentString<LedgerStreamStateQuery, LedgerStreamStateQueryVariables>;
 export const ScanCheckpointsDocument = new TypedDocumentString(`
     query scanCheckpoints($filter: CheckpointFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  viewedAt: checkpoint {
+    sequenceNumber
+  }
   checkpoints(
     filter: $filter
     first: $first
@@ -1301,6 +1304,9 @@ export const SubscribeCheckpointsDocument = new TypedDocumentString(`
 }`) as unknown as TypedDocumentString<SubscribeCheckpointsSubscription, SubscribeCheckpointsSubscriptionVariables>;
 export const ScanEventsDocument = new TypedDocumentString(`
     query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  viewedAt: checkpoint {
+    sequenceNumber
+  }
   events(
     filter: $filter
     first: $first
@@ -1390,6 +1396,9 @@ export const SubscribeEventsDocument = new TypedDocumentString(`
 }`) as unknown as TypedDocumentString<SubscribeEventsSubscription, SubscribeEventsSubscriptionVariables>;
 export const ScanTransactionsDocument = new TypedDocumentString(`
     query scanTransactions($filter: TransactionFilter, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  viewedAt: checkpoint {
+    sequenceNumber
+  }
   transactions(
     filter: $filter
     first: $first

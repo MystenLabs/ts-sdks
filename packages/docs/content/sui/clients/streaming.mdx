@@ -195,10 +195,11 @@ for await (const frame of client.streamEvents({
 - `completion` adds one `Complete` frame after a finite range finishes, with its range, direction,
   reason, and the last resume token. Empty ranges complete too. Cancellation, failure, or leaving
   the loop omits it.
-- `progress` adds `Progress` frames for resumable positions that no item reported, such as the end
-  of a history read with no matches, so sparse filters can save their place. `coveredCheckpoint` is
-  the last checkpoint fully delivered, when known. Save a progress token only after every earlier
-  item has been processed.
+- `progress` adds `Progress` frames for resumable positions that no item reported, such as where a
+  history read ended (after its last match, or with no matches), so sparse filters can save their
+  place. A fresh following stream reports one at its starting tip. `coveredCheckpoint` is the last
+  checkpoint fully delivered, when known. Save a progress token only after every earlier item has
+  been processed.
 
 ## Live delivery
 
@@ -286,7 +287,7 @@ codes. Stream failures that are not transport errors throw `SuiStreamError` from
 
 | Code                 | Cause                                                                      |
 | -------------------- | -------------------------------------------------------------------------- |
-| `InvalidOptions`     | An option combination or bound was rejected before any request.            |
+| `InvalidOptions`     | An option combination or bound was rejected.                               |
 | `InvalidToken`       | Not a resume token, or an unsupported or corrupted one.                    |
 | `IncompatibleToken`  | A token from another stream, or a changed direction or end on resume.      |
 | `HistoryUnavailable` | The server has pruned history the stream needs.                            |
@@ -326,7 +327,8 @@ few seconds of the live handoff: while the stream replays history up to the firs
 reads the live feed ahead into a queue of at most 1,024 items, and reconnects from the last
 delivered frame if that queue fills. `maxResponseMessageBytes` on `SuiGrpcClient` (default 64 MiB)
 limits one response message read this way; a larger message fails the stream with
-`RESOURCE_EXHAUSTED` and is not retried. It does not apply to unary calls or to calls made through
-`interceptors`.
+`RESOURCE_EXHAUSTED` and is not retried. It applies only to the transport `SuiGrpcClient` builds
+itself, and only without `interceptors`: with interceptors or your own `transport`, streams read
+responses as the transport delivers them. It does not apply to unary calls.
 
 For arbitrary GraphQL selection sets, use [native subscriptions](./graphql.mdx#subscriptions).
