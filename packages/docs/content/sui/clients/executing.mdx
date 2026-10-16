@@ -122,7 +122,9 @@ const created = result.Transaction?.effects.changedObjects.filter(
 ### Transaction data
 
 `include: { transaction: true }` returns transaction data with `sender`, `gasData`, `expiration`,
-and `kind`. Use `kind.$kind` to identify the transaction type and access its payload:
+`inputs`, `commands`, and `kind`. `inputs` and `commands` hold a programmable transaction's inputs
+and commands, and are empty for every other kind. Use `kind.$kind` to identify the transaction type
+and access its payload:
 
 ```typescript
 const result = await client.getTransaction({
@@ -151,8 +153,9 @@ switch (data.kind.$kind) {
 kinds, such as `Genesis`, `ChangeEpoch`, and `RandomnessStateUpdate`, have their own payloads.
 
 If the SDK does not recognize a transaction's kind, or cannot map one of its inputs or commands,
-`kind` is `{ $kind: 'Unknown', Unknown: true }`; `sender`, `gasData`, and `expiration` are still
-set. Upgrade the SDK to read kinds added by newer network versions.
+`kind` is `{ $kind: 'Unknown', Unknown: true }` and `inputs` and `commands` are empty; `sender`,
+`gasData`, and `expiration` are still set. Upgrade the SDK to read kinds added by newer network
+versions.
 
 To decode transaction bytes yourself, use `parseTransactionDataBcs` from `@mysten/sui/client`. It
 returns the same shape, but throws on bytes that use a variant the SDK does not know.
