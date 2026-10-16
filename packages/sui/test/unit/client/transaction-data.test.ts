@@ -165,7 +165,7 @@ describe('ledger transaction data', () => {
 			{ $kind: 'Pure', Pure: { bytes: 'AQ==' } },
 		]);
 		const command = kind.ProgrammableTransaction.commands[0];
-		if (!('MoveCall' in command)) throw new Error('Expected MoveCall');
+		if (command.$kind !== 'MoveCall') throw new Error('Expected MoveCall');
 		expect(command.MoveCall.typeArguments).toEqual(['u64']);
 		expect(command.MoveCall.arguments).toEqual([{ $kind: 'Input', Input: 0 }]);
 	});
@@ -251,5 +251,31 @@ describe('ledger transaction data', () => {
 		expect(() => parseTransactionDataBcs(new Uint8Array([255]))).toThrow();
 		const valid = serialize(kinds.Genesis);
 		expect(() => parseTransactionDataBcs(valid.slice(0, -1))).toThrow();
+	});
+});
+
+describe('ledger transaction data types', () => {
+	it('describe resolved values with $kind discriminants', () => {
+		expectTypeOf<SuiClientTypes.TransactionInput['$kind']>().toEqualTypeOf<
+			'Object' | 'Pure' | 'FundsWithdrawal'
+		>();
+		expectTypeOf<SuiClientTypes.TransactionCommand['$kind']>().toEqualTypeOf<
+			| 'MoveCall'
+			| 'TransferObjects'
+			| 'SplitCoins'
+			| 'MergeCoins'
+			| 'Publish'
+			| 'MakeMoveVec'
+			| 'Upgrade'
+		>();
+		expectTypeOf<SuiClientTypes.TransactionExpiration['$kind']>().toEqualTypeOf<
+			'None' | 'Epoch' | 'ValidDuring' | 'Validity'
+		>();
+		type SharedObject = NonNullable<
+			NonNullable<
+				Extract<SuiClientTypes.TransactionInput, { $kind: 'Object' }>['Object']
+			>['SharedObject']
+		>;
+		expectTypeOf<SharedObject['mutability']>().toEqualTypeOf<'NonExclusiveWrite' | undefined>();
 	});
 });

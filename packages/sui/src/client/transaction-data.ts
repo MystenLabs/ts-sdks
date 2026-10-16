@@ -24,6 +24,7 @@ import {
 	TransactionKind_Kind,
 } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
+import type { TransactionData as BuilderTransactionData } from '../transactions/data/internal.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import {
 	grpcCommandToTsCommand,
@@ -36,6 +37,8 @@ import type { SuiClientTypes } from './types.js';
 type TransactionKind = SuiClientTypes.TransactionKind;
 type EndOfEpochTransactionKind = SuiClientTypes.EndOfEpochTransactionKind;
 type TransactionHeader = Omit<SuiClientTypes.TransactionData, 'kind'>;
+/** A header as the builder types it, before `normalizeProgrammable` settles `null`s. */
+type HeaderInput = Omit<BuilderTransactionData, 'inputs' | 'commands' | 'digest'>;
 
 const UNKNOWN_KIND = { $kind: 'Unknown', Unknown: true } as const;
 
@@ -112,7 +115,7 @@ export function grpcTransactionToLedgerTransactionData(
 	return { ...header, kind };
 }
 
-function normalizeHeader(header: TransactionHeader): TransactionHeader {
+function normalizeHeader(header: HeaderInput): TransactionHeader {
 	const { kind: _, ...normalized } = normalizeProgrammable(header, { inputs: [], commands: [] });
 	return normalized;
 }
@@ -120,13 +123,39 @@ function normalizeHeader(header: TransactionHeader): TransactionHeader {
 // Round-trip through TransactionDataBuilder so inputs and commands are validated and normalized to
 // the same shape as `TransactionDataBuilder` snapshots of transactions built with the SDK.
 function normalizeProgrammable(
-	header: TransactionHeader,
+	header: HeaderInput,
 	body: { inputs: unknown[]; commands: unknown[] },
 ): TransactionHeader & { kind: SuiClientTypes.ProgrammableTransaction } {
 	const { version, sender, gasData, expiration, inputs, commands } = TransactionDataBuilder.restore(
 		{ ...header, ...body } as Parameters<typeof TransactionDataBuilder.restore>[0],
 	).snapshot();
-	return { version, sender, gasData, expiration, kind: { inputs, commands } };
+	return {
+		version,
+		sender: sender ?? null,
+		gasData,
+		expiration: expiration ?? null,
+		kind: { inputs: inputs.map(resolvedInput), commands: commands.map(resolvedCommand) },
+	};
+}
+
+// Ledger data only holds resolved inputs and plain commands; the builder-only variants mean the
+// data was not what this mapper expects.
+function resolvedInput(
+	input: ReturnType<TransactionDataBuilder['snapshot']>['inputs'][number],
+): SuiClientTypes.TransactionInput {
+	if (input.$kind === 'UnresolvedPure' || input.$kind === 'UnresolvedObject') {
+		throw new Error(`Unexpected ${input.$kind} input in ledger transaction data`);
+	}
+	return input;
+}
+
+function resolvedCommand(
+	command: ReturnType<TransactionDataBuilder['snapshot']>['commands'][number],
+): SuiClientTypes.TransactionCommand {
+	if (command.$kind === '$Intent') {
+		throw new Error('Unexpected $Intent command in ledger transaction data');
+	}
+	return command;
 }
 
 function grpcKindToTransactionKind(
