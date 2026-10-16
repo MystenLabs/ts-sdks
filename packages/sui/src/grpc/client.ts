@@ -8,7 +8,7 @@ import { SignatureVerificationServiceClient } from './proto/sui/rpc/v2/signature
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { StateServiceClient } from './proto/sui/rpc/v2/state_service.client.js';
 import { SubscriptionServiceClient } from './proto/sui/rpc/v2/subscription_service.client.js';
-import { GrpcCoreClient } from './core.js';
+import { GrpcCoreClient, registerClientTransport } from './core.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { BaseClient } from '../client/index.js';
 import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
@@ -19,6 +19,11 @@ import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_servic
 import type { TransactionPlugin } from '../transactions/index.js';
 import { GrpcWebFetchTransport, withClientProtocolVersion } from './transport.js';
 import type { GrpcWebFetchTransportOptions } from './transport.js';
+import type {
+	GrpcStreamCheckpointsOptions,
+	GrpcStreamEventsOptions,
+	GrpcStreamTransactionsOptions,
+} from './stream-types.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebFetchTransportOptions {
 	transport?: never;
@@ -169,6 +174,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		this.signatureVerificationService = new SignatureVerificationServiceClient(transport);
 		this.nameService = new NameServiceClient(transport);
 		this.forkingService = new ForkingServiceClient(transport);
+		registerClientTransport(this, transport);
 
 		this.core = new GrpcCoreClient({
 			client: this,
@@ -373,5 +379,29 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		input: SuiClientTypes.ResolveNameServiceAddressOptions,
 	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
 		return this.core.resolveNameServiceAddress(input);
+	}
+
+	/** See `CoreClient.streamCheckpoints`. `grpcFilter` keeps checkpoints with a matching transaction. */
+	streamCheckpoints<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		options?: GrpcStreamCheckpointsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Frames>> {
+		return this.core.streamCheckpoints(options);
+	}
+
+	/** See `CoreClient.streamTransactions`. `grpcFilter` replaces `filter` with a native filter. */
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		options?: GrpcStreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include, Frames>> {
+		return this.core.streamTransactions(options);
+	}
+
+	/** See `CoreClient.streamEvents`. `grpcFilter` replaces `filter` with a native filter. */
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		options?: GrpcStreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
+		return this.core.streamEvents(options);
 	}
 }
