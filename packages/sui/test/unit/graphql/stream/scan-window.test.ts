@@ -6,26 +6,27 @@ import { describe, expect, it } from 'vitest';
 import type { Bound } from '../../../../src/client/stream/adapter.js';
 import {
 	boundaryPosition,
-	frontierPosition,
 	itemPosition,
-	type GraphQLPosition,
-} from '../../../../src/graphql/stream/position.js';
+	progressPosition,
+} from '../../../../src/client/stream/position.js';
+import { cursorBytes } from '../../../../src/graphql/stream/families.js';
 import { resolveScanWindow, type ScanWindow } from '../../../../src/graphql/stream/scan.js';
 
 const indexed = { first: 5n, tip: 20n };
 const item = (checkpoint: number) => ({
-	position: itemPosition(`c${checkpoint}`, BigInt(checkpoint), 'id'),
+	position: itemPosition(BigInt(checkpoint), {
+		cursor: cursorBytes(`c${checkpoint}`),
+		itemId: 'id',
+	}),
 });
-const frontier = (tip: number) => ({ position: frontierPosition('f', BigInt(tip)) });
-const boundary = (checkpoint: number) => ({ position: boundaryPosition(BigInt(checkpoint)) });
+const frontier = (tip: number) => ({
+	position: progressPosition(cursorBytes('f'), { indexedCheckpoint: BigInt(tip) }),
+});
+/** The boundary after `checkpoint`. */
+const boundary = (checkpoint: number) => ({ position: boundaryPosition(BigInt(checkpoint) + 1n) });
 const at = (checkpoint: number) => ({ checkpoint: BigInt(checkpoint) });
 
-type Row = [
-	string,
-	{ start?: Bound<GraphQLPosition>; end?: Bound<GraphQLPosition>; descending?: boolean },
-	ScanWindow,
-	boolean?,
-];
+type Row = [string, { start?: Bound; end?: Bound; descending?: boolean }, ScanWindow, boolean?];
 
 describe('resolveScanWindow', () => {
 	it.each<Row>([
@@ -85,32 +86,32 @@ describe('resolveScanWindow', () => {
 		expect(resolveScanWindow({ start, end, order }, indexed, onePerCheckpoint)).toEqual(window);
 	});
 
-	// Every position kind in every role and direction. Items and frontiers bound by their cursor;
-	// boundaries (with or without a pre-release cursor) bound by their checkpoint alone, like a
-	// checkpoint: as a low side they exclude everything through it, as a high side they include it.
+	// Every position kind in every role and direction. Items and progress bound by their cursor;
+	// boundaries (with or without a cursor) bound by their checkpoint alone, like a checkpoint: as a
+	// low side they exclude everything through it, as a high side they include it.
 	const kinds = {
-		item: { position: itemPosition('i', 12n, 'id') },
+		item: { position: itemPosition(12n, { cursor: cursorBytes('i'), itemId: 'id' }) },
 		boundary: boundary(12),
-		'pre-release boundary': { position: { ...boundaryPosition(12n), cursor: 'b' } },
-		frontier: { position: frontierPosition('f', 12n) },
+		'boundary with a cursor': { position: boundaryPosition(13n, { cursor: cursorBytes('b') }) },
+		frontier: frontier(12),
 	};
 	type Kind = keyof typeof kinds;
 	it.each<[Kind, 'start' | 'end', 'ascending' | 'descending', ScanWindow]>([
 		['item', 'start', 'ascending', { lower: 12n, upper: 21n, after: 'i' }],
 		['boundary', 'start', 'ascending', { lower: 13n, upper: 21n }],
-		['pre-release boundary', 'start', 'ascending', { lower: 13n, upper: 21n }],
+		['boundary with a cursor', 'start', 'ascending', { lower: 13n, upper: 21n }],
 		['frontier', 'start', 'ascending', { lower: 0n, upper: 21n, after: 'f' }],
 		['item', 'end', 'ascending', { lower: 8n, upper: 21n, before: 'i', target: 12n }],
 		['boundary', 'end', 'ascending', { lower: 8n, upper: 13n, target: 12n }],
-		['pre-release boundary', 'end', 'ascending', { lower: 8n, upper: 13n, target: 12n }],
+		['boundary with a cursor', 'end', 'ascending', { lower: 8n, upper: 13n, target: 12n }],
 		['frontier', 'end', 'ascending', { lower: 8n, upper: 21n, before: 'f', target: 12n }],
 		['item', 'start', 'descending', { lower: 5n, upper: 21n, before: 'i' }],
 		['boundary', 'start', 'descending', { lower: 5n, upper: 13n }],
-		['pre-release boundary', 'start', 'descending', { lower: 5n, upper: 13n }],
+		['boundary with a cursor', 'start', 'descending', { lower: 5n, upper: 13n }],
 		['frontier', 'start', 'descending', { lower: 5n, upper: 21n, before: 'f' }],
 		['item', 'end', 'descending', { lower: 12n, upper: 17n, after: 'i' }],
 		['boundary', 'end', 'descending', { lower: 13n, upper: 17n }],
-		['pre-release boundary', 'end', 'descending', { lower: 13n, upper: 17n }],
+		['boundary with a cursor', 'end', 'descending', { lower: 13n, upper: 17n }],
 		['frontier', 'end', 'descending', { lower: 0n, upper: 17n, after: 'f' }],
 	])('a %s as %s, %s', (kind, role, order, window) => {
 		// The other bound is a plain checkpoint: from 8 up, or from 16 down to after 4.
@@ -132,9 +133,7 @@ describe('resolveScanWindow', () => {
 		expect(resolveScanWindow({ ...bounds, order: 'ascending' }, indexed, true)).toEqual(window);
 	});
 
-	it.each<
-		[string, { start?: Bound<GraphQLPosition>; end?: Bound<GraphQLPosition>; descending?: boolean }]
-	>([
+	it.each<[string, { start?: Bound; end?: Bound; descending?: boolean }]>([
 		['an ascending start below the oldest checkpoint', { start: at(4) }],
 		['an item start below the oldest checkpoint', { start: item(4) }],
 		['a boundary start below the oldest checkpoint', { start: boundary(3) }],
