@@ -17,14 +17,8 @@ import {
 } from './token.js';
 
 /**
- * Stream planning, in the order the core runs it:
- *
- * 1. `decodeStreamTokens`, `resolveTraversal` and `prepareStream` run before any request. They
- *    validate options and tokens, decode token positions, and reject reversed bounds that are
- *    known without the indexed tip.
- * 2. `assertTokensCompatible` checks tokens against the resolved identity.
- * 3. `planStream` reads the indexed tip at most once and fixes the range. Bounds that depend on
- *    the tip are checked there and fail with a non-retryable `InvalidOptions`.
+ * Stream planning. Everything before `planStream` makes no request, so option and token errors
+ * surface before any retryable failure; `planStream` reads the indexed tip at most once.
  */
 
 /** finite: scan to the end. poll: scan to the tip repeatedly. follow: the adapter's live handoff. */

@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Abort ownership for streams: `abortableAsyncGenerator` owns one controller per iteration. It
- * links the caller's signal to that controller and aborts it when the generator finishes, throws,
- * or is returned. Everything below the generator (requests, sleeps, nested iterators) uses that
- * signal and never needs its own cleanup for cancellation.
+ * `abortableAsyncGenerator` owns one controller per iteration and aborts it whenever the generator
+ * ends, so work below it needs no cancellation cleanup of its own.
  */
 
 /** A controller that aborts when `signal` aborts. Call `dispose` to detach from `signal`. */
@@ -56,11 +54,7 @@ export function abortableAsyncGenerator<T>(
 /** The longest delay `setTimeout` supports; larger values fire after 1 ms. */
 const MAX_TIMEOUT = 2 ** 31 - 1;
 
-/**
- * Resolves after `delay` ms or rejects with the abort reason. Removes its timer and listener.
- * Delays longer than `setTimeout` supports are waited out in chained timers; `Infinity` waits
- * until the signal aborts.
- */
+/** Resolves after `delay` ms (`Infinity` waits for the abort) or rejects with the abort reason. */
 export function sleep(delay: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		if (signal.aborted) return reject(signal.reason);

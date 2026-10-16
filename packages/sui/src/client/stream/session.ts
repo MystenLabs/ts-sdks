@@ -27,16 +27,9 @@ const COMPLETION_REASON = {
 } as const;
 
 /**
- * The committed state of one stream, shared by every attempt.
- *
- * - `committed`: the last delivered position (an item, a progress position or a baseline).
- *   Every token is built from it, and every reconnect resumes from it.
- * - `covered` (ascending only): every matching item at checkpoints up to it was delivered.
- * - `lastItem`: the last delivered item.
- *
- * Every Item and Progress event, from a scan or a live feed, goes through `#isStale` and then
- * `#commit`. That pair is what makes delivery exactly-once across reconnects, overlapping gap
- * scans and live feeds that repeat or reorder.
+ * The committed state of one stream, shared by every attempt. Tokens and reconnects use the
+ * committed position. Every event goes through `#isStale` then `#commit`, which keeps delivery
+ * exactly-once across reconnects, overlapping gap scans and repeating live feeds.
  */
 export class StreamSession<P, Item, Frame extends { resumeToken: string }> implements FollowSession<
 	P,

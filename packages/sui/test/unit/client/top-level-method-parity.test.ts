@@ -13,8 +13,7 @@ import { SuiGrpcClient } from '../../../src/grpc/client.js';
  * `createLedgerStreamAdapter` are internal hooks rather than something application code reaches
  * for.
  *
- * The ledger stream methods are forwarded by the transport PRs that implement them (gRPC options
- * add `grpcFilter`); remove them from this set when those forwards land.
+ * The ledger stream methods are not forwarded yet; remove them once the transport clients do.
  */
 const CORE_ONLY_METHODS = new Set([
 	'resolveTransactionPlugin',

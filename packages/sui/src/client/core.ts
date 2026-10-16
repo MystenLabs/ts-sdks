@@ -186,9 +186,8 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	}
 
 	/**
-	 * Transports that support ledger streams return their adapter for `request`. Called lazily on
-	 * the stream's first `next()`; it must not perform I/O. The default reports that this client
-	 * cannot stream, so subclasses without stream support still compile and fail clearly.
+	 * Returns the transport's stream adapter. Called on the stream's first `next()`; must not do I/O.
+	 * The default throws, for transports without stream support.
 	 */
 	protected createLedgerStreamAdapter(_request: LedgerStreamRequest): AnyLedgerStreamAdapter {
 		throw new SuiStreamError(
