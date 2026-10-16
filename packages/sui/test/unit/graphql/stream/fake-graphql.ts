@@ -36,6 +36,11 @@ export interface FakeServer {
 	tip: number | null;
 	/** Oldest retained checkpoint. */
 	first: number;
+	/**
+	 * Oldest retained checkpoint of the index behind each filter field, where it differs from
+	 * `first`. Without `filters`, the server answers the strictest of all of them.
+	 */
+	retention: Record<string, number>;
 	requests: SentRequest[];
 	on(operation: string, ...answers: Answer[]): FakeServer;
 	/** Variables of every request for `operation`, in order. */
@@ -48,6 +53,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		client: undefined as never,
 		tip: options.tip ?? 10,
 		first: options.first ?? 0,
+		retention: {},
 		requests: [],
 		on(operation, ...answers) {
 			scripts.set(operation, answers);
@@ -63,7 +69,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		const operation = /(?:query|subscription)\s+(\w+)/.exec(body.query)![1];
 		const request = { operation, variables: body.variables ?? {}, signal: init!.signal! };
 		server.requests.push(request);
-		if (operation === 'ledgerStreamState') return stateResponse(server);
+		if (operation === 'ledgerStreamState') return stateResponse(server, request.variables.filters);
 		const script = scripts.get(operation);
 		if (!script?.length) throw new Error(`Unexpected ${operation}`);
 		const answer = script.length > 1 ? script.shift()! : script[0];
@@ -77,13 +83,16 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 	return server;
 }
 
-function stateResponse(server: FakeServer) {
+function stateResponse(server: FakeServer, filters: string[] | undefined) {
+	const floors = filters
+		? filters.map((filter) => server.retention[filter] ?? server.first)
+		: Object.values(server.retention);
 	return Response.json({
 		data: {
 			chainIdentifier: 'chain',
 			serviceConfig: {
 				availableRange: {
-					first: { sequenceNumber: server.first },
+					first: { sequenceNumber: Math.max(server.first, ...floors) },
 					last: server.tip === null ? null : { sequenceNumber: server.tip },
 				},
 			},

@@ -210,6 +210,52 @@ describe('historical scan', () => {
 		expect(server.sent('scanCheckpoints')).toHaveLength(0);
 	});
 
+	it('reads newest first down to the oldest retained checkpoint, then fails with HistoryUnavailable', async () => {
+		const server = fakeGraphQL({ tip: 12, first: 11 }).on(
+			'scanCheckpoints',
+			page('checkpoints', [checkpoint(11), checkpoint(12)]),
+		);
+		const source = stream(server.client, 'checkpoints', {
+			order: 'descending',
+			retry: { ...noDelay, maxAttempts: 0 },
+		});
+		const labels: string[] = [];
+		const error = await rejection(
+			(async () => {
+				for await (const frame of source) labels.push(label(frame));
+			})(),
+		);
+		expect(labels).toEqual(['12', '11']);
+		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'HistoryUnavailable' });
+		expect(server.sent('scanCheckpoints')[0].filter).toMatchObject({ afterCheckpoint: 10 });
+	});
+
+	it('checks retention against the indexes its own filter reads', async () => {
+		const server = fakeGraphQL({ tip: 20 });
+		// Only the affected-address index has pruned anything.
+		server.retention = { affectedAddress: 15 };
+		server.on('scanTransactions', page('transactions', [transaction(10)]));
+		const frames = await collect(
+			stream(server.client, 'transactions', {
+				start: { checkpoint: 10 },
+				end: { checkpoint: 11 },
+				retry: { ...noDelay, maxAttempts: 0 },
+			}),
+		);
+		expect(frames.map(label)).toEqual(['tx10']);
+		expect(server.sent('ledgerStreamState').at(-1)?.filters).toEqual([]);
+
+		const sender = `0x${'5'.padStart(64, '0')}`;
+		await collect(
+			stream(server.client, 'transactions', {
+				start: { checkpoint: 10 },
+				end: { checkpoint: 11 },
+				filter: { sender },
+			}),
+		);
+		expect(server.sent('ledgerStreamState').at(-1)?.filters).toEqual(['sentAddress']);
+	});
+
 	it('waits for a future exclusive end even when nothing matches', async () => {
 		const server = fakeGraphQL({ tip: 1 });
 		server.on(
@@ -658,6 +704,51 @@ describe('live handoff', () => {
 		);
 		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 3);
 		expect(frames.map(label)).toEqual(['10:0', '10:1', '11:0']);
+	});
+
+	it('retries a failed handoff without waiting for a quiet feed to send something', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'scanEvents',
+			page('events', [], { cursor: 'history:boundary:10' }),
+			httpStatus(503), // the handoff replay
+			page('events', [event(11)]),
+		);
+		server.on(
+			'subscribeEvents',
+			after(() => (server.tip = 11), live('events', [])),
+		);
+		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 1);
+		// The retry read history again instead of hanging in cleanup.
+		expect(frames.map(label)).toEqual(['11:0']);
+		expect(server.sent('scanEvents')).toHaveLength(3);
+	});
+
+	it('replays through a first live checkpoint whose handoff replay failed, on a quiet next feed', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'scanEvents',
+			page('events', [], { cursor: 'history:boundary:10' }),
+			after(() => (server.tip = 12), page('events', [], { cursor: 'history:boundary:11' })),
+			httpStatus(503), // replaying through the first live item's checkpoint, 13
+			// The index reaches 13 only after the next handoff has read its tip.
+			after(
+				() => setTimeout(() => (server.tip = 13), 50),
+				page('events', [], { cursor: 'history:boundary:12' }),
+			),
+			page('events', [event(13)]),
+		);
+		server.on(
+			'subscribeEvents',
+			after(() => (server.tip = 11), live('events', [event(13, 0, { source: 'live' })])),
+			// The replacement feed opens after 13 and nothing else matches.
+			live('events', []),
+		);
+		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 1);
+		expect(frames.map(label)).toEqual(['13:0']);
+		expect(server.sent('scanEvents').at(-1)).toMatchObject({
+			filter: { beforeCheckpoint: 14 },
+		});
 	});
 
 	it('subscribes with the caller filter and selection but never with after or afterCheckpoint', async () => {
