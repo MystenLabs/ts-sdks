@@ -30,11 +30,17 @@ import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { Deferred, RpcError } from '@protobuf-ts/runtime-rpc';
 import type { MethodInfo, RpcMetadata, RpcStatus } from '@protobuf-ts/runtime-rpc';
 
-import { toNetworkRpcError } from './network-error.js';
+import { isAbortError, toNetworkRpcError } from './network-error.js';
 import { markNonRetryable } from './pull-call.js';
 import type { ServerStreamingIterableCall } from './pull-call.js';
 
 export const DEFAULT_MAX_RESPONSE_MESSAGE_BYTES = 64 * 1024 * 1024;
+
+/**
+ * Largest trailer frame accepted. Trailers are status metadata, not response messages, so
+ * `maxResponseMessageBytes` does not apply to them; this bounds what a trailer can buffer instead.
+ */
+export const MAX_TRAILER_BYTES = 1024 * 1024;
 
 const code = (status: GrpcStatusCode) => GrpcStatusCode[status];
 
@@ -144,15 +150,24 @@ const CHAR_BATCH = 8192;
 export class GrpcWebFrameDecoder {
 	readonly #text: boolean;
 	readonly #maxMessageBytes: number;
+	readonly #maxTrailerBytes: number;
 	#bytes = new ByteQueue();
 	#base64 = '';
 	#sawData = false;
 	#sawTrailer = false;
 
-	/** `contentType` is the response's; it selects the binary or base64 text format. */
-	constructor(contentType: string | null, maxMessageBytes: number) {
+	/**
+	 * `contentType` is the response's; it selects the binary or base64 text format.
+	 * `maxMessageBytes` bounds data frames and `maxTrailerBytes` the trailer frame.
+	 */
+	constructor(
+		contentType: string | null,
+		maxMessageBytes: number,
+		maxTrailerBytes = MAX_TRAILER_BYTES,
+	) {
 		this.#text = isTextFormat(contentType);
 		this.#maxMessageBytes = maxMessageBytes;
+		this.#maxTrailerBytes = maxTrailerBytes;
 	}
 
 	push(chunk: Uint8Array): void {
@@ -169,7 +184,8 @@ export class GrpcWebFrameDecoder {
 
 	/**
 	 * The next complete frame, or `undefined` until more bytes arrive. A frame whose declared size
-	 * is over the limit is rejected as soon as its 5-byte prefix is buffered.
+	 * is over its limit (the message limit for data, the trailer limit for a trailer) is rejected as
+	 * soon as its 5-byte prefix is buffered.
 	 */
 	next(): GrpcWebResponseFrame | undefined {
 		const bytes = this.#bytes;
@@ -189,11 +205,13 @@ export class GrpcWebFrameDecoder {
 				(bytes.byteAt(3) << 8) |
 				bytes.byteAt(4)) >>>
 			0;
-		if (length > this.#maxMessageBytes) {
-			// The same message would be sent again on retry, so it is not retryable.
+		const isData = flag === GrpcWebFrame.DATA;
+		const limit = isData ? this.#maxMessageBytes : this.#maxTrailerBytes;
+		if (length > limit) {
+			// The same frame would be sent again on retry, so it is not retryable.
 			throw markNonRetryable(
 				new RpcError(
-					`grpc-web frame of ${length} bytes exceeds the ${this.#maxMessageBytes} byte limit`,
+					`grpc-web ${isData ? 'frame' : 'trailer'} of ${length} bytes exceeds the ${limit} byte limit`,
 					code(GrpcStatusCode.RESOURCE_EXHAUSTED),
 				),
 			);
@@ -201,7 +219,7 @@ export class GrpcWebFrameDecoder {
 		if (bytes.length - 5 < length) return undefined;
 		bytes.take(5);
 		const data = bytes.take(length);
-		if (flag === GrpcWebFrame.DATA) {
+		if (isData) {
 			this.#sawData = true;
 			return { type: 'data', data };
 		}
@@ -552,17 +570,21 @@ export class GrpcWebPullCall<
 		this.#controller.abort(error);
 	}
 
+	/** Drops the body and any bytes buffered from it, so an ended call retains neither. */
 	#release(): void {
 		this.#userSignal?.removeEventListener('abort', this.#onUserAbort);
 		const reader = this.#reader;
 		this.#reader = undefined;
+		this.#decoder = undefined;
 		cancelQuietly(reader);
 	}
 
 	#toError(reason: unknown): RpcError {
 		let error: RpcError;
 		if (reason instanceof RpcError) error = reason;
-		else if (this.#controller.signal.aborted) {
+		// `toNetworkRpcError` passes an `AbortError` through even when this call's signal has not
+		// aborted: a custom fetch may combine that signal with its own.
+		else if (this.#controller.signal.aborted || isAbortError(reason)) {
 			error = new RpcError(reasonMessage(reason), code(GrpcStatusCode.CANCELLED));
 		} else {
 			error = new RpcError(

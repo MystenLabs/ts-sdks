@@ -154,6 +154,26 @@ describe('GrpcWebFrameDecoder', () => {
 		expect(isNonRetryable(error)).toBe(true);
 	});
 
+	it('does not apply the message limit to trailers', () => {
+		// A 2-byte message at an 8-byte limit, followed by the standard 15-byte OK trailer.
+		expect(decode([data(1, 2), ok], { max: 8 })).toEqual([
+			{ type: 'data', data: new Uint8Array([1, 2]) },
+			{ type: 'trailer', status: { code: 'OK', detail: 'OK' }, meta: {} },
+		]);
+	});
+
+	it('bounds trailers by their own limit, as non-retryable', () => {
+		const decoder = new GrpcWebFrameDecoder(BINARY, 1024, ok.length - 6);
+		decoder.push(ok);
+		const error = failure(() => decoder.next());
+		expect(error.code).toBe('RESOURCE_EXHAUSTED');
+		expect(error.message).toBe(
+			`grpc-web trailer of ${ok.length - 5} bytes exceeds the ${ok.length - 6} byte limit`,
+		);
+		expect(isNonRetryable(error)).toBe(true);
+		expect(decode([ok], { max: 0 })).toHaveLength(1);
+	});
+
 	it('accepts a frame exactly at the limit', () => {
 		expect(
 			decode([data(...new Array(ok.length - 5).fill(1)), ok], { max: ok.length - 5 }),
