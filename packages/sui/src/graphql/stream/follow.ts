@@ -9,11 +9,18 @@ import type {
 	LiveEvent,
 } from '../../client/stream/adapter.js';
 import { StreamDisconnected } from '../../client/stream/errors.js';
+import { boundaryPosition, progressPosition } from '../../client/stream/index.js';
 import { linkedAbortController } from '../../utils/abort.js';
-import type { LedgerFamily, LedgerItem, ResumePoint } from './families.js';
-import { boundaryPosition, isBoundary, itemPosition, type GraphQLPosition } from './position.js';
+import {
+	cursorBytes,
+	cursorString,
+	edgePosition,
+	type LedgerFamily,
+	type LedgerItem,
+	type ResumePoint,
+} from './families.js';
 
-type Session<Node> = FollowSession<GraphQLPosition, LedgerItem<Node>, ItemFrame>;
+type Session<Node> = FollowSession<LedgerItem<Node>, ItemFrame>;
 
 /**
  * Subscribes after the resume point; the server backfills from there and then goes live.
@@ -26,11 +33,11 @@ export async function* followLedger<Node>(
 	// A subscription resumed below the server's retention fails without saying why, so away from
 	// the live tip history is paged first, and its first page checks retention.
 	if (session.catchesUpFirst()) yield* session.replay('tip', 'history');
-	// A stream anchored at the tip has nothing committed. Filtered subscriptions report no progress,
-	// so commit the anchor for a token before the first match.
+	// A stream anchored at the tip has nothing committed: commit the anchor, so a token exists
+	// before the subscription reports anything.
 	const start = session.start;
-	if (!session.committed && start && 'checkpoint' in start && start.checkpoint > 0n) {
-		yield* session.baseline(boundaryPosition(start.checkpoint - 1n));
+	if (!session.committed && start && 'checkpoint' in start) {
+		yield* session.baseline(boundaryPosition(start.checkpoint));
 	}
 
 	// Closing must not wait for a quiet feed's pending read: abort it first.
@@ -39,7 +46,7 @@ export async function* followLedger<Node>(
 		liveEvents(family, attempt.controller.signal, resumePoint(session.start)),
 	);
 	try {
-		// Filtered subscriptions report no progress, so `Live` waits for the first item.
+		// `Live` once the subscription reports its first item or progress.
 		await feed.first();
 		yield* session.deliver(feed);
 	} finally {
@@ -49,17 +56,17 @@ export async function* followLedger<Node>(
 	}
 }
 
-function resumePoint(start: Bound<GraphQLPosition> | undefined): ResumePoint {
+/** A position with a cursor resumes after it; a boundary without one, from its checkpoint. */
+function resumePoint(start: Bound | undefined): ResumePoint {
 	if (!start) return {};
 	if ('checkpoint' in start) return { start: start.checkpoint };
-	const { position } = start;
-	if (isBoundary(position)) return { start: position.checkpoint! + 1n };
-	return { after: position.cursor };
+	const { cursor, checkpoint } = start.position;
+	return cursor ? { after: cursorString(cursor) } : { start: checkpoint! };
 }
 
 /**
- * Live item events.
- * @yields `Connected` once the subscription opens, then one item event per edge.
+ * Live events: items, and progress for the edges without a node.
+ * @yields `Connected` once the subscription opens, then one event per edge.
  * @throws {StreamDisconnected} for an item without a checkpoint, so the next connection resumes
  * before it and the server backfills it from the index.
  */
@@ -67,22 +74,26 @@ async function* liveEvents<Node>(
 	family: LedgerFamily<Node>,
 	signal: AbortSignal,
 	resume: ResumePoint,
-): AsyncGenerator<LiveEvent<GraphQLPosition, LedgerItem<Node>>> {
+): AsyncGenerator<LiveEvent<LedgerItem<Node>>> {
 	let opened!: () => void;
 	const open = new Promise<void>((resolve) => (opened = resolve));
 	const edges = family.subscribe(signal, resume, opened)[Symbol.asyncIterator]();
 	try {
 		const first = edges.next();
-		// A filtered subscription can stay quiet for a long time after it opens.
+		// A filtered subscription can stay quiet for a while after it opens.
 		await Promise.race([open, first]);
 		yield { $kind: 'Connected' };
 		for (let result = await first; !result.done; result = await edges.next()) {
 			const { node, cursor } = result.value;
+			if (node === null) {
+				yield { $kind: 'Progress', position: progressPosition(cursorBytes(cursor)) };
+				continue;
+			}
 			const checkpoint = family.checkpoint(node);
 			if (checkpoint === null) throw new StreamDisconnected('Live item has no checkpoint');
 			yield {
 				$kind: 'Item',
-				position: itemPosition(cursor, checkpoint, family.identity(node)),
+				position: edgePosition(family, { cursor, node }, checkpoint),
 				item: { node, checkpoint },
 			};
 		}
