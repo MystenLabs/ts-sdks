@@ -9,6 +9,7 @@ import {
 	assertTokensCompatible,
 	decodeStreamTokens,
 	planStream,
+	prepareStream,
 	resolveTraversal,
 	type StreamPlan,
 } from './plan.js';
@@ -44,10 +45,12 @@ async function* runStream<P, Item, Frame extends { resumeToken: string }>(
 	status: StatusReporter,
 	signal: AbortSignal,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
-	// Option and token errors surface before any request.
+	// Everything that needs no network is validated before the first request, so a failing or
+	// retrying request can never hide an option or token error.
 	const tokens = decodeStreamTokens(options);
 	const traversal = resolveTraversal(options, tokens);
 	const retry = new RetryBudget(options.retry);
+	const prepared = prepareStream(traversal, tokens, adapter);
 
 	/** Waits before the next attempt, or throws when `error` ends the stream. */
 	async function backOff(error: unknown, advanced: boolean) {
@@ -69,9 +72,8 @@ async function* runStream<P, Item, Frame extends { resumeToken: string }>(
 	const identity = await withRetries(() => adapter.initialize(signal));
 	if (!identity.chain) throw new SuiStreamError('Protocol', 'Stream chain identity is missing');
 	assertTokensCompatible(tokens, identity, adapter);
-	const plan = await planStream(traversal, tokens, adapter, () =>
-		withRetries(() => adapter.indexedTip(signal)),
-	);
+	// Bounds that depend on the tip fail here with `InvalidOptions`, outside the retry loop.
+	const plan = await planStream(prepared, () => withRetries(() => adapter.indexedTip(signal)));
 	const session = new StreamSession({
 		plan,
 		identity,

@@ -10,6 +10,8 @@ import {
 	fakeAdapter,
 	ids,
 	Ledger,
+	NetworkError,
+	statusLog,
 	stream,
 	take,
 	tokenOf,
@@ -92,16 +94,82 @@ describe('option errors', () => {
 	});
 
 	it.each([
-		['transport', { transport: 'grpc' }],
-		['family', { family: 'transactions' }],
-		['chain', { chain: 'other-chain' }],
-		['filter', { filter: { sender: '0x2' } }],
-	] as const)('rejects a token from another %s', async (_, identity) => {
+		['transport', { transport: 'grpc' }, 0],
+		['family', { family: 'transactions' }, 0],
+		// Only the chain and the resolved filter need the network.
+		['chain', { chain: 'other-chain' }, 1],
+		['filter', { filter: { sender: '0x2' } }, 1],
+	] as const)('rejects a token from another %s', async (_, identity, initialized) => {
 		const token = await followToken();
 		const adapter = fakeAdapter(tenCheckpoints(), identity);
 		const { error } = await failure({ start: { resumeToken: token } }, adapter);
 		expect(error.code).toBe('IncompatibleToken');
+		expect(adapter.calls.initialize).toBe(initialized);
 		expect(adapter.calls.scans).toHaveLength(0);
+	});
+
+	describe('rejects input that needs no network before the first request', () => {
+		/** An identity request that keeps failing: under the default budget it retries forever. */
+		const unreachable = (options: FakeOptions = {}) =>
+			fakeAdapter(tenCheckpoints(), {
+				...options,
+				initializeFaults: Array.from({ length: 1000 }, () => new NetworkError('offline')),
+			});
+
+		it.each<[string, () => Promise<Options>, string]>([
+			[
+				'reversed ascending checkpoints',
+				async () => ({ start: { checkpoint: 10 }, end: { checkpoint: 5 } }),
+				'InvalidOptions',
+			],
+			[
+				'reversed descending checkpoints',
+				async () => ({ order: 'descending', start: { checkpoint: 5 }, end: { checkpoint: 10 } }),
+				'InvalidOptions',
+			],
+			[
+				'reversed tokens',
+				async () => ({
+					start: { resumeToken: await tokenAt({ start: { checkpoint: 8 } }, 1, { live: [] }) },
+					end: { resumeToken: await followToken() },
+				}),
+				'InvalidOptions',
+			],
+		])('%s', async (_, options, code) => {
+			const { log, onStatus } = statusLog();
+			const adapter = unreachable();
+			const { error } = await failure(
+				{ ...(await options()), retry: { initialDelay: 0, maxDelay: 0, jitter: 0 }, onStatus },
+				adapter,
+			);
+			expect(error).toMatchObject({ name: 'SuiStreamError', code });
+			expect(adapter.calls.initialize).toBe(0);
+			expect(log).toEqual(['Error']);
+		});
+
+		it('a token position the codec rejects', async () => {
+			const token = await followToken();
+			const adapter = unreachable({
+				validate: () => {
+					throw new SuiStreamError('InvalidToken', 'not from this SDK');
+				},
+			});
+			const { error } = await failure({ start: { resumeToken: token } }, adapter);
+			expect(error).toMatchObject({ code: 'InvalidToken', message: 'not from this SDK' });
+			expect(adapter.calls.initialize).toBe(0);
+		});
+	});
+
+	it.each<[string, Options]>([
+		['an ascending start beyond the captured tip', { start: { checkpoint: 20 }, follow: false }],
+		['a descending end above the tip', { order: 'descending', end: { checkpoint: 20 } }],
+	])('rejects %s once the tip is known, without retrying', async (_, options) => {
+		const { log, onStatus } = statusLog();
+		const adapter = fakeAdapter(tenCheckpoints());
+		const { error } = await failure({ ...options, onStatus }, adapter);
+		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'InvalidOptions' });
+		expect(adapter.calls).toMatchObject({ initialize: 1, indexedTip: 1, scans: [] });
+		expect(log.filter((status) => status.startsWith('Retrying'))).toEqual([]);
 	});
 
 	it('rejects reversed bounds after resolving them', async () => {
