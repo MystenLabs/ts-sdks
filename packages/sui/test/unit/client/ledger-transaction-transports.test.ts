@@ -245,6 +245,32 @@ describe('ledger transaction data across transports', () => {
 		});
 	});
 
+	it('returns Unknown for a newer shared object mutability on both transports', async () => {
+		const [pure, shared] =
+			programmable.kind!.data.oneofKind === 'programmableTransaction'
+				? programmable.kind!.data.programmableTransaction.inputs
+				: [];
+		const grpcTx = transaction({
+			kind: Kind.PROGRAMMABLE_TRANSACTION,
+			data: {
+				oneofKind: 'programmableTransaction',
+				programmableTransaction: {
+					inputs: [pure, { ...shared, mutability: 99 as Input_Mutability }],
+					commands: [],
+				},
+			},
+		});
+		const json = GrpcTransaction.toJson(programmable) as {
+			kind: { programmableTransaction: { inputs: { mutability?: string }[] } };
+		};
+		json.kind.programmableTransaction.inputs[1].mutability = 'SOME_NEWER_MUTABILITY';
+		const [fromGrpc, fromGraphQL] = await readBoth(grpcTx, json);
+		expect(fromGraphQL).toEqual(fromGrpc);
+		expect(fromGrpc.kind).toEqual({ $kind: 'Unknown', Unknown: true });
+		expect(fromGrpc.inputs).toEqual([]);
+		expect(fromGrpc.sender).toBe(address);
+	});
+
 	it('returns null for a newer expiration kind on both transports', async () => {
 		const grpcTx = GrpcTransaction.create({
 			...programmable,
