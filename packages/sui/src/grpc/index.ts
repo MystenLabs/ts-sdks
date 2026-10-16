@@ -23,6 +23,11 @@ export type {
 	SuiGrpcClientOptions,
 } from './client.js';
 export type { GrpcCoreClientOptions } from './core.js';
+export type {
+	GrpcStreamCheckpointsOptions,
+	GrpcStreamEventsOptions,
+	GrpcStreamTransactionsOptions,
+} from './stream-types.js';
 
 // Subclasses `@protobuf-ts/grpcweb-transport`'s transport to fix its error handling.
 export { GrpcWebFetchTransport } from './transport.js';
