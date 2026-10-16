@@ -54,7 +54,7 @@ export function openLedgerCall<I extends object, O extends object>(
 	request: I,
 	options: LedgerCallOptions<O>,
 ): LedgerCall<O> {
-	const linked = linkedAbortController(options.signal);
+	const linked = { ...linkedAbortController(options.signal), stream: options.signal };
 	const queue = new BoundedQueue(options);
 	const pull = pullServerStreaming(transport);
 	if (pull) {
@@ -125,18 +125,21 @@ class BoundedQueue<T> {
 /** The shared half: a queue, a sticky end state, and cancellation. */
 abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 	protected readonly queue: BoundedQueue<T>;
-	readonly #linked: ReturnType<typeof linkedAbortController>;
+	readonly #linked: CallAbort;
+	readonly #onStreamAbort = () => this.#cancel(this.#linked.stream.reason);
 	#ended = false;
 	#returned = false;
 	#failure: unknown;
 	#wake: (() => void) | undefined;
 
-	constructor(queue: BoundedQueue<T>, linked: ReturnType<typeof linkedAbortController>) {
+	constructor(queue: BoundedQueue<T>, linked: CallAbort) {
 		this.queue = queue;
 		this.#linked = linked;
-		const signal = linked.controller.signal;
-		if (signal.aborted) this.#cancel(signal.reason);
-		else signal.addEventListener('abort', () => this.#cancel(signal.reason), { once: true });
+		// Listen to the stream signal itself: an overflow has already aborted the call's own
+		// controller, and a later stream abort must still cancel the call.
+		const { stream } = linked;
+		if (stream.aborted) this.#cancel(stream.reason);
+		else stream.addEventListener('abort', this.#onStreamAbort, { once: true });
 	}
 
 	[Symbol.asyncIterator]() {
@@ -164,7 +167,7 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 
 	/** Drops queued responses and fails later `next()` calls, even after the call has ended. */
 	#cancel(reason: unknown) {
-		if (this.#returned || isBufferOverflow(reason)) return;
+		if (this.#returned) return;
 		this.#ended = true;
 		this.#failure = reason;
 		this.queue.clear();
@@ -202,6 +205,7 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		this.queue.clear();
 		this.#linked.controller.abort();
 		this.#linked.dispose();
+		this.#linked.stream.removeEventListener('abort', this.#onStreamAbort);
 		await this.release();
 		return { done: true, value: undefined };
 	}
@@ -214,11 +218,7 @@ class PullLedgerCall<T> extends QueuedLedgerCall<T> {
 	#pumping = false;
 	#inflight: Promise<void> | undefined;
 
-	constructor(
-		responses: AsyncIterator<T>,
-		queue: BoundedQueue<T>,
-		linked: ReturnType<typeof linkedAbortController>,
-	) {
+	constructor(responses: AsyncIterator<T>, queue: BoundedQueue<T>, linked: CallAbort) {
 		super(queue, linked);
 		this.#responses = responses;
 	}
@@ -267,11 +267,7 @@ class PullLedgerCall<T> extends QueuedLedgerCall<T> {
 
 /** The transport pushes responses as they arrive; they go straight into the bounded queue. */
 class PushLedgerCall<T extends object> extends QueuedLedgerCall<T> {
-	constructor(
-		call: ServerStreamingCall<object, T>,
-		queue: BoundedQueue<T>,
-		linked: ReturnType<typeof linkedAbortController>,
-	) {
+	constructor(call: ServerStreamingCall<object, T>, queue: BoundedQueue<T>, linked: CallAbort) {
 		super(queue, linked);
 		// protobuf-ts's iterator, unlike `onNext`, replays responses delivered before the call was
 		// returned (for example by a caching interceptor).
@@ -300,6 +296,9 @@ class PushLedgerCall<T extends object> extends QueuedLedgerCall<T> {
 		}
 	}
 }
+
+/** The call's own controller, plus the stream signal it is linked to. */
+type CallAbort = ReturnType<typeof linkedAbortController> & { stream: AbortSignal };
 
 function ignoreRejections(promises: Promise<unknown>[]) {
 	for (const promise of promises) void promise.catch(() => {});
