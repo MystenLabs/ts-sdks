@@ -1,0 +1,309 @@
+---
+title: Resumable Ledger Streams
+description:
+  Read checkpoint, transaction, and event history, then follow live data with resumable streams
+---
+
+`streamCheckpoints`, `streamTransactions`, and `streamEvents` read ledger history in order and then
+follow new data. They are available on `SuiGrpcClient`, `SuiGraphQLClient`, and on `client.core` of
+either, with the same options and results. Each returns an async generator: requests start when
+iteration begins, and `for await...of` waits for each new frame.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+const controller = new AbortController();
+let count = 0;
+
+for await (const frame of client.streamCheckpoints({ signal: controller.signal })) {
+	console.log(frame.checkpoint.sequenceNumber, frame.resumeToken);
+	if (++count === 10) break;
+}
+```
+
+Leave the loop with `break` to close the stream. To stop while waiting for the next frame, call
+`controller.abort()`.
+
+Without a `start`, a stream follows from the current tip. `start: { checkpoint: 1000 }` replays from
+checkpoint 1000, including it, and then follows live data. The SDK pages through history, hands over
+to live delivery without gaps or duplicates, and reconnects after transient failures.
+
+`filter` takes the same `TransactionFilter` and `EventFilter` as `listTransactions` and
+`listEvents`, and `include` takes the same `TransactionInclude` as `listTransactions`. Every
+predicate you set must match. Checkpoint positions accept a string, number, or bigint. Shared types
+are in `SuiClientTypes` from `@mysten/sui/client`.
+
+A streamed item is the same as the item a list method returns. On GraphQL that includes the list
+limits: a transaction's `events` and `objectTypes` hold at most its first 50 events and object
+changes, as with `getTransaction` and `listTransactions`.
+
+`include: { transaction: true }` returns full ledger transaction data, including system transactions
+such as genesis. Inspect `frame.transaction.Transaction` or `frame.transaction.FailedTransaction`,
+then narrow `transaction.kind.$kind`; kinds this SDK version does not recognize are `Unknown`. See
+[transaction data](./executing.mdx#transaction-data).
+
+## Save and resume progress
+
+Each item frame has a `resumeToken`. Store it with the work done for that item, then pass it back as
+the start:
+
+```typescript
+import type { SuiClientTypes } from '@mysten/sui/client';
+
+async function processEvents(savedToken?: SuiClientTypes.StreamResumeToken) {
+	for await (const frame of client.streamEvents({
+		filter: { eventType: '0x123::example::Created' },
+		start: savedToken ? { resumeToken: savedToken } : { checkpoint: 1000 },
+		signal: controller.signal,
+	})) {
+		await database.transaction(async (db) => {
+			await db.processEvent(frame.event);
+			await db.saveResumeToken(frame.resumeToken);
+		});
+	}
+}
+```
+
+Commit each item's work and its token in one database transaction, or make processing idempotent so
+a replay after a crash is harmless.
+
+Tokens are opaque. Each is bound to the transport, chain, stream kind, and resolved filter that
+produced it, and to its direction and range. Resume with the same filter on the same transport; a
+token from another transport, chain, kind, or filter fails with `SuiStreamError` code
+`IncompatibleToken`. `include` and `frames` can change between runs.
+
+Tokens do not move between gRPC and GraphQL yet. To backfill with one transport and follow with the
+other, start the second stream at the checkpoint after the last one the first stream finished:
+`start: { checkpoint: lastCompleteCheckpoint + 1 }`. For transactions and events, a checkpoint is
+finished once an item from a later checkpoint arrives; items of that later checkpoint processed
+before the switch are delivered again.
+
+## Read a finite range
+
+Pass an `end` to stop once a range is covered:
+
+```typescript
+for await (const frame of client.streamEvents({
+	start: { checkpoint: 1000 },
+	end: { checkpoint: 2000 },
+	signal: controller.signal,
+})) {
+	console.log(frame.event);
+}
+```
+
+Checkpoint starts are inclusive and ends are exclusive, so this reads checkpoints 1000 through 1999.
+If the server has not indexed the end yet, the stream waits for it.
+
+To read the history available now and stop, set `follow: false`:
+
+```typescript
+client.streamTransactions({
+	start: { checkpoint: 1000 },
+	follow: false,
+	include: { effects: true, events: true },
+});
+```
+
+The indexed tip is read once and kept across retries and resumes.
+
+### Newest first
+
+```typescript
+client.streamTransactions({
+	filter: { sender: '0x123' },
+	order: 'descending',
+});
+```
+
+Descending reads start at the indexed tip unless given a `start`, move toward genesis, and are
+always finite. `follow: true` requires ascending order and no `end`.
+
+### Mapping to list query bounds
+
+Stream bounds follow the traversal direction, while `startCheckpoint` (inclusive) and
+`endCheckpoint` (exclusive) on the list methods always count upward:
+
+| Stream                                                                  | Equivalent list query bounds                                          |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `start: { checkpoint: N }, end: { checkpoint: M }`                      | `startCheckpoint: N, endCheckpoint: M`                                |
+| `order: 'descending', start: { checkpoint: N }, end: { checkpoint: M }` | `startCheckpoint: M + 1, endCheckpoint: N + 1`, `order: 'descending'` |
+
+### Exact cursor bounds
+
+Tokens can bound a range, for example to fill a gap between two items an application already holds:
+
+```typescript
+client.streamEvents({
+	filter,
+	start: { resumeToken: olderItemToken },
+	end: { resumeToken: newerItemToken },
+});
+```
+
+Both token bounds are exclusive, even within one checkpoint. For descending reads, `start` is the
+newer bound. A token in `end` contributes only its position; its direction and range do not apply.
+
+## Control frames
+
+By default a stream yields only items. `frames` adds control frames:
+
+```typescript
+for await (const frame of client.streamEvents({
+	start: { checkpoint: 1000 },
+	end: { checkpoint: 2000 },
+	frames: { completion: true, progress: true },
+})) {
+	switch (frame.$kind) {
+		case 'Event':
+			console.log(frame.event);
+			break;
+		case 'Progress':
+			await saveResumeToken(frame.resumeToken);
+			break;
+		case 'Complete':
+			console.log(frame.completion.reason, frame.completion.range);
+			break;
+	}
+}
+```
+
+- `completion` adds one `Complete` frame after a finite range finishes, with its range, direction,
+  reason, and the last resume token. Empty ranges complete too. Cancellation, failure, or leaving
+  the loop omits it.
+- `progress` adds `Progress` frames for resumable positions that no item reported, such as the end
+  of a history read with no matches, so sparse filters can save their place. `coveredCheckpoint` is
+  the last checkpoint fully delivered, when known. Save a progress token only after every earlier
+  item has been processed.
+
+## Live delivery
+
+Following streams use the server's live feed by default (`delivery: 'subscribe'`). With
+`delivery: 'poll'`, they repeat historical reads every `pollInterval` milliseconds instead, which
+adds up to that much latency. Finite reads always use historical reads.
+
+```typescript
+client.streamEvents({
+	start: { checkpoint: 1000 },
+	delivery: 'poll',
+	pollInterval: 1000,
+});
+```
+
+A following stream reads history up to the indexed tip, opens the live feed, replays history up to
+the feed's first item, and then delivers live frames. The `Live` status marks that switch: every
+frame after it is live. With polling, `Live` follows the first read that reaches the indexed tip.
+
+GraphQL live delivery uses [subscriptions](./graphql.mdx#subscriptions), and the provider must serve
+them. GraphQL subscriptions report nothing while no item matches, so:
+
+- A filtered GraphQL stream reports `Live` only when its first live item arrives.
+- Only `streamCheckpoints` can tell that the live feed skipped a checkpoint, and it reads the
+  missing checkpoints from history before continuing. Filtered transaction and event streams cannot
+  detect a skip after the handoff.
+
+Choose `delivery: 'poll'` on GraphQL when exact delivery for sparse filters matters more than
+latency.
+
+## Statuses and retries
+
+`onStatus` reports diagnostics synchronously. Its result is not awaited, and throwing from it ends
+the stream with that error. Store tokens from frames, never from statuses.
+
+| Status       | Meaning                                                                         |
+| ------------ | ------------------------------------------------------------------------------- |
+| `Connecting` | An attempt is starting. `attempt` counts consecutive failures without progress. |
+| `Connected`  | The first server response of this attempt.                                      |
+| `Page`       | A history page ended: `stage`, `end` (`limit`, `bound`, `indexedTip`).          |
+| `Recovering` | Reading history to close a gap before live delivery resumes.                    |
+| `Live`       | Every following frame is live.                                                  |
+| `Retrying`   | Waiting `delay` ms before reconnecting after `error`.                           |
+| `Error`      | The stream is about to throw `error`.                                           |
+
+```typescript
+client.streamEvents({
+	start: { checkpoint: 1000 },
+	retry: { initialDelay: 250, maxDelay: 30_000, jitter: 500, maxAttempts: 5 },
+	onStatus(status) {
+		if (status.$kind === 'Retrying') console.log(status.attempt, status.delay);
+	},
+});
+```
+
+Transient failures retry with exponential backoff and jitter; `maxAttempts` bounds consecutive
+failures without progress, and `maxAttempts: 0` disables retries. When a live connection ends after
+delivering data, the stream reconnects at once without counting a failure. Servers end long-lived
+streams on their own schedule (public mainnet fullnodes end gRPC streams every 30 seconds or so),
+and each reconnect resumes from the last delivered frame.
+
+`retry` bounds failures, not waiting. A stream waiting for an index to catch up, or for a sparse
+filter to match, can stay quiet indefinitely. Use a signal to bound the total time:
+
+```typescript
+client.streamEvents({
+	start: { checkpoint: 1000 },
+	end: { checkpoint: 2000 },
+	signal: AbortSignal.timeout(60_000),
+});
+```
+
+## Errors
+
+Transport errors are thrown unchanged once they are not retryable or the retry budget runs out:
+`RpcError` on gRPC, `SuiGraphQLRequestError` on GraphQL. GraphQL streams also throw
+`SuiGraphQLRequestError` for GraphQL response `errors`, with `retryable` set for transient error
+codes. Stream failures that are not transport errors throw `SuiStreamError` from
+`@mysten/sui/client`, with a `code`:
+
+| Code                 | Cause                                                                      |
+| -------------------- | -------------------------------------------------------------------------- |
+| `InvalidOptions`     | An option combination or bound was rejected before any request.            |
+| `InvalidToken`       | Not a resume token, or an unsupported or corrupted one.                    |
+| `IncompatibleToken`  | A token from another stream, or a changed direction or end on resume.      |
+| `HistoryUnavailable` | The server has pruned history the stream needs.                            |
+| `Protocol`           | The server broke a documented invariant, such as a page that did not move. |
+| `Disconnected`       | The live feed kept ending without progress until retries ran out.          |
+
+```typescript
+import { SuiStreamError } from '@mysten/sui/client';
+
+try {
+	for await (const frame of client.streamEvents({ start: { resumeToken: saved } })) {
+		await process(frame);
+	}
+} catch (error) {
+	if (error instanceof SuiStreamError && error.code === 'IncompatibleToken') {
+		// The saved token belongs to another chain, transport, or filter.
+	}
+	throw error;
+}
+```
+
+## Replay throughput
+
+Each history page is one request. Servers cap page sizes: gRPC fullnodes return at most 50
+checkpoints, 500 transactions, or 1,000 events per page, and GraphQL returns 50 items per page, so a
+GraphQL replay makes many more requests than a gRPC replay of the same range. Fullnodes serve a cold
+range at roughly three times the chain's own rate for an unfiltered transaction stream with every
+include. To replay faster, run disjoint checkpoint ranges concurrently; throughput scales almost
+linearly to at least eight streams.
+
+## gRPC options
+
+`SuiGrpcClient` streams accept `grpcFilter` in place of `filter` for generated gRPC filter
+expressions.
+
+With the default gRPC-web transport, a stream decodes messages only while your loop waits for the
+next frame, so a paused loop does not accumulate decoded data in memory. The one exception is the
+few seconds of the live handoff: while the stream replays history up to the first live item, it
+reads the live feed ahead into a queue of at most 1,024 items, and reconnects from the last
+delivered frame if that queue fills. `maxResponseMessageBytes` on `SuiGrpcClient` (default 64 MiB)
+limits one response message read this way; a larger message fails the stream with
+`RESOURCE_EXHAUSTED` and is not retried. It does not apply to unary calls or to calls made through
+`interceptors`.
+
+For arbitrary GraphQL selection sets, use [native subscriptions](./graphql.mdx#subscriptions).
