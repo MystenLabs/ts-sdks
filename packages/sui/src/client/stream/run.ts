@@ -17,13 +17,7 @@ import { RetryBudget } from './retry.js';
 import { StreamSession } from './session.js';
 import { StatusReporter } from './status.js';
 
-/**
- * A resumable ledger stream. Nothing runs, not even `createAdapter`, before the first `next()`.
- *
- * Startup validates options and tokens, resolves the stream identity, and plans the range once.
- * Each attempt then runs the plan's mode until it completes or fails; failures go through the
- * retry budget and resume from the committed position.
- */
+/** A resumable ledger stream. Nothing runs, not even `createAdapter`, before the first `next()`. */
 export function createLedgerStream<P, Item, Frame extends { resumeToken: string }>(
 	options: SuiClientTypes.StreamOptions<SuiClientTypes.StreamFrameOptions>,
 	createAdapter: () => LedgerStreamAdapter<P, Item, Frame>,

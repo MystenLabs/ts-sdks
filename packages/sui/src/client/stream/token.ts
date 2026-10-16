@@ -10,11 +10,8 @@ import type { Coverage, PositionCodec, StreamFamily, StreamTransport } from './a
 import { SuiStreamError } from './errors.js';
 
 /**
- * Resume token format: `sui-stream:` + base64(BCS envelope).
- *
- * The core owns the envelope; each transport owns its position bytes through its codec. Every
- * enum here is append-only. `coverage` is transport-neutral and reserved for resuming a token on
- * another transport later; today it only seeds deduplication when a stream resumes.
+ * Resume token format: `sui-stream:` + base64(BCS envelope). Every enum here is append-only.
+ * Position bytes belong to the transport's codec.
  */
 const TOKEN_PREFIX = 'sui-stream:';
 /** The exclusive end after the largest checkpoint is one more than a u64. */

@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * The internal contract between the shared ledger stream core and a transport.
- *
- * The core owns everything that must behave the same on every transport: tokens, range planning,
- * retries, deduplication, gap repair and status reporting. A transport supplies primitives: one
- * historical scan pass, a live feed, position ordering and a position codec. Its `follow()` is a
- * short, explicit sequence of handoff phases built from `FollowSession` helpers.
+ * Internal contract between the ledger stream core and a transport. The core owns tokens,
+ * planning, retries, deduplication and statuses so they match across transports; the adapter
+ * supplies scans, a live feed and position handling.
  */
 
 import type { BcsType } from '@mysten/bcs';
