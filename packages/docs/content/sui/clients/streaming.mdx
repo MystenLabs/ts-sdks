@@ -165,8 +165,11 @@ client.streamEvents({
 });
 ```
 
-Both token bounds are exclusive, even within one checkpoint. For descending reads, `start` is the
-newer bound. A token in `end` contributes only its position; its direction and range do not apply.
+Both token bounds are exclusive, even within one checkpoint. An item's token excludes that item. A
+`Progress` token with a `coveredCheckpoint` stands for the point after that checkpoint, as a
+checkpoint bound does: as a `start` it resumes after the checkpoint, and as an `end` it includes
+everything through it. For descending reads, `start` is the newer bound. A token in `end`
+contributes only its position; its direction and range do not apply.
 
 ## Control frames
 

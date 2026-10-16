@@ -408,10 +408,8 @@ describe('resumable empty passes', () => {
 		);
 		expect(frames.map(label)).toEqual(['1:0', 'Progress', '101:0']);
 		expect(frames[1]).toMatchObject({ coveredCheckpoint: '100' });
-		expect(server.sent('scanEvents')[1]).toMatchObject({
-			after: event(1).cursor,
-			filter: { afterCheckpoint: 100 },
-		});
+		expect(server.sent('scanEvents')[1]).toMatchObject({ filter: { afterCheckpoint: 100 } });
+		expect(server.sent('scanEvents')[1].after).toBeUndefined();
 	});
 
 	it('does not skip what a lagging replica had not indexed when it answered', async () => {
@@ -446,6 +444,71 @@ describe('resumable empty passes', () => {
 		);
 		expect(frames.map(label)).toEqual(['10', '9', '8', '7']);
 		expect(server.sent('scanCheckpoints')).toHaveLength(2);
+	});
+
+	it('resumes after what a lagging replica answering a later ascending page had indexed', async () => {
+		const server = fakeGraphQL({ tip: 100 });
+		server.on(
+			'scanEvents',
+			page('events', [event(90)], { more: true }),
+			page('events', [], { viewedAt: 92 }),
+			page('events', [event(95)]),
+		);
+		const frames = await take(
+			stream(server.client, 'events', { start: { checkpoint: 90 }, delivery: 'poll' }),
+			2,
+		);
+		expect(frames.map(label)).toEqual(['90:0', '95:0']);
+		expect(server.sent('scanEvents')[2].filter).toMatchObject({ afterCheckpoint: 92 });
+	});
+
+	it('reads a descending range again when a later page comes from a lagging replica', async () => {
+		const server = fakeGraphQL({ tip: 100 });
+		const checkpoints = (from: number, to: number) =>
+			Array.from({ length: to - from + 1 }, (_, i) => checkpoint(from + i));
+		server.on(
+			'scanCheckpoints',
+			page('checkpoints', checkpoints(96, 100), { more: true }),
+			// A replica indexed only through 90 answers the next page.
+			page('checkpoints', checkpoints(90, 90), { viewedAt: 90 }),
+			page('checkpoints', checkpoints(90, 95)),
+		);
+		const frames = await collect(
+			stream(server.client, 'checkpoints', {
+				order: 'descending',
+				start: { checkpoint: 100 },
+				end: { checkpoint: 89 },
+			}),
+		);
+		expect(frames.map(label)).toEqual(Array.from({ length: 11 }, (_, i) => String(100 - i)));
+		// The retry continued below the last delivered checkpoint.
+		expect(server.sent('scanCheckpoints')[2].before).toBe(checkpoint(96).cursor);
+	});
+
+	it('includes everything through a progress token used as an end', async () => {
+		const seed = fakeGraphQL({ tip: 100 }).on('scanEvents', page('events', [event(90)]));
+		const [, progress] = await collect(
+			stream(seed.client, 'events', {
+				start: { checkpoint: 90 },
+				end: { checkpoint: 101 },
+				frames: { progress: true },
+			}),
+		);
+		expect(progress).toMatchObject({ $kind: 'Progress', coveredCheckpoint: '100' });
+
+		const server = fakeGraphQL({ tip: 200 }).on('scanEvents', page('events', [event(90)]));
+		const frames = await collect(
+			stream(server.client, 'events', {
+				start: { checkpoint: 90 },
+				end: { resumeToken: token(progress) },
+				frames: { completion: true },
+			}),
+		);
+		expect(frames.map(label)).toEqual(['90:0', 'Complete']);
+		expect(server.sent('scanEvents')).toEqual([
+			expect.objectContaining({ filter: { afterCheckpoint: 89, beforeCheckpoint: 101 } }),
+		]);
+		expect(server.sent('scanEvents')[0].before).toBeUndefined();
 	});
 
 	it('gives a quiet fresh follow a resume token at its tip anchor', async () => {
@@ -495,9 +558,9 @@ describe('resumable empty passes', () => {
 		);
 		expect(frames.map(label)).toEqual(['3:0']);
 		expect(server.sent('scanEvents')[1]).toMatchObject({
-			after: 'history:boundary:1',
 			filter: { afterCheckpoint: 1, beforeCheckpoint: 4 },
 		});
+		expect(server.sent('scanEvents')[1].after).toBeUndefined();
 	});
 
 	it('gives a completed empty finite scan a progress token, like gRPC', async () => {
@@ -600,9 +663,9 @@ describe('polling', () => {
 		expect(server.sent('scanEvents')).toHaveLength(2);
 		// It resumes after everything the empty pass read, not from its own start.
 		expect(server.sent('scanEvents')[1]).toMatchObject({
-			after: 'history:boundary',
 			filter: { afterCheckpoint: 10, beforeCheckpoint: 12 },
 		});
+		expect(server.sent('scanEvents')[1].after).toBeUndefined();
 	});
 
 	it('waits for a future descending start to be indexed', async () => {
@@ -725,9 +788,10 @@ describe('live handoff', () => {
 		expect(frames.map(label)).toEqual(['0', '1', '2', '3', '4']);
 		// Genesis and the gap come from history; the subscription never backfills.
 		expect(server.sent('subscribeCheckpoints')).toEqual([{}]);
-		expect(server.sent('scanCheckpoints')[1]).toMatchObject({
-			after: checkpoint(1).cursor,
-			filter: { beforeCheckpoint: 4 },
+		// History read through checkpoint 1, so the gap starts at 2 by checkpoint alone.
+		expect(server.sent('scanCheckpoints')[1]).toEqual({
+			filter: { afterCheckpoint: 1, beforeCheckpoint: 4 },
+			first: 50,
 		});
 		expect(log.log).toEqual([
 			'Connecting(0)',
@@ -913,20 +977,23 @@ describe('live handoff', () => {
 	it('keeps the tip anchor across disconnects before the first match', async () => {
 		const server = fakeGraphQL({ tip: 10 });
 		server.on('scanEvents', page('events', [event(11)]));
-		server.on(
-			'subscribeEvents',
-			live('events', [], 'eof'),
-			after(() => (server.tip = 11), live('events', [event(11, 0, { source: 'live' })])),
-		);
+		// The first feed stays quiet while the chain moves to 12, then ends.
+		const quietThenEof: Answer = () => {
+			setTimeout(() => (server.tip = 12), 5);
+			const body = new ReadableStream({
+				start: (controller) => void setTimeout(() => controller.close(), 30),
+			});
+			return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+		};
+		server.on('subscribeEvents', quietThenEof, live('events', []));
 		const [frame] = await take(
 			stream(server.client, 'events', { retry: { ...noDelay, maxAttempts: 1 } }),
 			1,
 		);
+		// Re-anchoring at the new tip would start after 12 and miss this.
 		expect(label(frame)).toBe('11:0');
-		expect(server.sent('subscribeEvents')).toHaveLength(2);
-		// Both attempts started from the anchor at the original tip.
-		expect(server.sent('scanEvents').map((variables) => variables.filter.afterCheckpoint)).toEqual([
-			10,
+		expect(server.sent('scanEvents')).toEqual([
+			expect.objectContaining({ filter: { afterCheckpoint: 10, beforeCheckpoint: 13 } }),
 		]);
 	});
 
