@@ -2,4 +2,4 @@
 '@mysten/sui': patch
 ---
 
-GraphQL `listEvents` reports events from system transactions, which have no sender, with the `0x0` sender (matching gRPC) instead of throwing.
+GraphQL `listEvents` returns `0x0` as the sender of system transaction events, matching gRPC, instead of throwing.
