@@ -259,6 +259,26 @@ describe('GraphQL subscribe', () => {
 		).rejects.toMatchObject({ status, retryable: status !== 401 });
 	});
 
+	it('keeps status and retryable when the rejected body has already failed', async () => {
+		const failedBody = () =>
+			new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.error(new Error('body failed'));
+				},
+			});
+		const { client } = clientFor(new Response(failedBody(), { status: 503 }));
+		await expect(
+			client.subscribe({ query: 'subscription { value }', variables: {} }).next(),
+		).rejects.toMatchObject({ name: 'SuiGraphQLRequestError', status: 503, retryable: true });
+
+		const json = clientFor(
+			new Response(failedBody(), { headers: { 'content-type': 'application/json' } }),
+		);
+		await expect(
+			json.client.subscribe({ query: 'subscription { value }', variables: {} }).next(),
+		).rejects.toThrow('text/event-stream');
+	});
+
 	it('rejects non-SSE responses', async () => {
 		const { client } = clientFor(Response.json({ data: {} }));
 		await expect(
