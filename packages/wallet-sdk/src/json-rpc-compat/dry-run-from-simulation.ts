@@ -134,7 +134,7 @@ export function mapTransactionEffects(
 	transaction: Pick<MappableTransaction, 'effects' | 'epoch' | 'transaction'>,
 ): TransactionEffects {
 	const effects = transaction.effects;
-	const inputVersions = getTransactionInputVersions(transaction.transaction);
+	const inputVersions = getTransactionInputVersions(programmableBody(transaction.transaction));
 	const created: OwnedObjectRef[] = [];
 	const mutated: OwnedObjectRef[] = [];
 	const unwrapped: OwnedObjectRef[] = [];
@@ -237,7 +237,7 @@ export function mapObjectChanges(
 	const objectTypes = transaction.objectTypes;
 	const transactionData = transaction.transaction;
 	const sender = transactionData.sender ?? transactionData.gasData.owner ?? '';
-	const publishModuleNames = getPublishedModuleNames(transactionData);
+	const publishModuleNames = getPublishedModuleNames(programmableBody(transactionData));
 	const changes: SuiObjectChange[] = [];
 
 	for (const change of effects.changedObjects) {
@@ -489,7 +489,7 @@ function isJsonRpcTransferredWrite(change: SuiClientTypes.ChangedObject): boolea
 }
 
 function getTransactionInputVersions(
-	transaction: SuiClientTypes.TransactionData,
+	transaction: SuiClientTypes.ProgrammableTransaction,
 ): Map<string, string> {
 	const versions = new Map<string, string>();
 
@@ -512,10 +512,28 @@ function getTransactionInputVersions(
 	return versions;
 }
 
+/**
+ * The inputs and commands of a programmable transaction. Throws for other transaction kinds,
+ * which have no JSON-RPC input mapping here.
+ */
+function programmableBody(
+	transaction: SuiClientTypes.TransactionData,
+): SuiClientTypes.ProgrammableTransaction {
+	const body =
+		transaction.kind.ProgrammableTransaction ?? transaction.kind.ProgrammableSystemTransaction;
+
+	if (!body) {
+		throw new Error(`Unsupported transaction kind ${transaction.kind.$kind}`);
+	}
+
+	return body;
+}
+
 export function mapTransactionDataToInput(
 	transaction: SuiClientTypes.TransactionData,
 ): TransactionBlockData {
-	const pureInputTypes = getPureInputTypes(transaction);
+	const body = programmableBody(transaction);
+	const pureInputTypes = getPureInputTypes(body);
 
 	return {
 		gasData: {
@@ -532,11 +550,12 @@ export function mapTransactionDataToInput(
 		messageVersion: 'v1',
 		sender: transaction.sender ?? '',
 		transaction: {
-			inputs: transaction.inputs.map((input, index) =>
-				mapCallArg(input, pureInputTypes.get(index)),
-			),
-			kind: 'ProgrammableTransaction',
-			transactions: transaction.commands.map(mapCommand),
+			inputs: body.inputs.map((input, index) => mapCallArg(input, pureInputTypes.get(index))),
+			kind:
+				transaction.kind.$kind === 'ProgrammableSystemTransaction'
+					? 'ProgrammableSystemTransaction'
+					: 'ProgrammableTransaction',
+			transactions: body.commands.map(mapCommand),
 		},
 	};
 }
@@ -627,7 +646,7 @@ function mapWithdrawFrom(withdrawFrom: Record<string, unknown>): SuiWithdrawFrom
 }
 
 function getPureInputTypes(
-	transaction: SuiClientTypes.TransactionData,
+	transaction: SuiClientTypes.ProgrammableTransaction,
 ): Map<number, PureInputType> {
 	const pureInputTypes = new Map<number, PureInputType>();
 	const setPureInputType = (argument: unknown, type: PureInputType) => {
@@ -874,7 +893,7 @@ function mapArgument(arg: unknown): SuiArgument {
 }
 
 /** The module names of every `Publish` and `Upgrade` command, for `published` object changes. */
-function getPublishedModuleNames(transaction: SuiClientTypes.TransactionData): string[] {
+function getPublishedModuleNames(transaction: SuiClientTypes.ProgrammableTransaction): string[] {
 	return transaction.commands.flatMap((command) => {
 		const modules = hasKey(command, 'Publish')
 			? asRecord(command.Publish, 'publish command').modules

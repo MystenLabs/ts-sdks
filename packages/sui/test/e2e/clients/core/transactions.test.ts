@@ -8,6 +8,7 @@ import {
 	createTestWithAllClients,
 	getRandomAddresses,
 } from '../../utils/setup.js';
+import { bcs } from '../../../../src/bcs/index.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import {
 	MOCKED_GAS_OBJECT_ID,
@@ -52,7 +53,6 @@ describe('Core API - Transactions', () => {
 	});
 
 	describe('getTransaction', () => {
-		// gRPC ledgerService.getTransaction doesn't support returning transaction BCS data
 		it('all clients return same data: getTransaction', async () => {
 			await toolbox.expectAllClientsReturnSameData((client) =>
 				client.core.getTransaction({
@@ -190,6 +190,55 @@ describe('Core API - Transactions', () => {
 			});
 			return transactions[0].Transaction!.digest;
 		}
+
+		it('all clients return complete system transaction data in historical lists', async () => {
+			await toolbox.expectAllClientsReturnSameData((client) =>
+				client.core
+					.listTransactions({
+						limit: 3,
+						order: 'ascending',
+						include: { transaction: true, bcs: true },
+					})
+					.then((page) => page.transactions),
+			);
+		});
+
+		testWithAllClients(
+			'decodes genesis and consensus transaction kinds without a builder',
+			async (client) => {
+				const page = await toolbox.grpcClient.core.listTransactions({
+					limit: 3,
+					order: 'ascending',
+				});
+				const kinds: string[] = [];
+				for (const item of page.transactions) {
+					const digest = (item.Transaction ?? item.FailedTransaction).digest;
+					const result = await client.core.getTransaction({
+						digest,
+						include: { transaction: true, bcs: true },
+					});
+					const tx = result.Transaction ?? result.FailedTransaction;
+					expect(tx.transaction.sender).toBe(bcs.TransactionData.parse(tx.bcs).V1.sender);
+					const body =
+						tx.transaction.kind.ProgrammableTransaction ??
+						tx.transaction.kind.ProgrammableSystemTransaction;
+					if (!body) {
+						expect(tx.transaction.kind).toEqual(bcs.TransactionData.parse(tx.bcs).V1.kind);
+					}
+					expect(tx.transaction.version).toBe(2);
+					kinds.push(tx.transaction.kind.$kind);
+					const parsedOnly = await client.core.getTransaction({
+						digest,
+						include: { transaction: true },
+					});
+					const parsed = parsedOnly.Transaction ?? parsedOnly.FailedTransaction;
+					expect(parsed.transaction).toEqual(tx.transaction);
+					expect(parsed.bcs).toBeUndefined();
+				}
+				expect(kinds[0]).toBe('Genesis');
+				expect(kinds.slice(1).some((kind) => kind !== 'ProgrammableTransaction')).toBe(true);
+			},
+		);
 
 		it('all clients return same data: transaction without a gas object', async () => {
 			const genesisDigest = await getGenesisDigest();

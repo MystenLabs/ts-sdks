@@ -240,7 +240,7 @@ describe('Allowance withdrawals', () => {
 			include: { transaction: true },
 		});
 
-		const input = result.Transaction!.transaction!.inputs.find(
+		const input = result.Transaction!.transaction!.kind.ProgrammableTransaction!.inputs.find(
 			(input) => 'FundsWithdrawal' in input,
 		);
 		expect(input && 'FundsWithdrawal' in input ? input.FundsWithdrawal : undefined).toMatchObject({
@@ -266,7 +266,9 @@ describe('Allowance withdrawals', () => {
 
 		const transaction = await executeSpend(client);
 
-		const withdrawal = transaction.transaction!.inputs.find((input) => 'FundsWithdrawal' in input);
+		const withdrawal = transaction.transaction!.kind.ProgrammableTransaction!.inputs.find(
+			(input) => 'FundsWithdrawal' in input,
+		);
 		expect(
 			withdrawal && 'FundsWithdrawal' in withdrawal
 				? withdrawal.FundsWithdrawal.withdrawFrom

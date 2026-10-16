@@ -7,6 +7,7 @@ import type { SuiJsonRpcTypes } from '@mysten/wallet-standard';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 
 import { dryRunFromSimulation, tryDryRunFromSimulation } from '../../src/json-rpc-compat/index.js';
+import { programmableTransactionData } from './transaction-data.js';
 
 const SENDER = '0x000000000000000000000000000000000000000000000000000000000000000a';
 const RECIPIENT = '0x000000000000000000000000000000000000000000000000000000000000000b';
@@ -127,7 +128,7 @@ describe('dryRunFromSimulation', () => {
 				[MUTATED_OBJECT_ID]: `${FRAMEWORK}::demo::Nft`,
 				[TRANSFERRED_OBJECT_ID]: `${FRAMEWORK}::demo::Nft`,
 			},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -170,7 +171,7 @@ describe('dryRunFromSimulation', () => {
 					},
 				],
 				digest: null,
-			},
+			}),
 			bcs: undefined,
 		} as unknown as SuiClientTypes.Transaction<{
 			balanceChanges: true;
@@ -318,7 +319,7 @@ describe('gas paid from an address balance', () => {
 			},
 			events: [],
 			objectTypes: {},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -331,7 +332,7 @@ describe('gas paid from an address balance', () => {
 				inputs: [],
 				commands: [],
 				digest: null,
-			},
+			}),
 		} as unknown as Parameters<typeof dryRunFromSimulation>[0];
 	}
 
@@ -412,7 +413,7 @@ describe('objects moved under another object', () => {
 				[CHILD_ID]: `${FRAMEWORK}::demo::Nft`,
 				[WRAPPED_ID]: `${FRAMEWORK}::demo::Nft`,
 			},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -420,7 +421,7 @@ describe('objects moved under another object', () => {
 				inputs: [],
 				commands: [],
 				digest: null,
-			},
+			}),
 		} as unknown as Parameters<typeof dryRunFromSimulation>[0];
 	}
 
@@ -521,7 +522,7 @@ describe('funds withdrawal inputs', () => {
 			},
 			events: [],
 			objectTypes: {},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -537,7 +538,7 @@ describe('funds withdrawal inputs', () => {
 				],
 				commands: [],
 				digest: null,
-			},
+			}),
 		} as unknown as Parameters<typeof dryRunFromSimulation>[0];
 
 		const { transaction } = dryRunFromSimulation(simulation).input;
