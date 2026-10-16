@@ -100,10 +100,7 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
 }
 
-/**
- * Internal: the transport behind each `SuiGrpcClient`'s service clients. Ledger streams call it
- * directly, to read responses on demand; it is not part of the public client surface.
- */
+/** Ledger streams call the transport directly to read responses on demand. Internal. */
 const clientTransports = new WeakMap<SuiGrpcClient, RpcTransport>();
 
 export function registerClientTransport(client: SuiGrpcClient, transport: RpcTransport) {
@@ -117,7 +114,6 @@ export class GrpcCoreClient extends CoreClient {
 		this.#client = client;
 	}
 
-	/** Builds the stream's adapter; no I/O happens until the stream is read. */
 	protected override createLedgerStreamAdapter(request: GrpcLedgerStreamRequest) {
 		const transport = clientTransports.get(this.#client);
 		if (!transport) {

@@ -20,10 +20,7 @@ export type GrpcCursor =
 	| { $kind: 'Checkpoint'; checkpoint: bigint }
 	| { $kind: 'Genesis' };
 
-/**
- * A resumable position plus the ledger coordinates the server reported with it. Positions are
- * immutable: helpers return new positions.
- */
+/** A resumable position plus the ledger coordinates the server reported with it. */
 export interface GrpcPosition {
 	cursor: GrpcCursor;
 	/** Checkpoint of the item delivered at this position; null for progress. */
@@ -337,14 +334,8 @@ export function assertAdvancing(
 }
 
 /**
- * Carries ascending coverage along one traversal (a scan pass, or a live feed after its gap), so
- * every position records what it covers even when its frame did not say.
- *
- * - `reported`: the highest `Watermark.checkpoint` seen so far. A lower report is a protocol
- *   error. Frames that omit it inherit it.
- * - `floor`: coverage implied by the start and by every position so far.
- *
- * Descending coverage is reported in the other direction and is only checked, never recorded.
+ * Carries ascending coverage along one scan pass or live feed, so every position records what it
+ * covers even when its frame omitted the watermark checkpoint. Descending coverage is only checked.
  */
 export class CoverageTracker {
 	readonly #order: SuiClientTypes.Order;
@@ -358,7 +349,6 @@ export class CoverageTracker {
 		this.#floor = order === 'ascending' ? floor : { $kind: 'Unknown' };
 	}
 
-	/** Takes a position read from the server (coverage = its watermark's) and records coverage. */
 	apply(raw: GrpcPosition): GrpcPosition {
 		const reported = raw.coverage.$kind === 'Through' ? raw.coverage.checkpoint : undefined;
 		if (reported !== undefined && this.#reported !== undefined) {

@@ -27,8 +27,7 @@ const ordering = {
 };
 
 /**
- * The live handoff: history, subscribe, gap, live. Each reconnect runs it again from the
- * committed position.
+ * The live handoff: history, subscribe, gap, live. Each reconnect reruns it.
  *
  * @yields Only frames produced by the session helpers.
  */
@@ -36,26 +35,23 @@ export async function* followLedger(
 	calls: GrpcStreamCalls,
 	session: FollowSession<GrpcPosition, GrpcItem, ItemFrame>,
 ): AsyncGenerator<CoreFrame<ItemFrame>, void> {
-	// Phase 1: history. No subscription is open yet, so a long replay cannot overflow it.
+	// History first: with no subscription open yet, a long replay cannot overflow it.
 	if (session.start) yield* session.replay('tip', 'history');
 
-	// Phase 2: subscribe. On the pull path, nothing is read until it is asked for.
 	const call = calls.subscribe(session.signal);
 	const feed = session.openFeed(liveEvents(call, calls.family, session.committed));
 	try {
 		const first = await feed.first();
 
-		// Phase 3: the gap between the resume point and the first live position.
 		if (!session.start) {
-			// A fresh follow starts at the live tip: commit a baseline so a token exists before
-			// the first match.
+			// Commit a baseline so a fresh follow has a token before its first match.
 			if (first.$kind === 'Item') yield* session.baseline(baselineBefore(first.position));
 		} else {
 			const end = gapEnd(first);
 			// The index can be ahead of the server that took the subscription: then there is no gap.
 			if (!reaches(session.start, end)) {
-				// The gap is seconds long. Reading ahead meanwhile keeps the server from dropping
-				// the subscription as a slow consumer; the bounded queue caps what it holds.
+				// Read ahead during the gap so the server does not drop the subscription as a slow
+				// consumer.
 				call.readAhead(true);
 				try {
 					yield* session.replay(end, 'gap');
@@ -65,7 +61,6 @@ export async function* followLedger(
 			}
 		}
 
-		// Phase 4: live. The session drops anything history or the gap already delivered.
 		yield* session.deliver(feed);
 	} finally {
 		await feed.close();
@@ -74,10 +69,8 @@ export async function* followLedger(
 }
 
 /**
- * Where the gap replay ends. List and Subscribe share cursor semantics
- * (subscription_service.proto), so the first live cursor is an exclusive List bound.
- * A checkpoint subscription's cursor is the checkpoint it covered: a live checkpoint is
- * delivered live, and a progress-only first frame's checkpoint is replayed.
+ * Where the gap replay ends. List and Subscribe share cursors, so the first live cursor is an
+ * exclusive List bound. A progress-only first checkpoint frame's checkpoint is replayed.
  */
 function gapEnd(first: PositionEvent<GrpcPosition, GrpcItem>): Bound<GrpcPosition> {
 	const { cursor } = first.position;
