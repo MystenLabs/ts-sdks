@@ -135,7 +135,7 @@ export function mapTransactionEffects(
 ): TransactionEffects {
 	const effects = transaction.effects;
 	const inputVersions = getTransactionInputVersions(
-		programmableBody(transaction.transaction) ?? NO_PROGRAMMABLE_BODY,
+		programmableBodyOrEmpty(transaction.transaction),
 	);
 	const created: OwnedObjectRef[] = [];
 	const mutated: OwnedObjectRef[] = [];
@@ -239,9 +239,7 @@ export function mapObjectChanges(
 	const objectTypes = transaction.objectTypes;
 	const transactionData = transaction.transaction;
 	const sender = transactionData.sender ?? transactionData.gasData.owner ?? '';
-	const publishModuleNames = getPublishedModuleNames(
-		programmableBody(transactionData) ?? NO_PROGRAMMABLE_BODY,
-	);
+	const publishModuleNames = getPublishedModuleNames(programmableBodyOrEmpty(transactionData));
 	const changes: SuiObjectChange[] = [];
 
 	for (const change of effects.changedObjects) {
@@ -519,17 +517,30 @@ function getTransactionInputVersions(
 const NO_PROGRAMMABLE_BODY: SuiClientTypes.ProgrammableTransaction = { inputs: [], commands: [] };
 
 /**
- * The inputs and commands of a programmable transaction, or `null` for other kinds: system
- * transactions, and `Unknown` kinds the client could not map.
+ * The inputs and commands of a programmable transaction, or `null` for system transactions.
+ * Throws for an `Unknown` kind: the client could not map the transaction, so any JSON-RPC response
+ * built from it would be missing data.
  */
 function programmableBody(
 	transaction: SuiClientTypes.TransactionData,
 ): SuiClientTypes.ProgrammableTransaction | null {
+	if (transaction.kind.$kind === 'Unknown') {
+		throw new Error(
+			'Transaction kind is not supported by this SDK version, you may need to update the SDK to map this transaction',
+		);
+	}
 	return (
 		transaction.kind.ProgrammableTransaction ??
 		transaction.kind.ProgrammableSystemTransaction ??
 		null
 	);
+}
+
+/** Like `programmableBody`, but system transactions map to an empty body. */
+function programmableBodyOrEmpty(
+	transaction: SuiClientTypes.TransactionData,
+): SuiClientTypes.ProgrammableTransaction {
+	return programmableBody(transaction) ?? NO_PROGRAMMABLE_BODY;
 }
 
 export function mapTransactionDataToInput(

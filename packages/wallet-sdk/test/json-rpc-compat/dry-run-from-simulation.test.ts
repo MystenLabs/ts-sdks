@@ -377,6 +377,15 @@ describe('gas paid from an address balance', () => {
 			owner: { AddressOwner: RECIPIENT },
 		});
 	});
+
+	test('refuses a transaction kind the client could not map', () => {
+		const sim = simulation();
+		const { kind: _, ...header } = sim.transaction;
+		sim.transaction = { ...header, kind: { $kind: 'Unknown', Unknown: true } };
+
+		expect(() => dryRunFromSimulation(sim)).toThrow(/update the SDK/);
+		expect(tryDryRunFromSimulation(sim)).toBeUndefined();
+	});
 });
 
 describe('objects moved under another object', () => {
