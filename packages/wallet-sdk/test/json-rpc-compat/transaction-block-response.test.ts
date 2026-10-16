@@ -725,11 +725,28 @@ describe('partial includes', () => {
 	});
 });
 
-describe('transaction kinds the client could not map', () => {
-	test('map effects and object changes but leave out the input', () => {
+describe('transaction kinds', () => {
+	test('leave out every section that needs the transaction body for a kind the client could not map', () => {
 		const { kind: _, ...header } = transaction.transaction;
 		const unknown = executedTransaction({ ...header, kind: { $kind: 'Unknown', Unknown: true } });
 		const response = transactionBlockResponseFromExecution(unknown, {
+			bytes,
+			signatures: [SIGNATURE],
+			options: { showInput: true, showEffects: true, showObjectChanges: true },
+		});
+
+		expect(response.transaction).toBeUndefined();
+		expect(response.effects).toBeUndefined();
+		expect(response.objectChanges).toBeUndefined();
+	});
+
+	test('map effects and object changes of a system transaction but leave out the input', () => {
+		const { kind: _, ...header } = transaction.transaction;
+		const system = executedTransaction({
+			...header,
+			kind: { $kind: 'EndOfEpochTransaction', EndOfEpochTransaction: [] },
+		});
+		const response = transactionBlockResponseFromExecution(system, {
 			bytes,
 			signatures: [SIGNATURE],
 			options: { showInput: true, showEffects: true, showObjectChanges: true },
