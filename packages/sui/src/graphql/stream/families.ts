@@ -9,7 +9,7 @@ import {
 	type ResolvedEventFilter,
 	type ResolvedTransactionFilter,
 } from '../../client/query-filters.js';
-import type { ItemFrame, PositionEvent, StreamFamily } from '../../client/stream/adapter.js';
+import type { ItemFrame, PageItem, StreamFamily } from '../../client/stream/adapter.js';
 import { itemPosition, SuiStreamError, type StreamPosition } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
@@ -42,32 +42,19 @@ export interface Edge<Node> {
 	node: Node;
 }
 
-/** A subscription edge. Filtered subscriptions also send progress: an edge without a node. */
+/** A subscription edge. A filtered subscription also sends progress: an edge without a node. */
 export interface LiveEdge<Node> {
 	cursor: string;
 	node: Node | null;
 }
 
-/**
- * Checkpoints between the progress edges a filtered subscription sends, so a quiet stream's
- * resume token stays a few seconds old at mainnet's pace without a message per checkpoint.
- */
-export const PROGRESS_INTERVAL = 10;
-
 /** GraphQL cursors are strings. Positions hold them as bytes, never read. */
 export const cursorBytes = (cursor: string) => new TextEncoder().encode(cursor);
 export const cursorString = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 
-/** The position of an item at `checkpoint`; its place in the checkpoint is not reported. */
-export function edgePosition<Node>(
-	family: LedgerFamily<Node>,
-	edge: Edge<Node>,
-	checkpoint: bigint,
-): StreamPosition {
-	return itemPosition(checkpoint, {
-		cursor: cursorBytes(edge.cursor),
-		itemId: family.identity(edge.node),
-	});
+/** A transaction or event at `checkpoint`. Its place in the checkpoint is not reported. */
+function itemAt(edge: Edge<unknown>, checkpoint: bigint, itemId: string): StreamPosition {
+	return itemPosition(checkpoint, { cursor: cursorBytes(edge.cursor), itemId });
 }
 
 export interface Connection<Node> {
@@ -110,7 +97,6 @@ export interface PageRequest {
 /** Each family reads with its list method's fragment and mapper, so streamed items match list results. */
 export interface LedgerFamily<Node> {
 	readonly name: StreamFamily;
-	readonly onePerCheckpoint: boolean;
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	page(request: PageRequest): Promise<Page<Node>>;
 	/** Backfills from the resume point, then continues live. */
@@ -119,7 +105,7 @@ export interface LedgerFamily<Node> {
 		resume: ResumePoint,
 		onOpen: () => void,
 	): AsyncIterable<LiveEdge<Node>>;
-	identity(node: Node): string;
+	position(edge: Edge<Node>, checkpoint: bigint): StreamPosition;
 	/** The node's checkpoint; null where the server left it out. */
 	checkpoint(node: Node): bigint | null;
 	map(item: LedgerItem<Node>): Omit<ItemFrame, 'resumeToken'>;
@@ -146,7 +132,6 @@ export function ledgerFamily(
 function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_FieldsFragment> {
 	return {
 		name: 'checkpoints',
-		onePerCheckpoint: true,
 		resolveFilter: async () => undefined,
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
@@ -168,7 +153,8 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 				}),
 				(data) => data.checkpoints,
 			),
-		identity: (node) => String(node.sequenceNumber),
+		// A checkpoint is positioned by its sequence number alone.
+		position: (_, checkpoint) => itemPosition(checkpoint),
 		checkpoint: (node) => BigInt(node.sequenceNumber),
 		map: ({ node }) => ({
 			$kind: 'Checkpoint',
@@ -186,7 +172,6 @@ function transactionsFamily(
 	let filter: ResolvedTransactionFilter | undefined;
 	return {
 		name: 'transactions',
-		onePerCheckpoint: false,
 		async resolveFilter(signal) {
 			filter = options.filter && (await resolveTransactionFilter(mvr, options.filter, signal));
 			return filter;
@@ -213,7 +198,6 @@ function transactionsFamily(
 					variables: {
 						filter: toGraphQLTransactionFilter(filter, { start }),
 						after,
-						progressInterval: PROGRESS_INTERVAL,
 						...selection,
 					},
 					signal,
@@ -221,7 +205,7 @@ function transactionsFamily(
 				}),
 				(data) => data.transactions,
 			),
-		identity: (node) => node.digest,
+		position: (edge, checkpoint) => itemAt(edge, checkpoint, edge.node.digest),
 		checkpoint: (node) => optionalCheckpoint(node.effects?.checkpoint),
 		map: ({ node }) => {
 			if (!node.effects?.status) {
@@ -240,7 +224,6 @@ function eventsFamily(
 	let filter: ResolvedEventFilter | undefined;
 	return {
 		name: 'events',
-		onePerCheckpoint: false,
 		async resolveFilter(signal) {
 			filter = options.filter && (await resolveEventFilter(mvr, options.filter, signal));
 			return filter;
@@ -266,14 +249,14 @@ function eventsFamily(
 					variables: {
 						filter: toGraphQLEventFilter(filter, { start }),
 						after,
-						progressInterval: PROGRESS_INTERVAL,
 					},
 					signal,
 					onOpen,
 				}),
 				(data) => data.events,
 			),
-		identity: (node) => `${eventDigest(node)}:${node.sequenceNumber}`,
+		position: (edge, checkpoint) =>
+			itemAt(edge, checkpoint, `${eventDigest(edge.node)}:${edge.node.sequenceNumber}`),
 		checkpoint: (node) => optionalCheckpoint(node.transaction?.effects?.checkpoint),
 		map: ({ node, checkpoint }) => ({
 			$kind: 'Event',
@@ -290,21 +273,15 @@ function setFields(filter: object): string[] {
 }
 
 /** Index-backed pages always carry each node's checkpoint. */
-export function itemEvents<Node>(
+export function pageItem<Node>(
 	family: LedgerFamily<Node>,
-	edges: Edge<Node>[],
-): Extract<PositionEvent<LedgerItem<Node>>, { $kind: 'Item' }>[] {
-	return edges.map((edge) => {
-		const checkpoint = family.checkpoint(edge.node);
-		if (checkpoint === null) {
-			throw new SuiStreamError('Protocol', `${family.name} page item has no checkpoint`);
-		}
-		return {
-			$kind: 'Item',
-			position: edgePosition(family, edge, checkpoint),
-			item: { node: edge.node, checkpoint },
-		};
-	});
+	edge: Edge<Node>,
+): PageItem<LedgerItem<Node>> {
+	const checkpoint = family.checkpoint(edge.node);
+	if (checkpoint === null) {
+		throw new SuiStreamError('Protocol', `${family.name} page item has no checkpoint`);
+	}
+	return { position: family.position(edge, checkpoint), item: { node: edge.node, checkpoint } };
 }
 
 function optionalCheckpoint(checkpoint: { sequenceNumber: number } | null | undefined) {
@@ -375,6 +352,7 @@ async function* edges<Result, Node>(
 		if (!value || typeof value.cursor !== 'string' || value.cursor === '') {
 			throw new SuiStreamError('Protocol', 'GraphQL subscription response has no edge');
 		}
+		// A null node is a progress edge; the bundled schema still declares `node` non-null.
 		yield { cursor: value.cursor, node: value.node ?? null };
 	}
 }
