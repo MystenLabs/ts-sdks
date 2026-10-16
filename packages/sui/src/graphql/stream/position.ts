@@ -11,9 +11,10 @@ import { coverageBefore, SuiStreamError } from '../../client/stream/index.js';
  * checkpoints they report, never by reading cursor bytes. There are three kinds:
  *
  * - Item: a delivered node. `checkpoint` and `itemId` are set.
- * - Boundary: a scan read every checkpoint through `checkpoint`. `itemId` is null and
- *   `indexedCheckpoint` equals `checkpoint`. Everything through it is covered. `cursor` is where the
- *   scan stopped, or empty when no page was read (a start before anything was indexed).
+ * - Boundary: every checkpoint through `checkpoint` was read. `itemId` is null, `indexedCheckpoint`
+ *   equals `checkpoint`, and `cursor` is empty. It is a checkpoint bound, like gRPC's checkpoint
+ *   baseline: as a start it resumes at `checkpoint + 1`; as an end it includes everything through
+ *   `checkpoint`. (Pre-release tokens may carry a cursor here; it is ignored.)
  * - Frontier: an empty, scan-limited page part way through a window. `checkpoint` and `itemId`
  *   are null; `indexedCheckpoint` is the highest checkpoint that scan could see, so a resumed scan
  *   waits until the index has caught up to it before trusting the cursor. It covers nothing.
@@ -60,9 +61,9 @@ export function itemPosition(cursor: string, checkpoint: bigint, itemId: string)
 	return { cursor, checkpoint, itemId, indexedCheckpoint: null };
 }
 
-/** The scan read every checkpoint through `checkpoint`; `cursor` is where it stopped. */
-export function boundaryPosition(cursor: string, checkpoint: bigint): GraphQLPosition {
-	return { cursor, checkpoint, itemId: null, indexedCheckpoint: checkpoint };
+/** Every checkpoint through `checkpoint` was read. */
+export function boundaryPosition(checkpoint: bigint): GraphQLPosition {
+	return { cursor: '', checkpoint, itemId: null, indexedCheckpoint: checkpoint };
 }
 
 export function isBoundary(position: GraphQLPosition): boolean {
@@ -76,14 +77,14 @@ export function frontierPosition(cursor: string, indexedCheckpoint: bigint): Gra
 /**
  * Equal cursors are the same position. Otherwise only positions in different checkpoints can be
  * ordered, plus an item before the boundary closing its checkpoint, and two boundaries of one
- * checkpoint when either has no cursor: cursors from different connections cannot be compared
- * within a checkpoint.
+ * checkpoint, which are equal: cursors from different connections cannot be compared within a
+ * checkpoint.
  */
 export function comparePositions(a: GraphQLPosition, b: GraphQLPosition): -1 | 0 | 1 | undefined {
 	if (a.cursor && a.cursor === b.cursor) return 0;
 	if (a.checkpoint === null || b.checkpoint === null) return undefined;
 	if (a.checkpoint !== b.checkpoint) return a.checkpoint < b.checkpoint ? -1 : 1;
-	if (isBoundary(a) && isBoundary(b)) return !a.cursor || !b.cursor ? 0 : undefined;
+	if (isBoundary(a) && isBoundary(b)) return 0;
 	if (isBoundary(a) === isBoundary(b)) return undefined;
 	return isBoundary(a) ? 1 : -1;
 }
