@@ -1263,6 +1263,9 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      undici:
+        specifier: ^8.10.2
+        version: 8.12.3
       vite:
         specifier: ^8.2.4
         version: 8.2.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.1)
