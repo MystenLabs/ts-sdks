@@ -6,10 +6,15 @@ import type { SuiClientTypes } from '../types.js';
 import type { Bound, Coverage, LedgerStreamAdapter } from './adapter.js';
 import { SuiStreamError } from './errors.js';
 import {
-	decodePosition,
+	boundaryPosition,
+	comparePositions,
+	indexedThrough,
+	positionBytes,
+	type StreamPosition,
+} from './position.js';
+import {
 	decodeToken,
 	filterHash,
-	mapRangePosition,
 	sameBytes,
 	type RangeEnd,
 	type StreamToken,
@@ -37,18 +42,18 @@ export interface Traversal {
 	endCheckpoint?: bigint;
 }
 
-export interface StreamPlan<P> {
+export interface StreamPlan {
 	mode: StreamMode;
 	order: SuiClientTypes.Order;
 	pollInterval: number;
 	/** This invocation's start, reported as the completion's `range.start`. */
-	start?: Bound<P>;
+	start?: Bound;
 	/** No start was given, so `start` was set from the indexed tip. */
 	anchored: boolean;
 	/** The exclusive end of every scan in a finite stream. */
-	end?: Bound<P>;
+	end?: Bound;
 	/** Written into every token. */
-	range: TokenRange<P>;
+	range: TokenRange;
 	/** Passed to every scan; never rediscovered. */
 	capturedTip?: bigint;
 	/** Coverage recorded in the start token. */
@@ -100,7 +105,7 @@ export function resolveTraversal(
 			endCheckpoint !== undefined
 				? endCheckpoint === checkpointEnd(startRange.end)
 				: startRange.end.$kind === 'Cursor' &&
-					sameBytes(startRange.end.position, tokens.end!.position);
+					sameBytes(positionBytes(startRange.end.position), positionBytes(tokens.end!.position));
 		if (!sameEnd) {
 			throw new SuiStreamError('IncompatibleToken', 'A resume token cannot change its end bound');
 		}
@@ -118,7 +123,7 @@ export function resolveTraversal(
 /** An explicit end reads a finite range; otherwise a token keeps its range kind. */
 function defaultFollow(
 	options: SuiClientTypes.StreamOptions,
-	startRange: TokenRange<unknown> | undefined,
+	startRange: TokenRange | undefined,
 	order: SuiClientTypes.Order,
 ): boolean {
 	if (options.end) return false;
@@ -129,7 +134,7 @@ function defaultFollow(
 /** Tokens only resume the stream that produced them: the same transport and stream family. */
 export function assertTokensMatchAdapter(
 	tokens: StreamTokens,
-	adapter: Pick<LedgerStreamAdapter<unknown, unknown>, 'transport' | 'family'>,
+	adapter: Pick<LedgerStreamAdapter<unknown>, 'transport' | 'family'>,
 ) {
 	for (const token of [tokens.start, tokens.end]) {
 		if (token && (token.transport !== adapter.transport || token.family !== adapter.family)) {
@@ -142,7 +147,7 @@ export function assertTokensMatchAdapter(
 export function assertTokensCompatible(
 	tokens: StreamTokens,
 	identity: { chain: string; filter: unknown },
-	adapter: Pick<LedgerStreamAdapter<unknown, unknown>, 'transport' | 'family'>,
+	adapter: Pick<LedgerStreamAdapter<unknown>, 'transport' | 'family'>,
 ) {
 	assertTokensMatchAdapter(tokens, adapter);
 	const filter = filterHash(identity.filter);
@@ -161,50 +166,44 @@ function incompatibleToken() {
 }
 
 /** Everything `planStream` needs that is known before any request. */
-export interface PreparedStream<P> {
+export interface PreparedStream {
 	traversal: Traversal;
 	tokens: StreamTokens;
-	adapter: LedgerStreamAdapter<P, unknown, any>;
-	start?: Bound<P>;
-	explicitEnd?: Bound<P>;
-	resumedRange?: TokenRange<P>;
+	adapter: LedgerStreamAdapter<unknown, any>;
+	start?: Bound;
+	explicitEnd?: Bound;
+	resumedRange?: TokenRange;
 }
 
-/**
- * Decodes token positions (running the codec's `validate`) and rejects reversed bounds when both
- * are known without the indexed tip. Makes no request.
- */
-export function prepareStream<P>(
+/** Rejects reversed bounds when both are known without the indexed tip. Makes no request. */
+export function prepareStream(
 	traversal: Traversal,
 	tokens: StreamTokens,
-	adapter: LedgerStreamAdapter<P, unknown, any>,
-): PreparedStream<P> {
+	adapter: LedgerStreamAdapter<unknown, any>,
+): PreparedStream {
 	assertTokensMatchAdapter(tokens, adapter);
-	const codec = adapter.position;
-	// Decoding validates position metadata before anything else, even for an empty interval.
-	const resumedRange =
-		tokens.start && mapRangePosition(tokens.start.range, (bytes) => decodePosition(codec, bytes));
-	const start: Bound<P> | undefined = tokens.start
-		? { position: decodePosition(codec, tokens.start.position) }
+	const resumedRange = tokens.start?.range;
+	const start: Bound | undefined = tokens.start
+		? { position: tokens.start.position }
 		: checkpointBound(traversal.startCheckpoint);
 	// An end token contributes only its position, not its direction or range.
-	const explicitEnd: Bound<P> | undefined = tokens.end
-		? { position: decodePosition(codec, tokens.end.position) }
+	const explicitEnd: Bound | undefined = tokens.end
+		? { position: tokens.end.position }
 		: checkpointBound(traversal.endCheckpoint);
 
 	// The end is known without the tip unless it is a new range's IndexedTip end.
-	let knownEnd: Bound<P> | undefined;
+	let knownEnd: Bound | undefined;
 	if (resumedRange?.$kind === 'Finite') knownEnd = rangeEndBound(resumedRange);
 	else if (traversal.mode === 'finite') knownEnd = explicitEnd;
-	if (start && knownEnd) checkBounds(start, knownEnd, traversal.order, adapter);
+	if (start && knownEnd) checkBounds(start, knownEnd, traversal.order);
 
 	return { traversal, tokens, adapter, start, explicitEnd, resumedRange };
 }
 
-export async function planStream<P>(
-	prepared: PreparedStream<P>,
+export async function planStream(
+	prepared: PreparedStream,
 	readIndexedTip: () => Promise<bigint>,
-): Promise<StreamPlan<P>> {
+): Promise<StreamPlan> {
 	const { traversal, tokens, adapter, explicitEnd, resumedRange } = prepared;
 	const { order, mode } = traversal;
 	let start = prepared.start;
@@ -220,14 +219,14 @@ export async function planStream<P>(
 		}
 	}
 
-	let range: TokenRange<P>;
+	let range: TokenRange;
 	if (resumesFinite) range = resumedRange;
 	else if (mode !== 'finite') range = { $kind: 'Follow' };
 	else range = finiteRange(order, explicitEnd, tip);
 
 	const end = rangeEndBound(range);
 	// Repeats the check in `prepareStream` for bounds that only the tip resolved.
-	const empty = start && end ? checkBounds(start, end, order, adapter) : false;
+	const empty = start && end ? checkBounds(start, end, order) : false;
 
 	return {
 		mode,
@@ -244,13 +243,8 @@ export async function planStream<P>(
 }
 
 /** Throws `InvalidOptions` for reversed bounds; returns whether they are equal. */
-function checkBounds<P>(
-	start: Bound<P>,
-	end: Bound<P>,
-	order: SuiClientTypes.Order,
-	adapter: Pick<LedgerStreamAdapter<P, unknown, any>, 'compare' | 'locate' | 'position'>,
-): boolean {
-	const comparison = compareBounds(start, end, order, adapter);
+function checkBounds(start: Bound, end: Bound, order: SuiClientTypes.Order): boolean {
+	const comparison = compareBounds(start, end, order);
 	if (comparison !== undefined && comparison > 0) {
 		throw new SuiStreamError('InvalidOptions', 'Stream start and end bounds are reversed');
 	}
@@ -278,12 +272,12 @@ function needsIndexedTip(state: {
 	return (!state.start && !anchorsItself) || opensFiniteRange;
 }
 
-function finiteRange<P>(
+function finiteRange(
 	order: SuiClientTypes.Order,
-	explicitEnd: Bound<P> | undefined,
+	explicitEnd: Bound | undefined,
 	tip: bigint | undefined,
-): TokenRange<P> {
-	let end: RangeEnd<P>;
+): TokenRange {
+	let end: RangeEnd;
 	if (explicitEnd && 'checkpoint' in explicitEnd) {
 		end = { $kind: 'Checkpoint', checkpoint: explicitEnd.checkpoint };
 	} else if (explicitEnd) {
@@ -302,7 +296,7 @@ function finiteRange<P>(
 	};
 }
 
-export function rangeEndBound<P>(range: TokenRange<P>): Bound<P> | undefined {
+export function rangeEndBound(range: TokenRange): Bound | undefined {
 	if (range.$kind === 'Follow') return undefined;
 	const end = range.end;
 	switch (end.$kind) {
@@ -317,78 +311,47 @@ export function rangeEndBound<P>(range: TokenRange<P>): Bound<P> | undefined {
 }
 
 /** The exclusive checkpoint end of a range end, if it has one. */
-function checkpointEnd(end: RangeEnd<unknown>): bigint | undefined {
+function checkpointEnd(end: RangeEnd): bigint | undefined {
 	if (end.$kind === 'Checkpoint') return end.checkpoint;
 	if (end.$kind === 'IndexedTip') return end.checkpoint + 1n;
 	return undefined;
 }
 
-function capturedTip(range: TokenRange<unknown>): bigint | undefined {
+function capturedTip(range: TokenRange): bigint | undefined {
 	if (range.$kind === 'Follow') return undefined;
 	return range.end.$kind === 'IndexedTip' ? range.end.checkpoint : range.capturedTip;
 }
 
-function rangeOrder(range: TokenRange<unknown>): SuiClientTypes.Order {
+function rangeOrder(range: TokenRange): SuiClientTypes.Order {
 	return range.$kind === 'Follow' ? 'ascending' : range.order;
 }
 
 /**
  * Where `start` lies relative to `end` in traversal order: negative before, 0 equal, positive
- * reversed, undefined unknown (the server resolves it). Never interprets cursor bytes: positions
- * are compared by the adapter, then by the checkpoints they report.
+ * reversed, undefined unknown (the server resolves it).
  */
-export function compareBounds<P>(
-	start: Bound<P>,
-	end: Bound<P>,
+export function compareBounds(
+	start: Bound,
+	end: Bound,
 	order: SuiClientTypes.Order,
-	adapter: Pick<LedgerStreamAdapter<P, unknown, any>, 'compare' | 'locate' | 'position'>,
 ): number | undefined {
-	const direction = order === 'ascending' ? 1 : -1;
-	if ('position' in start && 'position' in end) {
-		const schema = adapter.position.schema;
-		if (
-			sameBytes(
-				schema.serialize(start.position).toBytes(),
-				schema.serialize(end.position).toBytes(),
-			)
-		) {
-			return 0;
-		}
-		const comparison = adapter.compare(start.position, end.position);
-		if (comparison !== undefined) return comparison * direction;
-	}
-	const a = locateBound(start, order, adapter);
-	const b = locateBound(end, order, adapter);
-	if (a.checkpoint === null || b.checkpoint === null) return undefined;
-	if (a.checkpoint !== b.checkpoint) return (a.checkpoint < b.checkpoint ? -1 : 1) * direction;
-	// Same checkpoint: a boundary lies before every position inside that checkpoint.
-	if (a.boundary && b.boundary) return 0;
-	if (a.boundary) return -direction;
-	if (b.boundary) return direction;
-	return undefined;
+	const comparison = comparePositions(boundPosition(start, order), boundPosition(end, order));
+	return comparison === undefined ? undefined : comparison * (order === 'ascending' ? 1 : -1);
 }
 
 /**
  * Checkpoint bounds as ledger boundaries: ascending `c` is the boundary before `c`; descending
  * `c` (inclusive start or exclusive end) is the boundary after `c`, i.e. before `c + 1`.
  */
-function locateBound<P>(
-	bound: Bound<P>,
-	order: SuiClientTypes.Order,
-	adapter: Pick<LedgerStreamAdapter<P, unknown, any>, 'locate'>,
-): { checkpoint: bigint | null; boundary: boolean } {
-	if ('position' in bound) return adapter.locate(bound.position);
-	return { checkpoint: bound.checkpoint + (order === 'descending' ? 1n : 0n), boundary: true };
+function boundPosition(bound: Bound, order: SuiClientTypes.Order): StreamPosition {
+	if ('position' in bound) return bound.position;
+	return boundaryPosition(bound.checkpoint + (order === 'descending' ? 1n : 0n));
 }
 
 /** For adapters: a descending scan cannot start above the indexed tip until it is indexed. */
-export function startBeyondTip<P>(
-	start: Bound<P> | undefined,
-	tip: bigint,
-	locate: (position: P) => { checkpoint: bigint | null },
-): boolean {
+export function startBeyondTip(start: Bound | undefined, tip: bigint): boolean {
 	if (!start) return false;
-	const checkpoint = 'checkpoint' in start ? start.checkpoint : locate(start.position).checkpoint;
+	const checkpoint = 'checkpoint' in start ? start.checkpoint : indexedThrough(start.position);
 	return checkpoint !== null && checkpoint > tip;
 }
 
@@ -404,6 +367,6 @@ function checkpointOption(
 	}
 }
 
-function checkpointBound(checkpoint: bigint | undefined): Bound<never> | undefined {
+function checkpointBound(checkpoint: bigint | undefined): Bound | undefined {
 	return checkpoint === undefined ? undefined : { checkpoint };
 }
