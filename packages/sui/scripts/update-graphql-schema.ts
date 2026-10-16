@@ -28,9 +28,8 @@ for (const field of ['checkpoints', 'transactions', 'events']) {
 	}
 }
 
-// Use the same serializer as gql.tada's CLI without its TypeScript-config loader,
-// which currently requires compiler APIs that are unavailable in TypeScript 7.
-// Resolve through gql.tada so its installed version owns the matching internal API.
+// Call gql.tada's serializer directly: its CLI's tsconfig loader needs compiler APIs that
+// TypeScript 7 lacks. Resolve it through gql.tada so the versions match.
 const require = createRequire(import.meta.url);
 const { minifyIntrospection, outputIntrospectionFile } = createRequire(require.resolve('gql.tada'))(
 	'@gql.tada/internal',
@@ -70,8 +69,7 @@ export const graphql = initGraphQLTada<{
 `,
 );
 
-// Prepare every output before writing, including rejecting a schema without the
-// subscription API. --check never changes generated files.
+// Every output is built before anything is written, so a rejected schema leaves files untouched.
 if (values.check) {
 	for (const [path, expected] of outputs) {
 		const actual = await readFile(path, 'utf8').catch(() => null);
