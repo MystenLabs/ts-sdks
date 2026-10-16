@@ -279,6 +279,80 @@ describe('GraphQL subscribe', () => {
 		).rejects.toThrow('text/event-stream');
 	});
 
+	describe('with a teed body whose other branch stays open', () => {
+		// A teed stream only finishes cancelling once every branch is cancelled, so awaiting the
+		// cancel of one branch never settles while the other is still open.
+		function teed(chunks: string[], close: boolean) {
+			const [body, other] = new ReadableStream<Uint8Array>({
+				start(controller) {
+					for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+					if (close) controller.close();
+				},
+			}).tee();
+			return { body, other };
+		}
+		function settlesQuickly<T>(promise: Promise<T>) {
+			let timer: ReturnType<typeof setTimeout>;
+			return Promise.race([
+				promise,
+				new Promise<never>((_, reject) => {
+					timer = setTimeout(() => reject(new Error('timed out waiting on body cleanup')), 500);
+				}),
+			]).finally(() => clearTimeout(timer));
+		}
+		const sseHeaders = { 'content-type': 'text/event-stream' };
+
+		it('surfaces an HTTP error status', async () => {
+			const { body, other } = teed(['unavailable'], false);
+			const { client } = clientFor(new Response(body, { status: 503 }));
+			await expect(
+				settlesQuickly(client.subscribe({ query: 'subscription { value }' }).next()),
+			).rejects.toMatchObject({ name: 'SuiGraphQLRequestError', status: 503, retryable: true });
+			await other.cancel();
+		});
+
+		it('surfaces a non-SSE content type', async () => {
+			const { body, other } = teed(['{}'], false);
+			const { client } = clientFor(
+				new Response(body, { headers: { 'content-type': 'application/json' } }),
+			);
+			await expect(
+				settlesQuickly(client.subscribe({ query: 'subscription { value }' }).next()),
+			).rejects.toThrow('text/event-stream');
+			await other.cancel();
+		});
+
+		it.each([
+			['a complete event', ['event: next\ndata: {"data":1}\n\nevent: complete\n\n'], false],
+			['end of stream', ['event: next\ndata: {"data":1}\n\n'], true],
+		])('completes on %s', async (_, chunks, close) => {
+			const { body, other } = teed(chunks, close);
+			const { client } = clientFor(new Response(body, { headers: sseHeaders }));
+			expect(
+				await settlesQuickly(collect(client.subscribe({ query: 'subscription { value }' }))),
+			).toEqual([{ data: 1 }]);
+			await other.cancel();
+		});
+
+		it('surfaces an error event', async () => {
+			const { body, other } = teed(['event: error\ndata: failed\n\n'], false);
+			const { client } = clientFor(new Response(body, { headers: sseHeaders }));
+			await expect(
+				settlesQuickly(collect(client.subscribe({ query: 'subscription { value }' }))),
+			).rejects.toThrow('GraphQL subscription error: failed');
+			await other.cancel();
+		});
+
+		it('returns early', async () => {
+			const { body, other } = teed(['event: next\ndata: {"data":1}\n\n'], false);
+			const { client } = clientFor(new Response(body, { headers: sseHeaders }));
+			const iterator = client.subscribe({ query: 'subscription { value }' });
+			expect(await iterator.next()).toMatchObject({ value: { data: 1 } });
+			expect(await settlesQuickly(iterator.return(undefined))).toMatchObject({ done: true });
+			await other.cancel();
+		});
+	});
+
 	it('rejects non-SSE responses', async () => {
 		const { client } = clientFor(Response.json({ data: {} }));
 		await expect(
