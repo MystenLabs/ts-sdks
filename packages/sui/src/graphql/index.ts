@@ -4,6 +4,7 @@
 export {
 	type GraphQLDocument,
 	type GraphQLQueryOptions,
+	type GraphQLSubscriptionOptions,
 	type GraphQLQueryResult,
 	type GraphQLResponseErrors,
 	type SuiGraphQLClientOptions,
