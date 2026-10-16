@@ -20,7 +20,6 @@ type Status = SuiClientTypes.StreamStatus;
 type Signer = { keypair: Ed25519Keypair; address: string };
 
 const graphqlSubscriptions = inject('graphqlSubscriptions');
-const graphqlSubscriptionProgress = inject('graphqlSubscriptionProgress');
 const streamServerFixes = inject('streamServerFixes');
 
 const LIVE: [ClientKind, Delivery][] = [
@@ -32,18 +31,14 @@ const LIVE: [ClientKind, Delivery][] = [
 const KINDS: ClientKind[] = ['grpc', 'graphql'];
 const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
 
-/** A GraphQL subscription reports `Live` only with its first match; until then it is `Connected`. */
+/** A GraphQL subscription reports `Live` with its first match or progress edge; until then it is `Connected`. */
 function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
 	return kind === 'graphql' && delivery === 'subscribe' ? 'Connected' : 'Live';
 }
 
-/**
- * GraphQL streams of transactions and events subscribe with `progressInterval`, which a local
- * service only has once it ships subscription progress edges.
- */
-function missingSubscriptions(kind: ClientKind, delivery: Delivery, family = 'events') {
-	if (kind !== 'graphql' || delivery !== 'subscribe') return false;
-	return !graphqlSubscriptions || (family !== 'checkpoints' && !graphqlSubscriptionProgress);
+/** GraphQL `subscribe` delivery needs a service that serves subscriptions. */
+function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
+	return kind === 'graphql' && delivery === 'subscribe' && !graphqlSubscriptions;
 }
 
 const MISSING_SERVER_FIXES = 'needs a fullnode and GraphQL service with the stream fixes';
@@ -964,7 +959,7 @@ describe('ledger streams', () => {
 		it.for(['checkpoints', 'transactions', 'events'] as const)(
 			'delivers %s exactly once from history into live while transactions are submitted, across a resume',
 			async (family, context) => {
-				if (missingSubscriptions(kind, delivery, family)) context.skip();
+				if (missingSubscriptions(kind, delivery)) context.skip();
 				context.skip(missingServerFixes(kind, family, delivery), MISSING_SERVER_FIXES);
 				const { statuses } = await followWhileSubmitting({
 					client: client(kind),
@@ -1049,8 +1044,8 @@ describe('ledger streams', () => {
 				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
 				expect(quiet).not.toContain('Retrying');
 				expect(quiet).not.toContain('Error');
-				const sparseGraphQL = kind === 'graphql' && delivery === 'subscribe';
-				expect(quiet.includes('Live')).toBe(!sparseGraphQL);
+				// A GraphQL subscription is Live once it reports a match or a progress edge.
+				if (kind !== 'graphql' || delivery !== 'subscribe') expect(quiet).toContain('Live');
 				const baseline = reader.frames.findLast((frame) => frame.$kind === 'Progress');
 				expect(baseline).toBeDefined();
 				expect(events(reader.frames)).toEqual([]);
@@ -1196,7 +1191,7 @@ describe('ledger streams', () => {
 		it.for(['checkpoints', 'events'] as const)(
 			'delivers %s exactly once when the live connection resets every 2 s',
 			async (family, context) => {
-				if (missingSubscriptions(kind, 'subscribe', family)) context.skip();
+				if (missingSubscriptions(kind, 'subscribe')) context.skip();
 				const { client: resetting, resets } = resettingClient(kind, 2_000);
 				const { statuses } = await followWhileSubmitting({
 					client: resetting,
