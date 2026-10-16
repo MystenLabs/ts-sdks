@@ -408,6 +408,7 @@ export class MockSuiClient extends CoreClient {
 							AddressOwner: '0x0000000000000000000000000000000000000000000000000000000000000123',
 						},
 						idOperation: 'None',
+						objectType: '0x2::coin::Coin<0x2::sui::SUI>',
 					},
 					eventsDigest: null,
 					dependencies: [],

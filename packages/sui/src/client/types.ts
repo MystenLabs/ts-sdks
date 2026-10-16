@@ -1113,6 +1113,11 @@ export namespace SuiClientTypes {
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;
 		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
+		/**
+		 * The normalized Move type of the object, or `package` for packages. `null` when the type
+		 * is not known, such as for effects decoded with `parseTransactionEffectsBcs`.
+		 */
+		objectType: string | null;
 		// TODO: add accumulatorWrite field once its widely available
 	}
 
