@@ -12,7 +12,7 @@ import {
 } from '../../../../src/graphql/stream/position.js';
 import { resolveScanWindow, type ScanWindow } from '../../../../src/graphql/stream/scan.js';
 
-const indexed = { chain: 'chain', first: 5n, tip: 20n };
+const indexed = { first: 5n, tip: 20n };
 const item = (checkpoint: number) => ({
 	position: itemPosition(`c${checkpoint}`, BigInt(checkpoint), 'id'),
 });
