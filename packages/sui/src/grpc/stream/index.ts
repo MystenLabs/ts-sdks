@@ -21,13 +21,6 @@ import { isNonRetryable } from '../pull-call.js';
 import { isBufferOverflow, openLedgerCall } from './call.js';
 import { followLedger } from './follow.js';
 import { GRPC_FAMILIES, mapGrpcItem, type GrpcItem, type NativeFilter } from './families.js';
-import {
-	comparePositions,
-	grpcPositionCodec,
-	locatePosition,
-	positionCoverage,
-	type GrpcPosition,
-} from './position.js';
 import { readIndexedTip, scanLedger, type GrpcStreamCalls } from './scan.js';
 
 /** What the adapter needs from `GrpcCoreClient`. */
@@ -52,14 +45,9 @@ const RETRYABLE_CODES = new Set([
 ]);
 
 /** A ledger stream over gRPC: List calls for history, Subscribe calls for live delivery. */
-export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<
-	GrpcPosition,
-	GrpcItem,
-	ItemFrame
-> {
+export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, ItemFrame> {
 	readonly transport = 'grpc' as const;
 	readonly family: StreamFamily;
-	readonly position = grpcPositionCodec();
 	/** A subscription starts at the live tip, so a fresh follow needs no indexed tip. */
 	readonly anchorsAtLiveTip = true;
 	readonly #context: GrpcStreamContext;
@@ -86,24 +74,12 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<
 		return readIndexedTip(this.#context.transport, signal);
 	}
 
-	scan(request: ScanRequest<GrpcPosition>) {
+	scan(request: ScanRequest) {
 		return scanLedger(this.#initializedCalls(), request);
 	}
 
-	follow(session: FollowSession<GrpcPosition, GrpcItem, ItemFrame>) {
+	follow(session: FollowSession<GrpcItem, ItemFrame>) {
 		return followLedger(this.#initializedCalls(), session);
-	}
-
-	compare(a: GrpcPosition, b: GrpcPosition) {
-		return comparePositions(a, b);
-	}
-
-	coverage(position: GrpcPosition) {
-		return positionCoverage(position, this.family);
-	}
-
-	locate(position: GrpcPosition) {
-		return locatePosition(position);
 	}
 
 	mapItem(item: GrpcItem) {

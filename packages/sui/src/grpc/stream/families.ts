@@ -3,8 +3,13 @@
 
 import type { MethodInfo, ServiceType } from '@protobuf-ts/runtime-rpc';
 
-import type { ItemFrame, StreamFamily } from '../../client/stream/index.js';
-import { SuiStreamError } from '../../client/stream/index.js';
+import type { ItemFrame, StreamFamily, StreamPosition } from '../../client/stream/index.js';
+import {
+	boundaryPosition,
+	itemPosition,
+	progressPosition,
+	SuiStreamError,
+} from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import {
 	CHECKPOINT_READ_MASK_PATHS,
@@ -22,7 +27,6 @@ import type { EventFilter, TransactionFilter } from '../proto/sui/rpc/v2/filter.
 import { LedgerService } from '../proto/sui/rpc/v2/ledger_service.js';
 import type { QueryEnd, QueryOptions, Watermark } from '../proto/sui/rpc/v2/query_options.js';
 import { SubscriptionService } from '../proto/sui/rpc/v2/subscription_service.js';
-import { checkpointCursorPosition, type GrpcPosition } from './position.js';
 
 /** The ledger item a frame carries. */
 export type GrpcItem =
@@ -73,7 +77,7 @@ export interface GrpcFamily {
 	readMask(include: SuiClientTypes.TransactionInclude | undefined): string[];
 	item(frame: ListFrame | LiveFrame): GrpcItem | undefined;
 	/** The position a subscription frame reports. */
-	livePosition(frame: LiveFrame, item: GrpcItem | undefined): GrpcPosition;
+	livePosition(frame: LiveFrame, item: GrpcItem | undefined): StreamPosition;
 }
 
 export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
@@ -125,30 +129,38 @@ function streamingMethod<I extends object, O extends object>(
 export function framePosition(
 	frame: { watermark?: Watermark },
 	item: GrpcItem | undefined,
-): GrpcPosition {
+): StreamPosition {
 	const { watermark } = frame;
 	if (!watermark?.cursor?.length) {
 		throw new SuiStreamError('Protocol', 'Ledger response is missing its watermark cursor');
 	}
-	return {
-		cursor: { $kind: 'Native', bytes: watermark.cursor },
+	const fields = {
+		cursor: watermark.cursor,
 		coverage:
 			watermark.checkpoint === undefined
-				? { $kind: 'Unknown' }
-				: { $kind: 'Through', checkpoint: watermark.checkpoint },
-		checkpointBoundary: null,
-		...itemCoordinates(item),
+				? ({ $kind: 'Unknown' } as const)
+				: ({ $kind: 'Through', checkpoint: watermark.checkpoint } as const),
 	};
+	if (!item) return progressPosition(watermark.cursor, fields);
+	const { checkpoint, ...indexes } = itemCoordinates(item);
+	return itemPosition(checkpoint, { ...fields, ...indexes });
+}
+
+/**
+ * A checkpoint subscription frame: its cursor is the checkpoint it has fully covered, and the
+ * stream resumes by checkpoint after it.
+ */
+function checkpointCursorPosition(cursor: bigint, hasItem: boolean): StreamPosition {
+	const coverage = { $kind: 'Through', checkpoint: cursor } as const;
+	return hasItem ? itemPosition(cursor, { coverage }) : boundaryPosition(cursor + 1n, { coverage });
 }
 
 /** Where an item sits in the ledger. Transactions and events must report their indexes. */
-function itemCoordinates(item: GrpcItem | undefined) {
-	const none = { checkpoint: null, transactionIndex: null, eventIndex: null };
+function itemCoordinates(item: GrpcItem) {
+	const none = { transactionIndex: null, eventIndex: null };
 	const missing = (field: string) =>
 		new SuiStreamError('Protocol', `Ledger item is missing its ${field}`);
-	switch (item?.$kind) {
-		case undefined:
-			return none;
+	switch (item.$kind) {
 		case 'Checkpoint': {
 			const checkpoint = item.checkpoint.sequenceNumber;
 			if (checkpoint === undefined) throw missing('sequence number');
