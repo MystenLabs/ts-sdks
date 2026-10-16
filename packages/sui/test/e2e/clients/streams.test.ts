@@ -1,16 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * Ledger streams against localnet, on both transports.
- *
- * The core property is exactly-once, gap-free delivery: a stream that starts in history, hands
- * off to live delivery, reconnects and resumes delivers exactly what the list methods return for
- * the same range, in ledger order, while transactions are being submitted.
- *
- * GraphQL subscriptions need a separate GraphQL service (see test/e2e/README.md). Without one,
- * the GraphQL `subscribe` cases skip and GraphQL is tested with `poll` delivery only.
- */
+// GraphQL `subscribe` cases need a separate GraphQL service; see test/e2e/README.md.
 
 import { afterEach, beforeAll, describe, expect, inject, it } from 'vitest';
 
@@ -30,7 +21,6 @@ type Signer = { keypair: Ed25519Keypair; address: string };
 
 const graphqlSubscriptions = inject('graphqlSubscriptions');
 
-/** Live delivery modes per transport. */
 const LIVE: [ClientKind, Delivery][] = [
 	['grpc', 'subscribe'],
 	['grpc', 'poll'],
@@ -40,10 +30,7 @@ const LIVE: [ClientKind, Delivery][] = [
 const KINDS: ClientKind[] = ['grpc', 'graphql'];
 const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
 
-/**
- * The status that shows a live stream is listening: a GraphQL subscription replays the gap
- * (`Recovering`) once the server accepts it; gRPC subscriptions and poll passes report `Live`.
- */
+/** A GraphQL subscription can't report `Live` before its first match, only `Recovering`. */
 function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
 	return kind === 'graphql' && delivery === 'subscribe' ? 'Recovering' : 'Live';
 }
@@ -142,17 +129,12 @@ function causedByReset(error: unknown): boolean {
 	return false;
 }
 
-/**
- * Readiness of a raw GraphQL subscription. `wait(first)` resolves once the server accepted it
- * (`onOpen`), and rejects if the pending first read fails first (no `onOpen` then) or after
- * `timeout`, so a failed subscription never leaves the test waiting.
- */
+/** Resolves once a raw GraphQL subscription opens; rejects if its first read fails or times out. */
 function opening(timeout = 30_000) {
 	const opened = Promise.withResolvers<void>();
 	return {
 		onOpen: () => opened.resolve(),
 		async wait(first: Promise<unknown>) {
-			// The caller awaits `first` later; this keeps an early failure from going unhandled.
 			first.catch(() => {});
 			let timer: ReturnType<typeof setTimeout> | undefined;
 			try {
@@ -173,10 +155,7 @@ function opening(timeout = 30_000) {
 /** Readers still running; `afterEach` stops them even when a test fails before `close()`. */
 const openReaders = new Set<{ close(): Promise<void> }>();
 
-/**
- * Reads a stream in the background, so the test can submit transactions while it runs. Stops
- * when `close()` aborts the stream's signal.
- */
+/** Reads a stream in the background while the test submits transactions. */
 class Reader<F> {
 	readonly frames: F[] = [];
 	readonly #controller: AbortController;
@@ -231,10 +210,7 @@ class Reader<F> {
 	}
 }
 
-/**
- * A fetch that resets matching response bodies after `after` ms, the way a server or proxy
- * drops a long-lived stream (mainnet resets gRPC streams every 30 s).
- */
+/** A fetch that resets matching response bodies after `after` ms, like mainnet's 30 s resets. */
 function resettingFetch(match: (url: string) => boolean, after: number) {
 	const resets = { count: 0 };
 	const wrapped: typeof fetch = async (input, init) => {
@@ -281,10 +257,7 @@ function resettingFetch(match: (url: string) => boolean, after: number) {
 	return { fetch: wrapped, resets };
 }
 
-/**
- * The fields where `actual` and `expected` differ, as sorted paths with array indexes and map
- * keys elided (`effects.changedObjects[].objectType`).
- */
+/** Sorted paths where `actual` and `expected` differ, such as `effects.changedObjects[].objectType`. */
 function differingFields(actual: unknown, expected: unknown): string[] {
 	const paths = new Set<string>();
 	const walk = (a: unknown, b: unknown, path: string, keyed: boolean) => {
@@ -316,15 +289,8 @@ function differingFields(actual: unknown, expected: unknown): string[] {
 }
 
 /**
- * Fields that the servers leave out of (or get wrong in) subscription responses, found by
- * these tests (sui v1.82.1 fullnode, sui-indexer-alt-graphql v1.83). Streams pass live items
- * through as the servers send them, so they differ from what the list methods return:
- * - gRPC `SubscribeTransactions` leaves out `effects.changed_objects.object_type` and
- *   `events.events.json`, even when the read mask asks for them (`SubscribeEvents` is fine);
- * - GraphQL subscription transactions have no `objectType` in `effectsJson`;
- * - GraphQL subscription events report a wrong `transactionModule.package.address`.
- * The tests below require these exact differences and nothing else: when a server is fixed,
- * its entry must be emptied.
+ * Fields subscription responses leave out or get wrong (sui v1.82.1, sui-indexer-alt-graphql
+ * v1.83). Empty an entry when the server is fixed.
  */
 const SUBSCRIPTION_GAPS: Record<ClientKind, Record<'transactions' | 'events', string[]>> = {
 	grpc: {
@@ -345,10 +311,7 @@ const SUBSCRIPTION_GAPS: Record<ClientKind, Record<'transactions' | 'events', st
 	},
 };
 
-/**
- * Drops the fields that `SUBSCRIPTION_GAPS` lists for `kind` and `family` (the live-item tests
- * pin them), so the rest of each item can be compared exactly.
- */
+/** Drops the `SUBSCRIPTION_GAPS` fields so the rest of each item can be compared exactly. */
 function withoutSubscriptionGaps(
 	kind: ClientKind,
 	family: 'checkpoints' | 'transactions' | 'events',
@@ -383,7 +346,6 @@ function countingFetch(match: (url: string) => boolean) {
 				},
 				cancel: (reason) => reader.cancel(reason),
 			},
-			// No internal buffering: a chunk is read from the network only when the client reads.
 			{ highWaterMark: 0 },
 		);
 		return new Response(body, {
@@ -624,8 +586,7 @@ describe('ledger streams', () => {
 				).toEqual(transaction);
 				streamed[kind] = transaction;
 			}
-			// gRPC returns every nested event; GraphQL returns the first 50 for single reads, list
-			// pages and streams alike (`streamEvents` has all of them, see below).
+			// GraphQL returns only the first 50 nested events.
 			const grpcEvents = streamed.grpc.Transaction!.events;
 			expect(grpcEvents).toHaveLength(MANY_EVENTS);
 			expect(streamed.graphql.Transaction!.events).toHaveLength(NESTED_LIST_LIMIT);
@@ -683,7 +644,6 @@ describe('ledger streams', () => {
 				const pages = statuses().filter((s) => s.$kind === 'Page');
 				expect(pages.every((page) => page.stage === 'history')).toBe(true);
 				expect(pages.at(-1)).toMatchObject({ end: 'bound' });
-				// GraphQL pages hold 50 items, so 60 events take at least two pages.
 				if (kind === 'graphql')
 					expect(pages.filter((page) => page.end === 'limit').length).toBeGreaterThan(0);
 			},
@@ -771,7 +731,7 @@ describe('ledger streams', () => {
 		});
 
 		describe.each(KINDS)('%s', (kind) => {
-			it('resumes from every 7th event token and every 2nd checkpoint token to exactly the remaining items', async () => {
+			it('resumes from event and checkpoint tokens to exactly the remaining items', async () => {
 				const filter = { sender: manySigner.address };
 				const frames = await collect(client(kind).core.streamEvents({ ...range(), filter }));
 				expect(frames).toHaveLength(MANY_EVENTS);
@@ -831,7 +791,6 @@ describe('ledger streams', () => {
 			});
 
 			it('uses exclusive cursor bounds inside one transaction and reports cursor completion', async () => {
-				// Following tokens also serve as interval anchors.
 				const anchors = await take(
 					client(kind).core.streamEvents({
 						start: { checkpoint: firstCheckpoint },
@@ -902,11 +861,7 @@ describe('ledger streams', () => {
 		});
 	});
 
-	/**
-	 * Follows `family` from history into live delivery while transactions are submitted, stops
-	 * half way, resumes from the last token, and checks that the two streams together delivered
-	 * exactly what the list method returns, in order.
-	 */
+	/** Follows `family` into live delivery while submitting, and compares with the list method. */
 	async function followWhileSubmitting(options: {
 		client: ClientWithCoreApi;
 		kind: ClientKind;
@@ -914,17 +869,12 @@ describe('ledger streams', () => {
 		delivery: Delivery;
 		/** Milliseconds the consumer waits after each frame. */
 		delay?: number;
-		/** Resume from a token half way through. */
 		resume?: boolean;
-		/**
-		 * Wait for a reconnect after the submissions, then submit one more transaction that the
-		 * stream must deliver: delivery recovered after a reset.
-		 */
+		/** Submit one more transaction after a reconnect. */
 		afterReconnect?: boolean;
 	}) {
 		const { family, delivery } = options;
 		const from = await newSigner();
-		// History: these are indexed before the stream starts.
 		const history = [await emitEvents(from, 2), await emitEvents(from, 1)];
 		const start = { checkpoint: history[0].checkpoint };
 		const filter = { sender: from.address };
@@ -964,7 +914,6 @@ describe('ledger streams', () => {
 			return frames();
 		};
 
-		// Submit while the stream reads history, hands off and runs live.
 		let reader = new Reader(open(start), { delay: options.delay });
 		const submitted = [...history];
 		const submitting = (async () => {
@@ -997,8 +946,7 @@ describe('ledger streams', () => {
 		await reader.settle(2_000);
 		delivered.push(...reader.frames);
 
-		// What the list method says the stream should have delivered. Live delivery can be
-		// ahead of the index that serves the list methods, so wait for it to catch up.
+		// Live delivery can be ahead of the index the list methods read.
 		await toolbox.waitForTransaction({ digest: submitted.at(-1)!.digest });
 		const through = BigInt(delivered.at(-1)!.checkpoint);
 		const listed = () =>
@@ -1022,14 +970,10 @@ describe('ledger streams', () => {
 
 		const keys = delivered.map((frame) => frame.key);
 		expect(new Set(keys).size, 'duplicates').toBe(keys.length);
-		// Live items lack a few fields the servers do not fill in on subscriptions
-		// (`SUBSCRIPTION_GAPS`, pinned by the live-item tests below).
-		// Polling reads history only, so it must match exactly.
 		const normalize = (value: unknown) =>
 			delivery === 'subscribe' ? withoutSubscriptionGaps(options.kind, family, value) : value;
 		expect(normalize(delivered.map((frame) => frame.value))).toEqual(normalize(expected));
 		if (family !== 'checkpoints') {
-			// Every submitted transaction is in there.
 			const seen = new Set(delivered.map((frame) => frame.key.split(':')[0]));
 			for (const { digest } of submitted) expect(seen).toContain(digest);
 		}
@@ -1051,14 +995,12 @@ describe('ledger streams', () => {
 				});
 				expect(statuses.filter((s) => s.$kind === 'Error' || s.$kind === 'Retrying')).toEqual([]);
 				const all = attempts(statuses);
-				// Two streams: the first stops after a few items, the resumed one goes live.
 				expect(all).toHaveLength(2);
 				expect(all[1].map((s) => s.$kind)).toContain('Live');
 				for (const attempt of all) {
 					expect(attempt[0]).toEqual({ $kind: 'Connecting', attempt: 0 });
 					const kinds = attempt.map((s) => s.$kind);
 					if (!kinds.includes('Live')) continue;
-					// History pages come before any gap replay, and the gap before Live.
 					const firstLive = kinds.indexOf('Live');
 					const recovering = kinds.indexOf('Recovering');
 					if (recovering !== -1) expect(recovering).toBeLessThan(firstLive);
@@ -1121,19 +1063,14 @@ describe('ledger streams', () => {
 						signal,
 					}),
 				);
-				// Once listening, a quiet period with no match must not disconnect or report errors.
 				await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 				await sleep(5_000);
 				const quiet = log.kinds();
 				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
 				expect(quiet).not.toContain('Retrying');
 				expect(quiet).not.toContain('Error');
-				// gRPC subscriptions start with a progress frame and poll passes reach the indexed
-				// tip, so both are Live without a match. A GraphQL subscription carries no progress:
-				// its first live frame is the first match, so it is Live only once one arrives.
 				const sparseGraphQL = kind === 'graphql' && delivery === 'subscribe';
 				expect(quiet.includes('Live')).toBe(!sparseGraphQL);
-				// A quiet fresh follow still hands out a resumable position before any match.
 				const baseline = reader.frames.findLast((frame) => frame.$kind === 'Progress');
 				expect(baseline).toBeDefined();
 				expect(events(reader.frames)).toEqual([]);
@@ -1145,11 +1082,7 @@ describe('ledger streams', () => {
 					digest,
 				]);
 				const live = log.log.find(({ status }) => status.$kind === 'Live');
-				// Live is reported before the first item is handed out, except on a GraphQL
-				// subscription: its first match is replayed from history with the rest of that
-				// checkpoint (the gap), and Live follows.
 				expect(live?.frames).toBe(sparseGraphQL ? 1 : 0);
-				// The baseline resumes to exactly the match that followed it.
 				const [resumed] = await take(
 					client(kind).core.streamEvents({
 						start: { resumeToken: baseline!.resumeToken },
@@ -1187,9 +1120,7 @@ describe('ledger streams', () => {
 					expect(history.slice(0, 9).map((event) => event.transactionDigest)).toEqual(
 						digests.flatMap((digest) => [digest, digest, digest]),
 					);
-					// Streams are pulled: history only finishes, and the live feed only opens, while
-					// a read is pending. Attach rejection handling before submitting, so a failure
-					// stays observable, and submit once the stream is listening.
+					// Streams are pulled, so the live feed only opens while a read is pending.
 					const pending = stream.next().then(
 						(value) => ({ value }),
 						(error: unknown) => ({ error }),
@@ -1220,12 +1151,10 @@ describe('ledger streams', () => {
 			const pending = stream.next();
 			const rejection = expect(pending).rejects.toThrow('stream cancelled');
 			try {
-				// Cancel while the live read is pending, not while history is still being read.
 				await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 				controller.abort(new Error('stream cancelled'));
 				await rejection;
 			} finally {
-				// Also when waiting failed: never leave the stream running into later tests.
 				controller.abort(new Error('stream cancelled'));
 				await rejection.catch(() => {});
 				await stream.return(undefined);
@@ -1269,7 +1198,6 @@ describe('ledger streams', () => {
 						}
 						return values();
 					});
-					// Submit once the subscription is open, so both items arrive live.
 					await waitFor(() => log.kinds().includes(listening(kind, 'subscribe')));
 					await emitEvents(from, 1);
 					await emitEvents(from, 1);
@@ -1290,7 +1218,7 @@ describe('ledger streams', () => {
 		const skip = missingSubscriptions(kind, 'subscribe');
 
 		it.skipIf(skip).each(['checkpoints', 'events'] as const)(
-			'delivers %s exactly once when the live connection is reset every 2 s, with one short history pass and one gap per reconnect',
+			'delivers %s exactly once when the live connection resets every 2 s',
 			async (family) => {
 				const { client: resetting, resets } = resettingClient(kind, 2_000);
 				const { statuses } = await followWhileSubmitting({
@@ -1302,38 +1230,27 @@ describe('ledger streams', () => {
 					delay: kind === 'grpc' ? 150 : 0,
 					afterReconnect: true,
 				});
-				// The resets happened, each reconnect followed one, and a transaction submitted
-				// after a reconnect was delivered (`afterReconnect`).
 				const retries = statuses.filter((s) => s.$kind === 'Retrying');
 				const connecting = statuses.filter((s) => s.$kind === 'Connecting');
 				expect(retries.length).toBeGreaterThan(0);
-				// `Retrying` is reported before the backoff and `Connecting` after it, so a reader
-				// closed during a backoff leaves one retry without its reconnect.
+				// A reader closed during a backoff leaves one `Retrying` without its `Connecting`.
 				const pendingRetry = statuses.at(-1)?.$kind === 'Retrying' ? 1 : 0;
 				expect(connecting).toHaveLength(retries.length + 1 - pendingRetry);
 				expect(resets.count).toBeGreaterThanOrEqual(retries.length);
-				// Every reconnect was caused by an injected reset: nothing overflowed.
 				for (const retry of retries) {
 					expect(causedByReset(retry.error), String(retry.error)).toBe(true);
 				}
 				expect(statuses.filter((s) => s.$kind === 'Error')).toEqual([]);
 				const [, ...reconnects] = attempts(statuses);
 				expect(reconnects.length).toBeGreaterThan(0);
-				// At least one reconnect went live again before the next reset.
 				expect(reconnects.some((attempt) => attempt.some((s) => s.$kind === 'Live'))).toBe(true);
 				for (const attempt of reconnects) {
 					const pages = attempt.filter((s) => s.$kind === 'Page');
-					// One history pass from the committed position to the indexed tip: it ends at the
-					// tip after at most one full page (no page when the committed position is already
-					// at the indexed tip).
 					const history = pages.filter((page) => page.stage === 'history');
 					expect(history.filter((page) => page.end !== 'limit').length).toBeLessThanOrEqual(1);
 					expect(history.length).toBeLessThanOrEqual(2);
-					// The reset that ended this attempt may come before Live.
 					if (attempt.some((s) => s.$kind === 'Live')) {
 						const gap = pages.filter((page) => page.stage === 'gap');
-						// Polling for the index to reach the first live position can take several
-						// passes, but never a full page.
 						expect(gap.filter((page) => page.end === 'limit')).toEqual([]);
 					}
 				}
@@ -1382,13 +1299,10 @@ describe('ledger streams', () => {
 				expect(result.done).toBe(false);
 				if (!result.done) sequence.push(BigInt(result.value.checkpoint.sequenceNumber));
 			};
-			// Read into live delivery, so the pause holds an open subscription.
 			while (!log.kinds().includes('Live')) await next();
 			await next();
 			const pulled = pulls.count;
 			const before = BigInt(await tip());
-			// Stay paused until the ledger has produced several checkpoints the consumer has not
-			// asked for. Bounded: localnet produces several per second.
 			let after = before;
 			const deadline = Date.now() + 60_000;
 			while (after < before + 4n) {
@@ -1396,10 +1310,7 @@ describe('ledger streams', () => {
 				await sleep(250);
 				after = BigInt(await tip());
 			}
-			// The pull path read nothing ahead meanwhile: the subscription body is only read when
-			// the consumer asks (at most one read in flight).
 			expect(pulls.count - pulled).toBeLessThanOrEqual(1);
-			// Read past what was produced before and during the pause, so live delivery resumed.
 			while (sequence.at(-1)! < after + 2n) await next();
 			const pending = stream.next();
 			const started = Date.now();
@@ -1558,8 +1469,7 @@ describe('ledger streams', () => {
 			const filter = { sender: from.address };
 			const start = { checkpoint: (await emitEvents(from, 1)).checkpoint };
 
-			// Capture the stream's subscribe request, then open it before the next stream's
-			// history scan, and let the ledger move past it before that scan runs.
+			// Open the subscription before the history scan, then advance the ledger past it.
 			let subscribeRequest: { url: string; init: RequestInit } | undefined;
 			let preopened: Promise<Response> | undefined;
 			let hold: (() => Promise<void>) | undefined;
@@ -1589,7 +1499,6 @@ describe('ledger streams', () => {
 				baseUrl: `http://127.0.0.1:${inject('localnetPort')}`,
 				fetch: fetchWithPreopen,
 			});
-			// A fresh follow subscribes straight away; it is Live after the first progress frame.
 			const probeLog = statusLog();
 			const probe = new Reader((signal) =>
 				grpc.streamEvents({ filter, signal, onStatus: probeLog.onStatus }),
@@ -1600,7 +1509,6 @@ describe('ledger streams', () => {
 
 			const ahead: Awaited<ReturnType<typeof emitEvents>>[] = [];
 			hold = async () => {
-				// Indexed before the history scan, and after the subscription opened.
 				ahead.push(await emitEvents(from, 2), await emitEvents(from, 1));
 			};
 			let reader: Reader<SuiClientTypes.StreamEventFrame> | undefined;
@@ -1620,24 +1528,21 @@ describe('ledger streams', () => {
 				await listEvents('grpc', { filter, startCheckpoint: start.checkpoint }),
 			);
 			expect(reader.frames.at(-1)?.event.transactionDigest).toBe(after.digest);
-			// History had already passed the first live position. That position is a progress
-			// cursor, which cannot be ordered against an item cursor, so the gap may still be
-			// asked for: the server answers the reversed interval with one empty page.
+			// A progress cursor can't be ordered against an item cursor, so an empty gap may be read.
 			const recovering = log.log.find(({ status }) => status.$kind === 'Recovering');
 			const live = log.log.find(({ status }) => status.$kind === 'Live');
 			if (recovering) {
 				const gap = log.log.slice(log.log.indexOf(recovering) + 1, log.log.indexOf(live!));
 				expect(gap.every(({ status }) => status.$kind === 'Page')).toBe(true);
-				// The gap delivered nothing.
 				expect(live?.frames).toBe(recovering.frames);
 			}
 			expect(log.kinds()).toContain('Live');
 			expect(log.kinds()).not.toContain('Retrying');
 		});
 
-		it.skip('reports pruned history (OUT_OF_RANGE) as HistoryUnavailable: localnet never prunes; covered by the unit test "fails unavailable history in the gap without retrying"', () => {});
-
-		it.skip('waits for the first indexed checkpoint on a brand-new chain: the suite starts after genesis is indexed; covered by the unit test "waits for the first indexed checkpoint before planning"', () => {});
+		// Covered by unit tests: localnet never prunes and starts after genesis is indexed.
+		it.skip('reports pruned history as HistoryUnavailable', () => {});
+		it.skip('waits for the first indexed checkpoint on a new chain', () => {});
 	});
 
 	describe.skipIf(!graphqlSubscriptions)('GraphQL protocol assumptions', () => {
@@ -1736,7 +1641,6 @@ describe('ledger streams', () => {
 			const { digest } = await emitEvents(from, 1, { fast: true });
 			const edge = (await pending).value!;
 			expect(edge.data?.transactions.node.digest).toBe(digest);
-			// The node may or may not carry its checkpoint yet; the lookup resolves it either way.
 			const deadline = Date.now() + 30_000;
 			let checkpoint: number | undefined;
 			while (checkpoint === undefined && Date.now() < deadline) {
@@ -1786,6 +1690,7 @@ describe('ledger streams', () => {
 	});
 
 	describe('GraphQL history limits', () => {
-		it.skip('reports a descending read to genesis on a pruned server as HistoryUnavailable: localnet never prunes; covered by the unit test "fails with HistoryUnavailable, without a page request, when the start has been pruned"', () => {});
+		// Covered by unit tests: localnet never prunes.
+		it.skip('reports a descending read to genesis on a pruned server as HistoryUnavailable', () => {});
 	});
 });
