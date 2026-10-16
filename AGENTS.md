@@ -196,10 +196,10 @@ Several packages depend on external repositories and remote schemas. These are u
 
 ### Remote Resources (fetched from GitHub)
 
-| URL                                                         | Description      | Used By                          |
-| ----------------------------------------------------------- | ---------------- | -------------------------------- |
-| `MystenLabs/sui/.../sui-indexer-alt-graphql/schema.graphql` | GraphQL schema   | `@mysten/sui` GraphQL codegen    |
-| `MystenLabs/sui/Cargo.toml`                                 | Sui version info | `@mysten/sui` version generation |
+| URL                                                          | Description      | Used By                          |
+| ------------------------------------------------------------ | ---------------- | -------------------------------- |
+| `MystenLabs/sui/.../sui-indexer-alt-graphql/staging.graphql` | GraphQL schema   | `@mysten/sui` GraphQL codegen    |
+| `MystenLabs/sui/Cargo.toml`                                  | Sui version info | `@mysten/sui` version generation |
 
 ### On-chain Resources
 
