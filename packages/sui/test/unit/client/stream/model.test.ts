@@ -3,7 +3,7 @@
 
 /**
  * Seeded random schedules against the model ledger. Each run injects index lag, failed and
- * repeated scan pages, live feeds that start early or late, repeat items, skip checkpoints,
+ * repeated scan pages, live feeds that start early or late or resume a position, repeat items,
  * overflow, fail or end. The assertions are the stream's contract:
  *
  * - the delivered items are exactly the expected range of the ledger, in order, each once;
@@ -14,8 +14,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
+	comparePositions,
 	fakeAdapter,
 	itemId,
+	itemPosition,
 	Ledger,
 	NetworkError,
 	Overflow,
@@ -23,17 +25,17 @@ import {
 	type FakeItem,
 	type FakeOptions,
 	type FakeOutput,
+	type FakePosition,
 	type LiveScript,
 	type ScanFault,
 } from './fake-ledger.js';
 
 const SEEDS = 200;
 
-type Mode =
-	'follow-cursor' | 'follow-checkpoint' | 'poll' | 'finite-ascending' | 'finite-descending';
+type Mode = 'follow-cursor' | 'follow-resume' | 'poll' | 'finite-ascending' | 'finite-descending';
 const MODES: Mode[] = [
 	'follow-cursor',
-	'follow-checkpoint',
+	'follow-resume',
 	'poll',
 	'finite-ascending',
 	'finite-descending',
@@ -69,8 +71,8 @@ interface Scenario {
 function scenario(seed: number): Scenario {
 	const rng = random(seed);
 	const mode = MODES[seed % MODES.length];
-	const checkpoints = mode === 'follow-checkpoint';
-	const counts = Array.from({ length: rng.int(6, 16) }, () => (checkpoints ? 1 : rng.int(0, 3)));
+	const resumes = mode === 'follow-resume';
+	const counts = Array.from({ length: rng.int(6, 16) }, () => rng.int(0, 3));
 	counts[counts.length - 1] = Math.max(counts.at(-1)!, 1); // the last item ends a follow
 	const last = counts.length - 1;
 	// A follow needs something left to read: the last item ends it.
@@ -92,7 +94,8 @@ function scenario(seed: number): Scenario {
 			if (rng.chance(0.15)) return { repeatStartCursor: true };
 			return undefined;
 		}),
-		live: (connection) => liveScript(ledger, rng, connection, checkpoints),
+		live: (connection, after) =>
+			resumes ? resumeScript(ledger, rng, connection, after) : liveScript(ledger, rng, connection),
 	});
 
 	switch (mode) {
@@ -107,17 +110,12 @@ function scenario(seed: number): Scenario {
 				expected: (l) => (anchored ? undefined : after(start)(l.items)),
 			};
 		}
-		case 'follow-checkpoint': {
+		case 'follow-resume': {
 			const start = rng.chance(0.3) ? undefined : rng.int(0, last);
 			return {
 				mode,
 				ledger,
-				fake: (l, r) => ({
-					...faults(l, r),
-					family: 'checkpoints',
-					handoff: 'checkpoint',
-					contiguousCheckpoints: true,
-				}),
+				fake: (l, r) => ({ ...faults(l, r), handoff: 'resume' }),
 				options: { frames, ...(start !== undefined && { start: { checkpoint: start } }) },
 				// Without a start, the stream anchors after the indexed tip it reads first.
 				expected: (l, tip) => after(start ?? Number(tip) + 1)(l.items),
@@ -179,8 +177,8 @@ function scenario(seed: number): Scenario {
 	}
 }
 
-/** A live connection: starts near the index, may repeat, skip, report progress, or end early. */
-function liveScript(ledger: Ledger, rng: Random, connection: number, skips: boolean): LiveScript {
+/** A live connection: starts near the index, may repeat, report progress, or end early. */
+function liveScript(ledger: Ledger, rng: Random, connection: number): LiveScript {
 	const last = Number(ledger.lastCheckpoint);
 	const from = Math.min(last, Math.max(0, Number(ledger.indexedTip) + rng.int(-2, 3)));
 	const faulty = connection < 6;
@@ -188,11 +186,10 @@ function liveScript(ledger: Ledger, rng: Random, connection: number, skips: bool
 	let checkpoint = -1;
 	for (const event of ledger.liveFrom(from)) {
 		const cp = Number(event.$kind === 'Item' ? event.item.checkpoint : -1);
-		if (checkpoint !== -1 && cp !== checkpoint && !skips && rng.chance(0.3)) {
+		if (checkpoint !== -1 && cp !== checkpoint && rng.chance(0.3)) {
 			events.push(ledger.progress(checkpoint));
 		}
 		checkpoint = cp;
-		if (skips && faulty && rng.chance(0.15)) continue;
 		events.push(event);
 		if (rng.chance(0.1)) events.push(events[rng.int(0, events.length - 1)]);
 	}
@@ -200,6 +197,26 @@ function liveScript(ledger: Ledger, rng: Random, connection: number, skips: bool
 	const cut = rng.int(0, events.length);
 	return {
 		events: events.slice(0, cut),
+		end: rng.pick(['eof', new NetworkError(), new Overflow()] as const),
+	};
+}
+
+/** A resumed connection: everything after `after`, then live; may repeat or end early. */
+function resumeScript(
+	ledger: Ledger,
+	rng: Random,
+	connection: number,
+	after: FakePosition | undefined,
+): LiveScript {
+	const events: LiveScript['events'] = [];
+	for (const item of ledger.items) {
+		if (after && comparePositions(itemPosition(item), after) <= 0) continue;
+		events.push({ $kind: 'Item', position: itemPosition(item), item });
+		if (rng.chance(0.1)) events.push(events[rng.int(0, events.length - 1)]);
+	}
+	if (connection >= 6) return { events, end: 'hang' };
+	return {
+		events: events.slice(0, rng.int(0, events.length)),
 		end: rng.pick(['eof', new NetworkError(), new Overflow()] as const),
 	};
 }

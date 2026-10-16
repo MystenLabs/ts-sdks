@@ -67,7 +67,10 @@ async function* runStream<P, Item, Frame extends { resumeToken: string }>(
 	if (!identity.chain) throw new SuiStreamError('Protocol', 'Stream chain identity is missing');
 	assertTokensCompatible(tokens, identity, adapter);
 	// Bounds that depend on the tip fail here with `InvalidOptions`, outside the retry loop.
-	const plan = await planStream(prepared, () => withRetries(() => adapter.indexedTip(signal)));
+	const plan = await planStream(
+		prepared,
+		async () => identity.indexedTip ?? (await withRetries(() => adapter.indexedTip(signal))),
+	);
 	const session = new StreamSession({
 		plan,
 		identity,
@@ -87,6 +90,7 @@ async function* runStream<P, Item, Frame extends { resumeToken: string }>(
 			yield* runAttempt(plan, session, adapter);
 			return;
 		} catch (error) {
+			session.endAttempt();
 			await backOff(error, session.advancedThisAttempt());
 		}
 	}

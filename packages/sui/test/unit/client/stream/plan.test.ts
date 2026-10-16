@@ -220,6 +220,22 @@ describe('range planning', () => {
 		]);
 	});
 
+	it('uses the indexed tip that initialize returned instead of reading it again', async () => {
+		const ledger = tenCheckpoints();
+		ledger.indexedTip = 7n;
+		const adapter = fakeAdapter(ledger, {
+			initializeReadsTip: true,
+			live: () => {
+				ledger.indexedTip = 10n;
+				return { events: ledger.liveFrom(8), end: 'hang' };
+			},
+		});
+		const frames = await take(stream(adapter), 1);
+		expect(ids(frames)).toEqual(['8:0']);
+		expect(adapter.calls.initialize).toBe(1);
+		expect(adapter.calls.indexedTip).toBe(0);
+	});
+
 	it('lets an adapter that anchors at the live tip follow without a tip read or scan', async () => {
 		const ledger = tenCheckpoints();
 		const adapter = fakeAdapter(ledger, {

@@ -94,8 +94,12 @@ export interface LedgerStreamAdapter<P, Item, Frame extends { resumeToken: strin
 	 */
 	readonly anchorsAtLiveTip: boolean;
 
-	/** Resolves names in the filter. The returned filter is hashed into every token. */
-	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown }>;
+	/**
+	 * Resolves names in the filter. The returned filter is hashed into every token. An adapter that
+	 * reads the indexed tip with the chain identity returns it, and planning then uses it instead of
+	 * calling `indexedTip`.
+	 */
+	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown; indexedTip?: bigint }>;
 	/** The highest checkpoint that historical scans can read. */
 	indexedTip(signal: AbortSignal): Promise<bigint>;
 
@@ -105,8 +109,9 @@ export interface LedgerStreamAdapter<P, Item, Frame extends { resumeToken: strin
 	 */
 	scan(request: ScanRequest<P>): AsyncIterable<ScanEvent<P, Item>>;
 	/**
-	 * The live handoff for subscribe delivery: history, subscribe, gap, live. Yields only frames
-	 * produced by `session` helpers. Ends only by throwing, as `session.deliver()` does.
+	 * The live handoff for subscribe delivery: whatever catch-up the transport needs, then
+	 * `session.deliver()`. Yields only frames produced by `session` helpers. Ends only by throwing,
+	 * as `session.deliver()` does.
 	 */
 	follow(session: FollowSession<P, Item, Frame>): AsyncGenerator<CoreFrame<Frame>, void>;
 
@@ -133,6 +138,12 @@ export interface FollowSession<P, Item, Frame> {
 	readonly start: Bound<P> | undefined;
 	readonly committed: P | undefined;
 	/**
+	 * Whether to replay history before subscribing, for a subscription that cannot resume: a long
+	 * replay could overflow it. False after an attempt that failed during live delivery with
+	 * progress, whose gap replay covers what was missed.
+	 */
+	catchesUpFirst(): boolean;
+	/**
 	 * Scans until the scan reports complete, polling while the index lags. `'tip'` has no end
 	 * bound. Stage `gap` reports `Recovering`.
 	 */
@@ -141,12 +152,6 @@ export interface FollowSession<P, Item, Frame> {
 	baseline(position: P): AsyncGenerator<CoreFrame<Frame>, void>;
 	/** Wraps live events; `Connected` events are reported by the core and not passed on. */
 	openFeed(events: AsyncIterable<LiveEvent<P, Item>>): LiveFeed<P, Item>;
-	/**
-	 * Reports `Live`, then delivers the feed: drops events at or before committed state, repairs
-	 * skipped checkpoints when `contiguousCheckpoints` is set, and throws on EOF.
-	 */
-	deliver(
-		feed: LiveFeed<P, Item>,
-		options?: { contiguousCheckpoints?: boolean },
-	): AsyncGenerator<CoreFrame<Frame>, never>;
+	/** Reports `Live`, then delivers the feed: drops events at or before committed state, and throws on EOF. */
+	deliver(feed: LiveFeed<P, Item>): AsyncGenerator<CoreFrame<Frame>, never>;
 }

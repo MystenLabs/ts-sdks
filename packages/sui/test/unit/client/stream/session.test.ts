@@ -129,29 +129,6 @@ describe('history replay', () => {
 		expect(adapter.calls.scans).toHaveLength(3);
 	});
 
-	it('repairs skipped live checkpoints only once history covers them, in order', async () => {
-		// The live feed jumps from 10 to 13 while the index lags; nothing may be skipped.
-		const ledger = ledgerOf(13, 9);
-		const { log, onStatus } = statusLog();
-		const adapter = fakeAdapter(ledger, {
-			family: 'checkpoints',
-			handoff: 'checkpoint',
-			contiguousCheckpoints: true,
-			afterScan: () => (ledger.indexedTip += 1n),
-			live: [{ events: [ledger.item(10), ledger.item(13)], end: 'hang' }],
-		});
-		const frames = await take(stream(adapter, { start: { checkpoint: 10 }, onStatus }), 4);
-		expect(ids(frames)).toEqual(['10:0', '11:0', '12:0', '13:0']);
-		expect(log.filter((status) => !status.startsWith('Page'))).toEqual([
-			'Connecting(0)',
-			'Connected',
-			'Recovering',
-			'Live',
-			'Recovering',
-			'Live',
-		]);
-	});
-
 	it('resumes polling from scan progress, without emitting it by default', async () => {
 		const ledger = ledgerOf(12, 9);
 		const adapter = fakeAdapter(ledger, {
@@ -320,7 +297,7 @@ describe('status sequences', () => {
 		expect(compact(log)).toEqual(expected);
 	});
 
-	it('reports an immediate reconnect after progress as attempt 0', async () => {
+	it('reports an immediate reconnect after live progress as attempt 0, without a history pass', async () => {
 		const source = ledgerOf(8, 7);
 		const adapter = fakeAdapter(source, {
 			anchorsAtLiveTip: true,
@@ -339,7 +316,6 @@ describe('status sequences', () => {
 			'Retrying(0,0)',
 			'Connecting(0)',
 			'Connected',
-			'Page',
 			'Recovering',
 			'Page',
 			'Live',
