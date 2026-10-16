@@ -52,11 +52,8 @@ export interface ResolvedCheckpointRange {
 }
 
 /**
- * Validates `startCheckpoint`/`endCheckpoint` and converts them to bigints.
- *
- * Bounds must be non-negative safe integers (GraphQL represents checkpoints as
- * `UInt53`), and `endCheckpoint` must not be less than `startCheckpoint`, so
- * that every transport rejects the same ranges.
+ * Validates `startCheckpoint`/`endCheckpoint` and converts them to bigints, so
+ * every transport rejects the same ranges.
  */
 export function resolveCheckpointRange(options: {
 	startCheckpoint?: SuiClientTypes.CheckpointNumber;
@@ -79,11 +76,9 @@ export function resolveCheckpointRange(options: {
 }
 
 /**
- * Validates a single checkpoint sequence number and converts it to a bigint.
- *
- * The value must be a non-negative integer no greater than
- * `Number.MAX_SAFE_INTEGER` (GraphQL represents checkpoints as `UInt53`).
- * `label` names the value in the thrown error.
+ * Validates a checkpoint sequence number and converts it to a bigint. Values
+ * are capped at `Number.MAX_SAFE_INTEGER` because GraphQL represents
+ * checkpoints as `UInt53`.
  */
 export function parseCheckpointNumber(
 	value: SuiClientTypes.CheckpointNumber,
