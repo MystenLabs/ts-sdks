@@ -45,21 +45,6 @@ const generatedDir = resolve(import.meta.dirname, '../src/graphql/generated');
 const outputs = new Map<string, string>([
 	[resolve(generatedDir, 'schema.graphql'), schemaContent],
 	[resolve(generatedDir, 'tada-env.ts'), introspection],
-	[
-		resolve(generatedDir, 'tsconfig.tada.json'),
-		`{
-    "compilerOptions": {
-        "plugins": [
-            {
-                "name": "@0no-co/graphqlsp",
-                "schema": "./schema.graphql",
-                "tadaOutputLocation": "src/graphql/generated/tada-env.ts"
-            }
-        ]
-    }
-}
-`,
-	],
 ]);
 
 const schemaDir = resolve(import.meta.dirname, '../src/graphql/schema');
