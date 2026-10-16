@@ -56,16 +56,10 @@ export namespace SuiClientTypes {
 
 	export type Order = 'ascending' | 'descending';
 
-	/**
-	 * A serializable continuation for a ledger stream. Treat it as opaque: it is bound to the
-	 * transport, chain, stream family and resolved filter that produced it.
-	 */
+	/** Opaque resume position, valid only for the stream that produced it. */
 	export type StreamResumeToken = string;
 
-	/**
-	 * A stream bound: a checkpoint sequence number or a resume token. Bounds are inclusive at the
-	 * start and exclusive at the end, in traversal order.
-	 */
+	/** A checkpoint or resume token. Starts are inclusive, ends exclusive. */
 	export type StreamStart =
 		| { checkpoint: CheckpointNumber; resumeToken?: never }
 		| { resumeToken: StreamResumeToken; checkpoint?: never };
@@ -78,16 +72,24 @@ export namespace SuiClientTypes {
 		| { resumeToken: StreamResumeToken; checkpoint?: never };
 
 	export interface StreamRetryOptions {
-		/** Initial retry delay in milliseconds. Defaults to 250. */
+		/**
+		 * First retry delay in milliseconds.
+		 * @default 250
+		 */
 		initialDelay?: number;
-		/** Maximum exponential delay in milliseconds. Defaults to 30,000. */
+		/**
+		 * Cap on the exponential delay in milliseconds.
+		 * @default 30_000
+		 */
 		maxDelay?: number;
-		/** Maximum additive random delay in milliseconds. Defaults to 500. */
+		/**
+		 * Maximum random delay added to each retry, in milliseconds.
+		 * @default 500
+		 */
 		jitter?: number;
 		/**
-		 * Consecutive failures without progress before the stream throws. 0 disables retries.
-		 * Defaults to unlimited. A live connection that ends after the stream made progress
-		 * reconnects immediately and does not count.
+		 * Consecutive failures without progress before the stream throws; 0 disables retries.
+		 * @default Infinity
 		 */
 		maxAttempts?: number;
 	}
@@ -95,10 +97,7 @@ export namespace SuiClientTypes {
 	/** Why a historical page ended. */
 	export type StreamPageEnd = 'limit' | 'bound' | 'indexedTip';
 
-	/**
-	 * Diagnostics only: statuses are not acknowledgments and carry no persistable progress.
-	 * Throwing from `onStatus` ends the stream with that error.
-	 */
+	/** Connection state reported to `onStatus`, for diagnostics only. Use frame tokens to resume. */
 	export type StreamStatus =
 		| { $kind: 'Connecting'; attempt: number }
 		/** The first server response of this attempt. */
@@ -130,26 +129,32 @@ export namespace SuiClientTypes {
 	export interface StreamOptions<
 		Frames extends StreamFrameOptions = {},
 	> extends CoreClientMethodOptions {
+		/** Where to start (inclusive). Required for a finite ascending read. */
 		start?: StreamStart;
+		/** Where to stop (exclusive). */
 		end?: StreamEnd;
+		/** @default 'ascending' */
 		order?: Order;
 		/**
-		 * Whether to keep following new checkpoints after the history. Defaults to `false` with an
-		 * explicit `end`. Otherwise a `start.resumeToken` keeps the range kind it was created with (a
-		 * token from a finite read stays finite), and a new stream defaults to `true` for ascending
-		 * order.
+		 * Keep following new checkpoints after the history. Defaults to `true` for an ascending stream
+		 * without an `end`; a resume token keeps the setting it was created with.
 		 */
 		follow?: boolean;
 		/**
-		 * Live delivery: `subscribe` (the default) follows a live feed; `poll` repeats historical
-		 * queries every `pollInterval`. Finite reads always use historical queries.
+		 * How a followed stream receives new data: a live subscription, or polling every
+		 * `pollInterval`.
+		 * @default 'subscribe'
 		 */
 		delivery?: 'subscribe' | 'poll';
-		/** Positive polling interval in milliseconds. Defaults to 1,000. */
+		/**
+		 * Polling interval in milliseconds.
+		 * @default 1000
+		 */
 		pollInterval?: number;
 		retry?: StreamRetryOptions;
-		/** Called synchronously without awaiting its result. Throwing terminates the stream. */
+		/** Called synchronously with each status. Throwing ends the stream with that error. */
 		onStatus?: (status: StreamStatus) => void;
+		/** Control frames to emit alongside items. */
 		frames?: Frames;
 	}
 

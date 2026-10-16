@@ -6,12 +6,9 @@ import type { ErrorClass } from './adapter.js';
 import { SuiStreamError } from './errors.js';
 
 /**
- * Counts consecutive failures without progress.
- *
- * "Progress" means the committed position changed during the failed attempt. Progress resets
- * the count and makes the next reconnect immediate. A disconnect after progress (the routine
- * end of a long-lived connection) is not counted at all, so it works even with `maxAttempts: 0`.
- * Everything else is counted, including a disconnect or overflow that made no progress.
+ * Counts consecutive failures without progress (a change in the committed position). Progress
+ * resets the count, and a disconnect after progress reconnects at once without counting, so
+ * long-lived feeds keep working even with `maxAttempts: 0`.
  */
 export class RetryBudget {
 	readonly #initialDelay: number;
