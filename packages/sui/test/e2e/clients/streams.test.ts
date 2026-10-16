@@ -1,0 +1,1570 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Ledger streams against localnet, on both transports.
+ *
+ * The core property is exactly-once, gap-free delivery: a stream that starts in history, hands
+ * off to live delivery, reconnects and resumes delivers exactly what the list methods return for
+ * the same range, in ledger order, while transactions are being submitted.
+ *
+ * GraphQL subscriptions need a separate GraphQL service (see test/e2e/README.md). Without one,
+ * the GraphQL `subscribe` cases skip and GraphQL is tested with `poll` delivery only.
+ */
+
+import { afterEach, beforeAll, describe, expect, inject, it } from 'vitest';
+
+import { bcs } from '../../../src/bcs/index.js';
+import type { ClientWithCoreApi } from '../../../src/client/core.js';
+import type { SuiClientTypes } from '../../../src/client/types.js';
+import { SuiGraphQLClient } from '../../../src/graphql/index.js';
+import { toGrpcEventFilter, toGrpcTransactionFilter } from '../../../src/grpc/filters.js';
+import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
+import type { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
+import { Transaction } from '../../../src/transactions/index.js';
+import { setup, type ClientKind, type TestToolbox } from '../utils/setup.js';
+
+type Delivery = 'subscribe' | 'poll';
+type Status = SuiClientTypes.StreamStatus;
+type Signer = { keypair: Ed25519Keypair; address: string };
+
+const graphqlSubscriptions = inject('graphqlSubscriptions');
+
+/** Live delivery modes per transport. */
+const LIVE: [ClientKind, Delivery][] = [
+	['grpc', 'subscribe'],
+	['grpc', 'poll'],
+	['graphql', 'subscribe'],
+	['graphql', 'poll'],
+];
+const KINDS: ClientKind[] = ['grpc', 'graphql'];
+const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
+
+function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
+	return kind === 'graphql' && delivery === 'subscribe' && !graphqlSubscriptions;
+}
+
+/** More events than GraphQL returns for a transaction's nested event list (50). */
+const MANY_EVENTS = 60;
+const NESTED_LIST_LIMIT = 50;
+
+const ALL_INCLUDES = {
+	transaction: true,
+	effects: true,
+	events: true,
+	balanceChanges: true,
+	objectTypes: true,
+	bcs: true,
+} as const;
+
+/** Thrown into injected stream resets, so retries can be traced back to them. */
+const RESET_MESSAGE = 'injected stream reset';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitFor(predicate: () => boolean, timeout = 30_000) {
+	const deadline = Date.now() + timeout;
+	while (!predicate()) {
+		if (Date.now() > deadline) throw new Error('Timed out waiting for a condition');
+		await sleep(100);
+	}
+}
+
+async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
+	const frames: T[] = [];
+	for await (const frame of stream) frames.push(frame);
+	return frames;
+}
+
+async function take<T>(stream: AsyncIterable<T>, count: number): Promise<T[]> {
+	const frames: T[] = [];
+	for await (const frame of stream) {
+		frames.push(frame);
+		if (frames.length === count) break;
+	}
+	expect(frames).toHaveLength(count);
+	return frames;
+}
+
+/** Pages a list method from the start to the end. */
+async function listAll<T>(
+	page: (after: string | null) => Promise<{
+		items: T[];
+		hasNextPage: boolean;
+		endCursor: string | null;
+	}>,
+): Promise<T[]> {
+	const items: T[] = [];
+	let after: string | null = null;
+	while (true) {
+		const result = await page(after);
+		items.push(...result.items);
+		if (!result.hasNextPage || !result.endCursor) return items;
+		after = result.endCursor;
+	}
+}
+
+/** Records statuses together with how many frames had been read when each arrived. */
+function statusLog(reader?: () => number) {
+	const log: { status: Status; frames: number }[] = [];
+	return {
+		log,
+		statuses: () => log.map(({ status }) => status),
+		kinds: () => log.map(({ status }) => status.$kind),
+		onStatus: (status: Status) => log.push({ status, frames: reader?.() ?? 0 }),
+	};
+}
+
+/** Splits a status log into attempts, each starting with its `Connecting` status. */
+function attempts(statuses: Status[]): Status[][] {
+	const result: Status[][] = [];
+	for (const status of statuses) {
+		if (status.$kind === 'Connecting' || result.length === 0) result.push([]);
+		result.at(-1)!.push(status);
+	}
+	return result;
+}
+
+/** Whether `error` (or one of its causes) came from an injected reset. */
+function causedByReset(error: unknown): boolean {
+	for (let e = error; e; e = (e as { cause?: unknown }).cause) {
+		if (String((e as Error).message ?? e).includes(RESET_MESSAGE)) return true;
+		if (typeof e !== 'object') break;
+	}
+	return false;
+}
+
+/**
+ * Reads a stream in the background, so the test can submit transactions while it runs. Stops
+ * when `close()` aborts the stream's signal.
+ */
+class Reader<F> {
+	readonly frames: F[] = [];
+	readonly #controller: AbortController;
+	readonly #task: Promise<void>;
+	#error: unknown;
+	#done = false;
+	#wake: (() => void) | undefined;
+
+	constructor(open: (signal: AbortSignal) => AsyncIterable<F>, options: { delay?: number } = {}) {
+		const controller = new AbortController();
+		this.#controller = controller;
+		const stream = open(controller.signal);
+		this.#task = (async () => {
+			try {
+				for await (const frame of stream) {
+					this.frames.push(frame);
+					this.#wake?.();
+					if (options.delay) await sleep(options.delay);
+				}
+			} catch (error) {
+				if (!controller.signal.aborted) this.#error = error;
+			} finally {
+				this.#done = true;
+				this.#wake?.();
+			}
+		})();
+	}
+
+	/** Waits until `predicate` holds for the frames read so far. */
+	async until(predicate: (frames: F[]) => boolean, timeout = 60_000) {
+		const deadline = Date.now() + timeout;
+		while (!predicate(this.frames)) {
+			if (this.#error) throw this.#error;
+			if (this.#done) throw new Error(`Stream ended after ${this.frames.length} frames`);
+			if (Date.now() > deadline) throw new Error(`Timed out after ${this.frames.length} frames`);
+			await Promise.race([new Promise<void>((resolve) => (this.#wake = resolve)), sleep(250)]);
+		}
+	}
+
+	/** Reads for `ms` more to catch late duplicates, then stops the stream. */
+	async settle(ms: number) {
+		await sleep(ms);
+		await this.close();
+	}
+
+	async close() {
+		this.#controller.abort(new Error('test finished'));
+		await this.#task;
+		if (this.#error) throw this.#error;
+	}
+}
+
+/**
+ * A fetch that resets matching response bodies after `after` ms, the way a server or proxy
+ * drops a long-lived stream (mainnet resets gRPC streams every 30 s).
+ */
+function resettingFetch(match: (url: string) => boolean, after: number) {
+	const resets = { count: 0 };
+	const wrapped: typeof fetch = async (input, init) => {
+		const response = await fetch(input, init);
+		const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+		if (!match(url) || !response.body) return response;
+		const reader = response.body.getReader();
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				timer = setTimeout(() => {
+					resets.count++;
+					controller.error(new TypeError(RESET_MESSAGE));
+					reader.cancel().catch(() => {});
+				}, after);
+			},
+			async pull(controller) {
+				try {
+					const { done, value } = await reader.read();
+					if (done) {
+						clearTimeout(timer);
+						controller.close();
+					} else {
+						controller.enqueue(value);
+					}
+				} catch (error) {
+					clearTimeout(timer);
+					try {
+						controller.error(error);
+					} catch {}
+				}
+			},
+			cancel(reason) {
+				clearTimeout(timer);
+				return reader.cancel(reason);
+			},
+		});
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
+	};
+	return { fetch: wrapped, resets };
+}
+
+/**
+ * Drops fields that the servers leave out of subscription responses (see the
+ * `live items carry every field` tests), so the rest of each item can be compared exactly.
+ */
+function withoutSubscriptionGaps(value: unknown): unknown {
+	return JSON.parse(
+		JSON.stringify(value, (key, field) =>
+			key === 'objectType' || key === 'json' || key === 'packageId' ? undefined : field,
+		),
+	);
+}
+
+const isSubscriptionUrl = (url: string) =>
+	url.includes('/sui.rpc.v2.SubscriptionService/') || url.includes('/graphql/subscriptions');
+
+describe('ledger streams', () => {
+	let toolbox: TestToolbox;
+	let packageId: string;
+	/** Sends `digests`: three transactions with three events each. */
+	let signer: Signer;
+	/** Sends `manyEventsDigest`, one transaction with more than 50 events. */
+	let manySigner: Signer;
+	let digests: string[];
+	let manyEventsDigest: string;
+	let firstCheckpoint: string;
+	let lastCheckpoint: string;
+	const controllers: AbortController[] = [];
+	let nextValue = 1_000;
+
+	function signal(timeout = 60_000) {
+		const controller = new AbortController();
+		controllers.push(controller);
+		return AbortSignal.any([controller.signal, AbortSignal.timeout(timeout)]);
+	}
+
+	function client(kind: ClientKind): ClientWithCoreApi {
+		return kind === 'grpc' ? toolbox.grpcClient : toolbox.graphqlClient;
+	}
+
+	/** A client of `kind` whose subscription responses reset every `after` ms. */
+	function resettingClient(kind: ClientKind, after: number) {
+		const { fetch, resets } = resettingFetch(isSubscriptionUrl, after);
+		const client =
+			kind === 'grpc'
+				? new SuiGrpcClient({
+						network: 'localnet',
+						baseUrl: `http://127.0.0.1:${inject('localnetPort')}`,
+						fetch,
+					})
+				: new SuiGraphQLClient({
+						network: 'localnet',
+						url: `http://127.0.0.1:${inject('graphqlPort')}/graphql`,
+						fetch,
+					});
+		return { client: client as ClientWithCoreApi, resets };
+	}
+
+	function range(order: SuiClientTypes.Order = 'ascending') {
+		return {
+			order,
+			start: { checkpoint: order === 'ascending' ? firstCheckpoint : lastCheckpoint },
+			end: {
+				checkpoint:
+					order === 'ascending'
+						? (BigInt(lastCheckpoint) + 1n).toString()
+						: (BigInt(firstCheckpoint) - 1n).toString(),
+			},
+			signal: signal(),
+		};
+	}
+
+	function newSigner() {
+		return toolbox.getSigner({ coins: [1_000_000_000n] });
+	}
+
+	/** Executes one transaction from `from` emitting `count` events; waits for both indexes. */
+	async function emitEvents(from: Signer, count: number, options: { fast?: boolean } = {}) {
+		const transaction = new Transaction();
+		for (let i = 0; i < count; i++) {
+			transaction.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [transaction.pure.u64(nextValue++)],
+			});
+		}
+		const execute = { transaction, signer: from.keypair, include: { effects: true } } as const;
+		const result = options.fast
+			? await toolbox.grpcClient.core.signAndExecuteTransaction(execute)
+			: await toolbox.signAndExecuteTransaction(execute);
+		if (result.$kind !== 'Transaction') {
+			throw new Error(
+				`Event transaction failed: ${result.FailedTransaction.status.error?.message}`,
+			);
+		}
+		const { digest } = result.Transaction;
+		const { Transaction: executed } = await toolbox.grpcClient.core.waitForTransaction({
+			digest,
+		});
+		return { digest, checkpoint: executed!.checkpoint! };
+	}
+
+	async function tip() {
+		const {
+			checkpoints: [{ sequenceNumber }],
+		} = await toolbox.grpcClient.core.listCheckpoints({ order: 'descending', limit: 1 });
+		return sequenceNumber;
+	}
+
+	function listEvents(kind: ClientKind, options: SuiClientTypes.ListEventsOptions) {
+		return listAll(async (after) => {
+			const page = await client(kind).core.listEvents({ ...options, after });
+			return { ...page, items: page.events };
+		});
+	}
+
+	function listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		kind: ClientKind,
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	) {
+		return listAll(async (after) => {
+			const page = await client(kind).core.listTransactions({ ...options, after });
+			return { ...page, items: page.transactions };
+		});
+	}
+
+	function listCheckpoints(kind: ClientKind, options: SuiClientTypes.ListCheckpointsOptions) {
+		return listAll(async (after) => {
+			const page = await client(kind).core.listCheckpoints({ ...options, after });
+			return { ...page, items: page.checkpoints };
+		});
+	}
+
+	beforeAll(async () => {
+		toolbox = await setup();
+		packageId = toolbox.getPackage('test_data');
+		[signer, manySigner] = await Promise.all([newSigner(), newSigner()]);
+		digests = [];
+		for (let i = 0; i < 3; i++) digests.push((await emitEvents(signer, 3)).digest);
+		const many = await emitEvents(manySigner, MANY_EVENTS);
+		manyEventsDigest = many.digest;
+		const { Transaction: first } = await toolbox.grpcClient.core.getTransaction({
+			digest: digests[0],
+		});
+		firstCheckpoint = first!.checkpoint!;
+		lastCheckpoint = many.checkpoint;
+		expect(BigInt(firstCheckpoint)).toBeGreaterThan(0n);
+	});
+
+	afterEach(() => {
+		for (const controller of controllers.splice(0)) controller.abort();
+	});
+
+	describe('finite reads', () => {
+		it('returns the same checkpoint headers as listCheckpoints on both transports, in both directions', async () => {
+			await toolbox.expectAllClientsReturnSameData(async (client) =>
+				(await collect(client.core.streamCheckpoints(range()))).map((frame) => frame.checkpoint),
+			);
+			for (const kind of KINDS) {
+				const ascending = (await collect(client(kind).core.streamCheckpoints(range()))).map(
+					(frame) => frame.checkpoint,
+				);
+				expect(ascending[0].sequenceNumber).toBe(firstCheckpoint);
+				expect(ascending.at(-1)?.sequenceNumber).toBe(lastCheckpoint);
+				expect(
+					await listCheckpoints(kind, {
+						startCheckpoint: firstCheckpoint,
+						endCheckpoint: BigInt(lastCheckpoint) + 1n,
+					}),
+					NAMES[kind],
+				).toEqual(ascending);
+				const descending = await collect(client(kind).core.streamCheckpoints(range('descending')));
+				expect(
+					descending.map((frame) => frame.checkpoint),
+					NAMES[kind],
+				).toEqual([...ascending].reverse());
+			}
+		});
+
+		it('returns the same transactions with every shared include as listTransactions, in both directions', async () => {
+			const options = () => ({
+				...range(),
+				filter: { sender: signer.address },
+				include: ALL_INCLUDES,
+			});
+			await toolbox.expectAllClientsReturnSameData(async (client) =>
+				(await collect(client.core.streamTransactions(options()))).map(
+					(frame) => frame.transaction,
+				),
+			);
+			for (const kind of KINDS) {
+				const ascending = (await collect(client(kind).core.streamTransactions(options()))).map(
+					(frame) => frame.transaction,
+				);
+				expect(ascending.map((tx) => tx.Transaction?.digest)).toEqual(digests);
+				for (const tx of ascending) expect(tx.Transaction?.events).toHaveLength(3);
+				expect(
+					await listTransactions(kind, {
+						filter: { sender: signer.address },
+						include: ALL_INCLUDES,
+						startCheckpoint: firstCheckpoint,
+					}),
+					NAMES[kind],
+				).toEqual(ascending);
+				const descending = await collect(
+					client(kind).core.streamTransactions({ ...options(), ...range('descending') }),
+				);
+				expect(
+					descending.map((frame) => frame.transaction),
+					NAMES[kind],
+				).toEqual([...ascending].reverse());
+			}
+		});
+
+		it('streams a transaction with more than 50 events exactly as listTransactions and getTransaction return it', async () => {
+			const include = { transaction: true, effects: true, events: true, bcs: true } as const;
+			const streamed: Record<string, SuiClientTypes.TransactionResult<typeof include>> = {};
+			for (const kind of KINDS) {
+				const frames = await collect(
+					client(kind).core.streamTransactions({
+						...range(),
+						filter: { sender: manySigner.address },
+						include,
+					}),
+				);
+				expect(frames, NAMES[kind]).toHaveLength(1);
+				const [{ transaction }] = frames;
+				expect(transaction.Transaction?.digest).toBe(manyEventsDigest);
+				expect(
+					await listTransactions(kind, {
+						filter: { sender: manySigner.address },
+						include,
+						startCheckpoint: firstCheckpoint,
+					}),
+					NAMES[kind],
+				).toEqual([transaction]);
+				expect(
+					await client(kind).core.getTransaction({ digest: manyEventsDigest, include }),
+					NAMES[kind],
+				).toEqual(transaction);
+				streamed[kind] = transaction;
+			}
+			// gRPC returns every nested event; GraphQL returns the first 50 for single reads, list
+			// pages and streams alike (`streamEvents` has all of them, see below).
+			const grpcEvents = streamed.grpc.Transaction!.events;
+			expect(grpcEvents).toHaveLength(MANY_EVENTS);
+			expect(streamed.graphql.Transaction!.events).toHaveLength(NESTED_LIST_LIMIT);
+			expect(streamed.graphql).toEqual({
+				...streamed.grpc,
+				Transaction: {
+					...streamed.grpc.Transaction,
+					events: grpcEvents.slice(0, NESTED_LIST_LIMIT),
+				},
+			});
+		});
+
+		it('streams every event of a transaction with more than 50 events, matching listEvents on both transports', async () => {
+			const options = () => ({ ...range(), filter: { sender: manySigner.address } });
+			await toolbox.expectAllClientsReturnSameData(async (client) =>
+				(await collect(client.core.streamEvents(options()))).map((frame) => frame.event),
+			);
+			for (const kind of KINDS) {
+				const events = (await collect(client(kind).core.streamEvents(options()))).map(
+					(frame) => frame.event,
+				);
+				expect(events.map((event) => event.eventIndex)).toEqual(
+					Array.from({ length: MANY_EVENTS }, (_, i) => i),
+				);
+				expect(events.every((event) => event.transactionDigest === manyEventsDigest)).toBe(true);
+				expect(
+					await listEvents(kind, {
+						filter: { sender: manySigner.address },
+						startCheckpoint: firstCheckpoint,
+					}),
+					NAMES[kind],
+				).toEqual(events);
+			}
+		});
+
+		it.each(KINDS)(
+			'reports history Page statuses while paging a finite read (%s)',
+			async (kind) => {
+				const { kinds, statuses, onStatus } = statusLog();
+				const frames = await collect(
+					client(kind).core.streamEvents({
+						...range(),
+						filter: { sender: manySigner.address },
+						onStatus,
+					}),
+				);
+				expect(frames).toHaveLength(MANY_EVENTS);
+				expect(kinds().slice(0, 2)).toEqual(['Connecting', 'Connected']);
+				expect(statuses()[0]).toEqual({ $kind: 'Connecting', attempt: 0 });
+				expect(
+					kinds()
+						.slice(2)
+						.every((k) => k === 'Page'),
+				).toBe(true);
+				const pages = statuses().filter((s) => s.$kind === 'Page');
+				expect(pages.every((page) => page.stage === 'history')).toBe(true);
+				expect(pages.at(-1)).toMatchObject({ end: 'bound' });
+				// GraphQL pages hold 50 items, so 60 events take at least two pages.
+				if (kind === 'graphql')
+					expect(pages.filter((page) => page.end === 'limit').length).toBeGreaterThan(0);
+			},
+		);
+
+		it('streams unfiltered system transactions from genesis in both directions and resumes', async () => {
+			const histories = [];
+			for (const kind of KINDS) {
+				const options = {
+					start: { checkpoint: '0' },
+					end: { checkpoint: '3' },
+					include: { transaction: true, bcs: true } as const,
+					signal: signal(),
+				};
+				const ascending = await collect(client(kind).core.streamTransactions(options));
+				const transactions = ascending.map(
+					(frame) => frame.transaction.Transaction ?? frame.transaction.FailedTransaction,
+				);
+				expect(transactions[0].transaction.kind.$kind).toBe('Genesis');
+				expect(
+					transactions
+						.slice(1)
+						.some((tx) => tx.transaction.kind.$kind !== 'ProgrammableTransaction'),
+				).toBe(true);
+				for (const tx of transactions) {
+					expect(tx.transaction.sender).toBe(bcs.TransactionData.parse(tx.bcs).V1.sender);
+				}
+				const descending = await collect(
+					client(kind).core.streamTransactions({
+						order: 'descending',
+						start: { checkpoint: '2' },
+						include: options.include,
+						signal: signal(),
+					}),
+				);
+				expect(
+					descending.map(
+						(frame) => frame.transaction.Transaction ?? frame.transaction.FailedTransaction,
+					),
+				).toEqual([...transactions].reverse());
+				const resumed = await collect(
+					client(kind).core.streamTransactions({
+						start: { resumeToken: ascending[0].resumeToken },
+						include: options.include,
+						signal: signal(),
+					}),
+				);
+				expect(resumed.map((frame) => frame.transaction)).toEqual(
+					ascending.slice(1).map((frame) => frame.transaction),
+				);
+				histories.push(transactions);
+			}
+			expect(histories[0]).toEqual(histories[1]);
+		});
+
+		it('returns identical events and preserves event order within each transaction', async () => {
+			await toolbox.expectAllClientsReturnSameData(async (client) =>
+				(
+					await collect(
+						client.core.streamEvents({ ...range(), filter: { sender: signer.address } }),
+					)
+				).map((frame) => frame.event),
+			);
+			for (const kind of KINDS) {
+				const ascending = (
+					await collect(
+						client(kind).core.streamEvents({ ...range(), filter: { sender: signer.address } }),
+					)
+				).map((frame) => frame.event);
+				expect(ascending.map((event) => event.transactionDigest)).toEqual(
+					digests.flatMap((digest) => [digest, digest, digest]),
+				);
+				expect(ascending.map((event) => event.eventIndex)).toEqual([0, 1, 2, 0, 1, 2, 0, 1, 2]);
+				const descending = await collect(
+					client(kind).core.streamEvents({
+						...range('descending'),
+						filter: { sender: signer.address },
+					}),
+				);
+				expect(
+					descending.map((frame) => frame.event),
+					NAMES[kind],
+				).toEqual([...ascending].reverse());
+			}
+		});
+
+		describe.each(KINDS)('%s', (kind) => {
+			it('resumes from every 7th token to exactly the remaining items', async () => {
+				const filter = { sender: manySigner.address };
+				const frames = await collect(client(kind).core.streamEvents({ ...range(), filter }));
+				expect(frames).toHaveLength(MANY_EVENTS);
+				for (let i = 0; i < frames.length; i += 7) {
+					const remainder = await collect(
+						client(kind).core.streamEvents({
+							start: { resumeToken: frames[i].resumeToken },
+							filter,
+							signal: signal(),
+						}),
+					);
+					expect(
+						remainder.map((frame) => frame.event),
+						`resumed after item ${i}`,
+					).toEqual(frames.slice(i + 1).map((frame) => frame.event));
+				}
+
+				const checkpoints = await collect(
+					client(kind).core.streamCheckpoints({
+						start: { checkpoint: 0 },
+						end: { checkpoint: lastCheckpoint },
+						signal: signal(),
+					}),
+				);
+				for (let i = 0; i < checkpoints.length; i += 7) {
+					const remainder = await collect(
+						client(kind).core.streamCheckpoints({
+							start: { resumeToken: checkpoints[i].resumeToken },
+							signal: signal(),
+						}),
+					);
+					expect(remainder.map((frame) => frame.checkpoint)).toEqual(
+						checkpoints.slice(i + 1).map((frame) => frame.checkpoint),
+					);
+				}
+			});
+
+			it('resumes a finite descending job without repeating its last delivered event', async () => {
+				const stream = client(kind).core.streamEvents({
+					...range('descending'),
+					filter: { sender: signer.address },
+				});
+				const first = await take(stream, 1);
+				const remainder = await collect(
+					client(kind).core.streamEvents({
+						start: { resumeToken: first[0].resumeToken },
+						filter: { sender: signer.address },
+						signal: signal(),
+					}),
+				);
+				expect(remainder).toHaveLength(8);
+				expect(remainder[0].event.transactionDigest).toBe(digests[2]);
+				expect(remainder[0].event.eventIndex).toBe(1);
+				expect(remainder.at(-1)?.event.transactionDigest).toBe(digests[0]);
+			});
+
+			it('uses exclusive cursor bounds inside one transaction and reports cursor completion', async () => {
+				// Following tokens also serve as interval anchors.
+				const anchors = await take(
+					client(kind).core.streamEvents({
+						start: { checkpoint: firstCheckpoint },
+						filter: { sender: signer.address },
+						delivery: 'poll',
+						signal: signal(),
+					}),
+					3,
+				);
+				const frames = await collect(
+					client(kind).core.streamEvents({
+						start: { resumeToken: anchors[0].resumeToken },
+						end: { resumeToken: anchors[2].resumeToken },
+						filter: { sender: signer.address },
+						frames: { completion: true },
+						signal: signal(),
+					}),
+				);
+				expect(frames).toHaveLength(2);
+				expect(frames[0]).toMatchObject({
+					$kind: 'Event',
+					event: { transactionDigest: digests[0], eventIndex: 1 },
+				});
+				expect(frames[1]).toMatchObject({
+					$kind: 'Complete',
+					completion: { reason: 'cursorBound' },
+				});
+				if (frames[1].$kind === 'Complete')
+					expect(frames[1].completion.resumeToken).toBe(
+						frames[0].$kind === 'Event' ? frames[0].resumeToken : undefined,
+					);
+				const descending = await collect(
+					client(kind).core.streamEvents({
+						order: 'descending',
+						start: { checkpoint: firstCheckpoint },
+						end: { resumeToken: anchors[0].resumeToken },
+						filter: { sender: signer.address },
+						frames: { completion: true },
+						signal: signal(),
+					}),
+				);
+				expect(
+					descending
+						.filter((frame) => frame.$kind === 'Event')
+						.map((frame) => frame.event.eventIndex),
+				).toEqual([2, 1]);
+				expect(descending.at(-1)).toMatchObject({
+					$kind: 'Complete',
+					completion: { reason: 'cursorBound' },
+				});
+			});
+
+			it('completes empty filtered ranges without manufacturing an event', async () => {
+				// System transactions emit events from the zero address, so match an unused address.
+				const frames = await collect(
+					client(kind).core.streamEvents({
+						...range(),
+						filter: { sender: `0x${'ab'.repeat(32)}` },
+						frames: { completion: true },
+					}),
+				);
+				expect(frames).toHaveLength(1);
+				expect(frames[0]).toMatchObject({
+					$kind: 'Complete',
+					completion: { reason: 'checkpointBound' },
+				});
+			});
+		});
+	});
+
+	/**
+	 * Follows `family` from history into live delivery while transactions are submitted, stops
+	 * half way, resumes from the last token, and checks that the two streams together delivered
+	 * exactly what the list method returns, in order.
+	 */
+	async function followWhileSubmitting(options: {
+		client: ClientWithCoreApi;
+		kind: ClientKind;
+		family: 'checkpoints' | 'transactions' | 'events';
+		delivery: Delivery;
+		/** Milliseconds the consumer waits after each frame. */
+		delay?: number;
+		/** Resume from a token half way through. */
+		resume?: boolean;
+	}) {
+		const { family, delivery } = options;
+		const from = await newSigner();
+		// History: these are indexed before the stream starts.
+		const history = [await emitEvents(from, 2), await emitEvents(from, 1)];
+		const start = { checkpoint: history[0].checkpoint };
+		const filter = { sender: from.address };
+		const include = { effects: true, events: true } as const;
+		const log = statusLog();
+
+		type Frame = { resumeToken: string; value: unknown; key: string; checkpoint: string };
+		const open = (bound: SuiClientTypes.StreamStart) => (signal: AbortSignal) => {
+			const common = { start: bound, delivery, signal, onStatus: log.onStatus };
+			async function* frames(): AsyncGenerator<Frame> {
+				if (family === 'checkpoints') {
+					for await (const f of options.client.core.streamCheckpoints(common)) {
+						const { sequenceNumber } = f.checkpoint;
+						yield { ...f, value: f.checkpoint, key: sequenceNumber, checkpoint: sequenceNumber };
+					}
+				} else if (family === 'transactions') {
+					for await (const f of options.client.core.streamTransactions({
+						...common,
+						filter,
+						include,
+					})) {
+						const tx = f.transaction.Transaction!;
+						yield { ...f, value: f.transaction, key: tx.digest, checkpoint: tx.checkpoint! };
+					}
+				} else {
+					for await (const f of options.client.core.streamEvents({ ...common, filter })) {
+						const { event } = f;
+						yield {
+							...f,
+							value: event,
+							key: `${event.transactionDigest}:${event.eventIndex}`,
+							checkpoint: event.checkpoint,
+						};
+					}
+				}
+			}
+			return frames();
+		};
+
+		// Submit while the stream reads history, hands off and runs live.
+		let reader = new Reader(open(start), { delay: options.delay });
+		const submitted = [...history];
+		const submitting = (async () => {
+			for (let i = 0; i < 6; i++) {
+				submitted.push(await emitEvents(from, 1 + (i % 3), { fast: true }));
+				await sleep(Math.random() * 500);
+			}
+		})();
+		const delivered: Frame[] = [];
+		if (options.resume) {
+			await reader.until((frames) => frames.length >= 4);
+			await reader.close();
+			delivered.push(...reader.frames);
+			reader = new Reader(open({ resumeToken: delivered.at(-1)!.resumeToken }), {
+				delay: options.delay,
+			});
+		}
+		await submitting;
+		const last = submitted.at(-1)!.checkpoint;
+		await reader.until((frames) => {
+			const lastFrame = frames.at(-1) ?? delivered.at(-1);
+			return !!lastFrame && BigInt(lastFrame.checkpoint) >= BigInt(last);
+		});
+		await reader.settle(2_000);
+		delivered.push(...reader.frames);
+
+		// What the list method says the stream should have delivered. Live delivery can be
+		// ahead of the index that serves the list methods, so wait for it to catch up.
+		await toolbox.waitForTransaction({ digest: submitted.at(-1)!.digest });
+		const through = BigInt(delivered.at(-1)!.checkpoint);
+		const listed = () =>
+			family === 'checkpoints'
+				? listCheckpoints(options.kind, {
+						startCheckpoint: start.checkpoint,
+						endCheckpoint: through + 1n,
+					})
+				: family === 'transactions'
+					? listTransactions(options.kind, {
+							filter,
+							include,
+							startCheckpoint: start.checkpoint,
+						})
+					: listEvents(options.kind, { filter, startCheckpoint: start.checkpoint });
+		let expected = await listed();
+		for (let i = 0; i < 60 && expected.length < delivered.length; i++) {
+			await sleep(500);
+			expected = await listed();
+		}
+
+		const keys = delivered.map((frame) => frame.key);
+		expect(new Set(keys).size, 'duplicates').toBe(keys.length);
+		// Live items lack a few fields the servers do not fill in on subscriptions; the
+		// `live items carry every field` tests below pin those gaps.
+		expect(withoutSubscriptionGaps(delivered.map((frame) => frame.value))).toEqual(
+			withoutSubscriptionGaps(expected),
+		);
+		if (family !== 'checkpoints') {
+			// Every submitted transaction is in there.
+			const seen = new Set(delivered.map((frame) => frame.key.split(':')[0]));
+			for (const { digest } of submitted) expect(seen).toContain(digest);
+		}
+		return { statuses: log.statuses(), log: log.log };
+	}
+
+	describe.each(LIVE)('live delivery (%s, %s)', (kind, delivery) => {
+		const skip = missingSubscriptions(kind, delivery);
+
+		it.skipIf(skip).each(['checkpoints', 'transactions', 'events'] as const)(
+			'delivers %s exactly once from history into live while transactions are submitted, across a resume',
+			async (family) => {
+				const { statuses } = await followWhileSubmitting({
+					client: client(kind),
+					kind,
+					family,
+					delivery,
+					resume: true,
+				});
+				expect(statuses.filter((s) => s.$kind === 'Error' || s.$kind === 'Retrying')).toEqual([]);
+				const all = attempts(statuses);
+				// Two streams: the first stops after a few items, the resumed one goes live.
+				expect(all).toHaveLength(2);
+				expect(all[1].map((s) => s.$kind)).toContain('Live');
+				for (const attempt of all) {
+					expect(attempt[0]).toEqual({ $kind: 'Connecting', attempt: 0 });
+					const kinds = attempt.map((s) => s.$kind);
+					if (!kinds.includes('Live')) continue;
+					// History pages come before any gap replay, and the gap before Live.
+					const firstLive = kinds.indexOf('Live');
+					const recovering = kinds.indexOf('Recovering');
+					if (recovering !== -1) expect(recovering).toBeLessThan(firstLive);
+					const historyPages = attempt
+						.map((s, i) => [s, i] as const)
+						.filter(([s]) => s.$kind === 'Page' && s.stage === 'history');
+					if (delivery === 'subscribe') {
+						expect(historyPages.every(([, i]) => i < firstLive)).toBe(true);
+						if (recovering !== -1) expect(historyPages.every(([, i]) => i < recovering)).toBe(true);
+					} else {
+						expect(kinds).not.toContain('Recovering');
+					}
+				}
+			},
+		);
+
+		it.skipIf(skip)(
+			'continues unfiltered transaction data from history into live system transactions',
+			async () => {
+				const checkpoint = await tip();
+				let sawHistory = false;
+				let sawLiveSystem = false;
+				for await (const frame of client(kind).core.streamTransactions({
+					start: { checkpoint },
+					include: { transaction: true },
+					delivery,
+					signal: signal(),
+				})) {
+					const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
+					expect(tx.transaction.kind.$kind).toBeTypeOf('string');
+					expect(tx.bcs).toBeUndefined();
+					if (tx.checkpoint === checkpoint) sawHistory = true;
+					if (
+						BigInt(tx.checkpoint!) > BigInt(checkpoint) &&
+						tx.transaction.kind.$kind !== 'ProgrammableTransaction'
+					) {
+						sawLiveSystem = true;
+						break;
+					}
+				}
+				expect(sawHistory).toBe(true);
+				expect(sawLiveSystem).toBe(true);
+			},
+		);
+
+		it.skipIf(skip)(
+			'reports Live for a sparse filter before its first match, and stays connected while quiet',
+			async () => {
+				const from = await newSigner();
+				let reader: Reader<SuiClientTypes.StreamEventFrame> | undefined;
+				const log = statusLog(() => reader?.frames.length ?? 0);
+				reader = new Reader((signal) =>
+					client(kind).core.streamEvents({
+						filter: { sender: from.address },
+						delivery,
+						onStatus: log.onStatus,
+						signal,
+					}),
+				);
+				await sleep(5_000);
+				const quiet = log.kinds();
+				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
+				expect(quiet).not.toContain('Retrying');
+				expect(quiet).not.toContain('Error');
+				// gRPC subscriptions start with a progress frame and poll passes reach the indexed
+				// tip, so both are Live without a match. A GraphQL subscription carries no progress:
+				// its first live frame is the first match, so it is Live only once one arrives.
+				const sparseGraphQL = kind === 'graphql' && delivery === 'subscribe';
+				expect(quiet.includes('Live')).toBe(!sparseGraphQL);
+
+				const { digest } = await emitEvents(from, 1);
+				await reader.until((frames) => frames.length === 1);
+				await reader.settle(1_000);
+				expect(reader.frames.map((frame) => frame.event.transactionDigest)).toEqual([digest]);
+				const live = log.log.find(({ status }) => status.$kind === 'Live');
+				// Live is reported before the first item is handed out, except on a GraphQL
+				// subscription: its first match is replayed from history with the rest of that
+				// checkpoint (the gap), and Live follows.
+				expect(live?.frames).toBe(sparseGraphQL ? 1 : 0);
+				expect(log.kinds()).not.toContain('Retrying');
+			},
+		);
+
+		it.skipIf(skip)(
+			'catches up through history and continues with a newly submitted event',
+			async () => {
+				const stream = client(kind).core.streamEvents({
+					start: { checkpoint: firstCheckpoint },
+					filter: { sender: signer.address },
+					delivery,
+					signal: signal(),
+				});
+				try {
+					for (let i = 0; i < 9; i++) {
+						const next = await stream.next();
+						expect(next.done).toBe(false);
+						if (!next.done)
+							expect(next.value.event.transactionDigest).toBe(digests[Math.floor(i / 3)]);
+					}
+					// Attach rejection handling before submitting, so a failure stays observable.
+					// Attach rejection handling before submitting, so a failure stays observable. The
+					// read is pending before the pause: streams are pulled, so history only finishes and
+					// the live feed only opens while a read is pending. A GraphQL subscription carries no
+					// progress, so a match executed after history read the indexed tip but before the
+					// subscription opened would only be replayed once a later match arrives.
+					const pending = stream.next().then(
+						(value) => ({ value }),
+						(error: unknown) => ({ error }),
+					);
+					await sleep(3_000);
+					const live = await emitEvents(signer, 1);
+					let next = await pending;
+					if ('error' in next) throw next.error;
+					while (!next.value.done && next.value.value.event.transactionDigest !== live.digest) {
+						next = { value: await stream.next() };
+					}
+					expect(next.value.done).toBe(false);
+				} finally {
+					await stream.return(undefined);
+				}
+			},
+		);
+
+		it.skipIf(skip)('cancels a quiet filter while its next item is pending', async () => {
+			const controller = new AbortController();
+			const stream = client(kind).core.streamEvents({
+				filter: { sender: `0x${'cd'.repeat(32)}` },
+				delivery,
+				signal: controller.signal,
+			});
+			const pending = stream.next();
+			const rejection = expect(pending).rejects.toThrow('stream cancelled');
+			await sleep(1_000);
+			controller.abort(new Error('stream cancelled'));
+			await rejection;
+			await stream.return(undefined);
+		});
+	});
+
+	/**
+	 * Server gaps in subscription responses, found by these tests (sui v1.82.1 fullnode and
+	 * sui-indexer-alt-graphql v1.83). Streams pass live items through as the servers send them,
+	 * so live items differ from what the list methods return for the same transaction:
+	 * - gRPC `SubscribeTransactions` leaves out `effects.changed_objects.object_type` and
+	 *   `events.events.json`, even when the read mask asks for them (`SubscribeEvents` is fine);
+	 * - GraphQL subscription transactions have no `objectType` in `effectsJson`;
+	 * - GraphQL subscription events report a wrong `transactionModule.package.address`.
+	 * Each `it.fails` starts failing once its server is fixed; turn it into `it` then.
+	 */
+	const SUBSCRIPTION_GAPS: Record<ClientKind, Record<'transactions' | 'events', boolean>> = {
+		grpc: { transactions: true, events: false },
+		graphql: { transactions: true, events: true },
+	};
+
+	describe.each(KINDS)('live items carry every field the list methods return (%s)', (kind) => {
+		for (const family of ['transactions', 'events'] as const) {
+			const gap = SUBSCRIPTION_GAPS[kind][family];
+			const test = missingSubscriptions(kind, 'subscribe') ? it.skip : gap ? it.fails : it;
+			test(`${family}${gap ? ' (known server gap)' : ''}`, async () => {
+				const from = await newSigner();
+				const filter = { sender: from.address };
+				const include = {
+					transaction: true,
+					effects: true,
+					events: true,
+					balanceChanges: true,
+					objectTypes: true,
+				} as const;
+				const reader = new Reader<unknown>((signal) => {
+					async function* values() {
+						if (family === 'transactions') {
+							for await (const frame of client(kind).core.streamTransactions({
+								filter,
+								include,
+								signal,
+							}))
+								yield frame.transaction;
+						} else {
+							for await (const frame of client(kind).core.streamEvents({ filter, signal }))
+								yield frame.event;
+						}
+					}
+					return values();
+				});
+				await sleep(3_000);
+				// On GraphQL the first match is replayed from history with its checkpoint; the
+				// second one is delivered live.
+				await emitEvents(from, 1);
+				await emitEvents(from, 1);
+				await reader.until((frames) => frames.length >= 2);
+				await reader.settle(1_000);
+				expect(reader.frames).toEqual(
+					family === 'transactions'
+						? await listTransactions(kind, { filter, include })
+						: await listEvents(kind, { filter }),
+				);
+			});
+		}
+	});
+
+	describe.each(KINDS)('forced reconnects (%s)', (kind) => {
+		const skip = missingSubscriptions(kind, 'subscribe');
+
+		it.skipIf(skip).each(['checkpoints', 'events'] as const)(
+			'delivers %s exactly once when the live connection is reset every 2 s, with one short history pass and one gap per reconnect',
+			async (family) => {
+				const { client: resetting, resets } = resettingClient(kind, 2_000);
+				const { statuses } = await followWhileSubmitting({
+					client: resetting,
+					kind,
+					family,
+					delivery: 'subscribe',
+					// A slow consumer: the gRPC pull path must not overflow meanwhile.
+					delay: kind === 'grpc' ? 150 : 0,
+				});
+				expect(resets.count).toBeGreaterThan(0);
+				const retries = statuses.filter((s) => s.$kind === 'Retrying');
+				expect(retries.length).toBeGreaterThan(0);
+				// Every reconnect was caused by an injected reset: nothing overflowed.
+				for (const retry of retries) {
+					expect(causedByReset(retry.error), String(retry.error)).toBe(true);
+				}
+				expect(statuses.filter((s) => s.$kind === 'Error')).toEqual([]);
+				const [, ...reconnects] = attempts(statuses);
+				expect(reconnects.length).toBeGreaterThan(0);
+				for (const attempt of reconnects) {
+					const pages = attempt.filter((s) => s.$kind === 'Page');
+					// One history pass from the committed position to the indexed tip: it ends at the
+					// tip after at most one full page.
+					// (none when the committed position is already at the indexed tip).
+					const history = pages.filter((page) => page.stage === 'history');
+					expect(history.filter((page) => page.end !== 'limit').length).toBeLessThanOrEqual(1);
+					expect(history.length).toBeLessThanOrEqual(2);
+					// The reset that ended this attempt may come before Live.
+					if (attempt.some((s) => s.$kind === 'Live')) {
+						const gap = pages.filter((page) => page.stage === 'gap');
+						// Polling for the index to reach the first live position can take several
+						// passes, but never a full page.
+						expect(gap.filter((page) => page.end === 'limit')).toEqual([]);
+					}
+				}
+			},
+		);
+	});
+
+	describe('gRPC slow consumer', () => {
+		it('pauses a history scan without reconnecting and resumes in order', async () => {
+			const log = statusLog();
+			const stream = toolbox.grpcClient.streamCheckpoints({
+				start: { checkpoint: '0' },
+				end: { checkpoint: (BigInt(lastCheckpoint) + 1n).toString() },
+				onStatus: log.onStatus,
+				signal: signal(),
+			});
+			const sequence: bigint[] = [];
+			for await (const frame of stream) {
+				sequence.push(BigInt(frame.checkpoint.sequenceNumber));
+				if (sequence.length === 3) await sleep(1_000);
+			}
+			expect(sequence).toEqual(
+				Array.from({ length: Number(lastCheckpoint) + 1 }, (_, i) => BigInt(i)),
+			);
+			expect(log.kinds().filter((k) => k === 'Retrying' || k === 'Error')).toEqual([]);
+		});
+
+		it('pauses a live subscription without overflowing and ends promptly on return', async () => {
+			const log = statusLog();
+			const start = await tip();
+			const stream = toolbox.grpcClient.streamCheckpoints({
+				start: { checkpoint: start },
+				delivery: 'subscribe',
+				onStatus: log.onStatus,
+				signal: signal(),
+			});
+			const sequence: bigint[] = [];
+			const next = async () => {
+				const result = await stream.next();
+				expect(result.done).toBe(false);
+				if (!result.done) sequence.push(BigInt(result.value.checkpoint.sequenceNumber));
+			};
+			await next();
+			await sleep(3_000);
+			// Read past what was produced before and during the pause, so live delivery resumed.
+			const after = await tip();
+			while (sequence.at(-1)! < BigInt(after) + 2n) await next();
+			const pending = stream.next();
+			const started = Date.now();
+			await stream.return(undefined);
+			await pending.catch(() => {});
+			expect(Date.now() - started).toBeLessThan(1_000);
+			await expect(stream.next()).resolves.toMatchObject({ done: true });
+
+			expect(sequence[0]).toBe(BigInt(start));
+			sequence.forEach((checkpoint, i) => expect(checkpoint).toBe(sequence[0] + BigInt(i)));
+			expect(log.kinds().filter((k) => k === 'Retrying' || k === 'Error')).toEqual([]);
+			expect(log.kinds().filter((k) => k === 'Connecting')).toHaveLength(1);
+		});
+	});
+
+	describe('gRPC protocol assumptions', () => {
+		const { QueryEndReason } = GrpcTypes;
+		const eventKey = (event: GrpcTypes.Event | undefined) =>
+			`${event?.transactionDigest}:${event?.eventIndex}`;
+
+		async function listEventsRaw(request: Partial<GrpcTypes.ListEventsRequest>) {
+			const call = toolbox.grpcClient.ledgerService.listEvents(
+				{
+					readMask: { paths: ['transaction_digest', 'event_index', 'checkpoint'] },
+					...request,
+				},
+				{ abort: signal() },
+			);
+			const frames: GrpcTypes.ListEventsResponse[] = [];
+			for await (const frame of call.responses) frames.push(frame);
+			return frames;
+		}
+
+		it('ends a List at a Subscribe watermark cursor with CURSOR_BOUND while the tip moves on', async () => {
+			const from = await newSigner();
+			const filter = toGrpcEventFilter({ sender: from.address });
+			const before = await emitEvents(from, 2);
+
+			const controller = new AbortController();
+			controllers.push(controller);
+			const subscription = toolbox.grpcClient.subscriptionService.subscribeEvents(
+				{ readMask: { paths: ['transaction_digest', 'event_index', 'checkpoint'] }, filter },
+				{ abort: controller.signal },
+			);
+			const live = subscription.responses[Symbol.asyncIterator]();
+			const first = await live.next();
+			expect(first.done).toBe(false);
+			const firstFrame = first.value as GrpcTypes.SubscribeEventsResponse;
+			// A filtered subscription opens with a progress-only frame at its start position.
+			expect(firstFrame.event).toBeUndefined();
+			const cursor = firstFrame.watermark!.cursor!;
+
+			// The tip moves on during the gap.
+			const during = [await emitEvents(from, 2), await emitEvents(from, 1)];
+			const liveKeys: string[] = [];
+			while (liveKeys.length < 3) {
+				const next = await live.next();
+				expect(next.done).toBe(false);
+				const frame = next.value as GrpcTypes.SubscribeEventsResponse;
+				if (frame.event) liveKeys.push(eventKey(frame.event));
+			}
+			controller.abort();
+
+			const gap = await listEventsRaw({
+				filter,
+				startCheckpoint: BigInt(before.checkpoint),
+				options: { before: cursor },
+			});
+			const end = gap.at(-1)!;
+			expect(end.end?.reason).toBe(QueryEndReason.CURSOR_BOUND);
+			expect(end.event).toBeUndefined();
+			// The terminal watermark is the bound itself.
+			expect(end.watermark?.cursor).toEqual(cursor);
+			const gapKeys = gap.filter((frame) => frame.event).map((frame) => eventKey(frame.event));
+			// History before the cursor and live delivery from it meet exactly.
+			expect(gapKeys).toEqual([`${before.digest}:0`, `${before.digest}:1`]);
+			expect(liveKeys).toEqual([
+				`${during[0].digest}:0`,
+				`${during[0].digest}:1`,
+				`${during[1].digest}:0`,
+			]);
+		});
+
+		it('opens a filtered checkpoint subscription with progress and an unfiltered one with a checkpoint', async () => {
+			const from = await newSigner();
+			for (const filter of [toGrpcTransactionFilter({ sender: from.address }), undefined]) {
+				const controller = new AbortController();
+				controllers.push(controller);
+				const call = toolbox.grpcClient.subscriptionService.subscribeCheckpoints(
+					{ readMask: { paths: ['sequence_number'] }, filter },
+					{ abort: controller.signal },
+				);
+				const { value } = await call.responses[Symbol.asyncIterator]().next();
+				controller.abort();
+				const frame = value as GrpcTypes.SubscribeCheckpointsResponse;
+				expect(frame.cursor).toBeTypeOf('bigint');
+				if (filter) {
+					expect(frame.checkpoint).toBeUndefined();
+				} else {
+					expect(frame.checkpoint?.sequenceNumber).toBe(frame.cursor);
+				}
+			}
+		});
+
+		it('replays a filtered checkpoint stream’s progress-only first checkpoint without losing a match', async () => {
+			const from = await newSigner();
+			const history = await emitEvents(from, 1);
+			const reader = new Reader((signal) =>
+				toolbox.grpcClient.streamCheckpoints({
+					start: { checkpoint: history.checkpoint },
+					grpcFilter: toGrpcTransactionFilter({ sender: from.address }),
+					signal,
+				}),
+			);
+			const submitted = [history];
+			for (let i = 0; i < 5; i++) {
+				submitted.push(await emitEvents(from, 1, { fast: true }));
+				await sleep(Math.random() * 400);
+			}
+			const expected = [...new Set(submitted.map(({ checkpoint }) => checkpoint))];
+			await reader.until((frames) => frames.length >= expected.length);
+			await reader.settle(2_000);
+			expect(reader.frames.map((frame) => frame.checkpoint.sequenceNumber)).toEqual(expected);
+		});
+
+		it('answers empty and reversed cursor intervals', async () => {
+			const frames = await listEventsRaw({
+				filter: toGrpcEventFilter({ sender: signer.address }),
+				startCheckpoint: BigInt(firstCheckpoint),
+			});
+			const cursors = frames
+				.filter((frame) => frame.event)
+				.map((frame) => frame.watermark!.cursor!);
+			expect(cursors.length).toBeGreaterThanOrEqual(3);
+			const [a, , c] = cursors;
+			const filter = toGrpcEventFilter({ sender: signer.address });
+
+			const window = await listEventsRaw({ filter, options: { after: a, before: c } });
+			expect(window.filter((frame) => frame.event)).toHaveLength(1);
+			expect(window.at(-1)?.end?.reason).toBe(QueryEndReason.CURSOR_BOUND);
+
+			// An empty interval ends at its bound without an item.
+			const empty = await listEventsRaw({ filter, options: { after: a, before: a } });
+			expect(empty.filter((frame) => frame.event)).toEqual([]);
+			expect(empty.at(-1)?.end?.reason).toBe(QueryEndReason.CURSOR_BOUND);
+
+			// So does a reversed one: the session's `reaches` check skips such a gap before asking.
+			const reversed = await listEventsRaw({ filter, options: { after: c, before: a } });
+			expect(reversed.filter((frame) => frame.event)).toEqual([]);
+			expect(reversed.at(-1)?.end?.reason).toBe(QueryEndReason.CURSOR_BOUND);
+		});
+
+		it('skips the gap when history is already past the subscription’s first position', async () => {
+			const from = await newSigner();
+			await emitEvents(from, 1);
+			const filter = { sender: from.address };
+			const start = { checkpoint: (await emitEvents(from, 1)).checkpoint };
+
+			// Capture the stream's subscribe request, then open it before the next stream's
+			// history scan, and let the ledger move past it before that scan runs.
+			let subscribeRequest: { url: string; init: RequestInit } | undefined;
+			let preopened: Promise<Response> | undefined;
+			let hold: (() => Promise<void>) | undefined;
+			const preopen = new AbortController();
+			controllers.push(preopen);
+			const fetchWithPreopen: typeof fetch = async (input, init) => {
+				const url = String(input);
+				if (url.endsWith('/SubscribeEvents')) {
+					subscribeRequest ??= { url, init: { ...init, signal: undefined } };
+					const response = preopened;
+					preopened = undefined;
+					if (response) return response;
+				} else if (url.endsWith('/ListEvents') && hold && subscribeRequest) {
+					const wait = hold;
+					hold = undefined;
+					preopened = fetch(subscribeRequest.url, {
+						...subscribeRequest.init,
+						signal: preopen.signal,
+					});
+					await preopened;
+					await wait();
+				}
+				return fetch(input, init);
+			};
+			const grpc = new SuiGrpcClient({
+				network: 'localnet',
+				baseUrl: `http://127.0.0.1:${inject('localnetPort')}`,
+				fetch: fetchWithPreopen,
+			});
+			// A fresh follow subscribes straight away; it is Live after the first progress frame.
+			const probeLog = statusLog();
+			const probe = new Reader((signal) =>
+				grpc.streamEvents({ filter, signal, onStatus: probeLog.onStatus }),
+			);
+			await waitFor(() => probeLog.kinds().includes('Live'));
+			await probe.close();
+			expect(subscribeRequest).toBeDefined();
+
+			const ahead: Awaited<ReturnType<typeof emitEvents>>[] = [];
+			hold = async () => {
+				// Indexed before the history scan, and after the subscription opened.
+				ahead.push(await emitEvents(from, 2), await emitEvents(from, 1));
+			};
+			let reader: Reader<SuiClientTypes.StreamEventFrame> | undefined;
+			const log = statusLog(() => reader?.frames.length ?? 0);
+			reader = new Reader((signal) =>
+				grpc.streamEvents({ filter, start, signal, onStatus: log.onStatus }),
+			);
+			const delivered = (digest: string) => (frames: SuiClientTypes.StreamEventFrame[]) =>
+				frames.some((frame) => frame.event.transactionDigest === digest);
+			await waitFor(() => ahead.length === 2);
+			await reader.until(delivered(ahead[1].digest));
+			const after = await emitEvents(from, 1);
+			await reader.until(delivered(after.digest));
+			await reader.settle(2_000);
+			expect(hold).toBeUndefined();
+			expect(reader.frames.map((frame) => frame.event)).toEqual(
+				await listEvents('grpc', { filter, startCheckpoint: start.checkpoint }),
+			);
+			expect(reader.frames.at(-1)?.event.transactionDigest).toBe(after.digest);
+			// History had already passed the first live position. That position is a progress
+			// cursor, which cannot be ordered against an item cursor, so the gap may still be
+			// asked for: the server answers the reversed interval with one empty page.
+			const recovering = log.log.find(({ status }) => status.$kind === 'Recovering');
+			const live = log.log.find(({ status }) => status.$kind === 'Live');
+			if (recovering) {
+				const gap = log.log.slice(log.log.indexOf(recovering) + 1, log.log.indexOf(live!));
+				expect(gap.every(({ status }) => status.$kind === 'Page')).toBe(true);
+				// The gap delivered nothing.
+				expect(live?.frames).toBe(recovering.frames);
+			}
+			expect(log.kinds()).toContain('Live');
+			expect(log.kinds()).not.toContain('Retrying');
+		});
+
+		it.skip('reports pruned history (OUT_OF_RANGE) as HistoryUnavailable: localnet never prunes; covered by the unit test "fails unavailable history in the gap without retrying"', () => {});
+
+		it.skip('waits for the first indexed checkpoint on a brand-new chain: the suite starts after genesis is indexed; covered by the unit test "waits for the first indexed checkpoint before planning"', () => {});
+	});
+
+	describe.skipIf(!graphqlSubscriptions)('GraphQL protocol assumptions', () => {
+		type EdgeResult<Field extends string, Node> = Record<Field, { cursor: string; node: Node }>;
+
+		it('accepts subscription edge cursors as query `after` cursors', async () => {
+			const from = await newSigner();
+			const events = toolbox.graphqlClient.subscribe<
+				EdgeResult<'events', { sequenceNumber: number; transaction: { digest: string } }>
+			>({
+				query: `subscription ($filter: EventFilter) {
+					events(filter: $filter) { cursor node { sequenceNumber transaction { digest } } }
+				}`,
+				variables: { filter: { sender: from.address } },
+				signal: signal(),
+			});
+			const transactions = toolbox.graphqlClient.subscribe<
+				EdgeResult<'transactions', { digest: string }>
+			>({
+				query: `subscription ($filter: TransactionFilter) {
+					transactions(filter: $filter) { cursor node { digest } }
+				}`,
+				variables: { filter: { sentAddress: from.address } },
+				signal: signal(),
+			});
+			const firstEvent = events.next();
+			const firstTransaction = transactions.next();
+			// Give both subscriptions time to open before the transactions they should see.
+			await sleep(2_000);
+			const first = await emitEvents(from, 2);
+			const second = await emitEvents(from, 2);
+
+			const eventEdge = (await firstEvent).value!;
+			expect(eventEdge.errors).toBeUndefined();
+			expect(eventEdge.data?.events.node).toEqual({
+				sequenceNumber: 0,
+				transaction: { digest: first.digest },
+			});
+			const eventsAfter = await toolbox.graphqlClient.query<{
+				events: { nodes: { sequenceNumber: number; transaction: { digest: string } }[] };
+			}>({
+				query: `query ($after: String, $filter: EventFilter) {
+					events(after: $after, filter: $filter) { nodes { sequenceNumber transaction { digest } } }
+				}`,
+				variables: { after: eventEdge.data!.events.cursor, filter: { sender: from.address } },
+			});
+			expect(eventsAfter.errors).toBeUndefined();
+			expect(eventsAfter.data?.events.nodes).toEqual([
+				{ sequenceNumber: 1, transaction: { digest: first.digest } },
+				{ sequenceNumber: 0, transaction: { digest: second.digest } },
+				{ sequenceNumber: 1, transaction: { digest: second.digest } },
+			]);
+
+			const transactionEdge = (await firstTransaction).value!;
+			expect(transactionEdge.errors).toBeUndefined();
+			expect(transactionEdge.data?.transactions.node.digest).toBe(first.digest);
+			const transactionsAfter = await toolbox.graphqlClient.query<{
+				transactions: { nodes: { digest: string }[] };
+			}>({
+				query: `query ($after: String, $filter: TransactionFilter) {
+					transactions(after: $after, filter: $filter) { nodes { digest } }
+				}`,
+				variables: {
+					after: transactionEdge.data!.transactions.cursor,
+					filter: { sentAddress: from.address },
+				},
+			});
+			expect(transactionsAfter.errors).toBeUndefined();
+			expect(transactionsAfter.data?.transactions.nodes).toEqual([{ digest: second.digest }]);
+		});
+
+		it('resolves checkpoints of freshly executed transactions through multiGetTransactionEffects', async () => {
+			const from = await newSigner();
+			const subscription = toolbox.graphqlClient.subscribe<
+				EdgeResult<
+					'transactions',
+					{ digest: string; effects: { checkpoint: { sequenceNumber: number } | null } | null }
+				>
+			>({
+				query: `subscription ($filter: TransactionFilter) {
+					transactions(filter: $filter) {
+						cursor node { digest effects { checkpoint { sequenceNumber } } }
+					}
+				}`,
+				variables: { filter: { sentAddress: from.address } },
+				signal: signal(),
+			});
+			const pending = subscription.next();
+			await sleep(2_000);
+			const { digest } = await emitEvents(from, 1, { fast: true });
+			const edge = (await pending).value!;
+			expect(edge.data?.transactions.node.digest).toBe(digest);
+			// The node may or may not carry its checkpoint yet; the lookup resolves it either way.
+			const deadline = Date.now() + 30_000;
+			let checkpoint: number | undefined;
+			while (checkpoint === undefined && Date.now() < deadline) {
+				const result = await toolbox.graphqlClient.query<{
+					multiGetTransactionEffects: ({ checkpoint: { sequenceNumber: number } | null } | null)[];
+				}>({
+					query: `query ($digests: [String!]!) {
+						multiGetTransactionEffects(keys: $digests) { checkpoint { sequenceNumber } }
+					}`,
+					variables: { digests: [digest] },
+				});
+				expect(result.errors).toBeUndefined();
+				checkpoint = result.data?.multiGetTransactionEffects[0]?.checkpoint?.sequenceNumber;
+				if (checkpoint === undefined) await sleep(250);
+			}
+			const { Transaction: executed } = await toolbox.grpcClient.core.getTransaction({ digest });
+			expect(String(checkpoint)).toBe(executed!.checkpoint);
+			const nodeCheckpoint = edge.data?.transactions.node.effects?.checkpoint?.sequenceNumber;
+			if (nodeCheckpoint !== undefined) expect(String(nodeCheckpoint)).toBe(executed!.checkpoint);
+		});
+
+		it('finishes a raw GraphQL operation when Sui closes the SSE response', async () => {
+			const results = await collect(
+				toolbox.graphqlClient.subscribe<{ chainIdentifier: string }>({
+					query: 'query { chainIdentifier }',
+					signal: signal(),
+				}),
+			);
+			expect(results).toHaveLength(1);
+			expect(results[0].errors).toBeUndefined();
+			expect(results[0].data?.chainIdentifier).toBeTypeOf('string');
+		});
+
+		it('cancels native GraphQL while waiting for a matching event', async () => {
+			const controller = new AbortController();
+			const stream = toolbox.graphqlClient.subscribe({
+				query: 'subscription { events(filter: { sender: "0x0" }) { cursor } }',
+				variables: {},
+				signal: controller.signal,
+			});
+			const pending = stream.next();
+			const rejection = expect(pending).rejects.toThrow('native cancelled');
+			controller.abort(new Error('native cancelled'));
+			await rejection;
+			await stream.return(undefined);
+		});
+	});
+
+	describe('GraphQL history limits', () => {
+		it.skip('reports a descending read to genesis on a pruned server as HistoryUnavailable: localnet never prunes; covered by the unit test "fails with HistoryUnavailable, without a page request, when the start has been pruned"', () => {});
+	});
+});
