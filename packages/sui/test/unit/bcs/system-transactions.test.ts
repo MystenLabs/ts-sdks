@@ -3,7 +3,7 @@
 
 import { gunzipSync } from 'node:zlib';
 
-import { fromBase64, toBase64 } from '@mysten/bcs';
+import { fromBase64, fromHex, toBase64 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
@@ -205,9 +205,16 @@ describe('system transaction BCS', () => {
 				members: [[ACCUMULATOR_ROOT, '63'] as [string, string]],
 			},
 		};
-		const bytes = bcs.Owner.serialize({ Party: party }).toBytes();
-		expect(bytes[0]).toBe(5);
-		expect(bytes).toHaveLength(1 + 8 + 8 + 1 + 32 + 8);
-		expect(bcs.Owner.parse(bytes)).toEqual({ $kind: 'Party', Party: party });
+		// Field order from `Owner::Party` and `RawPartySerde` in crates/sui-types/src/object.rs.
+		const expected = fromHex(
+			'05' + // Owner::Party
+				'0700000000000000' + // start_version
+				'0300000000000000' + // default_permissions
+				'01' + // members length
+				ACCUMULATOR_ROOT.slice(2) +
+				'3f00000000000000', // member permissions
+		);
+		expect(bcs.Owner.serialize({ Party: party }).toBytes()).toEqual(expected);
+		expect(bcs.Owner.parse(expected)).toEqual({ $kind: 'Party', Party: party });
 	});
 });
