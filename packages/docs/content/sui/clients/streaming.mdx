@@ -31,7 +31,8 @@ Requests start when iteration begins. Without a `start`, a stream follows from t
 reconnect after transient failures and continue from the last frame.
 
 `break` closes the stream. Aborting the signal also closes it, but rejects the pending iteration
-with the signal's reason:
+with the signal's reason. End streams with `break`, `return()` or an abort rather than dropping the
+iterator: an abandoned stream stays reachable through its signal's listener.
 
 ```typescript
 try {
@@ -172,10 +173,10 @@ Save a progress token only after every earlier item is processed.
 
 ## Choose a delivery mode
 
-| `delivery`              | Latency                 | Use when                                                                 |
-| ----------------------- | ----------------------- | ------------------------------------------------------------------------ |
-| `'subscribe'` (default) | Lowest                  | You want new data as soon as the server has it.                          |
-| `'poll'`                | Up to `pollInterval` ms | You need complete live items, or every match of a sparse GraphQL filter. |
+| `delivery`              | Latency                 | Use when                                        |
+| ----------------------- | ----------------------- | ----------------------------------------------- |
+| `'subscribe'` (default) | Lowest                  | You want new data as soon as the server has it. |
+| `'poll'`                | Up to `pollInterval` ms | Your provider does not serve subscriptions.     |
 
 ```typescript
 client.streamEvents({
@@ -186,7 +187,8 @@ client.streamEvents({
 ```
 
 Finite reads always read history. On GraphQL, `'subscribe'` uses
-[subscriptions](./graphql.mdx#subscriptions), so the provider must serve them.
+[subscriptions](./graphql.mdx#subscriptions), so the provider must serve them. Streams require a Sui
+fullnode and GraphQL service at version TODO or later.
 
 ## Statuses
 
@@ -216,8 +218,8 @@ client.streamEvents({
 ```
 
 Transient failures retry with exponential backoff and jitter. `maxAttempts` bounds consecutive
-failures without progress, and `maxAttempts: 0` disables retries. Servers close long-lived streams
-periodically, and the stream reconnects from the last frame without counting a failure.
+failures without progress, and `maxAttempts: 0` disables retries. If the server or a proxy closes
+the stream after progress, it reconnects at once and resumes from the last frame.
 
 Retries don't bound waiting: a stream waiting for the index or for a sparse filter to match can stay
 quiet indefinitely. Use a signal to bound the total time:
@@ -262,23 +264,14 @@ try {
 
 ## Known limitations
 
-- Live items can lack fields that list results have: on gRPC, `objectTypes` entries and event
-  `json`; on GraphQL, changed objects' `objectType`, and events can report a wrong `packageId`. Use
-  `delivery: 'poll'` or re-read with `getTransaction` when you need them.
 - On GraphQL, a transaction's `events` and `objectTypes` hold at most its first 50 entries, as with
   `listTransactions`.
-- On GraphQL with `'subscribe'`, a filtered stream reports `Live` only when its first live match
-  arrives.
-- On GraphQL with `'subscribe'`, a filtered stream can hold back a match from just before the
-  subscription started until its next live match, and a transaction or event stream misses the items
-  of any checkpoint the server's live feed skips after the stream is live; use `delivery: 'poll'`
-  when completeness matters more than latency.
+- On GraphQL with `'subscribe'`, a filtered stream gets no progress while nothing matches: it
+  reports `Live` and new resume tokens only with its next match.
 - Resume tokens don't work across gRPC and GraphQL; to switch, start the new stream at the
   checkpoint after the last one you fully processed.
 - GraphQL replays read 50 items per request, more requests than gRPC for the same range; run streams
   over disjoint checkpoint ranges concurrently to replay faster.
-- Public mainnet fullnodes close gRPC streams about every 30 seconds; streams reconnect, but expect
-  the reconnects in `onStatus`.
 
 ## gRPC options
 
