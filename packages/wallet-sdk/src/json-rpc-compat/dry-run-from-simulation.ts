@@ -134,7 +134,9 @@ export function mapTransactionEffects(
 	transaction: Pick<MappableTransaction, 'effects' | 'epoch' | 'transaction'>,
 ): TransactionEffects {
 	const effects = transaction.effects;
-	const inputVersions = getTransactionInputVersions(transaction.transaction);
+	const inputVersions = getTransactionInputVersions(
+		programmableBodyOrEmpty(transaction.transaction),
+	);
 	const created: OwnedObjectRef[] = [];
 	const mutated: OwnedObjectRef[] = [];
 	const unwrapped: OwnedObjectRef[] = [];
@@ -237,7 +239,7 @@ export function mapObjectChanges(
 	const objectTypes = transaction.objectTypes;
 	const transactionData = transaction.transaction;
 	const sender = transactionData.sender ?? transactionData.gasData.owner ?? '';
-	const publishModuleNames = getPublishedModuleNames(transactionData);
+	const publishModuleNames = getPublishedModuleNames(programmableBodyOrEmpty(transactionData));
 	const changes: SuiObjectChange[] = [];
 
 	for (const change of effects.changedObjects) {
@@ -489,7 +491,7 @@ function isJsonRpcTransferredWrite(change: SuiClientTypes.ChangedObject): boolea
 }
 
 function getTransactionInputVersions(
-	transaction: SuiClientTypes.TransactionData,
+	transaction: SuiClientTypes.ProgrammableTransaction,
 ): Map<string, string> {
 	const versions = new Map<string, string>();
 
@@ -512,10 +514,44 @@ function getTransactionInputVersions(
 	return versions;
 }
 
+const NO_PROGRAMMABLE_BODY: SuiClientTypes.ProgrammableTransaction = { inputs: [], commands: [] };
+
+/**
+ * The inputs and commands of a programmable transaction, or `null` for system transactions.
+ * Throws for an `Unknown` kind: the client could not map the transaction, so any JSON-RPC response
+ * built from it would be missing data.
+ */
+function programmableBody(
+	transaction: SuiClientTypes.TransactionData,
+): SuiClientTypes.ProgrammableTransaction | null {
+	if (transaction.kind.$kind === 'Unknown') {
+		throw new Error(
+			'Transaction kind is not supported by this SDK version, you may need to update the SDK to map this transaction',
+		);
+	}
+	return (
+		transaction.kind.ProgrammableTransaction ??
+		transaction.kind.ProgrammableSystemTransaction ??
+		null
+	);
+}
+
+/** Like `programmableBody`, but system transactions map to an empty body. */
+function programmableBodyOrEmpty(
+	transaction: SuiClientTypes.TransactionData,
+): SuiClientTypes.ProgrammableTransaction {
+	return programmableBody(transaction) ?? NO_PROGRAMMABLE_BODY;
+}
+
 export function mapTransactionDataToInput(
 	transaction: SuiClientTypes.TransactionData,
 ): TransactionBlockData {
-	const pureInputTypes = getPureInputTypes(transaction);
+	const body = programmableBody(transaction);
+	if (!body) {
+		// JSON-RPC inputs are only mapped for programmable transactions.
+		throw new Error(`Unsupported transaction kind ${transaction.kind.$kind}`);
+	}
+	const pureInputTypes = getPureInputTypes(body);
 
 	return {
 		gasData: {
@@ -532,11 +568,12 @@ export function mapTransactionDataToInput(
 		messageVersion: 'v1',
 		sender: transaction.sender ?? '',
 		transaction: {
-			inputs: transaction.inputs.map((input, index) =>
-				mapCallArg(input, pureInputTypes.get(index)),
-			),
-			kind: 'ProgrammableTransaction',
-			transactions: transaction.commands.map(mapCommand),
+			inputs: body.inputs.map((input, index) => mapCallArg(input, pureInputTypes.get(index))),
+			kind:
+				transaction.kind.$kind === 'ProgrammableSystemTransaction'
+					? 'ProgrammableSystemTransaction'
+					: 'ProgrammableTransaction',
+			transactions: body.commands.map(mapCommand),
 		},
 	};
 }
@@ -627,7 +664,7 @@ function mapWithdrawFrom(withdrawFrom: Record<string, unknown>): SuiWithdrawFrom
 }
 
 function getPureInputTypes(
-	transaction: SuiClientTypes.TransactionData,
+	transaction: SuiClientTypes.ProgrammableTransaction,
 ): Map<number, PureInputType> {
 	const pureInputTypes = new Map<number, PureInputType>();
 	const setPureInputType = (argument: unknown, type: PureInputType) => {
@@ -874,7 +911,7 @@ function mapArgument(arg: unknown): SuiArgument {
 }
 
 /** The module names of every `Publish` and `Upgrade` command, for `published` object changes. */
-function getPublishedModuleNames(transaction: SuiClientTypes.TransactionData): string[] {
+function getPublishedModuleNames(transaction: SuiClientTypes.ProgrammableTransaction): string[] {
 	return transaction.commands.flatMap((command) => {
 		const modules = hasKey(command, 'Publish')
 			? asRecord(command.Publish, 'publish command').modules
