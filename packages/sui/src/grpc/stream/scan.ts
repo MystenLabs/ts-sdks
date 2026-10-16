@@ -59,8 +59,7 @@ const PAGE_END: Record<QueryEndReason, SuiClientTypes.StreamPageEnd | undefined>
 };
 
 /**
- * One scan pass: List pages from `start` toward `end` (or the indexed tip), then `End`. Every
- * page is read on demand and closed before the next one opens.
+ * One scan pass: List pages from `start` toward `end` or the indexed tip.
  *
  * @yields `Connected`, items and progress, a `Page` per page, and exactly one final `End`.
  */
@@ -70,8 +69,7 @@ export async function* scanLedger(
 ): AsyncGenerator<ScanEvent<GrpcPosition, GrpcItem>> {
 	const { order, signal } = request;
 	const family = calls.family;
-	// A descending scan must not deliver anything below a start the index has not reached:
-	// its tokens would skip the unindexed part.
+	// Items below an unindexed descending start would get tokens that skip the unindexed part.
 	if (
 		order === 'descending' &&
 		request.start &&
@@ -133,7 +131,6 @@ export async function* scanLedger(
 		}
 		if (!terminal) throw protocol('List RPC ended without a terminal watermark');
 		if (reason === QueryEndReason.ITEM_LIMIT || reason === QueryEndReason.SCAN_LIMIT) {
-			// The next page continues from the terminal watermark.
 			const cursor = nativeCursor(terminal);
 			assertAdvanced(pageStart, toBase64(cursor));
 			pageStart = toBase64(cursor);
@@ -169,10 +166,7 @@ export async function readIndexedTip(transport: RpcTransport, signal: AbortSigna
 	throw new RpcError('No checkpoint is indexed yet', 'UNAVAILABLE');
 }
 
-/**
- * Request bounds in ledger terms. Checkpoint and cursor bounds intersect on the server.
- * `endCheckpoint` may be 2^64 (after the last checkpoint); the wire request then omits it.
- */
+/** Checkpoint and cursor bounds intersect on the server. `endCheckpoint` may be 2^64. */
 interface ListBounds {
 	startCheckpoint?: bigint;
 	endCheckpoint?: bigint;
@@ -278,8 +272,8 @@ function assertQueryEnd(end: QueryEnd, item: GrpcItem | undefined): QueryEndReas
 }
 
 /**
- * Terminal progress at a checkpoint bound or the ascending indexed tip sits exactly at a
- * checkpoint boundary. Recording it lets a resumed token see that its range is already complete.
+ * Terminal progress at a checkpoint bound or the ascending indexed tip sits at a checkpoint
+ * boundary; recording it lets a resumed token see that its range is complete.
  */
 function atCheckpointBoundary(
 	position: GrpcPosition,
@@ -301,11 +295,7 @@ function atCheckpointBoundary(
 	return position;
 }
 
-/**
- * Whether a pass that stopped at a checkpoint bound or the indexed tip reached its end. Only the
- * indexed tip stops short: then the pass is complete without an end bound, or once the covered
- * checkpoints reach the end checkpoint.
- */
+/** Whether a pass that stopped at a checkpoint bound or the indexed tip reached its end. */
 function reachedEnd(
 	reason: QueryEndReason,
 	terminal: GrpcPosition,

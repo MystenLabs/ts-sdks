@@ -51,10 +51,7 @@ const RETRYABLE_CODES = new Set([
 	'CANCELLED',
 ]);
 
-/**
- * A ledger stream over gRPC: List calls for history, Subscribe calls for live delivery.
- * Constructing it does no I/O; `initialize` resolves the filter and the chain.
- */
+/** A ledger stream over gRPC: List calls for history, Subscribe calls for live delivery. */
 export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<
 	GrpcPosition,
 	GrpcItem,
@@ -120,7 +117,6 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<
 		return RETRYABLE_CODES.has(error.code) ? 'retry' : 'fatal';
 	}
 
-	/** The shared filter, with names resolved, as a native filter. */
 	async #sharedFilter(signal: AbortSignal): Promise<NativeFilter | undefined> {
 		const { mvr } = this.#context;
 		const request = this.#request;

@@ -4,20 +4,13 @@
 /**
  * Server-streaming calls for ledger streams, read through a bounded queue.
  *
- * Two paths behave the same to the caller:
- * - pull: the transport reads and decodes a response only when asked (`GrpcWebFetchTransport`
- *   without interceptors). Nothing is read ahead unless `readAhead(true)`.
- * - push: any other transport, called through `stackIntercept` like the generated clients, so
- *   interceptors run. The transport delivers responses as they arrive; the bounded queue caps
- *   what is held.
+ * - pull: `GrpcWebFetchTransport` without interceptors reads a response only when asked, unless
+ *   `readAhead(true)`.
+ * - push: any other transport, called through `stackIntercept` so interceptors run. Responses
+ *   arrive unasked; the bounded queue caps what is held.
  *
- * Abort ownership: each call owns one controller linked to the stream's signal. The stream signal
- * aborts every open call when the stream ends; `return()` aborts only its own call. Callers close
- * every call they open with `return()` in a `finally`.
- *
- * Cancellation takes effect immediately: once the stream signal aborts, queued responses are
- * dropped and every `next()` rejects with the abort reason. A buffer overflow is not a
- * cancellation; the responses queued before it are still delivered, then the overflow error.
+ * Once the stream signal aborts, queued responses are dropped and `next()` rejects with the abort
+ * reason. An overflow is not a cancellation: responses queued before it are delivered first.
  */
 
 import { RpcError, stackIntercept } from '@protobuf-ts/runtime-rpc';
@@ -160,10 +153,7 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		return this.#ended;
 	}
 
-	/**
-	 * Ends the call. The first end wins: later errors and completions are ignored. Once the call
-	 * is aborted, the abort reason wins over the transport's own cancellation error.
-	 */
+	/** The first end wins. Once aborted, the abort reason replaces the transport's cancel error. */
 	protected end(error?: unknown) {
 		if (this.#ended) return;
 		this.#ended = true;
@@ -172,10 +162,7 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		this.wake();
 	}
 
-	/**
-	 * Cancels the call: drops queued responses and fails every later `next()` with `reason`, even
-	 * if the call had already ended. Our own overflow abort and `return()` are not cancellations.
-	 */
+	/** Drops queued responses and fails later `next()` calls, even after the call has ended. */
 	#cancel(reason: unknown) {
 		if (this.#returned || isBufferOverflow(reason)) return;
 		this.#ended = true;
@@ -184,7 +171,6 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		this.wake();
 	}
 
-	/** Resolves a pending `waitForWake()`. */
 	protected wake() {
 		this.#wake?.();
 		this.#wake = undefined;
@@ -194,7 +180,6 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 		return new Promise((resolve) => (this.#wake = resolve));
 	}
 
-	/** Queues a response, or fails the call with an overflow when the queue is full. */
 	protected enqueue(response: T) {
 		if (this.queue.push(response)) return;
 		const error = new RpcError('Ledger stream buffer limit reached', 'RESOURCE_EXHAUSTED');
@@ -288,9 +273,8 @@ class PushLedgerCall<T extends object> extends QueuedLedgerCall<T> {
 		linked: ReturnType<typeof linkedAbortController>,
 	) {
 		super(queue, linked);
-		// Consume protobuf-ts's own iterator rather than `onNext`: it replays responses delivered
-		// before the call was returned (a cached or immediately rejected call), and draining it
-		// eagerly keeps only the bounded queue holding responses.
+		// protobuf-ts's iterator, unlike `onNext`, replays responses delivered before the call was
+		// returned (for example by a caching interceptor).
 		void this.#drain(call.responses[Symbol.asyncIterator]());
 	}
 

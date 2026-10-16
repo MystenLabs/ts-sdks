@@ -109,10 +109,7 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 	},
 };
 
-/**
- * A generated service method by name. `ListRequest`/`ListFrame` and their subscription
- * counterparts name the fields every family's messages share, so the typed result is safe.
- */
+/** A generated method by name; its messages share the fields `ListRequest` and friends name. */
 function streamingMethod<I extends object, O extends object>(
 	service: ServiceType,
 	name: string,
@@ -124,10 +121,7 @@ function streamingMethod<I extends object, O extends object>(
 	return method;
 }
 
-/**
- * The position a watermarked frame reports. Its coverage is the watermark's checkpoint as sent;
- * `CoverageTracker` fills in what the frame omitted.
- */
+/** The position a watermarked frame reports, before `CoverageTracker` fills in coverage. */
 export function framePosition(
 	frame: { watermark?: Watermark },
 	item: GrpcItem | undefined,
