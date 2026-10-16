@@ -17,9 +17,7 @@ const item = (checkpoint: number) => ({
 	position: itemPosition(`c${checkpoint}`, BigInt(checkpoint), 'id'),
 });
 const frontier = (tip: number) => ({ position: frontierPosition('f', BigInt(tip)) });
-const boundary = (checkpoint: number) => ({
-	position: boundaryPosition('b', BigInt(checkpoint)),
-});
+const boundary = (checkpoint: number) => ({ position: boundaryPosition(BigInt(checkpoint)) });
 const at = (checkpoint: number) => ({ checkpoint: BigInt(checkpoint) });
 
 type Row = [
@@ -63,21 +61,6 @@ describe('resolveScanWindow', () => {
 			{ lower: 0n, upper: 21n, after: 'f' },
 		],
 		[
-			'a boundary start excludes every checkpoint it read',
-			{ start: boundary(15) },
-			{ lower: 16n, upper: 21n, after: 'b' },
-		],
-		[
-			'a boundary start at the gap end leaves an empty window',
-			{ start: boundary(15), end: at(16) },
-			{ lower: 16n, upper: 16n, after: 'b', target: 15n },
-		],
-		[
-			'a boundary end bounds by cursor and by its checkpoint',
-			{ start: at(8), end: boundary(12) },
-			{ lower: 8n, upper: 13n, before: 'b', target: 12n },
-		],
-		[
 			'an item end bounds by cursor; the target is its checkpoint',
 			{ start: at(8), end: item(12) },
 			{ lower: 8n, upper: 21n, before: 'c12', target: 12n },
@@ -100,6 +83,53 @@ describe('resolveScanWindow', () => {
 	])('%s', (_name, { start, end, descending }, window, onePerCheckpoint = false) => {
 		const order = descending ? 'descending' : 'ascending';
 		expect(resolveScanWindow({ start, end, order }, indexed, onePerCheckpoint)).toEqual(window);
+	});
+
+	// Every position kind in every role and direction. Items and frontiers bound by their cursor;
+	// boundaries (with or without a pre-release cursor) bound by their checkpoint alone, like a
+	// checkpoint: as a low side they exclude everything through it, as a high side they include it.
+	const kinds = {
+		item: { position: itemPosition('i', 12n, 'id') },
+		boundary: boundary(12),
+		'pre-release boundary': { position: { ...boundaryPosition(12n), cursor: 'b' } },
+		frontier: { position: frontierPosition('f', 12n) },
+	};
+	type Kind = keyof typeof kinds;
+	it.each<[Kind, 'start' | 'end', 'ascending' | 'descending', ScanWindow]>([
+		['item', 'start', 'ascending', { lower: 12n, upper: 21n, after: 'i' }],
+		['boundary', 'start', 'ascending', { lower: 13n, upper: 21n }],
+		['pre-release boundary', 'start', 'ascending', { lower: 13n, upper: 21n }],
+		['frontier', 'start', 'ascending', { lower: 0n, upper: 21n, after: 'f' }],
+		['item', 'end', 'ascending', { lower: 8n, upper: 21n, before: 'i', target: 12n }],
+		['boundary', 'end', 'ascending', { lower: 8n, upper: 13n, target: 12n }],
+		['pre-release boundary', 'end', 'ascending', { lower: 8n, upper: 13n, target: 12n }],
+		['frontier', 'end', 'ascending', { lower: 8n, upper: 21n, before: 'f', target: 12n }],
+		['item', 'start', 'descending', { lower: 5n, upper: 21n, before: 'i' }],
+		['boundary', 'start', 'descending', { lower: 5n, upper: 13n }],
+		['pre-release boundary', 'start', 'descending', { lower: 5n, upper: 13n }],
+		['frontier', 'start', 'descending', { lower: 5n, upper: 21n, before: 'f' }],
+		['item', 'end', 'descending', { lower: 12n, upper: 17n, after: 'i' }],
+		['boundary', 'end', 'descending', { lower: 13n, upper: 17n }],
+		['pre-release boundary', 'end', 'descending', { lower: 13n, upper: 17n }],
+		['frontier', 'end', 'descending', { lower: 0n, upper: 17n, after: 'f' }],
+	])('a %s as %s, %s', (kind, role, order, window) => {
+		// The other bound is a plain checkpoint: from 8 up, or from 16 down to after 4.
+		const other = order === 'ascending' ? at(8) : role === 'start' ? at(4) : at(16);
+		const bounds =
+			role === 'start'
+				? { start: kinds[kind], end: order === 'ascending' ? undefined : other }
+				: { start: other, end: kinds[kind] };
+		expect(resolveScanWindow({ ...bounds, order }, indexed, false)).toEqual(window);
+	});
+
+	it.each<[Kind, 'start' | 'end', ScanWindow]>([
+		['item', 'start', { lower: 13n, upper: 21n, after: 'i' }],
+		['boundary', 'start', { lower: 13n, upper: 21n }],
+		['item', 'end', { lower: 8n, upper: 21n, before: 'i', target: 12n }],
+		['boundary', 'end', { lower: 8n, upper: 13n, target: 12n }],
+	])('a checkpoint stream %s as an ascending %s', (kind, role, window) => {
+		const bounds = role === 'start' ? { start: kinds[kind] } : { start: at(8), end: kinds[kind] };
+		expect(resolveScanWindow({ ...bounds, order: 'ascending' }, indexed, true)).toEqual(window);
 	});
 
 	it.each<

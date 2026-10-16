@@ -24,14 +24,14 @@ describe('GraphQL stream positions', () => {
 		['later checkpoint', item('a', 3), item('b', 2), 1],
 		['same checkpoint, different cursors', item('a', 2), item('b', 2), undefined],
 		['a frontier', frontierPosition('f', 9n), item('b', 2), undefined],
-		['a boundary after its checkpoint', boundaryPosition('z', 2n), item('b', 2), 1],
-		['an item before the boundary closing it', item('a', 2), boundaryPosition('z', 2n), -1],
-		['a boundary before a later item', boundaryPosition('z', 2n), item('b', 3), -1],
+		['a boundary after its checkpoint', boundaryPosition(2n), item('b', 2), 1],
+		['an item before the boundary closing it', item('a', 2), boundaryPosition(2n), -1],
+		['a boundary before a later item', boundaryPosition(2n), item('b', 3), -1],
 		[
 			'two boundaries of one checkpoint',
-			boundaryPosition('y', 2n),
-			boundaryPosition('z', 2n),
-			undefined,
+			boundaryPosition(2n),
+			{ ...boundaryPosition(2n), cursor: 'pre-release' },
+			0,
 		],
 	])('compares %s', (_name, a, b, expected) => {
 		expect(comparePositions(a, b)).toBe(expected);
@@ -49,7 +49,7 @@ describe('GraphQL stream positions', () => {
 		['a frontier makes no claim', frontierPosition('f', 9n), false, { $kind: 'Unknown' }],
 		[
 			'a boundary covers its checkpoint',
-			boundaryPosition('z', 5n),
+			boundaryPosition(5n),
 			false,
 			{ $kind: 'Through', checkpoint: 5n },
 		],
@@ -58,11 +58,11 @@ describe('GraphQL stream positions', () => {
 	});
 
 	it('locates a boundary as the boundary before the next checkpoint', () => {
-		expect(locatePosition(boundaryPosition('z', 5n))).toEqual({ checkpoint: 6n, boundary: true });
+		expect(locatePosition(boundaryPosition(5n))).toEqual({ checkpoint: 6n, boundary: true });
 		expect(locatePosition(item('a', 5))).toEqual({ checkpoint: 5n, boundary: false });
 	});
 
-	it.each([item('a', 5), frontierPosition('f', 9n), boundaryPosition('z', 5n)])(
+	it.each([item('a', 5), frontierPosition('f', 9n), boundaryPosition(5n)])(
 		'round-trips %o through its bytes',
 		(position) => {
 			const schema = graphQLPositionCodec.schema;
@@ -80,7 +80,7 @@ describe('GraphQL stream positions', () => {
 		],
 		[
 			'a boundary whose indexed checkpoint differs',
-			{ ...boundaryPosition('z', 5n), indexedCheckpoint: 6n },
+			{ ...boundaryPosition(5n), indexedCheckpoint: 6n },
 		],
 	])('rejects %s as InvalidToken', (_name, position) => {
 		expect(() => graphQLPositionCodec.validate(position)).toThrow(
