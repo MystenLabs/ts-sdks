@@ -190,20 +190,18 @@ Option types follow a predictable naming scheme (`GetObjectOptions`, `ListCoinsO
 All transports produce the same shapes, but they read from different backends, and a few differences
 are visible to callers. Library code that runs against any client should account for them.
 
-| Behavior                    | What differs                                                                                                                                                                  |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                                                                         |
-| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                                                                            |
-| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC                                                                   |
-| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`                                                                  |
-| Window ends                 | GraphQL treats cursors as inclusive bounds, so a window (`after` and `before` together) may report `hasNextPage: true` and then return one final empty page at the bound      |
-| Reused history cursors      | Cursors are only valid with the filter and checkpoint range that produced them. Reused elsewhere, gRPC treats them as ledger positions while GraphQL can return an empty page |
-| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                                                                         |
+| Behavior                    | What differs                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable           |
+| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them              |
+| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC     |
+| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`    |
+| Window ends                 | On GraphQL, a page that reaches a cursor bound may report `hasNextPage: true` and be followed by one empty page |
+| Reused history cursors      | A cursor passed with a different filter or checkpoint range gives transport-specific results                    |
+| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes           |
 
-A few rules are enforced by the client itself, so they fail the same way everywhere: a transaction
-filter takes at most one of `affectedAddress`, `affectedObject`, or `function` (each combinable with
-`sender`), an event filter cannot combine `emitModule` with `eventType`, and `endCheckpoint` must
-not be less than `startCheckpoint`.
+Invalid filter combinations and checkpoint ranges are rejected by the client itself, so they fail
+the same way on every transport.
 
 ## Client services
 
