@@ -44,10 +44,10 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
 
 - **Replay handoff waits for the first live frame** — a following gRPC stream with a `start` opens
   the subscription first and only begins the historical read once the subscription reports a
-  position (`src/grpc/stream.ts`, `liveOnce`). Time to first frame is 1–3 s unfiltered and up to 17
-  s for sparse filters such as `affectedAddress`, so restarts of a filtered indexer sit idle that
-  long. Reading history up to the indexed tip while the subscription connects would remove the wait;
-  the later handoff must then dedupe the overlap the same way the recovery scan does.
+  position (`src/grpc/stream/follow.ts`). Time to first frame is 1–3 s unfiltered and up to 17 s for
+  sparse filters such as `affectedAddress`, so restarts of a filtered indexer sit idle that long.
+  Reading history up to the indexed tip while the subscription connects would remove the wait; the
+  later handoff must then dedupe the overlap the same way the recovery scan does.
 - **GraphQL subscriptions skip or repeat items at the server's backfill-to-live handoff** — about
   one in four resubscribes with an `after` cursor or `afterCheckpoint` either repeats the cursor's
   item or skips a checkpoint (server side; reproducible with raw SSE). The SDK drops the repeated
@@ -74,7 +74,7 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
   tx/s per core, versus about 120 tx/s of mainnet production). Two avoidable costs:
   `restore().snapshot()` runs two valibot validations per transaction in
   `src/client/transaction-data.ts` (about 36 µs), and the resume token is built and base64-encoded
-  for every frame in `src/client/stream.ts` (about 6 µs) even when it is never read.
+  for every frame in `src/client/stream/session.ts` (about 6 µs) even when it is never read.
 - **`effects`/`events` includes request both structured fields and BCS** — gRPC read masks in
   `src/grpc/core.ts` ask for `effects` and `effects.bcs` (and `events`, `events.bcs`, JSON), which
   is about 35% more effects bytes and about 1.8x the event bytes on the wire with no CPU benefit.
