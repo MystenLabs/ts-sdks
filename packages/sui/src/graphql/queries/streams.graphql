@@ -1,12 +1,10 @@
 # Copyright (c) Mysten Labs, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-# Ledger streams (`src/graphql/stream/`). Nodes use the same fragments as the list methods, so a
-# streamed item maps exactly like the same item from `listCheckpoints`, `listTransactions` or
-# `listEvents`. Subscriptions never take `after`: streams replay history themselves.
+# Ledger streams use the list methods' fragments so streamed items match list results.
+# Subscriptions never take `after`, which loses data on current servers.
 
-# `filters` names the filter fields the stream's page query sets, so the retention range is the one
-# of the indexes that query reads.
+# Retention differs between filter indexes, so the range is read for the filters in use.
 query ledgerStreamState($field: String!, $filters: [String!]!) {
 	chainIdentifier
 	serviceConfig {
@@ -35,8 +33,7 @@ query scanCheckpoints(
 	$last: Int
 	$before: String
 ) {
-	# The checkpoint this response was read at: a load-balanced replica can lag the one that
-	# reported the indexed tip, and a page covers only what its own replica had indexed.
+	# Load-balanced replicas can lag the reported tip.
 	viewedAt: checkpoint {
 		sequenceNumber
 	}
@@ -63,8 +60,7 @@ subscription subscribeCheckpoints {
 }
 
 query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
-	# The checkpoint this response was read at: a load-balanced replica can lag the one that
-	# reported the indexed tip, and a page covers only what its own replica had indexed.
+	# Load-balanced replicas can lag the reported tip.
 	viewedAt: checkpoint {
 		sequenceNumber
 	}
@@ -104,8 +100,7 @@ query scanTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
-	# The checkpoint this response was read at: a load-balanced replica can lag the one that
-	# reported the indexed tip, and a page covers only what its own replica had indexed.
+	# Load-balanced replicas can lag the reported tip.
 	viewedAt: checkpoint {
 		sequenceNumber
 	}

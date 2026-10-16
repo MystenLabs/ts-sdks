@@ -22,12 +22,11 @@ import {
 } from './position.js';
 import type { IndexState } from './query.js';
 
-/** Items per history page. */
 export const PAGE_SIZE = 50;
 /** GraphQL checkpoint arguments are UInt53. */
 const MAX_CHECKPOINT = BigInt(Number.MAX_SAFE_INTEGER);
 
-/** What one scan pass reads: checkpoints `[lower, upper)`, then cursors within them. */
+/** Checkpoints `[lower, upper)`, then cursors within them. */
 export interface ScanWindow {
 	lower: bigint;
 	upper: bigint;
@@ -35,52 +34,40 @@ export interface ScanWindow {
 	before?: string;
 	/** An ascending scan is complete only once the indexed tip reaches this checkpoint. */
 	target?: bigint;
-	/**
-	 * A descending read to genesis on a server that pruned its oldest checkpoints: `lower` is the
-	 * oldest retained one, and the read fails with `HistoryUnavailable` once it gets there.
-	 */
+	/** A descending read to genesis that fails with `HistoryUnavailable` at `lower`. */
 	pruned?: true;
 }
 
 type Request = Pick<ScanRequest<GraphQLPosition>, 'start' | 'end' | 'order'>;
 
-/**
- * Turns a scan request into a window over the current index. Pure. Throws `HistoryUnavailable`
- * when the window starts below the oldest retained checkpoint.
- */
+/** @throws {SuiStreamError} `HistoryUnavailable` when the window starts below retention. */
 export function resolveScanWindow(
 	request: Request,
 	indexed: IndexState,
 	onePerCheckpoint: boolean,
 ): ScanWindow {
 	const ascending = request.order === 'ascending';
-	// The low side is where an ascending scan starts and where a descending one ends.
 	const low = ascending ? request.start : request.end;
 	const high = ascending ? request.end : request.start;
 	const window: ScanWindow = { lower: 0n, upper: indexed.tip + 1n };
 
 	if (low && 'position' in low && isBoundary(low.position)) {
-		// A boundary is a checkpoint bound: everything through its checkpoint lies before it.
 		window.lower = low.position.checkpoint! + 1n;
 	} else if (low && 'position' in low) {
 		window.after = low.position.cursor;
 		const checkpoint = low.position.checkpoint;
-		// A checkpoint excludes its whole checkpoint; a transaction or event shares it with the
-		// items after it.
+		// Other items of a transaction's or event's checkpoint can still follow it.
 		if (checkpoint !== null) window.lower = onePerCheckpoint ? checkpoint + 1n : checkpoint;
 	} else if (low) {
-		// An ascending start is inclusive; a descending end is exclusive.
 		window.lower = checkpointBound(low) + (ascending ? 0n : 1n);
 	}
 
 	if (high && 'position' in high && isBoundary(high.position)) {
-		// The same checkpoint bound on the high side: an exclusive end after its checkpoint.
 		const upper = high.position.checkpoint! + 1n;
 		if (upper < window.upper) window.upper = upper;
 	} else if (high && 'position' in high) {
 		window.before = high.position.cursor;
 	} else if (high) {
-		// An ascending end is exclusive; a descending start is inclusive.
 		const upper = checkpointBound(high) + (ascending ? 0n : 1n);
 		if (upper < window.upper) window.upper = upper;
 	}
@@ -92,7 +79,6 @@ export function resolveScanWindow(
 				: (requiredCheckpoint(request.end.position) ?? undefined);
 	}
 
-	// Unbounded below (newest first to genesis): read what is retained, then fail there.
 	if (!low) {
 		if (indexed.first !== null && indexed.first > 0n) {
 			window.lower = indexed.first;
@@ -100,7 +86,6 @@ export function resolveScanWindow(
 		}
 		return window;
 	}
-	// A frontier has no checkpoint, so only a checkpoint-anchored low side can be checked.
 	const lowIsFrontier = 'position' in low && low.position.checkpoint === null;
 	if (!lowIsFrontier && indexed.first !== null && window.lower < indexed.first) {
 		throw new SuiStreamError(
@@ -112,9 +97,8 @@ export function resolveScanWindow(
 }
 
 /**
- * One scan pass over the index state read for it, paging through the window.
- * @yields `Connected`, then items, frontier progress and a `Page` per page, then exactly one
- * `End`: incomplete while the index is behind the requested end.
+ * One scan pass, paging through the window.
+ * @yields `Connected`, then items, progress and a `Page` per page, then one `End`.
  */
 export async function* scanLedger<Node>(
 	client: SuiGraphQLClient,
@@ -126,7 +110,6 @@ export async function* scanLedger<Node>(
 	const descending = order === 'descending';
 	yield { $kind: 'Connected' };
 
-	// Descending, or resuming from a position: wait until the start itself is indexed.
 	const resumesFromIndex = start && (descending || 'position' in start);
 	if (resumesFromIndex && startBeyondTip(start, indexed.tip, positionCheckpoint)) {
 		yield { $kind: 'End', complete: false };
@@ -138,8 +121,7 @@ export async function* scanLedger<Node>(
 	let complete = reaches(indexed.tip);
 	if (window.lower >= window.upper) {
 		assertNotPruned(window);
-		// Nothing to read yet. An ascending checkpoint start still gets a resumable position, so a
-		// quiet stream (such as a fresh follow anchored at the tip) has a token before any match.
+		// A quiet stream still needs a token before its first match.
 		if (!descending && start && 'checkpoint' in start && window.lower > 0n) {
 			yield { $kind: 'Progress', position: boundaryPosition(window.lower - 1n) };
 		}
@@ -148,12 +130,10 @@ export async function* scanLedger<Node>(
 	}
 
 	const range = checkpointRange(window, family.onePerCheckpoint);
-	// An item or frontier end is excluded by its cursor; a boundary end is a checkpoint bound.
 	const endItem = end && 'position' in end && !isBoundary(end.position) ? end.position : undefined;
 	let { after, before } = window;
 	let last = start && 'position' in start ? start.position : undefined;
-	// The last checkpoint the pages read so far could have returned, which a lagging replica
-	// answering a page can bring below the window's top.
+	// Load-balanced replicas can lag, so track the lowest checkpoint a page was read at.
 	let seen = window.upper - 1n;
 	const coverage = (exhausted: boolean): Coverage => {
 		if (descending) return { $kind: 'Unknown' };
@@ -168,10 +148,7 @@ export async function* scanLedger<Node>(
 			signal,
 		});
 		if (page.viewedAt !== null) {
-			// A replica behind where this page reads from would silently miss items: read again
-			// later, from the last delivered position. A descending page reads down from the last
-			// delivered item (or the start); an ascending one only from a position start, since later
-			// ascending pages from a lagging replica just end early, and `seen` records that.
+			// A replica behind this page's start would silently miss items: end and retry later.
 			const first = after === window.after && before === window.before;
 			const from = descending
 				? last
@@ -194,11 +171,9 @@ export async function* scanLedger<Node>(
 		}
 		const { more, cursor } = pageEnd(page, order);
 		const previous = descending ? before : after;
-		// Server quirk: an empty window can answer an empty page that reports more pages but whose
-		// cursor is the one sent. Without an end item to probe for, that is the end of the window.
+		// Server quirk: an empty window can report more pages while returning the cursor sent.
 		const stalled = edges.length === 0 && cursor !== null && cursor === previous;
 
-		// The server returned the excluded end item's cursor: the interval is complete.
 		if (cursor && cursor === endItem?.cursor) {
 			yield { $kind: 'Page', end: 'bound', coverage: coverage(false) };
 			yield { $kind: 'End', complete: true };
@@ -206,8 +181,7 @@ export async function* scanLedger<Node>(
 		}
 
 		if (!more || (stalled && !endItem?.itemId)) {
-			// Where this pass stopped, so the next one (a resume, the next poll or the next wait
-			// for a future end) starts there instead of rereading the window.
+			// So the next pass starts here instead of rereading the window.
 			const progress = exhaustedProgress(cursor, edges.length > 0, window, seen, request);
 			if (progress) yield progress;
 			assertNotPruned(window);
@@ -245,10 +219,8 @@ export async function* scanLedger<Node>(
 }
 
 /**
- * Some servers return a different opaque cursor for an excluded end item and keep reporting more
- * pages, so the page cursor stops moving. This reads on from the last delivered item without the
- * end bound, one item at a time: the interval is complete exactly when the next item is the
- * excluded end item.
+ * Server quirk: a page bounded by an end item's cursor can stall instead of ending, so read one
+ * item past the last delivered one and check whether it is the end item.
  */
 async function reachedExcludedEndItem<Node>(
 	family: LedgerFamily<Node>,
@@ -262,7 +234,6 @@ async function reachedExcludedEndItem<Node>(
 ): Promise<boolean> {
 	const { order, endItemId, signal } = options;
 	const descending = order === 'descending';
-	// A descending end item lies on the low side; drop that bound so the probe can reach it.
 	const range = descending ? { ...options.range, start: undefined } : options.range;
 	let cursor = options.from;
 	while (true) {
@@ -277,11 +248,7 @@ async function reachedExcludedEndItem<Node>(
 	}
 }
 
-/**
- * The filter's checkpoint bounds. `checkpoints(after: <cursor of N>, afterCheckpoint: N)` returns
- * an empty page (a server bug), so with a cursor the lower bound stays one checkpoint behind and
- * that query shape is never sent. An end past UInt53 cannot be sent and is left to the cursor.
- */
+/** Server quirk: `checkpoints(after: <cursor of N>, afterCheckpoint: N)` returns an empty page, so keep the lower bound one checkpoint behind. */
 function checkpointRange(window: ScanWindow, onePerCheckpoint: boolean): ResolvedCheckpointRange {
 	const behind = onePerCheckpoint && window.after !== undefined && window.lower > 0n;
 	return {
@@ -290,13 +257,7 @@ function checkpointRange(window: ScanWindow, onePerCheckpoint: boolean): Resolve
 	};
 }
 
-/**
- * Where a pass that read its whole window stopped. Ascending up to a checkpoint bound or the tip,
- * that is a boundary, after the last item if there was one: every checkpoint below `upper` was
- * read, so a resume never rereads (or needs the retention of) anything before it. Otherwise, after
- * an empty page, it is a frontier, which only an unbounded descending scan or a cursor-bounded one
- * can use.
- */
+/** A boundary for ascending checkpoint-bounded reads, otherwise a frontier after an empty page. */
 function exhaustedProgress(
 	cursor: string | null,
 	hadItems: boolean,
@@ -311,7 +272,6 @@ function exhaustedProgress(
 	return !end || order === 'ascending' ? frontierProgress(cursor, seen) : undefined;
 }
 
-/** Where a scan stopped part way, resumable once the index reaches the same tip again. */
 function frontierProgress(
 	cursor: string,
 	seen: bigint,
@@ -319,7 +279,6 @@ function frontierProgress(
 	return { $kind: 'Progress', position: frontierPosition(cursor, seen) };
 }
 
-/** A descending read to genesis that reached the oldest retained checkpoint above genesis. */
 function assertNotPruned(window: ScanWindow) {
 	if (window.pruned) {
 		throw new SuiStreamError(
@@ -338,7 +297,6 @@ function pageCursors(
 	return order === 'descending' ? { last: size, before, after } : { first: size, after, before };
 }
 
-/** Whether more pages follow in traversal order, and the cursor to continue from. */
 function pageEnd(page: Connection<unknown>, order: SuiClientTypes.Order) {
 	const { pageInfo } = page;
 	return order === 'descending'
@@ -351,7 +309,6 @@ function positionCheckpoint(position: GraphQLPosition) {
 }
 
 function checkpointBound(bound: { checkpoint: bigint }): bigint {
-	// The exclusive end after the largest checkpoint is one past UInt53.
 	if (bound.checkpoint > MAX_CHECKPOINT + 1n) {
 		throw new SuiStreamError('InvalidOptions', `Checkpoint ${bound.checkpoint} exceeds UInt53`);
 	}
