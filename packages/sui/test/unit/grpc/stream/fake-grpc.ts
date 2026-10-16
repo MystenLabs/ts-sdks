@@ -39,12 +39,38 @@ type Frame = object;
 
 /**
  * One response stream: its frames, then how it ends. `open` stays open until cancelled.
- * `delay` holds the first frame back for that many milliseconds.
+ * `delay` holds the first frame back for that many milliseconds. `gate` releases frames one at a
+ * time as the test opens it. `sync` (push only) delivers everything before the call is returned,
+ * like a transport or interceptor that answers from a cache.
  */
 export interface Script {
 	frames: Frame[];
 	end?: 'complete' | 'open' | RpcError;
 	delay?: number;
+	gate?: Gate;
+	sync?: boolean;
+}
+
+/** Releases frames to a gated script: `open(n)` lets `n` more through. */
+export class Gate {
+	#permits = 0;
+	#waiters: (() => void)[] = [];
+
+	open(count = 1) {
+		this.#permits += count;
+		while (this.#permits > 0 && this.#waiters.length) {
+			this.#permits--;
+			this.#waiters.shift()!();
+		}
+	}
+
+	wait(): Promise<void> {
+		if (this.#permits > 0) {
+			this.#permits--;
+			return Promise.resolve();
+		}
+		return new Promise((resolve) => this.#waiters.push(resolve));
+	}
 }
 
 /** A script, or a function of the request that returns one. */
@@ -159,6 +185,7 @@ export class FakeLedger implements RpcTransport {
 			try {
 				if (script.delay) await new Promise((resolve) => setTimeout(resolve, script.delay));
 				for (const frame of script.frames) {
+					if (script.gate) await script.gate.wait();
 					if (signal?.aborted) throw new RpcError('cancelled', 'CANCELLED');
 					reads[method.name] = (reads[method.name] ?? 0) + 1;
 					yield frame as O;
@@ -195,8 +222,9 @@ export class FakeLedger implements RpcTransport {
 			responses.notifyError(new RpcError('cancelled', 'CANCELLED'));
 		};
 		signal?.addEventListener('abort', cancel, { once: true });
-		const deliver = () => {
+		const deliver = async () => {
 			for (const frame of script.frames) {
+				if (script.gate) await script.gate.wait();
 				if (responses.closed) return;
 				this.reads[method.name] = (this.reads[method.name] ?? 0) + 1;
 				responses.notifyMessage(frame as O);
@@ -205,7 +233,8 @@ export class FakeLedger implements RpcTransport {
 			if (script.end instanceof RpcError) responses.notifyError(script.end);
 			else if (script.end !== 'open') responses.notifyComplete();
 		};
-		if (script.delay) setTimeout(deliver, script.delay);
+		if (script.sync) void deliver();
+		else if (script.delay) setTimeout(deliver, script.delay);
 		else queueMicrotask(deliver);
 		return new ServerStreamingCall(
 			method,

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isBufferOverflow, openLedgerCall } from '../../../../src/grpc/stream/call.js';
 import { GRPC_FAMILIES, type LiveFrame } from '../../../../src/grpc/stream/families.js';
-import { event, FakeLedger, mark, progress, type Delivery } from './fake-grpc.js';
+import { event, FakeLedger, Gate, mark, progress, type Delivery } from './fake-grpc.js';
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -62,15 +62,23 @@ describe('ledger calls: pull path', () => {
 	});
 
 	it('stops reading when read-ahead is switched off', async () => {
-		const frames = Array.from({ length: 3 }, (_, n) => event(n + 1));
-		const ledger = new FakeLedger('pull').subscribe('SubscribeEvents', frames);
+		const gate = new Gate();
+		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger('pull').subscribe('SubscribeEvents', {
+			frames,
+			gate,
+			end: 'open',
+		});
 		const { call } = open(ledger);
 		call.readAhead(true);
+		gate.open(2);
 		await settle();
+		expect(ledger.reads.SubscribeEvents).toBe(2);
 		call.readAhead(false);
-		const read = ledger.reads.SubscribeEvents;
+		// Frames are still waiting to be read; only the read already in flight may complete.
+		gate.open(5);
 		await settle();
-		expect(ledger.reads.SubscribeEvents).toBe(read);
+		expect(ledger.reads.SubscribeEvents).toBe(3);
 		await call.return();
 		expect(ledger.cancelled.SubscribeEvents).toBe(1);
 	});
@@ -93,6 +101,45 @@ describe('ledger calls: push path (interceptor configured)', () => {
 });
 
 describe.each(['pull', 'push'] satisfies Delivery[])('ledger calls (%s)', (delivery) => {
+	it('reads a call whose responses arrived before it was returned', async () => {
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', {
+			frames: [event(1), event(2)],
+			end: 'complete',
+			sync: true,
+		});
+		const { call } = open(ledger);
+		const read = async () => {
+			const results = [];
+			for (;;) {
+				const result = await call.next();
+				results.push(result.done ? 'done' : result.value.event?.checkpoint);
+				if (result.done) return results;
+			}
+		};
+		const timeout = settle().then(() => 'timed out');
+		expect(await Promise.race([read(), timeout])).toEqual([1n, 2n, 'done']);
+		await call.return();
+	});
+
+	it.each(['open', 'complete'] as const)(
+		'drops buffered responses when the stream signal aborts (call %s)',
+		async (end) => {
+			const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', {
+				frames: [event(1), event(2), event(3)],
+				end,
+			});
+			const { call, controller } = open(ledger);
+			call.readAhead(true);
+			await settle();
+			expect(ledger.reads.SubscribeEvents).toBe(3);
+			expect((await call.next()).value?.event?.checkpoint).toBe(1n);
+			controller.abort(new Error('stop'));
+			expect(await rejection(call.next())).toMatchObject({ message: 'stop' });
+			expect(await rejection(call.next())).toMatchObject({ message: 'stop' });
+			await call.return();
+		},
+	);
+
 	it('cancels a pending read on return()', async () => {
 		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', []);
 		const { call } = open(ledger);

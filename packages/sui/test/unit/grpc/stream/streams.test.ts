@@ -418,7 +418,8 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				if (covered.includes('2')) break;
 			}
 			// A push transport coalesces queued progress, so it may deliver only the newest.
-			expect(covered).toEqual(delivery === 'pull' ? ['1', '2'] : ['2']);
+			if (delivery === 'pull') expect(covered).toEqual(['1', '2']);
+			else expect([['1', '2'], ['2']]).toContainEqual(covered);
 		});
 
 		it.each([
@@ -801,6 +802,16 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 	});
 
 	describe('cancellation', () => {
+		it('delivers nothing buffered after the signal aborts', async () => {
+			const l = ledger().subscribe('SubscribeEvents', [event(1), event(2), event(3)]);
+			const controller = new AbortController();
+			const stream = l.client().streamEvents({ signal: controller.signal });
+			expect(eventIds([(await stream.next()).value!])).toEqual(['1:0']);
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			controller.abort(new Error('stop'));
+			await expect(stream.next()).rejects.toThrow('stop');
+		});
+
 		it('cancels a pending live read on abort and on return()', async () => {
 			const l = ledger();
 			const controller = new AbortController();
