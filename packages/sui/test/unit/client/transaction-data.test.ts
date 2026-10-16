@@ -150,10 +150,10 @@ describe('ledger transaction data', () => {
 			} else if (result.kind.$kind !== 'EndOfEpochTransaction') {
 				expect(result.kind).toEqual(bcs.TransactionData.parse(bytes).V1.kind);
 			}
-			if (result.kind.$kind === 'ProgrammableTransaction') {
-				expect({ inputs: topInputs, commands: topCommands }).toEqual(
-					result.kind.ProgrammableTransaction,
-				);
+			const programmable =
+				result.kind.ProgrammableTransaction ?? result.kind.ProgrammableSystemTransaction;
+			if (programmable) {
+				expect({ inputs: topInputs, commands: topCommands }).toEqual(programmable);
 				expect(topCommands).toHaveLength(1);
 			} else {
 				expect(topInputs).toEqual([]);
@@ -218,9 +218,8 @@ describe('ledger transaction data', () => {
 			const { kind, inputs: topInputs, commands: topCommands, ...rest } = result;
 			const { inputs, commands, ...header } = expected;
 			expect(rest).toEqual(header);
-			const programmable = name === 'ProgrammableTransaction';
-			expect(topInputs).toEqual(programmable ? inputs : []);
-			expect(topCommands).toEqual(programmable ? commands : []);
+			expect(topInputs).toEqual(inputs);
+			expect(topCommands).toEqual(commands);
 			const parsed = kind.ProgrammableTransaction ?? kind.ProgrammableSystemTransaction;
 			expect(parsed).toEqual({ inputs, commands });
 			expect(parsed?.commands[1]).toMatchObject({ MakeMoveVec: { type: null } });

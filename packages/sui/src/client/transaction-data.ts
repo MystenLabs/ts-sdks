@@ -109,7 +109,7 @@ function ledgerTransactionData(
 	header: TransactionHeader,
 	kind: TransactionKind,
 ): SuiClientTypes.TransactionData {
-	const programmable = kind.ProgrammableTransaction;
+	const programmable = kind.ProgrammableTransaction ?? kind.ProgrammableSystemTransaction;
 	return {
 		...header,
 		inputs: programmable?.inputs ?? [],
