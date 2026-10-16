@@ -48,6 +48,9 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 	#lastItem: P | undefined;
 	#covered: Coverage;
 	#attemptStartBytes: Uint8Array | undefined;
+	#delivering = false;
+	/** The committed state is within one reconnect of the live tip. */
+	#nearLiveTip = false;
 
 	constructor(options: {
 		plan: StreamPlan<P>;
@@ -88,7 +91,17 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 
 	beginAttempt(attempt: number) {
 		this.#attemptStartBytes = this.#committedBytes;
+		this.#delivering = false;
 		this.#status.connecting(attempt);
+	}
+
+	/** Called when an attempt fails. Failing during live delivery after progress leaves it near the tip. */
+	endAttempt() {
+		this.#nearLiveTip = this.#delivering && this.advancedThisAttempt();
+	}
+
+	catchesUpFirst(): boolean {
+		return this.start !== undefined && !this.#nearLiveTip;
 	}
 
 	/** Whether the committed position changed since `beginAttempt`. */
@@ -128,21 +141,11 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 		return new FeedReader(events, () => this.#status.connected());
 	}
 
-	async *deliver(
-		feed: LiveFeed<P, Item>,
-		options: { contiguousCheckpoints?: boolean } = {},
-	): AsyncGenerator<CoreFrame<Frame>, never> {
+	async *deliver(feed: LiveFeed<P, Item>): AsyncGenerator<CoreFrame<Frame>, never> {
+		this.#delivering = true;
 		this.#status.live();
 		for await (const event of feed) {
-			if (this.#isStale(event)) continue;
-			// An unfiltered checkpoint feed must be gap-free: replay anything it skipped.
-			const missing = options.contiguousCheckpoints ? this.#missingCheckpoints(event) : undefined;
-			if (missing) {
-				yield* this.replay(missing, 'gap');
-				this.#status.live();
-				if (this.#isStale(event)) continue;
-			}
-			yield* this.#commit(event);
+			if (!this.#isStale(event)) yield* this.#commit(event);
 		}
 		// A live feed never completes. Its end is a disconnect, and the core reconnects.
 		throw new StreamDisconnected();
@@ -240,15 +243,6 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 				...(coverage.$kind === 'Through' && { coveredCheckpoint: coverage.checkpoint.toString() }),
 			};
 		}
-	}
-
-	/** Live checkpoints skipped between `covered` and this item, as a gap end. */
-	#missingCheckpoints(event: PositionEvent<P, Item>): Bound<P> | undefined {
-		if (event.$kind !== 'Item') return undefined;
-		const checkpoint = this.#adapter.locate(event.position).checkpoint;
-		const next = nextUncovered(this.#covered);
-		if (checkpoint === null || next === undefined || checkpoint <= next) return undefined;
-		return { checkpoint };
 	}
 
 	#isCovered(position: P): boolean {
