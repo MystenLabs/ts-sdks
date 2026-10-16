@@ -10,6 +10,7 @@ import {
 	indexedThrough,
 	positionCoverage,
 	progressPosition,
+	reachesEnd,
 	startBeyondTip,
 	SuiStreamError,
 } from '../../client/stream/index.js';
@@ -150,7 +151,6 @@ export async function* scanLedger<Node>(
 	const range = checkpointRange(window);
 	const endItem =
 		end && 'position' in end && end.position.kind === 'Item' ? end.position : undefined;
-	const endCursor = endItem?.cursor ? cursorString(endItem.cursor) : undefined;
 	let { after, before } = window;
 	let last = start && 'position' in start ? start.position : undefined;
 	// Load-balanced replicas can lag, so track the lowest checkpoint a page was read at.
@@ -180,6 +180,12 @@ export async function* scanLedger<Node>(
 
 		const edges = descending ? [...page.edges].reverse() : page.edges;
 		for (const event of itemEvents(family, edges)) {
+			// A server can report more pages at an exclusive end bound, or return the end item itself.
+			if (endItem && reachesEnd(event.position, endItem, order)) {
+				yield { $kind: 'Page', end: 'bound', coverage: coverage(false) };
+				yield { $kind: 'End', complete: true };
+				return;
+			}
 			last = event.position;
 			yield event;
 		}
@@ -187,12 +193,6 @@ export async function* scanLedger<Node>(
 		const previous = descending ? before : after;
 		// Server quirk: an empty window can report more pages while returning the cursor sent.
 		const stalled = edges.length === 0 && cursor !== null && cursor === previous;
-
-		if (cursor && cursor === endCursor) {
-			yield { $kind: 'Page', end: 'bound', coverage: coverage(false) };
-			yield { $kind: 'End', complete: true };
-			return;
-		}
 
 		if (!more || (stalled && !endItem?.itemId)) {
 			// So the next pass starts here instead of rereading the window.
