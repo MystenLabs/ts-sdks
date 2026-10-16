@@ -14,6 +14,7 @@ import {
 } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
+import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import type { PrePublishedPackage } from './prePublish.js';
 import { prePublishPackages } from './prePublish.js';
 
@@ -23,6 +24,7 @@ declare module 'vitest' {
 		graphqlPort: number;
 		graphqlSubscriptions: boolean;
 		graphqlSubscriptionProgress: boolean;
+		streamServerFixes: boolean;
 		faucetPort: number;
 		suiToolsContainerId: string;
 		prePublishedPackages: Record<string, PrePublishedPackage>;
@@ -234,6 +236,16 @@ async function finishSetup(
 		containerId,
 	});
 	project.provide('prePublishedPackages', prePublished);
+
+	const streamServerFixes =
+		(await resumesCheckpointsBelowBound(graphqlPort)) &&
+		(await subscriptionsHaveObjectTypes(localnetPort));
+	if (!streamServerFixes) {
+		console.warn(
+			'Some ledger stream tests will be skipped: the localnet fullnode and GraphQL service lack the stream fixes (see test/e2e/README.md).',
+		);
+	}
+	project.provide('streamServerFixes', streamServerFixes);
 }
 
 async function unusedPort(): Promise<number> {
@@ -267,6 +279,53 @@ async function supportsSubscriptionProgress(port: number): Promise<boolean> {
 		return !!events?.args.some((arg) => arg.name === 'progressInterval');
 	} catch {
 		return false;
+	}
+}
+
+/** Whether GraphQL pages checkpoints after a cursor that lies below the `afterCheckpoint` bound. */
+async function resumesCheckpointsBelowBound(port: number): Promise<boolean> {
+	const query = async (query: string, variables = {}) => {
+		const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ query, variables }),
+			signal: AbortSignal.timeout(10_000),
+		});
+		return (await response.json()).data;
+	};
+	try {
+		const first = await query('{ checkpoints(first: 1) { edges { cursor } } }');
+		const after = first?.checkpoints?.edges?.[0]?.cursor;
+		if (!after) return false;
+		const next = await query(
+			'query ($after: String) { checkpoints(first: 1, after: $after, filter: { afterCheckpoint: 1 }) { nodes { sequenceNumber } } }',
+			{ after },
+		);
+		return next?.checkpoints?.nodes?.[0]?.sequenceNumber === 2;
+	} catch {
+		return false;
+	}
+}
+
+/** Whether gRPC checkpoint subscriptions fill the object types of changed objects. */
+async function subscriptionsHaveObjectTypes(port: number): Promise<boolean> {
+	const client = new SuiGrpcClient({ baseUrl: `http://127.0.0.1:${port}`, network: 'localnet' });
+	const controller = new AbortController();
+	try {
+		const call = client.subscriptionService.subscribeCheckpoints(
+			{ readMask: { paths: ['transactions.effects.changed_objects'] } },
+			{ abort: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]) },
+		);
+		const { value } = await call.responses[Symbol.asyncIterator]().next();
+		const frame = value as GrpcTypes.SubscribeCheckpointsResponse | undefined;
+		const changed = (frame?.checkpoint?.transactions ?? []).flatMap(
+			(transaction) => transaction.effects?.changedObjects ?? [],
+		);
+		return changed.some((object) => !!object.objectType);
+	} catch {
+		return false;
+	} finally {
+		controller.abort();
 	}
 }
 
