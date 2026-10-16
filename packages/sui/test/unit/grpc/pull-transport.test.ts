@@ -541,6 +541,27 @@ describe('error paths', () => {
 		expect(await rejection(call.trailers)).toBe(error);
 	});
 
+	it.each([
+		['trailer', () => grpcWeb(body([...frames(1), trailerFrame(11, 'pruned')]))],
+		[
+			'trailers-only response',
+			() => grpcWeb(null, { 'grpc-status': '11', 'grpc-message': 'pruned' }),
+		],
+	])('keeps OUT_OF_RANGE from a %s, never a network code', async (_, respond) => {
+		const call = transport(server(respond)).serverStreamingIterable(
+			countingMethod().method,
+			{},
+			{},
+		);
+		let error: RpcError | undefined;
+		try {
+			for await (const _message of call.responses);
+		} catch (caught) {
+			error = caught as RpcError;
+		}
+		expect(error).toMatchObject({ code: 'OUT_OF_RANGE', message: 'pruned' });
+	});
+
 	it('truncated frame is DATA_LOSS', async () => {
 		const frame = dataFrame(message(1));
 		const b = body([frame.subarray(0, frame.length - 1)]);
