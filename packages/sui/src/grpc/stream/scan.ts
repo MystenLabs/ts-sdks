@@ -5,10 +5,13 @@ import { toBase64 } from '@mysten/utils';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 
-import type { Bound, Coverage, ScanEvent, ScanRequest } from '../../client/stream/index.js';
+import type { Bound, ScanEvent, ScanRequest, StreamPosition } from '../../client/stream/index.js';
 import {
 	assertAdvanced,
-	coverageBefore,
+	assertAdvancing,
+	boundaryPosition,
+	boundCoverage,
+	CoverageTracker,
 	startBeyondTip,
 	SuiStreamError,
 } from '../../client/stream/index.js';
@@ -25,15 +28,8 @@ import {
 	type ListRequest,
 	type LiveFrame,
 } from './families.js';
-import {
-	assertAdvancing,
-	CoverageTracker,
-	locatePosition,
-	positionCoverage,
-	U64_MAX,
-	withCheckpointBoundary,
-	type GrpcPosition,
-} from './position.js';
+
+const U64_MAX = (1n << 64n) - 1n;
 
 /** Servers coerce larger limits down to their own maximum (50 to 1,000 depending on the method). */
 const PAGE_LIMIT = 1000;
@@ -65,8 +61,8 @@ const PAGE_END: Record<QueryEndReason, SuiClientTypes.StreamPageEnd | undefined>
  */
 export async function* scanLedger(
 	calls: GrpcStreamCalls,
-	request: ScanRequest<GrpcPosition>,
-): AsyncGenerator<ScanEvent<GrpcPosition, GrpcItem>> {
+	request: ScanRequest,
+): AsyncGenerator<ScanEvent<GrpcItem>> {
 	const { order, signal } = request;
 	const family = calls.family;
 	// Items below an unindexed descending start would get tokens that skip the unindexed part.
@@ -76,16 +72,20 @@ export async function* scanLedger(
 	}
 
 	const bounds = listBounds(request);
-	const tracker = new CoverageTracker(order, family.name, startCoverage(request, family));
+	const tracker = new CoverageTracker(
+		order,
+		family.name,
+		boundCoverage(request.start, family.name),
+	);
 	let pageStart =
 		request.start && 'position' in request.start ? cursorKey(request.start.position) : undefined;
-	let previous: GrpcPosition | undefined;
+	let previous: StreamPosition | undefined;
 	let connected = false;
 
 	while (true) {
 		const call = calls.list(listQuery(bounds, order), signal);
 		let reason: QueryEndReason | undefined;
-		let terminal: GrpcPosition | undefined;
+		let terminal: StreamPosition | undefined;
 		let lowest: bigint | undefined;
 		try {
 			for await (const frame of call) {
@@ -150,11 +150,11 @@ export async function* scanLedger(
 /** Whether `start` is indexed. The tip captured when the range was planned answers without a call. */
 async function startIndexed(
 	calls: GrpcStreamCalls,
-	{ start, capturedTip, signal }: ScanRequest<GrpcPosition>,
+	{ start, capturedTip, signal }: ScanRequest,
 ): Promise<boolean> {
 	if (!start) return true;
-	if (capturedTip !== undefined && !startBeyondTip(start, capturedTip, locatePosition)) return true;
-	return !startBeyondTip(start, await calls.indexedTip(signal), locatePosition);
+	if (capturedTip !== undefined && !startBeyondTip(start, capturedTip)) return true;
+	return !startBeyondTip(start, await calls.indexedTip(signal));
 }
 
 /** The indexed tip: the newest checkpoint a List call can read. */
@@ -188,7 +188,7 @@ interface ListBounds {
 	before?: Uint8Array;
 }
 
-function listBounds(request: ScanRequest<GrpcPosition>): ListBounds {
+function listBounds(request: ScanRequest): ListBounds {
 	const ascending = request.order === 'ascending';
 	return {
 		...lowerBound(ascending ? request.start : request.end, ascending),
@@ -198,27 +198,22 @@ function listBounds(request: ScanRequest<GrpcPosition>): ListBounds {
 
 /** Everything after this bound. An ascending start checkpoint is inclusive. */
 function lowerBound(
-	bound: Bound<GrpcPosition> | undefined,
+	bound: Bound | undefined,
 	ascending: boolean,
 ): Pick<ListBounds, 'startCheckpoint' | 'after'> {
 	if (!bound) return {};
 	if ('checkpoint' in bound) {
 		return { startCheckpoint: ascending ? bound.checkpoint : bound.checkpoint + 1n };
 	}
-	const { cursor } = bound.position;
-	switch (cursor.$kind) {
-		case 'Native':
-			return { after: cursor.bytes };
-		case 'Checkpoint':
-			return { startCheckpoint: cursor.checkpoint + 1n };
-		case 'Genesis':
-			return { startCheckpoint: 0n };
-	}
+	const { cursor, kind, checkpoint } = bound.position;
+	if (cursor) return { after: cursor };
+	// Positions without a cursor resume by checkpoint: after an item, or at a boundary.
+	return { startCheckpoint: kind === 'Item' ? checkpoint! + 1n : checkpoint! };
 }
 
 /** Everything before this bound. A descending start checkpoint is inclusive. */
 function upperBound(
-	bound: Bound<GrpcPosition> | undefined,
+	bound: Bound | undefined,
 	ascending: boolean,
 ): Pick<ListBounds, 'endCheckpoint' | 'before'> {
 	if (!bound) return {};
@@ -226,15 +221,8 @@ function upperBound(
 		return { endCheckpoint: ascending ? bound.checkpoint : bound.checkpoint + 1n };
 	}
 	const { cursor, checkpoint } = bound.position;
-	switch (cursor.$kind) {
-		case 'Native':
-			return { before: cursor.bytes };
-		case 'Checkpoint':
-			// A checkpoint item ends before itself; a boundary after `n` ends after `n`.
-			return { endCheckpoint: checkpoint !== null ? cursor.checkpoint : cursor.checkpoint + 1n };
-		case 'Genesis':
-			return { endCheckpoint: 0n };
-	}
+	// Without a cursor, an item or a boundary ends before its checkpoint.
+	return cursor ? { before: cursor } : { endCheckpoint: checkpoint! };
 }
 
 function listQuery(bounds: ListBounds, order: SuiClientTypes.Order): ListQuery {
@@ -254,15 +242,6 @@ function listQuery(bounds: ListBounds, order: SuiClientTypes.Order): ListQuery {
 			before: bounds.before,
 		},
 	};
-}
-
-/** Ascending coverage before the first frame of a pass. */
-function startCoverage(request: ScanRequest<GrpcPosition>, family: GrpcFamily): Coverage {
-	const { start } = request;
-	if (!start) return { $kind: 'Unknown' };
-	return 'checkpoint' in start
-		? coverageBefore(start.checkpoint)
-		: positionCoverage(start.position, family.name);
 }
 
 function pageEnd(reason: QueryEndReason): SuiClientTypes.StreamPageEnd {
@@ -290,21 +269,21 @@ function assertQueryEnd(end: QueryEnd, item: GrpcItem | undefined): QueryEndReas
  * boundary; recording it lets a resumed token see that its range is complete.
  */
 function atCheckpointBoundary(
-	position: GrpcPosition,
+	position: StreamPosition,
 	reason: QueryEndReason,
 	bounds: ListBounds,
 	order: SuiClientTypes.Order,
-): GrpcPosition {
+): StreamPosition {
 	if (reason === QueryEndReason.CHECKPOINT_BOUND) {
 		const boundary = order === 'ascending' ? bounds.endCheckpoint : bounds.startCheckpoint;
-		return boundary === undefined ? position : withCheckpointBoundary(position, boundary);
+		return boundary === undefined ? position : atBoundary(position, boundary);
 	}
 	if (
 		reason === QueryEndReason.LEDGER_TIP &&
 		order === 'ascending' &&
 		position.coverage.$kind === 'Through'
 	) {
-		return withCheckpointBoundary(position, position.coverage.checkpoint + 1n);
+		return atBoundary(position, position.coverage.checkpoint + 1n);
 	}
 	return position;
 }
@@ -312,8 +291,8 @@ function atCheckpointBoundary(
 /** Whether a pass that stopped at a checkpoint bound or the indexed tip reached its end. */
 function reachedEnd(
 	reason: QueryEndReason,
-	terminal: GrpcPosition,
-	request: ScanRequest<GrpcPosition>,
+	terminal: StreamPosition,
+	request: ScanRequest,
 	bounds: ListBounds,
 ): boolean {
 	if (reason !== QueryEndReason.LEDGER_TIP || !request.end) return true;
@@ -322,13 +301,18 @@ function reachedEnd(
 	return covered.$kind === 'Through' && covered.checkpoint + 1n >= bounds.endCheckpoint;
 }
 
-function nativeCursor(position: GrpcPosition): Uint8Array {
-	if (position.cursor.$kind !== 'Native') throw protocol('List page ended without a cursor');
-	return position.cursor.bytes;
+/** The terminal position of a page that stopped at a checkpoint boundary keeps its cursor. */
+function atBoundary(position: StreamPosition, checkpoint: bigint): StreamPosition {
+	return boundaryPosition(checkpoint, { cursor: position.cursor, coverage: position.coverage });
 }
 
-function cursorKey(position: GrpcPosition): string | undefined {
-	return position.cursor.$kind === 'Native' ? toBase64(position.cursor.bytes) : undefined;
+function nativeCursor(position: StreamPosition): Uint8Array {
+	if (!position.cursor) throw protocol('List page ended without a cursor');
+	return position.cursor;
+}
+
+function cursorKey(position: StreamPosition): string | undefined {
+	return position.cursor ? toBase64(position.cursor) : undefined;
 }
 
 /** Pruned history cannot come back by retrying. */
