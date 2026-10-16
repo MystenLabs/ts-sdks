@@ -270,8 +270,6 @@ try {
 
 - On GraphQL, a transaction's `events` and `objectTypes` hold at most its first 50 entries, as with
   `listTransactions`.
-- On GraphQL with `'subscribe'`, a filtered stream gets no progress while nothing matches: it
-  reports `Live` and new resume tokens only with its next match.
 - Resume tokens don't work across gRPC and GraphQL; to switch, start the new stream at the
   checkpoint after the last one you fully processed.
 - GraphQL replays read 50 items per request, more requests than gRPC for the same range; run streams
