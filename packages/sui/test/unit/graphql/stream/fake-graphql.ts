@@ -4,8 +4,9 @@
 /**
  * A scripted GraphQL server for ledger stream tests.
  *
- * `ledgerStreamState` is answered from `server.tip` and `server.first`. Every other operation is
- * answered from its script, in order, repeating the last answer:
+ * `ledgerStreamState` is answered from `server.tip`, and every scan page reports `server.tip` and
+ * the retention for its filters. Every other operation is answered from its script, in order,
+ * repeating the last answer:
  *
  *   server.on('scanEvents', page('events', [event(1)]), page('events', []));
  *   server.on('subscribeEvents', live('events', [event(2)], 'eof'), live('events', []));
@@ -40,7 +41,7 @@ export interface FakeServer {
 	first: number;
 	/**
 	 * Oldest retained checkpoint of the index behind each filter field, where it differs from
-	 * `first`. Without `filters`, the server answers the strictest of all of them.
+	 * `first`.
 	 */
 	retention: Record<string, number>;
 	requests: SentRequest[];
@@ -71,7 +72,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		const operation = /(?:query|subscription)\s+(\w+)/.exec(body.query)![1];
 		const request = { operation, variables: body.variables ?? {}, signal: init!.signal!, server };
 		server.requests.push(request);
-		if (operation === 'ledgerStreamState') return stateResponse(server, request.variables.filters);
+		if (operation === 'ledgerStreamState') return stateResponse(server);
 		const script = scripts.get(operation);
 		if (!script?.length) throw new Error(`Unexpected ${operation}`);
 		const answer = script.length > 1 ? script.shift()! : script[0];
@@ -85,21 +86,22 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 	return server;
 }
 
-function stateResponse(server: FakeServer, filters: string[] | undefined) {
-	const floors = filters
-		? filters.map((filter) => server.retention[filter] ?? server.first)
-		: Object.values(server.retention);
+function stateResponse(server: FakeServer) {
 	return Response.json({
 		data: {
 			chainIdentifier: 'chain',
-			serviceConfig: {
-				availableRange: {
-					first: { sequenceNumber: Math.max(server.first, ...floors) },
-					last: server.tip === null ? null : { sequenceNumber: server.tip },
-				},
-			},
+			checkpoint: server.tip === null ? null : { sequenceNumber: server.tip },
 		},
 	});
+}
+
+/** What `availableRange` answers for the filters a page was read with, at `viewedAt`. */
+function availableRange(server: FakeServer, filters: string[], viewedAt: number | null) {
+	const floors = filters.map((filter) => server.retention[filter] ?? server.first);
+	return {
+		first: { sequenceNumber: Math.max(server.first, ...floors) },
+		last: viewedAt === null ? null : { sequenceNumber: viewedAt },
+	};
 }
 
 // Answers
@@ -149,21 +151,20 @@ export interface Edge {
 
 /**
  * One history page. `cursor` overrides both page cursors (an opaque frontier). `viewedAt` is the
- * checkpoint the answering replica had indexed: the server's tip unless a test sets a lagging one,
- * or `null` for a server that does not report it.
+ * checkpoint the answering replica had indexed: the server's tip unless a test sets a lagging one.
  */
 export function page(
 	family: Family,
 	edges: Edge[],
-	options: { more?: boolean; cursor?: string; viewedAt?: number | null } = {},
+	options: { more?: boolean; cursor?: string; viewedAt?: number } = {},
 ): Answer {
 	const more = options.more ?? false;
-	return (request) =>
+	return ({ server, variables }) =>
 		Response.json({
 			data: {
-				...(options.viewedAt !== null && {
-					viewedAt: { sequenceNumber: options.viewedAt ?? request.server.tip },
-				}),
+				serviceConfig: {
+					availableRange: availableRange(server, variables.filters, options.viewedAt ?? server.tip),
+				},
 				[family]: {
 					edges,
 					pageInfo: {
@@ -229,7 +230,7 @@ export interface EventOptions {
 	source?: Source;
 	/** Defaults to `tx<checkpoint>`. */
 	transaction?: string;
-	/** false: the index has not assigned the transaction a checkpoint yet. */
+	/** false: the server left out the transaction's checkpoint. */
 	indexed?: boolean;
 	sender?: string | null;
 }
@@ -272,15 +273,4 @@ export function transaction(
 			},
 		},
 	};
-}
-
-/** Answers `streamTransactionCheckpoints`: one entry per digest, null when not indexed. */
-export function checkpointLookup(checkpoints: (number | null)[]): Answer {
-	return reply({
-		data: {
-			multiGetTransactionEffects: checkpoints.map((cp) =>
-				cp === null ? null : { checkpoint: { sequenceNumber: cp } },
-			),
-		},
-	});
 }

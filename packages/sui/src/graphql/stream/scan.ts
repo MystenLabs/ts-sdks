@@ -10,7 +10,6 @@ import {
 	SuiStreamError,
 } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
-import type { SuiGraphQLClient } from '../client.js';
 import { itemEvents, type Connection, type LedgerFamily, type LedgerItem } from './families.js';
 import {
 	boundaryPosition,
@@ -20,11 +19,20 @@ import {
 	requiredCheckpoint,
 	type GraphQLPosition,
 } from './position.js';
-import type { IndexState } from './query.js';
 
 export const PAGE_SIZE = 50;
 /** GraphQL checkpoint arguments are UInt53. */
 const MAX_CHECKPOINT = BigInt(Number.MAX_SAFE_INTEGER);
+
+/** What a page reports about the index that answered it. */
+export interface IndexState {
+	/** The oldest retained checkpoint. */
+	first: bigint | null;
+	tip: bigint;
+}
+
+/** Before the first page, nothing about the index is known. */
+const UNKNOWN_INDEX: IndexState = { first: null, tip: MAX_CHECKPOINT };
 
 /** Checkpoints `[lower, upper)`, then cursors within them. */
 export interface ScanWindow {
@@ -97,18 +105,25 @@ export function resolveScanWindow(
 }
 
 /**
- * One scan pass, paging through the window.
+ * One scan pass, paging through the window. The first page also reports the indexed tip and the
+ * retention, which fix the window for the rest of the pass.
  * @yields `Connected`, then items, progress and a `Page` per page, then one `End`.
  */
 export async function* scanLedger<Node>(
-	client: SuiGraphQLClient,
 	family: LedgerFamily<Node>,
 	request: ScanRequest<GraphQLPosition>,
-	indexed: IndexState,
 ): AsyncGenerator<ScanEvent<GraphQLPosition, LedgerItem<Node>>> {
 	const { order, start, end, signal } = request;
 	const descending = order === 'descending';
 	yield { $kind: 'Connected' };
+
+	const requested = resolveScanWindow(request, UNKNOWN_INDEX, family.onePerCheckpoint);
+	let page = await family.page({
+		range: checkpointRange(requested),
+		...pageCursors(order, PAGE_SIZE, requested.after, requested.before),
+		signal,
+	});
+	const indexed = { first: page.retainedFrom, tip: page.viewedAt };
 
 	const resumesFromIndex = start && (descending || 'position' in start);
 	if (resumesFromIndex && startBeyondTip(start, indexed.tip, positionCheckpoint)) {
@@ -129,7 +144,7 @@ export async function* scanLedger<Node>(
 		return;
 	}
 
-	const range = checkpointRange(window, family.onePerCheckpoint);
+	const range = checkpointRange(window);
 	const endItem = end && 'position' in end && !isBoundary(end.position) ? end.position : undefined;
 	let { after, before } = window;
 	let last = start && 'position' in start ? start.position : undefined;
@@ -142,30 +157,24 @@ export async function* scanLedger<Node>(
 	};
 
 	while (true) {
-		const page = await family.page({
-			range,
-			...pageCursors(order, PAGE_SIZE, after, before),
-			signal,
-		});
-		if (page.viewedAt !== null) {
-			// A replica behind this page's start would silently miss items: end and retry later.
-			const first = after === window.after && before === window.before;
-			const from = descending
-				? last
-					? requiredCheckpoint(last)
-					: window.upper - 1n
-				: first && start && 'position' in start
-					? requiredCheckpoint(start.position)
-					: null;
-			if (from !== null && page.viewedAt < from) {
-				yield { $kind: 'End', complete: false };
-				return;
-			}
-			if (page.viewedAt < seen) seen = page.viewedAt;
-			complete &&= reaches(page.viewedAt);
+		// A replica behind this page's start would silently miss items: end and retry later.
+		const first = after === window.after && before === window.before;
+		const from = descending
+			? last
+				? requiredCheckpoint(last)
+				: window.upper - 1n
+			: first && start && 'position' in start
+				? requiredCheckpoint(start.position)
+				: null;
+		if (from !== null && page.viewedAt < from) {
+			yield { $kind: 'End', complete: false };
+			return;
 		}
+		if (page.viewedAt < seen) seen = page.viewedAt;
+		complete &&= reaches(page.viewedAt);
+
 		const edges = descending ? [...page.edges].reverse() : page.edges;
-		for (const event of await itemEvents(client, family, edges, signal)) {
+		for (const event of itemEvents(family, edges)) {
 			last = event.position;
 			yield event;
 		}
@@ -215,6 +224,7 @@ export async function* scanLedger<Node>(
 		yield { $kind: 'Page', end: 'limit', coverage: coverage(false) };
 		if (descending) before = cursor;
 		else after = cursor;
+		page = await family.page({ range, ...pageCursors(order, PAGE_SIZE, after, before), signal });
 	}
 }
 
@@ -248,11 +258,9 @@ async function reachedExcludedEndItem<Node>(
 	}
 }
 
-/** Server quirk: `checkpoints(after: <cursor of N>, afterCheckpoint: N)` returns an empty page, so keep the lower bound one checkpoint behind. */
-function checkpointRange(window: ScanWindow, onePerCheckpoint: boolean): ResolvedCheckpointRange {
-	const behind = onePerCheckpoint && window.after !== undefined && window.lower > 0n;
+function checkpointRange(window: ScanWindow): ResolvedCheckpointRange {
 	return {
-		start: behind ? window.lower - 1n : window.lower,
+		start: window.lower,
 		end: window.upper <= MAX_CHECKPOINT ? window.upper : undefined,
 	};
 }

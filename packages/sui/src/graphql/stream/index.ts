@@ -10,7 +10,7 @@ import type {
 import type { SuiClientTypes } from '../../client/types.js';
 import type { SuiGraphQLClient } from '../client.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
-import { followLedger, type FollowOptions } from './follow.js';
+import { followLedger } from './follow.js';
 import {
 	comparePositions,
 	graphQLPositionCodec,
@@ -18,7 +18,7 @@ import {
 	positionCoverage,
 	type GraphQLPosition,
 } from './position.js';
-import { classifyGraphQLError, readIndexState } from './query.js';
+import { classifyGraphQLError, readChainTip } from './query.js';
 import { scanLedger } from './scan.js';
 
 export function graphQLLedgerStreamAdapter(
@@ -26,17 +26,13 @@ export function graphQLLedgerStreamAdapter(
 	mvr: SuiClientTypes.MvrMethods,
 	request: LedgerStreamRequest,
 ): AnyLedgerStreamAdapter {
-	const follow = { pollInterval: request.options.pollInterval ?? 1000, state: {} };
-	return adapterFor(client, ledgerFamily(client, mvr, request), follow);
+	return adapterFor(client, ledgerFamily(client, mvr, request));
 }
 
 function adapterFor<Node>(
 	client: SuiGraphQLClient,
 	family: LedgerFamily<Node>,
-	follow: FollowOptions,
 ): LedgerStreamAdapter<GraphQLPosition, LedgerItem<Node>, ItemFrame> {
-	const indexState = (signal: AbortSignal) =>
-		readIndexState(client, family.name, family.filterFields(), signal);
 	return {
 		transport: 'graphql',
 		family: family.name,
@@ -46,16 +42,14 @@ function adapterFor<Node>(
 
 		async initialize(signal) {
 			const filter = await family.resolveFilter(signal);
-			const { chain } = await indexState(signal);
-			return { chain, filter };
+			const { chain, tip } = await readChainTip(client, signal);
+			return { chain, filter, indexedTip: tip };
 		},
 		async indexedTip(signal) {
-			return (await indexState(signal)).tip;
+			return (await readChainTip(client, signal)).tip;
 		},
-		async *scan(request) {
-			yield* scanLedger(client, family, request, await indexState(request.signal));
-		},
-		follow: (session) => followLedger(client, family, session, follow),
+		scan: (request) => scanLedger(family, request),
+		follow: (session) => followLedger(family, session),
 
 		compare: comparePositions,
 		coverage: (position) => positionCoverage(position, family.onePerCheckpoint),

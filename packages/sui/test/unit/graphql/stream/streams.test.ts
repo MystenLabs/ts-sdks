@@ -15,7 +15,6 @@ import {
 	after,
 	brokenBody,
 	checkpoint,
-	checkpointLookup,
 	event,
 	fakeGraphQL,
 	httpStatus,
@@ -90,21 +89,6 @@ function scanOperation(family: Family) {
 	return `scan${family[0].toUpperCase()}${family.slice(1)}`;
 }
 
-/** Frames and statuses in the order they happened, e.g. `['Live', '11', 'Recovering']`. */
-function timeline() {
-	const log: string[] = [];
-	return {
-		log,
-		onStatus: (status: SuiClientTypes.StreamStatus) => {
-			if (status.$kind === 'Live' || status.$kind === 'Recovering') log.push(status.$kind);
-		},
-		async read(source: AsyncGenerator<Frame>, count: number) {
-			for (let n = 0; n < count; n++) log.push(label((await source.next()).value!));
-			await source.return(undefined);
-		},
-	};
-}
-
 async function rejection(promise: Promise<unknown>): Promise<unknown> {
 	try {
 		await promise;
@@ -154,10 +138,10 @@ describe('historical scan', () => {
 			}),
 		);
 		expect(frames.map(label)).toEqual(['12', '11']);
-		expect(server.sent('scanCheckpoints')[0].filter.afterCheckpoint).toBe(9);
+		expect(server.sent('scanCheckpoints')[0].filter.afterCheckpoint).toBe(10);
 	});
 
-	it('resumes after a checkpoint that has since been pruned, keeping afterCheckpoint one behind the cursor', async () => {
+	it('resumes after a checkpoint that has since been pruned, bounded by the cursor checkpoint', async () => {
 		const [anchor] = await followTokens('checkpoints', [checkpoint(10)]);
 		const server = fakeGraphQL({ tip: 20, first: 11 }).on(
 			'scanCheckpoints',
@@ -170,10 +154,9 @@ describe('historical scan', () => {
 			}),
 		);
 		expect(frames.map(label)).toEqual(['11']);
-		// afterCheckpoint naming the cursor's own checkpoint returns an empty page.
 		expect(server.sent('scanCheckpoints')[0]).toMatchObject({
 			after: checkpoint(10).cursor,
-			filter: { afterCheckpoint: 9, beforeCheckpoint: 12 },
+			filter: { afterCheckpoint: 10, beforeCheckpoint: 12 },
 		});
 	});
 
@@ -195,19 +178,24 @@ describe('historical scan', () => {
 		expect(second.sent('scanCheckpoints')[0].filter.beforeCheckpoint).toBe(3);
 	});
 
-	it('fails with HistoryUnavailable, without a page request, when the start has been pruned', async () => {
+	it('fails with HistoryUnavailable, delivering nothing, when the start has been pruned', async () => {
 		const server = fakeGraphQL({ tip: 20, first: 5 });
+		// The server reads from its oldest retained checkpoint instead.
+		server.on('scanCheckpoints', page('checkpoints', [checkpoint(5)]));
+		const source = stream(server.client, 'checkpoints', {
+			start: { checkpoint: 2 },
+			end: { checkpoint: 6 },
+			retry: { ...noDelay, maxAttempts: 3 },
+		});
+		const labels: string[] = [];
 		const error = await rejection(
-			collect(
-				stream(server.client, 'checkpoints', {
-					start: { checkpoint: 2 },
-					end: { checkpoint: 4 },
-					retry: { ...noDelay, maxAttempts: 3 },
-				}),
-			),
+			(async () => {
+				for await (const frame of source) labels.push(label(frame));
+			})(),
 		);
 		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'HistoryUnavailable' });
-		expect(server.sent('scanCheckpoints')).toHaveLength(0);
+		expect(labels).toEqual([]);
+		expect(server.sent('scanCheckpoints')).toHaveLength(1);
 	});
 
 	it('reads newest first down to the oldest retained checkpoint, then fails with HistoryUnavailable', async () => {
@@ -227,7 +215,8 @@ describe('historical scan', () => {
 		);
 		expect(labels).toEqual(['12', '11']);
 		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'HistoryUnavailable' });
-		expect(server.sent('scanCheckpoints')[0].filter).toMatchObject({ afterCheckpoint: 10 });
+		// The server stops at its oldest retained checkpoint.
+		expect(server.sent('scanCheckpoints')[0].filter.afterCheckpoint).toBeUndefined();
 	});
 
 	it('checks retention against the indexes its own filter reads', async () => {
@@ -243,7 +232,7 @@ describe('historical scan', () => {
 			}),
 		);
 		expect(frames.map(label)).toEqual(['tx10']);
-		expect(server.sent('ledgerStreamState').at(-1)?.filters).toEqual([]);
+		expect(server.sent('scanTransactions').at(-1)?.filters).toEqual([]);
 
 		const sender = `0x${'5'.padStart(64, '0')}`;
 		await collect(
@@ -253,7 +242,19 @@ describe('historical scan', () => {
 				filter: { sender },
 			}),
 		);
-		expect(server.sent('ledgerStreamState').at(-1)?.filters).toEqual(['sentAddress']);
+		expect(server.sent('scanTransactions').at(-1)?.filters).toEqual(['sentAddress']);
+
+		const affected = `0x${'6'.padStart(64, '0')}`;
+		const error = await rejection(
+			collect(
+				stream(server.client, 'transactions', {
+					start: { checkpoint: 10 },
+					end: { checkpoint: 11 },
+					filter: { affectedAddress: affected },
+				}),
+			),
+		);
+		expect(error).toMatchObject({ code: 'HistoryUnavailable' });
 	});
 
 	it('waits for a future exclusive end even when nothing matches', async () => {
@@ -520,19 +521,16 @@ describe('resumable empty passes', () => {
 		expect(baseline).toMatchObject({ $kind: 'Progress', coveredCheckpoint: '10' });
 		expect(quiet.sent('scanEvents')).toHaveLength(0);
 
-		// A restart after the tip moved on still reads what matched in between.
+		// A restart after the tip moved on resumes after the anchor, and the server backfills.
 		const later = fakeGraphQL({ tip: 20 });
-		later.on('scanEvents', page('events', [event(12)]));
-		later.on('subscribeEvents', live('events', []));
+		later.on('subscribeEvents', live('events', [event(12, 0, { source: 'live' })]));
 		const [frame] = await take(
 			stream(later.client, 'events', { start: { resumeToken: token(baseline) } }),
 			1,
 		);
 		expect(label(frame)).toBe('12:0');
-		expect(later.sent('scanEvents')[0]).toMatchObject({
-			filter: { afterCheckpoint: 10, beforeCheckpoint: 21 },
-		});
-		expect(later.sent('scanEvents')[0].after).toBeUndefined();
+		expect(later.sent('subscribeEvents')).toEqual([{ filter: { afterCheckpoint: 10 } }]);
+		expect(later.sent('scanEvents')).toHaveLength(0);
 	});
 
 	it('resumes a finite scan that waits for a future end from where its empty pass stopped', async () => {
@@ -599,24 +597,6 @@ describe('resumable empty passes', () => {
 		expect(frames.map(label)).toEqual(['Complete']);
 		expect(server.sent('scanEvents')).toHaveLength(1);
 	});
-
-	it('sends no request for a gap the last empty pass already read', async () => {
-		const server = fakeGraphQL({ tip: 10 });
-		server.on(
-			'scanEvents',
-			page('events', [event(9)], { more: true }),
-			page('events', [], { cursor: 'history:boundary:10' }),
-			// What v1.83 answers for a window it has nothing in, after the boundary cursor.
-			page('events', [], { more: true, cursor: 'history:boundary:10' }),
-		);
-		server.on(
-			'subscribeEvents',
-			live('events', [event(9, 0, { source: 'live' }), event(11, 0, { source: 'live' })]),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 9 } }), 2);
-		expect(frames.map(label)).toEqual(['9:0', '11:0']);
-		expect(server.sent('scanEvents')).toHaveLength(2);
-	});
 });
 
 describe('polling', () => {
@@ -652,20 +632,17 @@ describe('polling', () => {
 			after(() => (server.tip = 2), page('events', [], { cursor: 'history:boundary' })),
 			page('events', [event(11)]),
 		);
-		const stateRequests = () => server.sent('ledgerStreamState').length;
+		const scans = () => server.sent('scanEvents').length;
 		const source = stream(server.client, 'events', { start: { checkpoint: 1 }, delivery: 'poll' });
 		const pending = source.next();
-		// The empty pass read through tip 10; the next pass sees tip 2 and must wait.
-		await expect.poll(stateRequests).toBeGreaterThanOrEqual(3);
+		// The empty pass read through tip 10; the next passes see tip 2 and must wait.
+		await expect.poll(scans).toBeGreaterThanOrEqual(3);
 		server.tip = 11;
 		expect(label((await pending).value!)).toBe('11:0');
 		await source.return(undefined);
-		expect(server.sent('scanEvents')).toHaveLength(2);
 		// It resumes after everything the empty pass read, not from its own start.
-		expect(server.sent('scanEvents')[1]).toMatchObject({
-			filter: { afterCheckpoint: 10, beforeCheckpoint: 12 },
-		});
-		expect(server.sent('scanEvents')[1].after).toBeUndefined();
+		expect(server.sent('scanEvents').at(-1)).toMatchObject({ filter: { afterCheckpoint: 10 } });
+		expect(server.sent('scanEvents').at(-1)!.after).toBeUndefined();
 	});
 
 	it('waits for a future descending start to be indexed', async () => {
@@ -678,8 +655,8 @@ describe('polling', () => {
 				end: { checkpoint: 4 },
 			}),
 		);
-		await expect.poll(() => server.sent('ledgerStreamState').length).toBeGreaterThanOrEqual(3);
-		expect(server.sent('scanCheckpoints')).toHaveLength(0);
+		// Each poll reads one page and discards it while the start is past the tip.
+		await expect.poll(() => server.sent('scanCheckpoints').length).toBeGreaterThanOrEqual(3);
 		server.tip = 5;
 		expect((await source).map(label)).toEqual(['5']);
 	});
@@ -766,164 +743,82 @@ describe('exclusive end probe', () => {
 });
 
 describe('live handoff', () => {
-	it('replays history, subscribes without a cursor, then replays the gap through a fresh indexed tip', async () => {
-		const server = fakeGraphQL({ tip: 1 });
+	it('subscribes after the start checkpoint and lets the server backfill', async () => {
+		const server = fakeGraphQL({ tip: 10 });
 		server.on(
-			'scanCheckpoints',
-			page('checkpoints', [checkpoint(0), checkpoint(1)]),
-			page('checkpoints', [checkpoint(2), checkpoint(3)]),
-		);
-		server.on(
-			'subscribeCheckpoints',
-			after(
-				() => (server.tip = 3),
-				live('checkpoints', [checkpoint(2, 'live'), checkpoint(3, 'live'), checkpoint(4, 'live')]),
-			),
+			'subscribeEvents',
+			live('events', [event(5), event(9), event(11, 0, { source: 'live' })]),
 		);
 		const log = statusLog();
 		const frames = await take(
-			stream(server.client, 'checkpoints', { start: { checkpoint: 0 }, onStatus: log.onStatus }),
-			5,
+			stream(server.client, 'events', { start: { checkpoint: 5 }, onStatus: log.onStatus }),
+			3,
 		);
-		expect(frames.map(label)).toEqual(['0', '1', '2', '3', '4']);
-		// Genesis and the gap come from history; the subscription never backfills.
-		expect(server.sent('subscribeCheckpoints')).toEqual([{}]);
-		// History read through checkpoint 1, so the gap starts at 2 by checkpoint alone.
-		expect(server.sent('scanCheckpoints')[1]).toEqual({
-			filter: { afterCheckpoint: 1, beforeCheckpoint: 4 },
-			first: 50,
+		expect(frames.map(label)).toEqual(['5:0', '9:0', '11:0']);
+		expect(server.sent('subscribeEvents')).toEqual([{ filter: { afterCheckpoint: 4 } }]);
+		expect(server.sent('scanEvents')).toHaveLength(0);
+		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
+	});
+
+	it('reads history before subscribing from genesis, then resumes after it', async () => {
+		const server = fakeGraphQL({ tip: 1 });
+		server.on('scanCheckpoints', page('checkpoints', [checkpoint(0), checkpoint(1)]));
+		server.on('subscribeCheckpoints', live('checkpoints', [checkpoint(2, 'live')]));
+		const frames = await take(
+			stream(server.client, 'checkpoints', { start: { checkpoint: 0 } }),
+			3,
+		);
+		expect(frames.map(label)).toEqual(['0', '1', '2']);
+		// The pass ended at a boundary after checkpoint 1.
+		expect(server.sent('subscribeCheckpoints')).toEqual([{ afterCheckpoint: 1 }]);
+	});
+
+	it('resumes after the last delivered cursor when the connection ends', async () => {
+		const server = fakeGraphQL({ tip: 1 });
+		server.on(
+			'subscribeEvents',
+			live('events', [event(2, 0, { source: 'live' }), event(3, 0, { source: 'live' })], 'eof'),
+			live('events', [event(3, 1, { source: 'live' }), event(4, 0, { source: 'live' })]),
+		);
+		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 2 } }), 4);
+		expect(frames.map(label)).toEqual(['2:0', '3:0', '3:1', '4:0']);
+		expect(new Set(frames.map(token)).size).toBe(4);
+		expect(server.sent('subscribeEvents')[1]).toEqual({
+			filter: {},
+			after: event(3, 0, { source: 'live' }).cursor,
 		});
-		expect(log.log).toEqual([
-			'Connecting(0)',
-			'Connected',
-			'Page(history,indexedTip)',
-			'Recovering',
-			'Page(gap,bound)',
-			'Live',
+	});
+
+	it('resumes a token from a history page with its cursor', async () => {
+		const [anchor] = await followTokens('events', [event(4)]);
+		const server = fakeGraphQL({ tip: 10 });
+		server.on('subscribeEvents', live('events', [event(4, 1, { source: 'live' })]));
+		const [frame] = await take(
+			stream(server.client, 'events', { start: { resumeToken: anchor } }),
+			1,
+		);
+		expect(label(frame)).toBe('4:1');
+		expect(server.sent('subscribeEvents')).toEqual([{ filter: {}, after: event(4).cursor }]);
+	});
+
+	it('keeps the tip anchor across disconnects before the first match', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live('events', [], 'eof'),
+			live('events', [event(11, 0, { source: 'live' })]),
+		);
+		const [frame] = await take(stream(server.client, 'events', { retry: noDelay }), 1);
+		expect(label(frame)).toBe('11:0');
+		expect(server.sent('subscribeEvents')).toEqual([
+			{ filter: { afterCheckpoint: 10 } },
+			{ filter: { afterCheckpoint: 10 } },
 		]);
 	});
 
-	// A live feed ahead of its index skips checkpoints without an error.
-	it.each(['a checkpoint start', 'a resume token'] as const)(
-		'replays checkpoints skipped when the first live item lands two past history (%s)',
-		async (start) => {
-			const [anchor] = await followTokens('checkpoints', [checkpoint(10)]);
-			const server = fakeGraphQL({ tip: 10 });
-			server.on(
-				'scanCheckpoints',
-				...(start === 'a checkpoint start' ? [page('checkpoints', [checkpoint(10)])] : []),
-				after(() => (server.tip = 12), page('checkpoints', [checkpoint(11)])),
-				page('checkpoints', [checkpoint(12)]),
-			);
-			server.on(
-				'subscribeCheckpoints',
-				after(
-					() => (server.tip = 11),
-					live('checkpoints', [checkpoint(12, 'live'), checkpoint(13, 'live')]),
-				),
-			);
-			const frames = await take(
-				stream(server.client, 'checkpoints', {
-					start: start === 'a checkpoint start' ? { checkpoint: 10 } : { resumeToken: anchor },
-				}),
-				start === 'a checkpoint start' ? 4 : 3,
-			);
-			expect(frames.map(label)).toEqual(
-				start === 'a checkpoint start' ? ['10', '11', '12', '13'] : ['11', '12', '13'],
-			);
-			expect(server.sent('subscribeCheckpoints')).toEqual([{}]);
-		},
-	);
-
-	it('delivers a match made before the subscription opened without waiting for a later one', async () => {
-		const server = fakeGraphQL({ tip: 9 });
-		server.on('scanEvents', page('events', [event(10)]));
-		// A sparse filter: the feed never sends anything.
-		server.on(
-			'subscribeEvents',
-			after(() => (server.tip = 10), live('events', [])),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 1);
-		expect(frames.map(label)).toEqual(['10:0']);
-		expect(server.sent('scanEvents')[0]).toMatchObject({
-			filter: { afterCheckpoint: 9, beforeCheckpoint: 11 },
-		});
-	});
-
-	it('does not repeat a checkpoint that history finished with an empty page', async () => {
-		const server = fakeGraphQL({ tip: 10 });
-		server.on(
-			'scanEvents',
-			page('events', [event(10, 0), event(10, 1)], { more: true }),
-			page('events', [], { cursor: 'history:boundary:10' }),
-			page('events', []),
-		);
-		// A lagging replica: starts in checkpoint 9 and repeats checkpoint 10 with its own cursors.
-		server.on(
-			'subscribeEvents',
-			live('events', [
-				event(9, 0, { source: 'live' }),
-				{ ...event(10, 0), cursor: 'replica:10:0' },
-				{ ...event(10, 1), cursor: 'replica:10:1' },
-				event(11, 0, { source: 'live' }),
-			]),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 3);
-		expect(frames.map(label)).toEqual(['10:0', '10:1', '11:0']);
-	});
-
-	it('retries a failed handoff without waiting for a quiet feed to send something', async () => {
-		const server = fakeGraphQL({ tip: 10 });
-		server.on(
-			'scanEvents',
-			page('events', [], { cursor: 'history:boundary:10' }),
-			httpStatus(503), // the handoff replay
-			page('events', [event(11)]),
-		);
-		server.on(
-			'subscribeEvents',
-			after(() => (server.tip = 11), live('events', [])),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 1);
-		// The retry read history again instead of hanging in cleanup.
-		expect(frames.map(label)).toEqual(['11:0']);
-		expect(server.sent('scanEvents')).toHaveLength(3);
-	});
-
-	it('replays through a first live checkpoint whose handoff replay failed, on a quiet next feed', async () => {
-		const server = fakeGraphQL({ tip: 10 });
-		server.on(
-			'scanEvents',
-			page('events', [], { cursor: 'history:boundary:10' }),
-			after(() => (server.tip = 12), page('events', [], { cursor: 'history:boundary:11' })),
-			httpStatus(503), // replaying through the first live item's checkpoint, 13
-			// The index reaches 13 only after the next handoff has read its tip.
-			after(
-				() => setTimeout(() => (server.tip = 13), 50),
-				page('events', [], { cursor: 'history:boundary:12' }),
-			),
-			page('events', [event(13)]),
-		);
-		server.on(
-			'subscribeEvents',
-			after(() => (server.tip = 11), live('events', [event(13, 0, { source: 'live' })])),
-			// The replacement feed opens after 13 and nothing else matches.
-			live('events', []),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 10 } }), 1);
-		expect(frames.map(label)).toEqual(['13:0']);
-		expect(server.sent('scanEvents').at(-1)).toMatchObject({
-			filter: { beforeCheckpoint: 14 },
-		});
-	});
-
-	it('subscribes with the caller filter and selection but never with after or afterCheckpoint', async () => {
+	it('subscribes with the caller filter and selection', async () => {
 		const server = fakeGraphQL({ tip: 1 });
-		server.on('scanTransactions', page('transactions', [transaction(2)]));
-		server.on(
-			'subscribeTransactions',
-			after(() => (server.tip = 2), live('transactions', [transaction(2, { source: 'live' })])),
-		);
+		server.on('subscribeTransactions', live('transactions', [transaction(2)]));
 		const sender = `0x${'5'.padStart(64, '0')}`;
 		await take(
 			stream(server.client, 'transactions', {
@@ -935,7 +830,7 @@ describe('live handoff', () => {
 		);
 		expect(server.sent('subscribeTransactions')).toEqual([
 			{
-				filter: { sentAddress: sender },
+				filter: { sentAddress: sender, afterCheckpoint: 1 },
 				includeTransaction: false,
 				includeEffects: false,
 				includeEvents: true,
@@ -946,333 +841,61 @@ describe('live handoff', () => {
 			},
 		]);
 	});
-
-	it('waits for the index to reach a first live checkpoint past the fresh tip before going live', async () => {
-		const server = fakeGraphQL({ tip: 1 });
-		server.on(
-			'scanCheckpoints',
-			page('checkpoints', [checkpoint(0), checkpoint(1)]),
-			after(() => (server.tip = 3), page('checkpoints', [checkpoint(2)])),
-			after(() => (server.tip = 4), page('checkpoints', [checkpoint(3)])),
-			page('checkpoints', [checkpoint(4)]),
-		);
-		server.on(
-			'subscribeCheckpoints',
-			after(
-				() => (server.tip = 2),
-				live('checkpoints', [checkpoint(4, 'live'), checkpoint(5, 'live')]),
-			),
-		);
-		const events = timeline();
-		await events.read(
-			stream(server.client, 'checkpoints', { start: { checkpoint: 0 }, onStatus: events.onStatus }),
-			6,
-		);
-		// The feed started at 4 while the index was at 2: 3 and 4 come from history.
-		expect(events.log).toEqual(['0', '1', 'Recovering', '2', '3', '4', 'Live', '5']);
-	});
-
-	it('keeps the tip anchor across disconnects before the first match', async () => {
-		const server = fakeGraphQL({ tip: 10 });
-		server.on('scanEvents', page('events', [event(11)]));
-		// The first feed stays quiet while the chain moves to 12, then ends.
-		const quietThenEof: Answer = () => {
-			setTimeout(() => (server.tip = 12), 5);
-			const body = new ReadableStream({
-				start: (controller) => void setTimeout(() => controller.close(), 30),
-			});
-			return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
-		};
-		server.on('subscribeEvents', quietThenEof, live('events', []));
-		const [frame] = await take(
-			stream(server.client, 'events', { retry: { ...noDelay, maxAttempts: 1 } }),
-			1,
-		);
-		// Re-anchoring at the new tip would start after 12 and miss this.
-		expect(label(frame)).toBe('11:0');
-		expect(server.sent('scanEvents')).toEqual([
-			expect.objectContaining({ filter: { afterCheckpoint: 10, beforeCheckpoint: 13 } }),
-		]);
-	});
-
-	it('resumes history from a delivered live cursor after the connection ends', async () => {
-		const server = fakeGraphQL({ tip: 1 });
-		server.on(
-			'scanEvents',
-			after(() => (server.tip = 3), page('events', [event(2)])), // gap through 2
-			page('events', [event(3, 1)]), // history after the live cursor of 3:0
-			page('events', [event(4)]), // gap through 4
-		);
-		server.on(
-			'subscribeEvents',
-			after(
-				() => (server.tip = 2),
-				live('events', [event(2, 0, { source: 'live' }), event(3, 0, { source: 'live' })], 'eof'),
-			),
-			after(() => (server.tip = 4), live('events', [event(4, 0, { source: 'live' })])),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 2 } }), 4);
-		expect(frames.map(label)).toEqual(['2:0', '3:0', '3:1', '4:0']);
-		expect(new Set(frames.map(token)).size).toBe(4);
-		// The reconnect read history after the subscription's own cursor.
-		expect(server.sent('scanEvents')[1]).toMatchObject({
-			after: event(3, 0, { source: 'live' }).cursor,
-			filter: { afterCheckpoint: 2 },
-		});
-	});
-
-	it('does not deliver a checkpoint twice when a new feed starts behind the committed one', async () => {
-		const server = fakeGraphQL({ tip: 5 });
-		server.on(
-			'scanEvents',
-			page('events', [event(5)]), // history through checkpoint 5
-			page('events', [event(6, 1)]), // history after the live cursor of 6:0
-		);
-		const firstFeed = live(
-			'events',
-			[event(5, 0, { source: 'live' }), event(6, 0, { source: 'live' })],
-			'eof',
-		);
-		server.on(
-			'subscribeEvents',
-			(request) => {
-				// The index reaches 6 just after this feed's handoff read its tip.
-				setTimeout(() => (server.tip = 6), 20);
-				return firstFeed(request);
-			},
-			// A lagging replica: starts in checkpoint 5 and repeats checkpoint 6 with new cursors.
-			live('events', [
-				event(5, 0, { source: 'live', transaction: 'tx5' }),
-				{ ...event(6, 0), cursor: 'replica:6:0' },
-				{ ...event(6, 1), cursor: 'replica:6:1' },
-				event(7, 0, { source: 'live' }),
-			]),
-		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 5 } }), 4);
-		expect(frames.map(label)).toEqual(['5:0', '6:0', '6:1', '7:0']);
-		// History after 6:0 read through checkpoint 6, so the second handoff needed no request.
-		expect(server.sent('scanEvents')).toHaveLength(2);
-	});
 });
 
 describe('live delivery', () => {
-	it('repairs skipped live checkpoints only once history is complete, then reports Live again', async () => {
-		const server = fakeGraphQL({ tip: 10 });
+	it('drops live items a new connection repeats', async () => {
+		const server = fakeGraphQL({ tip: 5 });
 		server.on(
-			'scanCheckpoints',
-			page('checkpoints', [checkpoint(10)]),
-			after(() => (server.tip = 12), page('checkpoints', [checkpoint(11)])),
-			page('checkpoints', [checkpoint(12)]),
+			'subscribeEvents',
+			live('events', [event(6, 0, { source: 'live' }), event(6, 1, { source: 'live' })], 'eof'),
+			live('events', [event(6, 1, { source: 'live' }), event(7, 0, { source: 'live' })]),
 		);
-		server.on(
-			'subscribeCheckpoints',
-			after(
-				() => (server.tip = 11),
-				live('checkpoints', [
-					checkpoint(10, 'live'),
-					checkpoint(13, 'live'),
-					checkpoint(14, 'live'),
-				]),
-			),
-		);
-		const events = timeline();
-		await events.read(
-			stream(server.client, 'checkpoints', {
-				start: { checkpoint: 10 },
-				onStatus: events.onStatus,
-			}),
-			5,
-		);
-		expect(events.log).toEqual([
-			'10',
-			'Recovering',
-			'11',
-			'Live',
-			'Recovering',
-			'12',
-			'Live',
-			'13',
-			'14',
-		]);
+		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 6 } }), 3);
+		expect(frames.map(label)).toEqual(['6:0', '6:1', '7:0']);
 	});
 
-	it('drops a live checkpoint repeating the resume position', async () => {
-		const [anchor] = await followTokens('checkpoints', [checkpoint(10)]);
-		const server = fakeGraphQL({ tip: 10 });
-		server.on('scanCheckpoints', page('checkpoints', []));
-		server.on(
-			'subscribeCheckpoints',
-			live('checkpoints', [checkpoint(10, 'live'), checkpoint(11, 'live')]),
-		);
-		const frames = await take(
-			stream(server.client, 'checkpoints', { start: { resumeToken: anchor } }),
-			1,
-		);
-		expect(frames.map(label)).toEqual(['11']);
-	});
-
-	it('treats each checkpoint as covering itself, so consecutive live checkpoints need no repair', async () => {
-		const server = fakeGraphQL({ tip: 10 });
-		server.on(
-			'scanCheckpoints',
-			page('checkpoints', [checkpoint(10)]),
-			page('checkpoints', [checkpoint(11)]),
-		);
-		server.on(
-			'subscribeCheckpoints',
-			after(
-				() => (server.tip = 11),
-				live('checkpoints', [
-					checkpoint(11, 'live'),
-					checkpoint(12, 'live'),
-					checkpoint(13, 'live'),
-				]),
-			),
-		);
-		const frames = await take(
-			stream(server.client, 'checkpoints', { start: { checkpoint: 10 } }),
-			4,
-		);
-		expect(frames.map(label)).toEqual(['10', '11', '12', '13']);
-		expect(server.sent('scanCheckpoints')).toHaveLength(2); // history and the handoff gap
-	});
-
-	it('looks up missing checkpoints with one deduplicated request per page, in order', async () => {
-		const server = fakeGraphQL();
-		server.on(
-			'scanEvents',
-			page('events', [
-				event(3, 0, { transaction: 'a', indexed: false }),
-				event(3, 1, { transaction: 'a', indexed: false }),
-				event(4, 0, { transaction: 'b', indexed: false }),
-			]),
-		);
-		server.on('streamTransactionCheckpoints', checkpointLookup([3, 4]));
-		const frames = await collect(
-			stream(server.client, 'events', { start: { checkpoint: 3 }, end: { checkpoint: 5 } }),
-		);
-		expect(frames.map(label)).toEqual(['3:0', '3:1', '4:0']);
-		expect(server.sent('streamTransactionCheckpoints')).toEqual([{ digests: ['a', 'b'] }]);
-	});
-
-	it('keeps a live node the index has not placed yet and looks it up again', async () => {
+	it('reconnects before a live item without a checkpoint, so the server backfills it', async () => {
 		const server = fakeGraphQL({ tip: 0 });
-		server.on('streamTransactionCheckpoints', checkpointLookup([null]), checkpointLookup([1]));
 		server.on(
 			'subscribeTransactions',
 			live('transactions', [transaction(1, { source: 'live', indexed: false })]),
+			live('transactions', [transaction(1, { source: 'live' })]),
 		);
 		const [frame] = await take(
 			stream(server.client, 'transactions', {
 				start: { checkpoint: 1 },
-				retry: { ...noDelay, maxAttempts: 0 },
+				retry: { ...noDelay, maxAttempts: 1 },
 			}),
 			1,
 		);
 		expect(label(frame)).toBe('tx1');
-		// The subscription stays open; only the lookup is repeated.
-		expect(server.sent('subscribeTransactions')).toHaveLength(1);
-		expect(server.sent('streamTransactionCheckpoints')).toHaveLength(2);
+		expect(server.sent('subscribeTransactions').map((sent) => sent.filter)).toEqual([
+			{ afterCheckpoint: 0 },
+			{ afterCheckpoint: 0 },
+		]);
 	});
 
-	it('does not abandon a live node the index places only after the next subscription opened', async () => {
-		const server = fakeGraphQL({ tip: 0 });
-		server.on('scanTransactions', page('transactions', [transaction(1)]));
-		server.on(
-			'streamTransactionCheckpoints',
-			checkpointLookup([null]),
-			after(() => (server.tip = 1), checkpointLookup([1])),
+	it('fails a history page item without a checkpoint as a protocol error', async () => {
+		const server = fakeGraphQL().on(
+			'scanEvents',
+			page('events', [event(3, 0, { indexed: false })]),
 		);
-		server.on(
-			'subscribeTransactions',
-			live('transactions', [transaction(1, { source: 'live', indexed: false })]),
-			// A replacement feed would start after the node; nothing else ever matches.
-			live('transactions', []),
-		);
-		const [frame] = await take(
-			stream(server.client, 'transactions', { start: { checkpoint: 1 } }),
-			1,
-		);
-		expect(label(frame)).toBe('tx1');
-	});
-
-	it('replays through a live node whose lookup failed once the next subscription opens', async () => {
-		const server = fakeGraphQL({ tip: 0 });
-		server.on('scanTransactions', page('transactions', [transaction(1)]));
-		server.on(
-			'streamTransactionCheckpoints',
-			httpStatus(503),
-			checkpointLookup([null]),
-			after(() => (server.tip = 1), checkpointLookup([1])),
-		);
-		server.on(
-			'subscribeTransactions',
-			live('transactions', [transaction(1, { source: 'live', indexed: false })]),
-			live('transactions', []),
-		);
-		const [frame] = await take(
-			stream(server.client, 'transactions', { start: { checkpoint: 1 } }),
-			1,
-		);
-		expect(label(frame)).toBe('tx1');
-		expect(server.sent('subscribeTransactions')).toHaveLength(2);
-		// History delivered it once the gap replay reached the node's checkpoint.
-		expect(server.sent('scanTransactions').at(-1)).toMatchObject({
-			filter: { beforeCheckpoint: 2 },
-		});
-	});
-
-	it('looks up the checkpoint of a live transaction once for all its events', async () => {
-		const server = fakeGraphQL({ tip: 0 });
-		server.on('streamTransactionCheckpoints', checkpointLookup([1]));
-		server.on(
-			'subscribeEvents',
-			// The feed runs ahead of the index, so these are delivered live.
-			live(
-				'events',
-				[0, 1, 2].map((index) =>
-					event(1, index, { source: 'live', transaction: 'tx1', indexed: false }),
-				),
+		const error = await rejection(
+			collect(
+				stream(server.client, 'events', { start: { checkpoint: 3 }, end: { checkpoint: 5 } }),
 			),
 		);
-		const frames = await take(stream(server.client, 'events', { start: { checkpoint: 1 } }), 3);
-		expect(frames.map(label)).toEqual(['1:0', '1:1', '1:2']);
-		expect(server.sent('streamTransactionCheckpoints')).toHaveLength(1);
-	});
-
-	it('cancels a pending checkpoint lookup when the stream is closed', async () => {
-		const server = fakeGraphQL({ tip: 0 });
-		let lookupSignal: AbortSignal | undefined;
-		server.on('streamTransactionCheckpoints', (request) => {
-			lookupSignal = request.signal;
-			return new Promise<Response>((_, reject) =>
-				request.signal.addEventListener('abort', () => reject(request.signal.reason)),
-			);
-		});
-		server.on(
-			'subscribeTransactions',
-			live('transactions', [transaction(1, { source: 'live', indexed: false })]),
-		);
-		const source = stream(server.client, 'transactions', { start: { checkpoint: 1 } });
-		const pending = source.next().catch((error: unknown) => error);
-		await expect.poll(() => lookupSignal).toBeDefined();
-		await source.return(undefined);
-		expect(lookupSignal!.aborted).toBe(true);
-		expect(await pending).toMatchObject({ name: 'AbortError' });
+		expect(error).toMatchObject({ code: 'Protocol' });
 	});
 
 	it('reconnects at once after a connection that delivered data, and backs off otherwise', async () => {
 		const server = fakeGraphQL({ tip: 10 });
 		server.on(
-			'scanCheckpoints',
-			page('checkpoints', [checkpoint(11)]),
-			page('checkpoints', [checkpoint(12)]),
-		);
-		server.on(
 			'subscribeCheckpoints',
-			after(() => (server.tip = 11), live('checkpoints', [checkpoint(11, 'live')], 'eof')),
+			live('checkpoints', [checkpoint(11, 'live')], 'eof'),
 			httpStatus(503),
-			after(() => (server.tip = 12), live('checkpoints', [checkpoint(12, 'live')])),
+			live('checkpoints', [checkpoint(12, 'live')]),
 		);
 		const delays: number[] = [];
 		const frames = await take(
@@ -1285,6 +908,76 @@ describe('live delivery', () => {
 		);
 		expect(frames.map(label)).toEqual(['11', '12']);
 		expect(delays).toEqual([0, 5]);
+	});
+});
+
+describe('request counts', () => {
+	const operations = (server: FakeServer) => server.requests.map((request) => request.operation);
+
+	it('starts a fresh follow with one state read and one subscription', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on('subscribeEvents', live('events', [event(11, 0, { source: 'live' })]));
+		await take(stream(server.client, 'events'), 1);
+		expect(operations(server)).toEqual(['ledgerStreamState', 'subscribeEvents']);
+	});
+
+	it('makes exactly one request per history page', async () => {
+		const server = fakeGraphQL({ tip: 20 }).on(
+			'scanEvents',
+			page('events', [event(1)], { more: true }),
+			page('events', [event(2)], { more: true }),
+			page('events', [event(3)]),
+		);
+		await collect(
+			stream(server.client, 'events', { start: { checkpoint: 1 }, end: { checkpoint: 10 } }),
+		);
+		expect(operations(server)).toEqual([
+			'ledgerStreamState',
+			'scanEvents',
+			'scanEvents',
+			'scanEvents',
+		]);
+	});
+
+	it('makes no request per live item', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live(
+				'events',
+				Array.from({ length: 10 }, (_, i) => event(11 + i, 0, { source: 'live' })),
+			),
+		);
+		await take(stream(server.client, 'events'), 10);
+		expect(operations(server)).toEqual(['ledgerStreamState', 'subscribeEvents']);
+	});
+
+	it('reconnects after live progress with one subscription', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live('events', [event(11, 0, { source: 'live' })], 'eof'),
+			live('events', [event(12, 0, { source: 'live' })]),
+		);
+		await take(stream(server.client, 'events'), 2);
+		expect(operations(server)).toEqual(['ledgerStreamState', 'subscribeEvents', 'subscribeEvents']);
+	});
+
+	it('makes one request per poll tick', async () => {
+		const server = fakeGraphQL({ tip: 1 });
+		server.on(
+			'scanEvents',
+			after(() => (server.tip = 2), page('events', [event(1)])),
+			after(() => (server.tip = 3), page('events', [event(2)])),
+			page('events', [event(3)]),
+		);
+		await take(stream(server.client, 'events', { start: { checkpoint: 1 }, delivery: 'poll' }), 3);
+		expect(operations(server)).toEqual([
+			'ledgerStreamState',
+			'scanEvents',
+			'scanEvents',
+			'scanEvents',
+		]);
 	});
 });
 
@@ -1471,6 +1164,7 @@ describe('item mapping', () => {
 		expect(streamed.transaction.Transaction?.events).toHaveLength(50);
 		const {
 			filter: _streamFilter,
+			filters: _filters,
 			first: _first,
 			...streamSelection
 		} = server.sent('scanTransactions')[0];
@@ -1481,7 +1175,6 @@ describe('item mapping', () => {
 		} = server.sent('listTransactions')[0];
 		expect(streamSelection).toEqual(listSelection);
 		expect(server.requests.map((request) => request.operation)).toEqual([
-			'ledgerStreamState',
 			'ledgerStreamState',
 			'scanTransactions',
 			'listTransactions',
