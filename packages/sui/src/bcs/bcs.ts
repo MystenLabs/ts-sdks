@@ -111,10 +111,52 @@ export const SuiObjectRef = bcs.struct('SuiObjectRef', {
 	digest: ObjectDigest,
 });
 
-export const SharedObjectRef = bcs.struct('SharedObjectRef', {
+// Rust: crates/sui-types/src/transaction.rs
+// `Immutable` and `Mutable` encode as the bytes `false` and `true` do.
+export const SharedObjectMutability = bcs.enum('SharedObjectMutability', {
+	Immutable: null,
+	Mutable: null,
+	NonExclusiveWrite: null,
+});
+
+const SharedObjectRefStruct = bcs.struct('SharedObjectRef', {
 	objectId: Address,
 	initialSharedVersion: bcs.u64(),
-	mutable: bcs.bool(),
+	mutability: SharedObjectMutability,
+});
+
+/**
+ * A shared object input. `mutable` is set for exclusive (`Mutable`) access. System transactions
+ * can also take non-exclusive write access, which parses as `mutable: false` with
+ * `mutability: 'NonExclusiveWrite'` (the field is omitted for the other modes).
+ */
+export const SharedObjectRef = SharedObjectRefStruct.transform({
+	name: 'SharedObjectRef',
+	input: ({
+		mutable,
+		mutability,
+		...ref
+	}: Omit<typeof SharedObjectRefStruct.$inferInput, 'mutability'> & {
+		mutable: boolean;
+		mutability?: 'NonExclusiveWrite';
+	}): typeof SharedObjectRefStruct.$inferInput => ({
+		...ref,
+		mutability: {
+			[mutability ?? (mutable ? 'Mutable' : 'Immutable')]: true,
+		} as typeof SharedObjectMutability.$inferInput,
+	}),
+	output: ({
+		mutability,
+		...ref
+	}): {
+		objectId: string;
+		initialSharedVersion: string;
+		mutable: boolean;
+		mutability?: 'NonExclusiveWrite';
+	} =>
+		mutability.$kind === 'NonExclusiveWrite'
+			? { ...ref, mutable: false, mutability: 'NonExclusiveWrite' }
+			: { ...ref, mutable: mutability.$kind === 'Mutable' },
 });
 
 export const ObjectArg = bcs.enum('ObjectArg', {
@@ -134,6 +176,14 @@ export const Owner = bcs.enum('Owner', {
 	ConsensusAddressOwner: bcs.struct('ConsensusAddressOwner', {
 		startVersion: bcs.u64(),
 		owner: Address,
+	}),
+	Party: bcs.struct('PartyOwner', {
+		startVersion: bcs.u64(),
+		permissions: bcs.struct('Party', {
+			// `ObjectPermissions` bitflags
+			defaultPermissions: bcs.u64(),
+			members: bcs.vector(bcs.tuple([Address, bcs.u64()])),
+		}),
 	}),
 });
 
@@ -443,7 +493,8 @@ export const MoveObjectType = bcs.enum('MoveObjectType', {
 	GasCoin: null,
 	StakedSui: null,
 	Coin: TypeTag,
-	AccumulatorBalanceWrapper: null,
+	SuiBalanceAccumulatorField: null,
+	BalanceAccumulatorField: TypeTag,
 });
 
 // Rust: crates/sui-types/src/object.rs

@@ -10,6 +10,9 @@ export type SharedObjectRef = {
 
 	/** Whether reference is mutable */
 	mutable: boolean;
+
+	/** Set for the non-exclusive write access that system transactions take (`mutable` is false). */
+	mutability?: 'NonExclusiveWrite';
 };
 
 export type SuiObjectRef = {
