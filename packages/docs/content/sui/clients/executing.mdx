@@ -143,11 +143,8 @@ Two further options change how the node runs the simulation:
 | `checksEnabled`  | Set `false` to skip transaction validation, so non-public and non-entry functions can be inspected. Defaults to `true` |
 | `doGasSelection` | Overrides whether the node selects real gas. Defaults to `true` only when gas payment is `[]`                          |
 
-When the node does not select gas, a transaction with no gas coins is simulated with a mocked gas
-coin, which also funds anything drawn from `tx.gas`, so the result validates the transaction and
-estimates gas but is not a preview of what the sender would spend. The exception is a transaction
-that would pay gas from the sender's address balance as given: it has a `ValidDuring` expiration or
-an owned input, does not use `tx.gas`, and the address balance covers the budget. The node simulates
-that one with the real address balance. To simulate with the sender's real gas, set gas coins on the
-transaction, or set an empty gas payment and let the node select gas. The result's
-`gasPaymentMocked` field reports which case ran.
+When the node does not select gas, a transaction with no gas coins is usually simulated with a
+mocked gas coin, which also funds anything drawn from `tx.gas`. The result validates the transaction
+and estimates gas, but is not a preview of what the sender would spend. To simulate with the
+sender's real gas, set gas coins on the transaction, or set an empty gas payment and let the node
+select gas. The result's `gasPaymentMocked` field reports whether gas was mocked.
