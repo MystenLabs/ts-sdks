@@ -9,6 +9,22 @@ import { BaseClient } from './client.js';
 import type { ClientWithExtensions, SuiClientTypes } from './types.js';
 import { MvrClient } from './mvr.js';
 import { bcs } from '../bcs/index.js';
+import type { AnyLedgerStreamAdapter } from './stream/adapter.js';
+import { SuiStreamError } from './stream/errors.js';
+import { createLedgerStream } from './stream/run.js';
+
+/** What `CoreClient.createLedgerStreamAdapter` is asked to stream. */
+export type LedgerStreamRequest =
+	| { family: 'checkpoints'; options: SuiClientTypes.StreamCheckpointsOptions<StreamFrames> }
+	| {
+			family: 'transactions';
+			options: SuiClientTypes.StreamTransactionsOptions<
+				SuiClientTypes.TransactionInclude,
+				StreamFrames
+			>;
+	  }
+	| { family: 'events'; options: SuiClientTypes.StreamEventsOptions<StreamFrames> };
+type StreamFrames = SuiClientTypes.StreamFrameOptions;
 
 export type ClientWithCoreApi = ClientWithExtensions<{
 	core: CoreClient;
@@ -141,6 +157,51 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	abstract resolveNameServiceAddress(
 		options: SuiClientTypes.ResolveNameServiceAddressOptions,
 	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse>;
+
+	/**
+	 * Streams checkpoints in ledger order, resumable from any delivered frame's `resumeToken`.
+	 * Follows new checkpoints by default; see `SuiClientTypes.StreamOptions`.
+	 */
+	streamCheckpoints<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		options: SuiClientTypes.StreamCheckpointsOptions<Frames> = {},
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Frames>> {
+		return this.#ledgerStream({ family: 'checkpoints', options });
+	}
+
+	/** Streams transactions matching `filter` in ledger order. See `streamCheckpoints`. */
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		options: SuiClientTypes.StreamTransactionsOptions<Include, Frames> = {},
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include, Frames>> {
+		return this.#ledgerStream({ family: 'transactions', options });
+	}
+
+	/** Streams events matching `filter` in ledger order. See `streamCheckpoints`. */
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		options: SuiClientTypes.StreamEventsOptions<Frames> = {},
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
+		return this.#ledgerStream({ family: 'events', options });
+	}
+
+	/**
+	 * Transports that support ledger streams return their adapter for `request`. Called lazily on
+	 * the stream's first `next()`; it must not perform I/O. The default reports that this client
+	 * cannot stream, so subclasses without stream support still compile and fail clearly.
+	 */
+	protected createLedgerStreamAdapter(_request: LedgerStreamRequest): AnyLedgerStreamAdapter {
+		throw new SuiStreamError(
+			'InvalidOptions',
+			`${this.constructor.name} does not support ledger streams`,
+		);
+	}
+
+	#ledgerStream<Result>(request: LedgerStreamRequest): AsyncGenerator<Result> {
+		return createLedgerStream(request.options, () =>
+			this.createLedgerStreamAdapter(request),
+		) as AsyncGenerator<Result>;
+	}
 
 	async getDynamicField(
 		options: SuiClientTypes.GetDynamicFieldOptions,

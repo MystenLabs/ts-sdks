@@ -66,8 +66,6 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
 - **GraphQL returns an empty page for a checkpoint cursor combined with an `afterCheckpoint` naming
   the same checkpoint** — the SDK keeps the bound one checkpoint behind the cursor; the server
   should accept the redundant bound.
-- **Stream option and token errors are plain `Error`s** — applications match on message text to tell
-  a bad or foreign token from a transient failure. A typed error with a code would help.
 - **Event and progress frames carry no timestamp** — measuring lag needs a second checkpoint stream
   or a lookup; `EventEntry.checkpoint` is the only ordering information.
 - **Per-frame CPU** — the full gRPC transaction path costs about 96 µs per transaction (about 10,000
