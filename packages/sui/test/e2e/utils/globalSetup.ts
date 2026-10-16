@@ -23,7 +23,6 @@ declare module 'vitest' {
 		localnetPort: number;
 		graphqlPort: number;
 		graphqlSubscriptions: boolean;
-		graphqlSubscriptionProgress: boolean;
 		streamServerFixes: boolean;
 		faucetPort: number;
 		suiToolsContainerId: string;
@@ -223,10 +222,6 @@ async function finishSetup(
 	project.provide('localnetPort', localnetPort);
 	project.provide('graphqlPort', graphqlPort);
 	project.provide('graphqlSubscriptions', graphqlSubscriptions);
-	project.provide(
-		'graphqlSubscriptionProgress',
-		graphqlSubscriptions && (await supportsSubscriptionProgress(graphqlPort)),
-	);
 	project.provide('suiToolsContainerId', containerId);
 
 	// Pre-publish shared packages
@@ -260,26 +255,6 @@ async function unusedPort(): Promise<number> {
 		server.close((error) => (error ? reject(error) : resolve())),
 	);
 	return address.port;
-}
-
-/** Whether filtered subscriptions take `progressInterval`, which GraphQL ledger streams use. */
-async function supportsSubscriptionProgress(port: number): Promise<boolean> {
-	try {
-		const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({
-				query: '{ __type(name: "Subscription") { fields { name args { name } } } }',
-			}),
-			signal: AbortSignal.timeout(10_000),
-		});
-		const fields: { name: string; args: { name: string }[] }[] =
-			(await response.json()).data?.__type?.fields ?? [];
-		const events = fields.find((field) => field.name === 'events');
-		return !!events?.args.some((arg) => arg.name === 'progressInterval');
-	} catch {
-		return false;
-	}
 }
 
 /** Whether GraphQL pages checkpoints after a cursor that lies below the `afterCheckpoint` bound. */
