@@ -10,9 +10,9 @@ import type {
 import type { SuiClientTypes } from '../../client/types.js';
 import type { SuiGraphQLClient } from '../client.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
-import { followLedger } from './follow.js';
+import { liveSubscription } from './live.js';
+import { fetchGraphQLPage } from './page.js';
 import { classifyGraphQLError, readChainTip } from './query.js';
-import { scanLedger } from './scan.js';
 
 export function graphQLLedgerStreamAdapter(
 	client: SuiGraphQLClient,
@@ -29,8 +29,9 @@ function adapterFor<Node>(
 	return {
 		transport: 'graphql',
 		family: family.name,
-		// Subscriptions carry no progress, so a fresh follow is anchored at the indexed tip.
+		// The chain identity is read with the indexed tip, so a fresh follow is anchored there.
 		anchorsAtLiveTip: false,
+		resumesSubscriptions: true,
 
 		async initialize(signal) {
 			const filter = await family.resolveFilter(signal);
@@ -40,8 +41,8 @@ function adapterFor<Node>(
 		async indexedTip(signal) {
 			return (await readChainTip(client, signal)).tip;
 		},
-		scan: (request) => scanLedger(family, request),
-		follow: (session) => followLedger(family, session),
+		fetchPage: (request) => fetchGraphQLPage(family, request),
+		subscribe: (from, signal) => liveSubscription(family, from, signal),
 
 		mapItem: (item) => family.map(item),
 		classify: classifyGraphQLError,

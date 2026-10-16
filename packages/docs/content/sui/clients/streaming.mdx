@@ -209,6 +209,9 @@ throwing from it ends the stream. Store tokens from frames, never from statuses.
 | `Retrying`   | Waiting `delay` ms before reconnecting after `error`.                   |
 | `Error`      | The stream is about to throw `error`.                                   |
 
+GraphQL subscriptions resume on the server, so a GraphQL follow replays history without `Page` or
+`Recovering` statuses; gRPC resumes on the client by reading history pages first.
+
 ## Retries
 
 ```typescript
@@ -272,8 +275,8 @@ try {
   `listTransactions`.
 - Resume tokens don't work across gRPC and GraphQL; to switch, start the new stream at the
   checkpoint after the last one you fully processed.
-- GraphQL replays read 50 items per request, more requests than gRPC for the same range; run streams
-  over disjoint checkpoint ranges concurrently to replay faster.
+- GraphQL finite reads and polling read 50 items per request, more requests than gRPC for the same
+  range; run streams over disjoint checkpoint ranges concurrently to read faster.
 
 ## gRPC options
 

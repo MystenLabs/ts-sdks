@@ -90,8 +90,8 @@ query scanEvents(
 	}
 }
 
-subscription subscribeEvents($filter: EventFilter, $after: String, $progressInterval: Int) {
-	events(filter: $filter, after: $after, progressInterval: $progressInterval) {
+subscription subscribeEvents($filter: EventFilter, $after: String) {
+	events(filter: $filter, after: $after) {
 		cursor
 		node {
 			...EVENT_FIELDS
@@ -141,7 +141,6 @@ query scanTransactions(
 subscription subscribeTransactions(
 	$filter: TransactionFilter
 	$after: String
-	$progressInterval: Int
 	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
@@ -150,7 +149,7 @@ subscription subscribeTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
-	transactions(filter: $filter, after: $after, progressInterval: $progressInterval) {
+	transactions(filter: $filter, after: $after) {
 		cursor
 		node {
 			...TRANSACTION_FIELDS
