@@ -269,9 +269,10 @@ try {
   `listTransactions`.
 - On GraphQL with `'subscribe'`, a filtered stream reports `Live` only when its first live match
   arrives.
-- On GraphQL with `'subscribe'`, a sparse filter's match can arrive late, and a filtered transaction
-  or event stream can miss items if the server skips a checkpoint; use `delivery: 'poll'` when
-  completeness matters more than latency.
+- On GraphQL with `'subscribe'`, a filtered stream can hold back a match from just before the
+  subscription started until its next live match, and a transaction or event stream misses the items
+  of any checkpoint the server's live feed skips after the stream is live; use `delivery: 'poll'`
+  when completeness matters more than latency.
 - Resume tokens don't work across gRPC and GraphQL; to switch, start the new stream at the
   checkpoint after the last one you fully processed.
 - GraphQL replays read 50 items per request, more requests than gRPC for the same range; run streams
