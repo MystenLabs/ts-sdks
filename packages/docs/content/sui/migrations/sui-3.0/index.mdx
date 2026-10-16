@@ -66,8 +66,9 @@ together with `@mysten/sui`.
   are `kind.ProgrammableTransaction`, system transactions such as genesis and consensus commits map
   to their own `kind` variants, and kinds the SDK does not recognize map to
   `{ $kind: 'Unknown', Unknown: true }`; handle `Unknown` wherever you switch on `kind.$kind`.
-  `inputs` and `commands` stay at the top level and are empty for every kind other than
-  `ProgrammableTransaction`. See [transaction data](/sui/clients/executing#transaction-data).
+  `inputs` and `commands` stay at the top level for programmable and programmable system
+  transactions, and are empty for every other kind. See
+  [transaction data](/sui/clients/executing#transaction-data).
 - **`SuiClientTypes.TransactionData` is a read type.** Inputs, commands, and expirations carry their
   `$kind` discriminant (narrow with `input.$kind === 'Pure'` rather than `'Pure' in input`), shared
   object inputs can have `mutability: 'NonExclusiveWrite'`, and builder-only unresolved inputs and

@@ -209,6 +209,20 @@ describe('ledger transaction data across transports', () => {
 		});
 	});
 
+	it('keeps top-level inputs and commands for programmable system transactions', async () => {
+		const system = GrpcTransaction.create({
+			...programmable,
+			kind: { ...programmable.kind!, kind: Kind.PROGRAMMABLE_SYSTEM_TRANSACTION },
+		});
+		const [fromGrpc, fromGraphQL] = await readBoth(system);
+		expect(fromGraphQL).toEqual(fromGrpc);
+		expect(fromGrpc.kind.$kind).toBe('ProgrammableSystemTransaction');
+		expect({ inputs: fromGrpc.inputs, commands: fromGrpc.commands }).toEqual(
+			fromGrpc.kind.ProgrammableSystemTransaction,
+		);
+		expect(fromGrpc.inputs).toHaveLength(2);
+	});
+
 	it('maps system transactions identically', async () => {
 		const [fromGrpc, fromGraphQL] = await readBoth(endOfEpoch);
 		expect(fromGraphQL).toEqual(fromGrpc);
