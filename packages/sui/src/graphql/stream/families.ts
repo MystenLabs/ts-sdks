@@ -87,7 +87,11 @@ export interface LedgerFamily<Node> {
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	page(request: PageRequest): Promise<Page<Node>>;
 	/** Backfills from the resume point, then continues live. */
-	subscribe(signal: AbortSignal, resume: ResumePoint): AsyncIterable<Edge<Node>>;
+	subscribe(
+		signal: AbortSignal,
+		resume: ResumePoint,
+		onOpen: () => void,
+	): AsyncIterable<Edge<Node>>;
 	identity(node: Node): string;
 	/** The node's checkpoint; null where the server left it out. */
 	checkpoint(node: Node): bigint | null;
@@ -127,12 +131,13 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 				}),
 				(data) => data.checkpoints,
 			),
-		subscribe: (signal, { after, start }) =>
+		subscribe: (signal, { after, start }, onOpen) =>
 			edges(
 				client.subscribe({
 					query: SubscribeCheckpointsDocument,
 					variables: { after, ...toGraphQLCheckpointBounds({ start }) },
 					signal,
+					onOpen,
 				}),
 				(data) => data.checkpoints,
 			),
@@ -174,12 +179,13 @@ function transactionsFamily(
 				}),
 				(data) => data.transactions,
 			),
-		subscribe: (signal, { after, start }) =>
+		subscribe: (signal, { after, start }, onOpen) =>
 			edges(
 				client.subscribe({
 					query: SubscribeTransactionsDocument,
 					variables: { filter: toGraphQLTransactionFilter(filter, { start }), after, ...selection },
 					signal,
+					onOpen,
 				}),
 				(data) => data.transactions,
 			),
@@ -221,12 +227,13 @@ function eventsFamily(
 				}),
 				(data) => data.events,
 			),
-		subscribe: (signal, { after, start }) =>
+		subscribe: (signal, { after, start }, onOpen) =>
 			edges(
 				client.subscribe({
 					query: SubscribeEventsDocument,
 					variables: { filter: toGraphQLEventFilter(filter, { start }), after },
 					signal,
+					onOpen,
 				}),
 				(data) => data.events,
 			),
