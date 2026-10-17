@@ -21,6 +21,15 @@ export function liveSubscription<Node>(
 	return { [Symbol.asyncIterator]: () => liveEvents(family, resumePoint(from), signal) };
 }
 
+/**
+ * Whether a subscription can backfill from `from`. The service backfills only after a cursor or a
+ * checkpoint, so a subscription cannot start at genesis.
+ */
+export function canResumeSubscription(from: Bound): boolean {
+	const { after, start } = resumePoint(from);
+	return after !== undefined || (start !== undefined && start > 0n);
+}
+
 /** A position with a cursor resumes after it; one without, from the checkpoint after it. */
 function resumePoint(from: Bound | undefined): ResumePoint {
 	if (!from) return {};
