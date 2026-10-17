@@ -158,9 +158,27 @@ export namespace SuiClientTypes {
 		frames?: Frames;
 	}
 
+	/** Data to deliver with each streamed checkpoint. */
+	export interface StreamCheckpointInclude {
+		/**
+		 * Deliver every transaction of the checkpoint, in execution order, with these fields. Each
+		 * checkpoint is yielded once all of its transactions have been read.
+		 */
+		transactions?: TransactionInclude;
+	}
+
 	export interface StreamCheckpointsOptions<
+		Include extends StreamCheckpointInclude = {},
 		Frames extends StreamFrameOptions = {},
-	> extends StreamOptions<Frames> {}
+	> extends StreamOptions<Frames> {
+		include?: Include;
+	}
+
+	/** A streamed checkpoint, with `transactions` when `include.transactions` is set. */
+	export type StreamedCheckpoint<Include extends StreamCheckpointInclude = {}> = Checkpoint &
+		(Include extends { transactions: infer TransactionFields extends TransactionInclude }
+			? { transactions: Transaction<TransactionFields>[] }
+			: {});
 
 	export interface StreamTransactionsOptions<
 		Include extends TransactionInclude = {},
@@ -176,9 +194,9 @@ export namespace SuiClientTypes {
 		filter?: EventFilter;
 	}
 
-	export interface StreamCheckpointFrame {
+	export interface StreamCheckpointFrame<Include extends StreamCheckpointInclude = {}> {
 		$kind: 'Checkpoint';
-		checkpoint: Checkpoint;
+		checkpoint: StreamedCheckpoint<Include>;
 		resumeToken: StreamResumeToken;
 	}
 
@@ -248,10 +266,10 @@ export namespace SuiClientTypes {
 		| EnabledFrame<Frames, 'completion', StreamCompletionFrame>
 		| EnabledFrame<Frames, 'progress', StreamProgressFrame>;
 
-	export type StreamCheckpointResult<Frames extends StreamFrameOptions = {}> = StreamResult<
-		StreamCheckpointFrame,
-		Frames
-	>;
+	export type StreamCheckpointResult<
+		Include extends StreamCheckpointInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> = StreamResult<StreamCheckpointFrame<Include>, Frames>;
 	export type StreamTransactionResult<
 		Include extends TransactionInclude = {},
 		Frames extends StreamFrameOptions = {},
