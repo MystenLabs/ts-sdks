@@ -78,7 +78,7 @@ export type ErrorClass = 'retry' | 'disconnect' | 'fatal';
 
 /** Stream item frames without the token, which the core adds. */
 export type ItemFrame =
-	| SuiClientTypes.StreamCheckpointFrame
+	| SuiClientTypes.StreamCheckpointFrame<any>
 	| SuiClientTypes.StreamTransactionFrame<any>
 	| SuiClientTypes.StreamEventFrame;
 
