@@ -4,7 +4,6 @@
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, expectTypeOf, it, onTestFinished } from 'vitest';
 
-import { SuiStreamError } from '../../../../src/client/index.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
 import { markNonRetryable } from '../../../../src/grpc/pull-call.js';
@@ -1119,9 +1118,7 @@ describe('SuiGrpcClient stream method types', () => {
 		expectTypeOf<Frame['$kind']>().toEqualTypeOf<'Event' | 'Progress' | 'Complete'>();
 		// @ts-expect-error Native and shared filters are exclusive.
 		void client.streamEvents({ filter: { sender: '0x1' }, grpcFilter: { terms: [] } });
-		expect(stream).toBeInstanceOf(Object);
 		void stream.return(undefined);
-		expect(SuiStreamError).toBeTypeOf('function');
 	});
 });
 

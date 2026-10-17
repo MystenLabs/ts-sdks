@@ -148,13 +148,14 @@ const client = new SuiGrpcClient({
 
 ### Native gRPC transport
 
-For server-side applications (Node.js, Bun, and others), unary calls can also use the native gRPC
+For server-side applications (Node.js, Bun, and others), requests can also use the native gRPC
 transport from `@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HTTP/2 and the native
-gRPC protocol rather than the gRPC-web translation layer.
+gRPC protocol rather than the gRPC-web translation layer. Unary calls and bounded list methods such
+as `listCheckpoints`, `listTransactions` and `listEvents` work on it.
 
-Use the default transport for ledger streams (`streamCheckpoints`, `streamTransactions` and
-`streamEvents`). The native transport buffers stream responses whether or not they are consumed, and
-can end a stream on a server-side reset instead of reconnecting it.
+Use the default transport for the resumable ledger streams (`streamCheckpoints`,
+`streamTransactions` and `streamEvents`). The native transport buffers stream responses whether or
+not they are consumed, and can end a stream on a server-side reset instead of reconnecting it.
 
 ```npm
 npm install @protobuf-ts/grpc-transport @grpc/grpc-js

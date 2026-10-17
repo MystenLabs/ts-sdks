@@ -71,7 +71,6 @@ export interface LiveFrame {
 
 /** What differs between the three streams. Everything else is shared. */
 export interface GrpcFamily {
-	readonly name: StreamFamily;
 	readonly list: MethodInfo<ListRequest, ListFrame>;
 	readonly subscribe: MethodInfo<SubscribeRequest, LiveFrame>;
 	readMask(include: SuiClientTypes.TransactionInclude | undefined): string[];
@@ -85,7 +84,6 @@ export interface GrpcFamily {
 
 export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 	checkpoints: {
-		name: 'checkpoints',
 		list: streamingMethod(LedgerService, 'ListCheckpoints'),
 		subscribe: streamingMethod(SubscriptionService, 'SubscribeCheckpoints'),
 		// With included transactions, the checkpoint frame carries every one of them.
@@ -108,7 +106,6 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		},
 	},
 	transactions: {
-		name: 'transactions',
 		list: streamingMethod(LedgerService, 'ListTransactions'),
 		subscribe: streamingMethod(SubscriptionService, 'SubscribeTransactions'),
 		// `transaction_index` orders transactions within a checkpoint.
@@ -117,7 +114,6 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		position: framePosition,
 	},
 	events: {
-		name: 'events',
 		list: streamingMethod(LedgerService, 'ListEvents'),
 		subscribe: streamingMethod(SubscriptionService, 'SubscribeEvents'),
 		readMask: () => [...EVENT_READ_MASK_PATHS, 'transaction_index'],
