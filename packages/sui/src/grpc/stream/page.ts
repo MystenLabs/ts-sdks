@@ -142,18 +142,20 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
 
 /**
  * A server reports OUT_OF_RANGE both for pruned history and for a starting cursor past its index,
- * such as one from a server further ahead. A read whose low end is at or above the retention floor
- * was not pruned. The floor is checked instead of the tip, which can pass the cursor before it is
- * read.
+ * such as one from a server further ahead. A read that needs nothing below the retention floor was
+ * not pruned. The floor is checked instead of the tip, which can pass the cursor before it is read.
  */
 async function startsPastIndex(
-	{ order, range, after, before, signal }: PageRequest,
+	{ order, range, unread, after, before, signal }: PageRequest,
 	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
 ): Promise<boolean> {
 	if (!(order === 'ascending' ? after : before)) return false;
-	// An open low end starts at the floor. A cursor low end may be below it, which cannot be told.
-	if (range.start === undefined) return order === 'descending' && !after;
-	return range.start >= (await retainedFrom(signal));
+	// The oldest checkpoint the read still needs: ascending, the oldest unread one; descending, its
+	// low end, or the top of its range when the low end is open. A cursor low end cannot be told.
+	let needed: bigint | undefined;
+	if (order === 'ascending') needed = unread ?? range.start;
+	else if (!after) needed = range.start ?? (range.end === undefined ? undefined : range.end - 1n);
+	return needed !== undefined && needed >= (await retainedFrom(signal));
 }
 
 function isOutOfRange(error: unknown): error is RpcError {
