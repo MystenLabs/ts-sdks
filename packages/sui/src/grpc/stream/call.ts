@@ -107,7 +107,7 @@ class BoundedQueue<T> {
 			this.#bytes += last.bytes;
 			return true;
 		}
-		const bytes = estimateBytes(response);
+		const bytes = this.#maxBytes === Infinity ? 0 : estimateBytes(response);
 		if (this.length > 0 && this.#bytes + bytes > this.#maxBytes) return false;
 		this.#responses.push({ response, bytes });
 		this.#bytes += bytes;

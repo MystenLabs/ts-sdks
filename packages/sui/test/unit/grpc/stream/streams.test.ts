@@ -1080,6 +1080,9 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(paths).not.toContain('transactions.effects');
 			expect(paths).toEqual(
 				expect.arrayContaining([
+					'objects.objects.object_id',
+					'objects.objects.version',
+					'objects.objects.object_type',
 					'transactions.effects.changed_objects.object_id',
 					'transactions.effects.changed_objects.input_version',
 					'transactions.effects.changed_objects.output_version',
@@ -1318,7 +1321,7 @@ function range(from: number, to: number) {
 /** A ledger with one event per checkpoint, read from the request's bounds up to `tip`. */
 function listUpTo(request: GrpcTypes.ListEventsRequest, tip: number) {
 	const checkpointOf = (cursor: Uint8Array) =>
-		Number(/(\d+)/.exec(new TextDecoder().decode(cursor.slice(cursor.indexOf(47))))![1]);
+		Number(/\d+/.exec(new TextDecoder().decode(cursor))![0]);
 	const after = request.options?.after;
 	const before = request.options?.before;
 	const end = request.endCheckpoint === undefined ? undefined : Number(request.endCheckpoint);
