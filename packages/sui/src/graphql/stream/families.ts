@@ -40,7 +40,7 @@ import {
 	type Event_FieldsFragment,
 	type Transaction_FieldsFragment,
 } from '../generated/queries.js';
-import { notIndexedYet, queryData, unwrap } from './query.js';
+import { notIndexedYet, queryData, transientLive, unwrap } from './query.js';
 
 export interface Edge<Node> {
 	cursor: string;
@@ -484,7 +484,7 @@ async function* edges<Result, Node>(
 	edge: (data: Result) => LiveEdge<Node> | null | undefined,
 ): AsyncGenerator<LiveEdge<Node>> {
 	for await (const result of results) {
-		const value = edge(unwrap(result));
+		const value = edge(unwrap(result, transientLive));
 		if (!value || typeof value.cursor !== 'string' || value.cursor === '') {
 			throw new SuiStreamError('Protocol', 'GraphQL subscription response has no edge');
 		}
