@@ -20,7 +20,8 @@ type Status = SuiClientTypes.StreamStatus;
 type Signer = { keypair: Ed25519Keypair; address: string };
 
 const graphqlSubscriptions = inject('graphqlSubscriptions');
-const streamServerFixes = inject('streamServerFixes');
+const graphqlStreamFixes = inject('graphqlStreamFixes');
+const grpcStreamFixes = inject('grpcStreamFixes');
 
 const LIVE: [ClientKind, Delivery][] = [
 	['grpc', 'subscribe'],
@@ -41,16 +42,16 @@ function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
 	return kind === 'graphql' && delivery === 'subscribe' && !graphqlSubscriptions;
 }
 
-const MISSING_SERVER_FIXES = 'needs a fullnode and GraphQL service with the stream fixes';
+const MISSING_SERVER_FIXES = 'needs a server with the stream fixes for this transport';
 
 /**
- * Cases that rely on gRPC subscriptions filling object types and event JSON, or on GraphQL paging
- * checkpoints after a cursor below the `afterCheckpoint` bound.
+ * Cases that rely on GraphQL paging checkpoints after a cursor below the `afterCheckpoint` bound,
+ * or on gRPC subscriptions filling object types and event JSON. Each transport is gated by its own
+ * server.
  */
 function missingServerFixes(kind: ClientKind, family: string, delivery: Delivery = 'poll') {
-	if (streamServerFixes) return false;
-	if (kind === 'graphql') return family === 'checkpoints';
-	return delivery === 'subscribe' && family === 'transactions';
+	if (kind === 'graphql') return !graphqlStreamFixes && family === 'checkpoints';
+	return !grpcStreamFixes && delivery === 'subscribe' && family === 'transactions';
 }
 
 /** More events than GraphQL returns for a transaction's nested event list (50). */
@@ -705,8 +706,7 @@ describe('ledger streams', () => {
 		});
 
 		describe.each(KINDS)('%s', (kind) => {
-			it('resumes from event and checkpoint tokens to exactly the remaining items', async (context) => {
-				context.skip(missingServerFixes(kind, 'checkpoints'), MISSING_SERVER_FIXES);
+			it('resumes from event tokens to exactly the remaining items', async () => {
 				const filter = { sender: manySigner.address };
 				const frames = await collect(client(kind).core.streamEvents({ ...range(), filter }));
 				expect(frames).toHaveLength(MANY_EVENTS);
@@ -723,7 +723,10 @@ describe('ledger streams', () => {
 						`resumed after item ${i}`,
 					).toEqual(frames.slice(i + 1).map((frame) => frame.event));
 				}
+			});
 
+			it('resumes from checkpoint tokens to exactly the remaining checkpoints', async (context) => {
+				context.skip(missingServerFixes(kind, 'checkpoints'), MISSING_SERVER_FIXES);
 				// A fixed range: localnet keeps adding checkpoints while other files run.
 				const checkpoints = await collect(
 					client(kind).core.streamCheckpoints({
@@ -1018,11 +1021,23 @@ describe('ledger streams', () => {
 			await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 			const { digest, checkpoint } = await emitEvents(await newSigner(), 2);
 			await reader.until((frames) => frames.some((frame) => frame.sequenceNumber === checkpoint));
+			// Closing first surfaces any failure the stream recorded after the checkpoint arrived.
+			await reader.close();
 			const delivered = reader.frames.find((frame) => frame.sequenceNumber === checkpoint)!;
 			const fetched = await client(kind).core.getTransaction({ digest, include });
 			expect(delivered.transactions.find((tx) => tx.digest === digest)).toEqual(
 				fetched.Transaction,
 			);
+			// Every transaction of the live checkpoint, as a bounded read of it returns them.
+			const [read] = await collect(
+				client(kind).core.streamCheckpoints({
+					start: { checkpoint },
+					end: { checkpoint: (BigInt(checkpoint) + 1n).toString() },
+					include: { transactions: include },
+					signal: signal(),
+				}),
+			);
+			expect(delivered.transactions).toEqual(read.checkpoint.transactions);
 			const sequenceNumbers = reader.frames.map((frame) => BigInt(frame.sequenceNumber));
 			expect(sequenceNumbers).toEqual(
 				sequenceNumbers.map((_, i) => sequenceNumbers[0] + BigInt(i)),
