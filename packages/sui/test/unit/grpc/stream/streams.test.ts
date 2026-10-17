@@ -283,11 +283,25 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.floorReads).toBe(1);
 		});
 
-		/** A descending read from 90 whose second page is out of range, with `floor` set before it. */
+		/** The next tip read answers `tip`, as a lagging replica would; later ones see 100. */
+		function lagNextTipRead(l: FakeLedger, tip: number) {
+			let lagging = true;
+			l.tip(() => {
+				if (!lagging) return 100;
+				lagging = false;
+				return tip;
+			});
+		}
+
+		/**
+		 * A descending read from 90 whose second page is out of range. `floor` is set before it, and
+		 * the tip read that follows answers `tip`.
+		 */
 		async function descendingOutOfRange(
 			floor: number,
 			end: SuiClientTypes.StreamBound | undefined,
 			lowest: number,
+			tip = 100,
 		) {
 			const l = ledger();
 			l.list(
@@ -295,6 +309,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
 				() => {
 					l.retainedFrom(floor);
+					lagNextTipRead(l, tip);
 					return ahead;
 				},
 				[event(89, 0, { covered: null }), ended('CHECKPOINT_BOUND', lowest)],
@@ -382,13 +397,15 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it.each([
-			['polls', 'covered', 0, 'polls'],
-			['fails pruned history', 'covered', 10, 'pruned'],
-			['polls, without coverage,', 'uncovered', 0, 'polls'],
-			['fails pruned history, without coverage,', 'uncovered', 95, 'pruned'],
+			['polls', 'covered', 0, 100, 'polls'],
+			['fails pruned history', 'covered', 10, 100, 'pruned'],
+			['polls, without coverage,', 'uncovered', 0, 80, 'polls'],
+			['fails pruned history, without coverage,', 'uncovered', 95, 100, 'pruned'],
+			// The server has indexed checkpoint 90, so it rejected the low end.
+			['fails a pruned low end, without coverage,', 'uncovered', 50, 100, 'pruned'],
 		] as const)(
 			'%s when a descending read bounded below by a progress cursor is out of range',
-			async (_, coverage, floor, outcome) => {
+			async (_, coverage, floor, tip, outcome) => {
 				// A live progress token covers checkpoint 4; an empty descending page's covers nothing.
 				const source =
 					coverage === 'covered'
@@ -404,7 +421,12 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					}),
 					1,
 				);
-				const result = await descendingOutOfRange(floor, { resumeToken: tokenOf(endFrame) }, 5);
+				const result = await descendingOutOfRange(
+					floor,
+					{ resumeToken: tokenOf(endFrame) },
+					5,
+					tip,
+				);
 				expect(result).toMatchObject(outcomes[outcome]);
 				expect(result.request.options?.after).toEqual(mark('p'));
 				// A cursor's coverage bounds the read below, so the floor can be compared.
@@ -432,17 +454,32 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			const first = [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })];
 			const last = [event(89, 0, { covered: null }), ended('CHECKPOINT_BOUND', 5)];
 
+			const lag = (l: FakeLedger) => () => {
+				lagNextTipRead(l, 80);
+				return ahead;
+			};
+			const reset = { frames: [], end: new RpcError('reset', 'UNAVAILABLE') };
+
 			it.each([
-				['a poll', [ahead, ahead]],
-				['a reconnect', [{ frames: [], end: new RpcError('reset', 'UNAVAILABLE') }, ahead]],
-			])('polls a lagging server after %s', async (_, lagging) => {
+				['a poll', [first, lag, lag]],
+				['a reconnect', [first, () => reset, lag]],
+				[
+					'a reconnect inside its first page',
+					[{ frames: [event(90, 0, { covered: null })], end: reset.end }, lag],
+				],
+			])('polls a lagging server after %s', async (_, pages) => {
 				const end = await uncoveredEnd();
-				const l = ledger().list('ListEvents', first, ...lagging, last);
+				const l = ledger();
+				l.list(
+					'ListEvents',
+					...pages.map((page) => (typeof page === 'function' ? page(l) : page)),
+					last,
+				);
 				const frames = await read(l, { order: 'descending', start: { checkpoint: 90 }, end });
 				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
 				// Each later pass resumes before the delivered item, still bounded only by the cursor.
 				const requests = l.requestsTo('ListEvents');
-				expect(requests).toHaveLength(4);
+				expect(requests).toHaveLength(pages.length + 1);
 				for (const request of requests.slice(1)) {
 					expect(request.options?.before).toEqual(at(90));
 					expect(request.options?.after).toEqual(mark('p'));
@@ -451,21 +488,30 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			});
 
 			it.each([
-				['polls a lagging server', 0, ['89:0']],
-				['fails history retention has passed', 95, []],
-			])('%s when resuming a saved token', async (_, floor, delivered) => {
+				['polls a lagging server', 0, 80, 'polls'],
+				['fails history retention has passed', 95, 100, 'pruned'],
+				['fails a pruned low end', 50, 100, 'pruned'],
+			] as const)('%s when resuming a saved token', async (_, floor, tip, outcome) => {
 				const end = await uncoveredEnd();
 				const saved = ledger().list('ListEvents', first);
 				const [frame] = await take(
 					saved.client().streamEvents({ order: 'descending', start: { checkpoint: 90 }, end }),
 					1,
 				);
-				const l = ledger().retainedFrom(floor).list('ListEvents', ahead, last);
+				const l = ledger().retainedFrom(floor);
+				l.list(
+					'ListEvents',
+					() => {
+						lagNextTipRead(l, tip);
+						return ahead;
+					},
+					last,
+				);
 				const resumed = read(l, { start: { resumeToken: tokenOf(frame) } });
-				if (floor) {
+				if (outcome === 'pruned') {
 					await expect(resumed).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 				} else {
-					expect(eventIds(await resumed)).toEqual(delivered);
+					expect(eventIds(await resumed)).toEqual(['89:0']);
 				}
 				expect(l.requestsTo('ListEvents')[0].options?.after).toEqual(mark('p'));
 				expect(l.floorReads).toBe(1);
