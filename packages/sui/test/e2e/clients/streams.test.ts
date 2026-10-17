@@ -992,6 +992,43 @@ describe('ledger streams', () => {
 			},
 		);
 
+		it('delivers live checkpoints with all of their transactions, as getTransaction returns them', async (context) => {
+			if (skip) context.skip();
+			context.skip(
+				missingServerFixes(kind, 'checkpoints', delivery) ||
+					missingServerFixes(kind, 'transactions', delivery),
+				MISSING_SERVER_FIXES,
+			);
+			const include = { effects: true, events: true, objectTypes: true } as const;
+			const log = statusLog();
+			const reader = new Reader<
+				SuiClientTypes.StreamedCheckpoint<{ transactions: typeof include }>
+			>((signal) => {
+				async function* values() {
+					for await (const frame of client(kind).core.streamCheckpoints({
+						include: { transactions: include },
+						delivery,
+						onStatus: log.onStatus,
+						signal,
+					}))
+						yield frame.checkpoint;
+				}
+				return values();
+			});
+			await waitFor(() => log.kinds().includes(listening(kind, delivery)));
+			const { digest, checkpoint } = await emitEvents(await newSigner(), 2);
+			await reader.until((frames) => frames.some((frame) => frame.sequenceNumber === checkpoint));
+			const delivered = reader.frames.find((frame) => frame.sequenceNumber === checkpoint)!;
+			const fetched = await client(kind).core.getTransaction({ digest, include });
+			expect(delivered.transactions.find((tx) => tx.digest === digest)).toEqual(
+				fetched.Transaction,
+			);
+			const sequenceNumbers = reader.frames.map((frame) => BigInt(frame.sequenceNumber));
+			expect(sequenceNumbers).toEqual(
+				sequenceNumbers.map((_, i) => sequenceNumbers[0] + BigInt(i)),
+			);
+		});
+
 		it.skipIf(skip)(
 			'continues unfiltered transaction data from history into live system transactions',
 			async () => {
