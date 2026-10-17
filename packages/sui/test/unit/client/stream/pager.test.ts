@@ -224,6 +224,29 @@ describe('readPages', () => {
 		expect(result.complete).toBe(false);
 	});
 
+	it('keeps a descending progress cursor from resuming on a server behind it', async () => {
+		const scan = scripted([
+			page([item(95n, 0n)], { more: true, cursor: bytes('95:0') }),
+			page([], { more: true, cursor: bytes('p90') }),
+			page([], { more: false }),
+		]);
+		const { events } = await read(scan.adapter, {
+			order: 'descending',
+			start: { checkpoint: 99n },
+		});
+		const progress = events.find((event) => event.$kind === 'Progress');
+		if (progress?.$kind !== 'Progress') throw new Error('expected a progress position');
+		expect(progress.position.indexedCheckpoint).toBe(95n);
+
+		const lagging = scripted([page([item(80n, 0n)], { more: false })], 80n);
+		const resumed = await read(lagging.adapter, {
+			order: 'descending',
+			start: { position: progress.position },
+		});
+		expect(resumed.result.complete).toBe(false);
+		expect(lagging.requests).toEqual([]);
+	});
+
 	it('fails a range that starts below the retained history', async () => {
 		const { adapter } = scripted([page([], { more: false }, { retainedFrom: 4n })]);
 		await expect(
