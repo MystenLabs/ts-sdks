@@ -282,8 +282,8 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		it.each([
 			['polls', 0, 85, ['90:0', '89:0']],
 			['fails pruned history', 87, 85, ['90:0']],
-			['polls toward genesis', 0, undefined, ['90:0', '89:0']],
-			['fails pruned history toward genesis', 95, undefined, ['90:0']],
+			// A server clamps an open low end to its floor, so OUT_OF_RANGE cannot mean pruned.
+			['polls toward genesis', 95, undefined, ['90:0', '89:0']],
 		])('%s when a descending page is out of range', async (_, floor, end, delivered) => {
 			const l = ledger()
 				.retainedFrom(floor)
@@ -303,11 +303,12 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					frames.push(frame);
 				}
 			})();
-			if (floor) await expect(read).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			const pruned = delivered.length === 1;
+			if (pruned) await expect(read).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 			else await read;
 			expect(eventIds(frames)).toEqual(delivered);
 			expect(l.requestsTo('ListEvents')[1].options?.before).toEqual(at(90));
-			expect(l.floorReads).toBe(1);
+			expect(l.floorReads).toBe(end === undefined ? 0 : 1);
 		});
 	});
 
@@ -887,7 +888,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		it(
 			delivery === 'pull'
 				? 'reads live frames only as they are consumed'
-				: 'bounds what the push transport delivers ahead',
+				: 'receives every pushed live frame, whether or not it is consumed',
 			async () => {
 				const l = ledger().subscribe(
 					'SubscribeEvents',
