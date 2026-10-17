@@ -1213,16 +1213,51 @@ describe('errors', () => {
 		expect((await source).map(label)).toEqual(['1']);
 	});
 
-	it('throws subscription response errors as SuiGraphQLRequestError', async () => {
+	it('throws permanent subscription response errors as SuiGraphQLRequestError', async () => {
 		const server = fakeGraphQL({ tip: 10 });
 		server.on(
 			'subscribeEvents',
-			liveMessages([{ errors: [{ message: 'subscription rejected' }] }]),
+			liveMessages([
+				{
+					errors: [
+						{ message: 'subscription rejected', extensions: { code: 'GRAPHQL_VALIDATION_FAILED' } },
+					],
+				},
+			]),
 		);
 		const error = await rejection(take(stream(server.client, 'events', {}), 1));
 		expect(error).toBeInstanceOf(SuiGraphQLRequestError);
 		expect(error).toMatchObject({ message: 'subscription rejected', retryable: false });
+		expect(server.sent('subscribeEvents')).toHaveLength(1);
 	});
+
+	it.each([
+		['with a code', { code: 'INTERNAL_SERVER_ERROR' }],
+		['without a code', undefined],
+	])(
+		'reconnects from the last cursor after a null-node result with errors (%s)',
+		async (_, extensions) => {
+			const server = fakeGraphQL({ tip: 1 });
+			server.on('scanTransactions', page('transactions', []));
+			const failed = { cursor: 'live:transaction:unresolved', node: null };
+			server.on(
+				'subscribeTransactions',
+				liveMessages([
+					{ data: { transactions: transaction(2, { source: 'live' }) } },
+					{ data: { transactions: failed }, errors: [{ message: 'node failed', extensions }] },
+				]),
+				live('transactions', [transaction(3, { source: 'live' })]),
+			);
+			const frames = await take(
+				stream(server.client, 'transactions', { start: { checkpoint: 2 } }),
+				2,
+			);
+			expect(frames.map(label)).toEqual(['tx2', 'tx3']);
+			const resumed = server.sent('subscribeTransactions');
+			expect(resumed).toHaveLength(2);
+			expect(resumed[1].after).toBe(transaction(2, { source: 'live' }).cursor);
+		},
+	);
 
 	it('reports when a subscription opens, before its first result, and not on an HTTP error', async () => {
 		const server = fakeGraphQL().on('subscribeEvents', live('events', [event(1)]), httpStatus(503));
