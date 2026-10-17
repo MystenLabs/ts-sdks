@@ -23,12 +23,13 @@ export async function fetchGraphQLPage<Node>(
 	request: PageRequest,
 ): Promise<Page<LedgerItem<Node>>> {
 	const { order, signal } = request;
+	const pageSize = family.pageSize ?? PAGE_SIZE;
 	const descending = order === 'descending';
 	const after = request.after && cursorString(request.after);
 	const before = request.before && cursorString(request.before);
 	const page = await family.page({
 		range: checkpointRange(request.range),
-		...(descending ? { last: PAGE_SIZE } : { first: PAGE_SIZE }),
+		...(descending ? { last: pageSize } : { first: pageSize }),
 		after,
 		before,
 		signal,
