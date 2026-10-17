@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, inject, it } from 'vitest';
 import {
 	setup,
 	TestToolbox,
@@ -23,11 +23,11 @@ import { TransactionError } from '../../../../src/client/index.js';
 const SUI_COIN_TYPE = normalizeStructTag(`0x2::coin::Coin<${SUI_TYPE_ARG}>`);
 
 /**
- * The pinned localnet GraphQL service reports the wrong package and module for events in
- * execution and simulation results; indexed reads report them correctly.
+ * GraphQL services without the stream fixes, such as the pinned localnet image, report the wrong
+ * package and module for events in execution and simulation results.
  */
 function reportsExecutedEventOrigin(kind: ClientKind) {
-	return kind !== 'graphql';
+	return kind !== 'graphql' || inject('streamServerFixes');
 }
 
 describe('Core API - Transactions', () => {
