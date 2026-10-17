@@ -137,8 +137,14 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		const isItem = (frame: object) => family.item(frame) !== undefined;
 		return {
 			family,
+			// A List call holds at most one page, as much as reading the page whole would.
 			list: (query, signal) =>
-				openLedgerCall(transport, family.list, { ...query, readMask, filter }, { signal, isItem }),
+				openLedgerCall(
+					transport,
+					family.list,
+					{ ...query, readMask, filter },
+					{ signal, isItem, maxBytes: Infinity },
+				),
 			subscribe: (signal) =>
 				openLedgerCall(
 					transport,
