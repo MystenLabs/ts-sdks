@@ -1686,7 +1686,7 @@ describe('ledger streams', () => {
 			const [firstEdge] = listed.data!.transactions.edges;
 			expect(firstEdge.node.digest).toBe(first.digest);
 			const subscription = toolbox.graphqlClient.subscribe<
-				EdgeResult<'transactions', { digest: string }>
+				EdgeResult<'transactions', { digest: string } | null>
 			>({
 				query: `subscription ($filter: TransactionFilter, $after: String) {
 					transactions(filter: $filter, after: $after) { cursor node { digest } }
@@ -1694,11 +1694,19 @@ describe('ledger streams', () => {
 				variables: { filter: { sentAddress: from.address }, after: firstEdge.cursor },
 				signal: signal(),
 			});
-			const backfilled = (await subscription.next()).value!;
-			expect(backfilled.data?.transactions.node.digest).toBe(second.digest);
+			// A backfilling filtered subscription also sends progress edges, whose node is null.
+			const nextDigest = async () => {
+				while (true) {
+					const { value, done } = await subscription.next();
+					if (done) throw new Error('Subscription ended');
+					expect(value.errors).toBeUndefined();
+					const node = value.data?.transactions.node;
+					if (node) return node.digest;
+				}
+			};
+			expect(await nextDigest()).toBe(second.digest);
 			const third = await emitEvents(from, 1);
-			const live = (await subscription.next()).value!;
-			expect(live.data?.transactions.node.digest).toBe(third.digest);
+			expect(await nextDigest()).toBe(third.digest);
 			await subscription.return(undefined);
 		});
 
