@@ -559,21 +559,6 @@ describe('Core API - Queries', () => {
 		let abortedDigest: string;
 		const checkpoints = new Map<string, bigint>();
 
-		/**
-		 * Strips cursors, and the aborting function's index from Move aborts, which the GraphQL
-		 * transport does not report.
-		 */
-		function normalizeTransactions(result: SuiClientTypes.ListTransactionsResponse) {
-			const normalized = structuredClone(stripCursors(result));
-			for (const tx of normalized.transactions) {
-				const error = tx.FailedTransaction?.status.error;
-				if (error?.$kind === 'MoveAbort') {
-					delete error.MoveAbort.location?.function;
-				}
-			}
-			return normalized;
-		}
-
 		function digestsOf(result: SuiClientTypes.ListTransactionsResponse) {
 			return result.transactions.map(
 				(tx) => (tx.Transaction ?? tx.FailedTransaction)?.digest ?? null,
@@ -785,7 +770,7 @@ describe('Core API - Queries', () => {
 				for (const affectedAddress of [recipientAddress, actorAddress]) {
 					await toolbox.expectAllClientsReturnSameData(
 						(client) => client.core.listTransactions({ filter: { affectedAddress } }),
-						normalizeTransactions,
+						stripCursors,
 						{ exclude: EXCLUDE, attempts: 3 },
 					);
 				}
@@ -885,7 +870,7 @@ describe('Core API - Queries', () => {
 				for (const filter of filters) {
 					await toolbox.expectAllClientsReturnSameData(
 						(client) => client.core.listTransactions({ filter }),
-						normalizeTransactions,
+						stripCursors,
 						{ exclude: EXCLUDE, attempts: 3 },
 					);
 				}
@@ -1046,7 +1031,7 @@ describe('Core API - Queries', () => {
 						client.core.listTransactions({
 							filter: { function: `${packageId}::test_objects::abort_always` },
 						}),
-					normalizeTransactions,
+					stripCursors,
 					{ exclude: EXCLUDE, attempts: 3 },
 				);
 			});
@@ -1091,7 +1076,7 @@ describe('Core API - Queries', () => {
 					await toolbox.expectAllClientsReturnSameData(
 						(client) =>
 							client.core.listTransactions({ filter: { sender: actorAddress }, ...range }),
-						normalizeTransactions,
+						stripCursors,
 						{ exclude: EXCLUDE, attempts: 3 },
 					);
 					await toolbox.expectAllClientsReturnSameData(
@@ -1244,16 +1229,14 @@ describe('Core API - Queries', () => {
 							count: cursors.length,
 							bounded: await Promise.all(
 								bounded.map(async (query) => {
-									const { hasNextPage: _, ...page } = normalizeTransactions(
+									const { hasNextPage: _, ...page } = stripCursors(
 										await client.core.listTransactions(query),
 									);
 									return page;
 								}),
 							),
 							empty: await Promise.all(
-								empty.map(async (query) =>
-									normalizeTransactions(await client.core.listTransactions(query)),
-								),
+								empty.map(async (query) => stripCursors(await client.core.listTransactions(query))),
 							),
 							windowed: await collectTransactions(client, {
 								filter,
