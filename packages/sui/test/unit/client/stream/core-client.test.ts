@@ -88,5 +88,10 @@ describe('CoreClient ledger streams', () => {
 		expectTypeOf(client.streamCheckpoints({ frames: { completion: true } })).toEqualTypeOf<
 			AsyncGenerator<SuiClientTypes.StreamCheckpointFrame | SuiClientTypes.StreamCompletionFrame>
 		>();
+		expectTypeOf(
+			client.streamCheckpoints({ include: { transactions: { effects: true } } }),
+		).toEqualTypeOf<
+			AsyncGenerator<SuiClientTypes.StreamCheckpointFrame<{ transactions: { effects: true } }>>
+		>();
 	});
 });
