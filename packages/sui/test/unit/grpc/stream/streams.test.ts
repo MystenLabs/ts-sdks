@@ -258,10 +258,13 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		const ahead = { frames: [], end: new RpcError('ahead', 'OUT_OF_RANGE') };
 
 		it('polls a later page that a lagging server has not indexed, keeping its coverage', async () => {
-			const l = ledger().list('ListEvents', [event(90, 0, { end: 'ITEM_LIMIT' })], ahead, [
-				event(91),
-				ended('CHECKPOINT_BOUND', 99),
-			]);
+			// Retention has passed the pass's start, but not the checkpoint it still has to read.
+			const l = ledger()
+				.retainedFrom(50)
+				.list('ListEvents', [event(90, 0, { end: 'ITEM_LIMIT' })], ahead, [
+					event(91),
+					ended('CHECKPOINT_BOUND', 99),
+				]);
 			const frames = await collect(
 				l.client().streamEvents({
 					start: { checkpoint: 1 },
@@ -277,9 +280,11 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it.each([
-			['polls', 0, ['90:0', '89:0']],
-			['fails pruned history', 87, ['90:0']],
-		])('%s when a descending page is out of range', async (_, floor, delivered) => {
+			['polls', 0, 85, ['90:0', '89:0']],
+			['fails pruned history', 87, 85, ['90:0']],
+			['polls toward genesis', 0, undefined, ['90:0', '89:0']],
+			['fails pruned history toward genesis', 95, undefined, ['90:0']],
+		])('%s when a descending page is out of range', async (_, floor, end, delivered) => {
 			const l = ledger()
 				.retainedFrom(floor)
 				.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], ahead, [
@@ -291,7 +296,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				for await (const frame of l.client().streamEvents({
 					order: 'descending',
 					start: { checkpoint: 90 },
-					end: { checkpoint: 85 },
+					end: end === undefined ? undefined : { checkpoint: end },
 					pollInterval: 1,
 					retry: noDelay,
 				})) {

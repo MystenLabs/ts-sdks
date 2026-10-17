@@ -121,7 +121,7 @@ export async function* readPages<Item>(
 
 	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
-		const page = await adapter.fetchPage({ ...request, range: { ...request.range } });
+		const page = await adapter.fetchPage({ ...request, range: { ...request.range }, unread });
 		let empty = true;
 		let pageEnd: PageEnd;
 		try {
