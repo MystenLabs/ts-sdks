@@ -150,6 +150,7 @@ export async function* readPages<Item>(
 		} finally {
 			await page.items.return?.();
 		}
+		if (pageEnd.notIndexed) return { complete: false, retentionLimit: false };
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
 			// Only a read with no low end may report retention last: no item it delivered is pruned.

@@ -56,15 +56,10 @@ async function* listItems(
 		}
 	} catch (error) {
 		if (!isOutOfRange(error)) throw error;
-		// A server also reports OUT_OF_RANGE for a start past its index, such as a cursor from a
-		// server further ahead. Only a start below retention is pruned. The tip can pass the start
-		// before it is read, so the start is checked against the retention floor instead.
-		const start = order === 'ascending' ? range.start : undefined;
-		if (start === undefined || start <= (await retainedFrom(request.signal))) {
-			throw new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
+		if (await startsPastIndex(request, retainedFrom)) {
+			return { next: { more: false }, notIndexed: true };
 		}
-		// Nothing past the start is indexed here yet: the pass ends incomplete and polls.
-		return { next: { more: false }, covered: start - 1n };
+		throw new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
 	} finally {
 		await call.return();
 	}
@@ -143,6 +138,22 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
 		throw protocol('Unexpected item on terminal query frame');
 	}
 	return reason;
+}
+
+/**
+ * A server reports OUT_OF_RANGE both for pruned history and for a starting cursor past its index,
+ * such as one from a server further ahead. A read whose low end is at or above the retention floor
+ * was not pruned. The floor is checked instead of the tip, which can pass the cursor before it is
+ * read.
+ */
+async function startsPastIndex(
+	{ order, range, after, before, signal }: PageRequest,
+	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
+): Promise<boolean> {
+	if (!(order === 'ascending' ? after : before)) return false;
+	// An open low end starts at the floor. A cursor low end may be below it, which cannot be told.
+	if (range.start === undefined) return order === 'descending' && !after;
+	return range.start >= (await retainedFrom(signal));
 }
 
 function isOutOfRange(error: unknown): error is RpcError {

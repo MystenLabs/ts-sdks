@@ -254,6 +254,56 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(second.options?.after).toBeUndefined();
 			expect(l.requestsTo('SubscribeEvents')).toEqual([]);
 		});
+
+		const ahead = { frames: [], end: new RpcError('ahead', 'OUT_OF_RANGE') };
+
+		it('polls a later page that a lagging server has not indexed, keeping its coverage', async () => {
+			const l = ledger().list('ListEvents', [event(90, 0, { end: 'ITEM_LIMIT' })], ahead, [
+				event(91),
+				ended('CHECKPOINT_BOUND', 99),
+			]);
+			const frames = await collect(
+				l.client().streamEvents({
+					start: { checkpoint: 1 },
+					end: { checkpoint: 100 },
+					pollInterval: 1,
+				}),
+			);
+			expect(eventIds(frames)).toEqual(['90:0', '91:0']);
+			const [, lagging, poll] = l.requestsTo('ListEvents');
+			expect(lagging.options?.after).toEqual(at(90));
+			expect(poll.options?.after).toEqual(at(90));
+			expect(l.floorReads).toBe(1);
+		});
+
+		it.each([
+			['polls', 0, ['90:0', '89:0']],
+			['fails pruned history', 87, ['90:0']],
+		])('%s when a descending page is out of range', async (_, floor, delivered) => {
+			const l = ledger()
+				.retainedFrom(floor)
+				.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], ahead, [
+					event(89, 0, { covered: null }),
+					ended('CHECKPOINT_BOUND', 85),
+				]);
+			const frames: object[] = [];
+			const read = (async () => {
+				for await (const frame of l.client().streamEvents({
+					order: 'descending',
+					start: { checkpoint: 90 },
+					end: { checkpoint: 85 },
+					pollInterval: 1,
+					retry: noDelay,
+				})) {
+					frames.push(frame);
+				}
+			})();
+			if (floor) await expect(read).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			else await read;
+			expect(eventIds(frames)).toEqual(delivered);
+			expect(l.requestsTo('ListEvents')[1].options?.before).toEqual(at(90));
+			expect(l.floorReads).toBe(1);
+		});
 	});
 
 	describe('handoff', () => {
@@ -353,7 +403,6 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 
 		it('fails unavailable history in the gap without retrying, and cancels the subscription', async () => {
 			const l = ledger()
-				.retainedFrom(2)
 				.list('ListEvents', [ended('LEDGER_TIP', 1)], {
 					frames: [],
 					end: new RpcError('pruned', 'OUT_OF_RANGE'),
@@ -362,10 +411,10 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			await expect(
 				collect(l.client().streamEvents({ start: { checkpoint: 1 }, retry: noDelay })),
 			).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-			// The gap starts at checkpoint 2, which is not above the retention floor.
-			expect(l.requestsTo('ListEvents')[1].startCheckpoint).toBe(2n);
+			// The gap starts at a checkpoint with no cursor, which a lagging server does not reject.
+			expect(l.requestsTo('ListEvents')[1].options?.after).toBeUndefined();
 			expect(l.requestsTo('ListEvents')).toHaveLength(2);
-			expect(l.floorReads).toBe(1);
+			expect(l.floorReads).toBe(0);
 			expect(l.cancelled.SubscribeEvents).toBe(1);
 		});
 
@@ -381,11 +430,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					event(6),
 					cursorBound,
 				]);
-			const { log, onStatus } = statusLog();
-			const frames = await take(
-				l.client().streamEvents({ retry: noDelay, pollInterval: 1, onStatus }),
-				4,
-			);
+			const frames = await take(l.client().streamEvents({ retry: noDelay, pollInterval: 1 }), 4);
 			expect(eventIds(frames)).toEqual(['5:0', '6:0', '7:0', '8:0']);
 			const [ahead, poll] = l.requestsTo('ListEvents');
 			for (const request of [ahead, poll]) {
@@ -400,7 +445,6 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				'floor',
 				'ListEvents',
 			]);
-			expect(log).toContain('Page(gap,indexedTip)');
 		});
 
 		it('bounds a gap after live progress by its coverage, so it can poll past the index', async () => {
@@ -417,12 +461,12 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				]);
 			const frames = await take(l.client().streamEvents({ retry: noDelay, pollInterval: 1 }), 2);
 			expect(eventIds(frames)).toEqual(['5:0', '6:0']);
+			// The poll keeps the cursor, which can lie inside the checkpoint after the coverage.
 			const [ahead, poll] = l.requestsTo('ListEvents');
-			expect(ahead.startCheckpoint).toBe(5n);
-			expect(ahead.options?.after).toEqual(mark('a'));
-			// The empty pass commits the boundary its start covered, which needs no cursor.
-			expect(poll.startCheckpoint).toBe(5n);
-			expect(poll.options?.after).toBeUndefined();
+			for (const request of [ahead, poll]) {
+				expect(request.startCheckpoint).toBe(5n);
+				expect(request.options?.after).toEqual(mark('a'));
+			}
 			expect(l.floorReads).toBe(1);
 		});
 
