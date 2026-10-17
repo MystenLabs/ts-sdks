@@ -3,7 +3,7 @@
 
 import type { ResolvedCheckpointRange } from '../../client/query-filters.js';
 import type { Page, PageRequest } from '../../client/stream/adapter.js';
-import { SuiStreamError } from '../../client/stream/index.js';
+import { pageItems, SuiStreamError } from '../../client/stream/index.js';
 import {
 	cursorBytes,
 	cursorString,
@@ -40,9 +40,15 @@ export async function fetchGraphQLPage<Node>(
 	const cursor = descending ? pageInfo.startCursor : pageInfo.endCursor;
 	// Server quirk: an empty window can report more pages while returning the cursor it was sent.
 	const stalled = edges.length === 0 && cursor !== null && cursor === (descending ? before : after);
+	const next = {
+		more: more && !stalled,
+		cursor: cursor === null ? undefined : cursorBytes(cursor),
+	};
 	return {
-		items: edges.map((edge) => pageItem(family, edge)),
-		next: { more: more && !stalled, cursor: cursor === null ? undefined : cursorBytes(cursor) },
+		items: pageItems(
+			edges.map((edge) => pageItem(family, edge)),
+			{ next },
+		),
 		viewedAt: page.viewedAt,
 		retainedFrom: page.retainedFrom ?? undefined,
 	};
