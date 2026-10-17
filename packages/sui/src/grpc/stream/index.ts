@@ -93,16 +93,8 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 
 	fetchPage(request: PageRequest) {
 		const { family, list } = this.#initializedCalls();
-		const { transport } = this.#context;
-		return fetchListPage(
-			family,
-			list,
-			{
-				indexedTip: (signal) => readIndexedTip(transport, signal),
-				retainedFrom: (signal) => readRetainedFrom(transport, signal),
-			},
-			request,
-		);
+		const retainedFrom = (signal: AbortSignal) => readRetainedFrom(this.#context.transport, signal);
+		return fetchListPage(family, list, retainedFrom, request);
 	}
 
 	subscribe(_from: Bound | undefined, signal: AbortSignal) {

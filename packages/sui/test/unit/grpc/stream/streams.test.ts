@@ -283,25 +283,32 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.floorReads).toBe(1);
 		});
 
-		/** The next tip read answers `tip`, as a lagging replica would; later ones see 100. */
-		function lagNextTipRead(l: FakeLedger, tip: number) {
-			let lagging = true;
-			l.tip(() => {
-				if (!lagging) return 100;
-				lagging = false;
-				return tip;
-			});
+		/** A token from an empty descending page, whose cursor has no known checkpoint. */
+		async function uncoveredEnd(): Promise<SuiClientTypes.StreamBound> {
+			const source = ledger().list('ListEvents', [progress(mark('p'), undefined, 'SCAN_LIMIT')]);
+			const [frame] = await take(
+				source.client().streamEvents({
+					order: 'descending',
+					start: { checkpoint: 100 },
+					frames: { progress: true },
+				}),
+				1,
+			);
+			return { resumeToken: tokenOf(frame) };
 		}
 
+		/** Enough consecutive rejections that one that may be pruned history is reported as such. */
+		const PERSISTENT = 30;
+
 		/**
-		 * A descending read from 90 whose second page is out of range. `floor` is set before it, and
-		 * the tip read that follows answers `tip`.
+		 * A descending read from 90 whose second page is out of range `rejections` times in a row,
+		 * with `floor` set before the first of them.
 		 */
 		async function descendingOutOfRange(
 			floor: number,
 			end: SuiClientTypes.StreamBound | undefined,
 			lowest: number,
-			tip = 100,
+			rejections = 1,
 		) {
 			const l = ledger();
 			l.list(
@@ -309,9 +316,9 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
 				() => {
 					l.retainedFrom(floor);
-					lagNextTipRead(l, tip);
 					return ahead;
 				},
+				...Array.from({ length: rejections - 1 }, () => ahead),
 				[event(89, 0, { covered: null }), ended('CHECKPOINT_BOUND', lowest)],
 			);
 			const frames: object[] = [];
@@ -397,85 +404,61 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it.each([
-			['polls', 'covered', 0, 100, 'polls'],
-			['fails pruned history', 'covered', 10, 100, 'pruned'],
-			['polls, without coverage,', 'uncovered', 0, 80, 'polls'],
-			['fails pruned history, without coverage,', 'uncovered', 95, 100, 'pruned'],
-			// The server has indexed checkpoint 90, so it rejected the low end.
-			['fails a pruned low end, without coverage,', 'uncovered', 50, 100, 'pruned'],
+			['polls', 'covered', 0, 1, 'polls'],
+			['fails pruned history', 'covered', 10, 1, 'pruned'],
+			// The first rejection ends the pass that delivered 90; later passes count.
+			['polls, without coverage,', 'uncovered', 0, PERSISTENT, 'polls'],
+			['fails pruned history, without coverage,', 'uncovered', 95, 1, 'pruned'],
+			// Retention has not passed what is left, so only persistence tells it from lag.
+			[
+				'fails a persistently rejected low end, without coverage,',
+				'uncovered',
+				50,
+				PERSISTENT + 1,
+				'pruned',
+			],
 		] as const)(
 			'%s when a descending read bounded below by a progress cursor is out of range',
-			async (_, coverage, floor, tip, outcome) => {
+			async (_, coverage, floor, rejections, outcome) => {
 				// A live progress token covers checkpoint 4; an empty descending page's covers nothing.
-				const source =
+				const live = ledger().subscribe('SubscribeEvents', [progress(mark('p'), 4)]);
+				const end =
 					coverage === 'covered'
-						? ledger().subscribe('SubscribeEvents', [progress(mark('p'), 4)])
-						: ledger().list('ListEvents', [progress(mark('p'), undefined, 'SCAN_LIMIT')]);
-				const [endFrame] = await take(
-					source.client().streamEvents({
-						frames: { progress: true },
-						...(coverage === 'uncovered' && {
-							order: 'descending',
-							start: { checkpoint: 100 },
-						}),
-					}),
-					1,
-				);
-				const result = await descendingOutOfRange(
-					floor,
-					{ resumeToken: tokenOf(endFrame) },
-					5,
-					tip,
-				);
+						? {
+								resumeToken: tokenOf(
+									(await take(live.client().streamEvents({ frames: { progress: true } }), 1))[0],
+								),
+							}
+						: await uncoveredEnd();
+				const result = await descendingOutOfRange(floor, end, 5, rejections);
 				expect(result).toMatchObject(outcomes[outcome]);
 				expect(result.request.options?.after).toEqual(mark('p'));
 				// A cursor's coverage bounds the read below, so the floor can be compared.
 				expect(result.request.startCheckpoint).toBe(coverage === 'covered' ? 5n : undefined);
-				expect(result.l.floorReads).toBe(1);
+				expect(result.l.requestsTo('ListEvents')).toHaveLength(
+					outcome === 'pruned' ? rejections + 1 : rejections + 2,
+				);
 			},
 		);
 
 		describe('ending at a progress token without coverage', () => {
-			/** A token from an empty descending page, whose cursor has no known checkpoint. */
-			async function uncoveredEnd() {
-				const source = ledger().list('ListEvents', [progress(mark('p'), undefined, 'SCAN_LIMIT')]);
-				const [frame] = await take(
-					source.client().streamEvents({
-						order: 'descending',
-						start: { checkpoint: 100 },
-						frames: { progress: true },
-					}),
-					1,
-				);
-				return { resumeToken: tokenOf(frame) };
-			}
 			const read = (l: FakeLedger, options: SuiClientTypes.StreamOptions) =>
 				collect(l.client().streamEvents({ pollInterval: 1, retry: noDelay, ...options } as never));
 			const first = [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })];
 			const last = [event(89, 0, { covered: null }), ended('CHECKPOINT_BOUND', 5)];
-
-			const lag = (l: FakeLedger) => () => {
-				lagNextTipRead(l, 80);
-				return ahead;
-			};
 			const reset = { frames: [], end: new RpcError('reset', 'UNAVAILABLE') };
 
 			it.each([
-				['a poll', [first, lag, lag]],
-				['a reconnect', [first, () => reset, lag]],
-				[
-					'a reconnect inside its first page',
-					[{ frames: [event(90, 0, { covered: null })], end: reset.end }, lag],
-				],
+				['a poll', [first, ahead, ahead]],
+				['a reconnect', [first, reset, ahead]],
+				['a reconnect inside its first page', [{ frames: first, end: reset.end }, ahead]],
 			])('polls a lagging server after %s', async (_, pages) => {
-				const end = await uncoveredEnd();
-				const l = ledger();
-				l.list(
-					'ListEvents',
-					...pages.map((page) => (typeof page === 'function' ? page(l) : page)),
-					last,
-				);
-				const frames = await read(l, { order: 'descending', start: { checkpoint: 90 }, end });
+				const l = ledger().list('ListEvents', ...pages, last);
+				const frames = await read(l, {
+					order: 'descending',
+					start: { checkpoint: 90 },
+					end: await uncoveredEnd(),
+				});
 				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
 				// Each later pass resumes before the delivered item, still bounded only by the cursor.
 				const requests = l.requestsTo('ListEvents');
@@ -488,25 +471,20 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			});
 
 			it.each([
-				['polls a lagging server', 0, 80, 'polls'],
-				['fails history retention has passed', 95, 100, 'pruned'],
-				['fails a pruned low end', 50, 100, 'pruned'],
-			] as const)('%s when resuming a saved token', async (_, floor, tip, outcome) => {
+				['polls a lagging server', 0, PERSISTENT - 1, 'polls'],
+				['fails history retention has passed', 95, 1, 'pruned'],
+				['fails a persistently rejected low end', 50, PERSISTENT, 'pruned'],
+			] as const)('%s when resuming a saved token', async (_, floor, rejections, outcome) => {
 				const end = await uncoveredEnd();
 				const saved = ledger().list('ListEvents', first);
 				const [frame] = await take(
 					saved.client().streamEvents({ order: 'descending', start: { checkpoint: 90 }, end }),
 					1,
 				);
-				const l = ledger().retainedFrom(floor);
-				l.list(
-					'ListEvents',
-					() => {
-						lagNextTipRead(l, tip);
-						return ahead;
-					},
-					last,
-				);
+				const rejected = Array.from({ length: rejections }, () => ahead);
+				const l = ledger()
+					.retainedFrom(floor)
+					.list('ListEvents', ...rejected, last);
 				const resumed = read(l, { start: { resumeToken: tokenOf(frame) } });
 				if (outcome === 'pruned') {
 					await expect(resumed).rejects.toMatchObject({ code: 'HistoryUnavailable' });
@@ -514,15 +492,17 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					expect(eventIds(await resumed)).toEqual(['89:0']);
 				}
 				expect(l.requestsTo('ListEvents')[0].options?.after).toEqual(mark('p'));
-				expect(l.floorReads).toBe(1);
+				expect(l.requestsTo('ListEvents')).toHaveLength(
+					outcome === 'pruned' ? rejections : rejections + 1,
+				);
 			});
 
-			it('fails a first read whose low end may be pruned, without a floor read', async () => {
-				const end = await uncoveredEnd();
+			it('fails at once when its first page, which has no cursor to be ahead, is rejected', async () => {
 				const l = ledger().list('ListEvents', ahead);
 				await expect(
-					read(l, { order: 'descending', start: { checkpoint: 90 }, end }),
+					read(l, { order: 'descending', start: { checkpoint: 90 }, end: await uncoveredEnd() }),
 				).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+				expect(l.requestsTo('ListEvents')).toHaveLength(1);
 				expect(l.floorReads).toBe(0);
 			});
 		});

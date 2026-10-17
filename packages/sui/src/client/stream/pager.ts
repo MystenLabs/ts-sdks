@@ -50,8 +50,6 @@ export interface Pass {
 	order: SuiClientTypes.Order;
 	/** The indexed tip captured when a finite range was planned. */
 	capturedTip?: bigint;
-	/** A page of this range was read before, so its low end was retained then. */
-	rangeRead?: boolean;
 	signal: AbortSignal;
 }
 
@@ -68,6 +66,8 @@ export type PassEvent<Item> =
 export interface PassResult {
 	complete: boolean;
 	retentionLimit: boolean;
+	/** The pass ended on a rejection that may be lag or pruned history. */
+	mayBePruned?: SuiStreamError;
 }
 
 export async function* readPages<Item>(
@@ -117,14 +117,11 @@ export async function* readPages<Item>(
 
 	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
-		// Descending, only once a page of the range has been read: a cursor low end was retained then.
 		const newest =
-			first && !pass.rangeRead
-				? undefined
-				: (previous?.checkpoint ??
-					lastCheckpoint(request.range.end) ??
-					(resumesFrom && indexedThrough(resumesFrom)) ??
-					undefined);
+			previous?.checkpoint ??
+			lastCheckpoint(request.range.end) ??
+			(resumesFrom && indexedThrough(resumesFrom)) ??
+			undefined;
 		const page = await adapter.fetchPage({
 			...request,
 			range: { ...request.range },
@@ -158,7 +155,9 @@ export async function* readPages<Item>(
 		} finally {
 			await page.items.return?.();
 		}
-		if (pageEnd.notIndexed) return { complete: false, retentionLimit: false };
+		if (pageEnd.notIndexed) {
+			return { complete: false, retentionLimit: false, mayBePruned: pageEnd.mayBePruned };
+		}
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
 			// Only a read with no low end may report retention last: no item it delivered is pruned.
