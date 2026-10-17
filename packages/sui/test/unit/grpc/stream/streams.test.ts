@@ -312,11 +312,12 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it('waits for a future range whose empty scan reports no checkpoint', async () => {
-			const l = ledger().list(
-				'ListEvents',
-				[progress(mark('tip'), undefined, 'LEDGER_TIP')],
-				[event(100), ended('CHECKPOINT_BOUND', 109)],
-			);
+			const l = ledger().tip(90);
+			l.list('ListEvents', [progress(mark('tip'), undefined, 'LEDGER_TIP')], () => {
+				// The index reaches the end before the poll.
+				l.tip(109);
+				return { frames: [event(100), ended('CHECKPOINT_BOUND', 109)] };
+			});
 			const frames = await collect(
 				l.client().streamEvents({
 					start: { checkpoint: 100 },
@@ -331,13 +332,12 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it('reports the retention limit when a scan toward genesis ends empty', async () => {
-			const l = ledger()
-				.retainedFrom(70)
-				.list(
-					'ListEvents',
-					[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
-					[progress(mark('floor'), undefined, 'CHECKPOINT_BOUND')],
-				);
+			const l = ledger().retainedFrom(70);
+			l.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], () => {
+				// Retention passes the cursor between pages, so the scan below it is empty.
+				l.retainedFrom(95);
+				return { frames: [progress(mark('floor'), undefined, 'CHECKPOINT_BOUND')] };
+			});
 			const frames = await collect(
 				l.client().streamEvents({
 					order: 'descending',
@@ -350,33 +350,46 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.floorReads).toBe(1);
 		});
 
-		it('fails a descending read bounded below by a cursor, without a floor read', async () => {
-			const live = ledger().subscribe('SubscribeEvents', [progress(mark('p'), 4)]);
-			const [endFrame] = await take(live.client().streamEvents({ frames: { progress: true } }), 1);
-			const l = ledger().list(
-				'ListEvents',
-				[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
-				ahead,
-			);
-			const frames: object[] = [];
-			const read = async () => {
-				for await (const frame of l.client().streamEvents({
-					order: 'descending',
-					start: { checkpoint: 90 },
-					end: { resumeToken: tokenOf(endFrame) },
-					retry: noDelay,
-				})) {
-					frames.push(frame);
-				}
-			};
-			await expect(read()).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-			expect(eventIds(frames)).toEqual(['90:0']);
-			const [, request] = l.requestsTo('ListEvents');
-			expect(request.options?.before).toEqual(at(90));
-			expect(request.options?.after).toEqual(mark('p'));
-			expect(request.startCheckpoint).toBeUndefined();
-			expect(l.floorReads).toBe(0);
-		});
+		it.each([
+			['polls', 0, ['90:0', '89:0']],
+			['fails pruned history', 10, ['90:0']],
+		])(
+			'%s when a descending read bounded below by a progress cursor is out of range',
+			async (_, floor, delivered) => {
+				const live = ledger().subscribe('SubscribeEvents', [progress(mark('p'), 4)]);
+				const [endFrame] = await take(
+					live.client().streamEvents({ frames: { progress: true } }),
+					1,
+				);
+				const l = ledger()
+					.retainedFrom(floor)
+					.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], ahead, [
+						event(89, 0, { covered: null }),
+						ended('CHECKPOINT_BOUND', 5),
+					]);
+				const frames: object[] = [];
+				const read = (async () => {
+					for await (const frame of l.client().streamEvents({
+						order: 'descending',
+						start: { checkpoint: 90 },
+						end: { resumeToken: tokenOf(endFrame) },
+						pollInterval: 1,
+						retry: noDelay,
+					})) {
+						frames.push(frame);
+					}
+				})();
+				if (floor) await expect(read).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+				else await read;
+				expect(eventIds(frames)).toEqual(delivered);
+				// The cursor's coverage bounds the read below, so the floor can be compared.
+				const [, request] = l.requestsTo('ListEvents');
+				expect(request.options?.before).toEqual(at(90));
+				expect(request.options?.after).toEqual(mark('p'));
+				expect(request.startCheckpoint).toBe(5n);
+				expect(l.floorReads).toBe(1);
+			},
+		);
 	});
 
 	describe('handoff', () => {
@@ -412,6 +425,15 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				'Live',
 			]);
 			expect(l.cancelled.SubscribeEvents).toBe(1);
+		});
+
+		it('subscribes at once after an empty catch-up at the tip', async () => {
+			const l = ledger()
+				.list('ListEvents', [progress(mark('tip'), undefined, 'LEDGER_TIP')], [cursorBound])
+				.subscribe('SubscribeEvents', [event(5)]);
+			const frames = await take(l.client().streamEvents({ start: { checkpoint: 5 } }), 1);
+			expect(eventIds(frames)).toEqual(['5:0']);
+			expect(l.calls.slice(0, 3)).toEqual(['GetServiceInfo', 'ListEvents', 'SubscribeEvents']);
 		});
 
 		it('replays a checkpoint subscription’s progress-only first checkpoint itself', async () => {
