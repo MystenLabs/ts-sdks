@@ -57,6 +57,8 @@ export interface StreamPlan {
 	capturedTip?: bigint;
 	/** Coverage recorded in the start token. */
 	startCoverage: Coverage;
+	/** The start token is from this finite range, so a page of the range was read before. */
+	resumesRange: boolean;
 	/** Equal bounds: complete without a scan. */
 	empty: boolean;
 }
@@ -237,6 +239,7 @@ export async function planStream(
 		range,
 		capturedTip: capturedTip(range),
 		startCoverage: tokens.start?.coverage ?? { $kind: 'Unknown' },
+		resumesRange: resumesFinite,
 		empty,
 	};
 }
