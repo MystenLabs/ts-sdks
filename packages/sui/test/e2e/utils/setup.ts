@@ -290,10 +290,13 @@ export class TestToolbox {
 	}
 }
 
-/** A copy of `value` with every `signatures` array sorted. */
+/** A copy of `value` with every `signatures` array sorted. Only plain objects are copied. */
 function sortSignatures<T>(value: T): T {
 	if (Array.isArray(value)) return value.map(sortSignatures) as T;
-	if (!value || typeof value !== 'object' || ArrayBuffer.isView(value)) return value;
+	if (!value || typeof value !== 'object') return value;
+	const prototype = Object.getPrototypeOf(value);
+	// Maps, errors, byte arrays and class instances keep their identity and compare as they are.
+	if (prototype !== Object.prototype && prototype !== null) return value;
 	return Object.fromEntries(
 		Object.entries(value).map(([key, field]) => [
 			key,
