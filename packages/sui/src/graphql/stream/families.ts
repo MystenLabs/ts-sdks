@@ -10,7 +10,6 @@ import {
 	type ResolvedTransactionFilter,
 } from '../../client/query-filters.js';
 import type { ItemFrame, PageItem, StreamFamily } from '../../client/stream/adapter.js';
-import { sleep } from '../../utils/abort.js';
 import { itemPosition, SuiStreamError, type StreamPosition } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
@@ -183,8 +182,6 @@ type CheckpointWithTransactions = Checkpoint_FieldsFragment & {
  * on output nodes for a full transaction selection.
  */
 const CHECKPOINT_TRANSACTIONS_PAGE_SIZE = 20;
-/** How often to check whether a replica has indexed a checkpoint's transactions. */
-const INDEX_POLL_INTERVAL = 250;
 
 /**
  * Checkpoints with their transactions. Each checkpoint carries its first 50 transactions; the rest
@@ -209,11 +206,12 @@ function checkpointsWithTransactionsFamily(
 				signal,
 			});
 			// A live checkpoint can arrive before this replica indexed its transactions, which would
-			// read as an empty last page. Wait for the index instead of truncating.
+			// read as an empty last page. Retry later instead of truncating.
 			const indexed = data.serviceConfig.availableRange;
 			if ((indexed.last?.sequenceNumber ?? -1) < node.sequenceNumber) {
-				await sleep(INDEX_POLL_INTERVAL, signal);
-				continue;
+				throw notIndexedYet(
+					`Transactions of checkpoint ${node.sequenceNumber} are not indexed yet`,
+				);
 			}
 			if ((indexed.first?.sequenceNumber ?? 0) > node.sequenceNumber) {
 				throw new SuiStreamError(
