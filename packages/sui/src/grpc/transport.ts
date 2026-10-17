@@ -66,9 +66,14 @@ function readProperty(value: unknown, key: 'code' | 'name' | 'message'): unknown
 	}
 }
 
+/**
+ * The status name for a call ended by an abort with `reason`: the reason's own `code` when it is a
+ * status name, `DEADLINE_EXCEEDED` for the `TimeoutError` of `AbortSignal.timeout`, and `CANCELLED`
+ * otherwise. Re-exported for transport implementations from `@mysten/sui/grpc/pull-transport`.
+ */
 // The reason is read by shape, since another copy of runtime-rpc or another realm fails
-// `instanceof`. `AbortSignal.timeout` aborts with a `TimeoutError`.
-function abortStatus(reason: unknown): string {
+// `instanceof`.
+export function grpcStatusFromAbortReason(reason: unknown): string {
 	const code = readProperty(reason, 'code');
 
 	// A status name maps to a number; `in` would also match the enum's reverse mapping.
@@ -114,7 +119,7 @@ function normalize(error: unknown, signal: AbortSignal | undefined): void {
 		(error.code === GrpcStatusCode[GrpcStatusCode.INTERNAL] ||
 			error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED])
 	) {
-		error.code = abortStatus(signal.reason);
+		error.code = grpcStatusFromAbortReason(signal.reason);
 
 		// Text the abort reason supplied is local and holds nothing to decode; anything else came off
 		// the wire, even though the abort is what the caller sees. Settled here for the other promises
@@ -298,7 +303,7 @@ export class GrpcWebFetchTransport
 
 /** Adds SDK metadata without mutating the caller's transport or its default options. */
 export function withClientProtocolVersion(transport: RpcTransport): RpcTransport {
-	return {
+	const wrapper: RpcTransport & Partial<PullServerStreamingTransport> = {
 		mergeOptions(options) {
 			const merged = transport.mergeOptions(options);
 			return {
@@ -313,12 +318,18 @@ export function withClientProtocolVersion(transport: RpcTransport): RpcTransport
 		serverStreaming: transport.serverStreaming.bind(transport),
 		clientStreaming: transport.clientStreaming.bind(transport),
 		duplex: transport.duplex.bind(transport),
-		// The pull method merges the inner transport's options, which already carry the header when
-		// it is this package's `GrpcWebFetchTransport`, the only transport that has the method.
+		// Called with this wrapper's merged options, so the header also reaches a pull transport this
+		// package did not build. Merging again inside the transport changes nothing, since pull calls
+		// never have interceptors.
 		...(PULL_SERVER_STREAMING in transport && {
-			[PULL_SERVER_STREAMING]: (transport as PullServerStreamingTransport)[
-				PULL_SERVER_STREAMING
-			].bind(transport),
+			[PULL_SERVER_STREAMING]: (method, input, options) =>
+				(transport as PullServerStreamingTransport)[PULL_SERVER_STREAMING](
+					method,
+					input,
+					wrapper.mergeOptions(options),
+				),
 		}),
 	};
+
+	return wrapper;
 }

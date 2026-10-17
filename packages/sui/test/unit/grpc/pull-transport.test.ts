@@ -1,8 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { MethodInfo, RpcTransport } from '@protobuf-ts/runtime-rpc';
-import { RpcError } from '@protobuf-ts/runtime-rpc';
+import type { MethodInfo, RpcOptions, RpcTransport } from '@protobuf-ts/runtime-rpc';
+import { mergeRpcOptions, RpcError } from '@protobuf-ts/runtime-rpc';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { GrpcWebFetchTransport, SuiGrpcClient } from '../../../src/grpc/index.js';
@@ -13,7 +13,12 @@ import {
 	SubscribeCheckpointsResponse,
 	SubscriptionService,
 } from '../../../src/grpc/proto/sui/rpc/v2/subscription_service.js';
-import { isNonRetryable, pullServerStreaming } from '../../../src/grpc/pull-call.js';
+import {
+	isNonRetryable,
+	PULL_SERVER_STREAMING,
+	pullServerStreaming,
+} from '../../../src/grpc/pull-call.js';
+import type { PullServerStreamingTransport } from '../../../src/grpc/pull-call.js';
 
 function dataFrame(payload: Uint8Array): Uint8Array {
 	const frame = new Uint8Array(5 + payload.length);
@@ -807,6 +812,34 @@ describe('pullServerStreaming', () => {
 		};
 		expect(pullServerStreaming(custom)).toBeUndefined();
 		expect(pullServerStreaming(withClientProtocolVersion(custom))).toBeUndefined();
+	});
+
+	it('passes the client metadata to a pull transport this package did not build', () => {
+		const inner = new GrpcWebFetchTransport({ baseUrl: 'http://localhost' });
+		let seen: RpcOptions | undefined;
+		const custom: PullServerStreamingTransport = {
+			mergeOptions: (o) => mergeRpcOptions({ meta: { 'x-api-key': 'k' } }, o),
+			unary: inner.unary.bind(inner),
+			serverStreaming: inner.serverStreaming.bind(inner),
+			clientStreaming: inner.clientStreaming.bind(inner),
+			duplex: inner.duplex.bind(inner),
+			[PULL_SERVER_STREAMING](method, input, options) {
+				seen = options;
+				return inner[PULL_SERVER_STREAMING](method, input, options);
+			},
+		};
+		const call = pullServerStreaming(withClientProtocolVersion(custom))!(
+			countingMethod().method,
+			{},
+			{ meta: { 'x-call': 'c' }, abort: AbortSignal.abort() },
+		);
+		for (const promise of [call.headers, call.status, call.trailers]) void promise.catch(() => {});
+		void call.responses.next().catch(() => {});
+		expect(seen?.meta).toEqual({
+			'x-sui-client-protocol-version': expect.any(String),
+			'x-api-key': 'k',
+			'x-call': 'c',
+		});
 	});
 
 	it('is unavailable when interceptors are configured, so they are not bypassed', () => {
