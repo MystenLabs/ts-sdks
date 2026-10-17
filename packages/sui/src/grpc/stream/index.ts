@@ -102,8 +102,7 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 	}
 
 	mapItem(item: GrpcItem) {
-		const include = this.#request.family === 'transactions' ? this.#request.options.include : {};
-		return mapGrpcItem(item, include);
+		return mapGrpcItem(item, this.#transactionInclude());
 	}
 
 	classify(error: unknown): ErrorClass {
@@ -134,9 +133,7 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 	#streamCalls(filter: NativeFilter | undefined): GrpcStreamCalls {
 		const { transport } = this.#context;
 		const family = GRPC_FAMILIES[this.family];
-		const include =
-			this.#request.family === 'transactions' ? this.#request.options.include : undefined;
-		const readMask = { paths: family.readMask(include) };
+		const readMask = { paths: family.readMask(this.#transactionInclude()) };
 		const isItem = (frame: object) => family.item(frame) !== undefined;
 		return {
 			family,
@@ -150,6 +147,14 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 					{ signal, isItem, coalesceProgress: true },
 				),
 		};
+	}
+
+	/** The fields of each streamed transaction, or of each checkpoint's transactions. */
+	#transactionInclude(): SuiClientTypes.TransactionInclude | undefined {
+		const request = this.#request;
+		if (request.family === 'transactions') return request.options.include ?? {};
+		if (request.family === 'checkpoints') return request.options.include?.transactions;
+		return undefined;
 	}
 
 	#initializedCalls(): GrpcStreamCalls {

@@ -382,9 +382,12 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	}
 
 	/** See `CoreClient.streamCheckpoints`. `grpcFilter` keeps checkpoints with a matching transaction. */
-	streamCheckpoints<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
-		options?: GrpcStreamCheckpointsOptions<Frames>,
-	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Frames>> {
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		options?: GrpcStreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include, Frames>> {
 		return this.core.streamCheckpoints(options);
 	}
 
