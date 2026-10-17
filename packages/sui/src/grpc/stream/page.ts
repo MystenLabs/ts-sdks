@@ -29,19 +29,25 @@ export type ListQuery = Omit<ListRequest, 'readMask' | 'filter'>;
  * One List call as a page. The call streams its items and ends with a QueryEnd frame, whose
  * watermark says where the scan stopped. The call opens on the first read.
  */
+/** The newest and oldest checkpoints the server can list, read only to classify a page. */
+export interface IndexEdges {
+	indexedTip(signal: AbortSignal): Promise<bigint>;
+	retainedFrom(signal: AbortSignal): Promise<bigint>;
+}
+
 export async function fetchListPage(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
-	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
+	edges: IndexEdges,
 	request: PageRequest,
 ): Promise<Page<GrpcItem>> {
-	return { items: listItems(family, list, retainedFrom, request) };
+	return { items: listItems(family, list, edges, request) };
 }
 
 async function* listItems(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
-	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
+	edges: IndexEdges,
 	request: PageRequest,
 ): AsyncGenerator<PageItem<GrpcItem>, PageEnd, undefined> {
 	const { order, range } = request;
@@ -56,7 +62,7 @@ async function* listItems(
 		}
 	} catch (error) {
 		if (!isOutOfRange(error)) throw error;
-		if (await startsPastIndex(request, retainedFrom)) {
+		if (await startsPastIndex(request, edges)) {
 			return { next: { more: false }, notIndexed: true };
 		}
 		throw new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
@@ -83,7 +89,7 @@ async function* listItems(
 		// Without a lower bound, a descending read stops at the oldest checkpoint the server keeps.
 		retainedFrom:
 			order === 'descending' && !more && range.start === undefined
-				? (checkpoint ?? (await retainedFrom(request.signal)))
+				? (checkpoint ?? (await edges.retainedFrom(request.signal)))
 				: undefined,
 	};
 }
@@ -157,14 +163,19 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
  */
 async function startsPastIndex(
 	{ order, range, unread, after, before, signal }: PageRequest,
-	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
+	{ indexedTip, retainedFrom }: IndexEdges,
 ): Promise<boolean> {
 	if (!(order === 'ascending' ? after : before)) return false;
-	// Only an `after` cursor makes a descending read's open low end explicit.
-	if (order === 'descending' && range.start === undefined && !after) return true;
-	// A descending low end without a checkpoint is judged by the newest checkpoint the pass still
-	// has to read, which is known once a page of the range has shown the low end was retained.
-	const needed = order === 'ascending' ? (unread ?? range.start) : (range.start ?? unread);
+	if (order === 'descending' && range.start === undefined) {
+		// Only an `after` cursor makes a descending read's open low end explicit.
+		if (!after) return true;
+		// The low end is a cursor without a checkpoint, which is known only to have been retained
+		// once a page of the range was read. A server that has indexed the newest checkpoint left to
+		// read rejected the low end; one behind it is lagging.
+		if (unread === undefined || unread < (await retainedFrom(signal))) return false;
+		return unread > (await indexedTip(signal));
+	}
+	const needed = order === 'ascending' ? (unread ?? range.start) : range.start;
 	return needed !== undefined && needed >= (await retainedFrom(signal));
 }
 
