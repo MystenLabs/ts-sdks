@@ -148,6 +148,7 @@ class ByteQueue {
 
 // Base64 is ASCII. Any other byte decodes to a character that `base64decode` rejects.
 const ascii = new TextDecoder();
+const BASE64_WHITESPACE = /[\t\n\r ]/g;
 
 /**
  * Splits a gRPC-web response body into frames: `push` chunks, take frames with `next` until it
@@ -174,12 +175,16 @@ export class GrpcWebFrameDecoder {
 
 	push(chunk: Uint8Array): void {
 		if (!this.#text) return this.#bytes.push(chunk);
-		// Whole base64 quanta are decoded; the rest waits for the next chunk.
-		this.#base64 += ascii.decode(chunk);
+		// Whole base64 quanta are decoded; the rest waits for the next chunk. Whitespace is dropped
+		// first, because `base64decode` skips it and the quanta must line up with what it reads.
+		this.#base64 += ascii.decode(chunk).replace(BASE64_WHITESPACE, '');
 		const whole = this.#base64.length - (this.#base64.length % 4);
 		if (whole === 0) return;
-		this.#bytes.push(base64decode(this.#base64.substring(0, whole)));
+		const bytes = base64decode(this.#base64.substring(0, whole));
 		this.#base64 = this.#base64.substring(whole);
+		// Inner padding leaves the result a view of a larger buffer. Copy it, so a queued chunk
+		// holds only the bytes counted against the frame limit.
+		this.#bytes.push(bytes.length === bytes.buffer.byteLength ? bytes : bytes.slice());
 	}
 
 	/**
