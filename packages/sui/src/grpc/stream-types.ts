@@ -7,8 +7,10 @@ import type { EventFilter, TransactionFilter } from './proto/sui/rpc/v2/filter.j
 type Frames = SuiClientTypes.StreamFrameOptions;
 
 /** `grpcFilter` streams only checkpoints containing a matching transaction. */
-export type GrpcStreamCheckpointsOptions<F extends Frames = {}> =
-	SuiClientTypes.StreamCheckpointsOptions<F> & { grpcFilter?: TransactionFilter };
+export type GrpcStreamCheckpointsOptions<
+	Include extends SuiClientTypes.StreamCheckpointInclude = {},
+	F extends Frames = {},
+> = SuiClientTypes.StreamCheckpointsOptions<Include, F> & { grpcFilter?: TransactionFilter };
 
 /** `grpcFilter` is a native gRPC filter, used instead of the shared `filter`. */
 export type GrpcStreamTransactionsOptions<

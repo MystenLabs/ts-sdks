@@ -19,8 +19,11 @@ import type { MethodInfo, RpcTransport, ServerStreamingCall } from '@protobuf-ts
 import { linkedAbortController } from '../../utils/abort.js';
 import { pullServerStreaming } from '../pull-call.js';
 
-/** Items a live call may hold before it overflows and the stream reconnects. */
-export const LIVE_BUFFER_ITEMS = 1024;
+/**
+ * The estimated message bytes a call may hold before it overflows and the stream reconnects.
+ * Mutable for tests.
+ */
+export const liveBuffer = { maxBytes: 512 * 1024 * 1024 };
 
 export interface LedgerCall<T> extends AsyncIterableIterator<T> {
 	/**
@@ -34,11 +37,12 @@ export interface LedgerCall<T> extends AsyncIterableIterator<T> {
 
 export interface LedgerCallOptions<T> {
 	signal: AbortSignal;
-	/** Whether a response carries a ledger item. Only items count toward `maxItems`. */
+	/** Whether a response carries a ledger item. */
 	isItem(response: T): boolean;
 	/** Keep only the newest of consecutive queued progress responses. */
 	coalesceProgress?: boolean;
-	maxItems?: number;
+	/** Defaults to `liveBuffer.maxBytes`. */
+	maxBytes?: number;
 }
 
 const overflows = new WeakSet<object>();
@@ -73,52 +77,84 @@ export function openLedgerCall<I extends object, O extends object>(
 	return new PushLedgerCall(call, queue, linked);
 }
 
+/** Holds responses up to a budget of estimated bytes; a response always fits an empty queue. */
 class BoundedQueue<T> {
 	readonly #isItem: (response: T) => boolean;
-	readonly #maxItems: number;
+	readonly #maxBytes: number;
 	readonly #coalesceProgress: boolean;
-	#responses: T[] = [];
-	#items = 0;
+	#responses: { response: T; bytes: number }[] = [];
+	#head = 0;
+	#bytes = 0;
 
 	constructor(options: LedgerCallOptions<T>) {
 		this.#isItem = options.isItem;
-		this.#maxItems = options.maxItems ?? LIVE_BUFFER_ITEMS;
+		this.#maxBytes = options.maxBytes ?? liveBuffer.maxBytes;
 		this.#coalesceProgress = options.coalesceProgress ?? false;
 	}
 
 	get length() {
-		return this.#responses.length;
+		return this.#responses.length - this.#head;
 	}
 
 	/** Returns false when `response` does not fit. */
 	push(response: T): boolean {
 		const item = this.#isItem(response);
-		// Without coalescing, progress can sit before every item and after the last one: at most
-		// 2n + 1 responses for n items.
-		const full = item
-			? this.#items >= this.#maxItems
-			: !this.#coalesceProgress && this.#responses.length >= this.#maxItems * 2 + 1;
-		if (full) return false;
-
-		const last = this.#responses.at(-1);
-		if (!item && this.#coalesceProgress && last !== undefined && !this.#isItem(last)) {
-			this.#responses[this.#responses.length - 1] = response;
+		const last = this.length > 0 ? this.#responses.at(-1)! : undefined;
+		if (!item && this.#coalesceProgress && last && !this.#isItem(last.response)) {
+			this.#bytes -= last.bytes;
+			last.response = response;
+			last.bytes = estimateBytes(response);
+			this.#bytes += last.bytes;
 			return true;
 		}
-		this.#responses.push(response);
-		if (item) this.#items++;
+		const bytes = estimateBytes(response);
+		if (this.length > 0 && this.#bytes + bytes > this.#maxBytes) return false;
+		this.#responses.push({ response, bytes });
+		this.#bytes += bytes;
 		return true;
 	}
 
 	shift(): T | undefined {
-		const response = this.#responses.shift();
-		if (response !== undefined && this.#isItem(response)) this.#items--;
-		return response;
+		if (this.length === 0) return undefined;
+		const entry = this.#responses[this.#head];
+		this.#responses[this.#head++] = undefined!;
+		this.#bytes -= entry.bytes;
+		// Compact once the consumed prefix is half the array, so shifting stays O(1) amortized.
+		if (this.#head >= 1024 && this.#head * 2 >= this.#responses.length) {
+			this.#responses = this.#responses.slice(this.#head);
+			this.#head = 0;
+		}
+		return entry.response;
 	}
 
 	clear() {
 		this.#responses = [];
-		this.#items = 0;
+		this.#head = 0;
+		this.#bytes = 0;
+	}
+}
+
+/**
+ * Roughly the encoded size of a decoded message: bytes and strings by length, other fields by 8.
+ * Cheap next to decoding, which visits the same fields.
+ */
+export function estimateBytes(value: unknown): number {
+	switch (typeof value) {
+		case 'string':
+			return value.length;
+		case 'object': {
+			if (value === null) return 0;
+			if (value instanceof Uint8Array) return value.byteLength;
+			let bytes = 8;
+			if (Array.isArray(value)) {
+				for (const element of value) bytes += estimateBytes(element);
+			} else {
+				for (const key in value) bytes += estimateBytes((value as Record<string, unknown>)[key]);
+			}
+			return bytes;
+		}
+		default:
+			return 8;
 	}
 }
 
