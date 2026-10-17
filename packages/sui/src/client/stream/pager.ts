@@ -110,7 +110,13 @@ export async function* readPages<Item>(
 	}
 
 	for (let first = true; ; first = false) {
-		const page = await adapter.fetchPage({ ...request, range: { ...request.range } });
+		// Descending, only once a page has been read: a cursor low end was retained then.
+		const newest = first ? undefined : (previous?.checkpoint ?? lastCheckpoint(request.range.end));
+		const page = await adapter.fetchPage({
+			...request,
+			range: { ...request.range },
+			unread: ascending ? unread : newest,
+		});
 		let empty = true;
 		let pageEnd: PageEnd;
 		try {
@@ -139,6 +145,7 @@ export async function* readPages<Item>(
 		} finally {
 			await page.items.return?.();
 		}
+		if (pageEnd.notIndexed) return { complete: false, retentionLimit: false };
 		// Retention reported at the end of a page is checked once the page is read.
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
@@ -213,7 +220,13 @@ function narrow(
 ) {
 	const { kind, cursor, checkpoint } = cut;
 	if (cursor && kind !== 'Boundary' && (resumes || checkpoint === null)) request[side] = cursor;
-	if (checkpoint === null) return;
+	if (checkpoint === null) {
+		// A progress cursor has no checkpoint, but what it covers still bounds the range, so a
+		// server can tell a cursor past its index from pruned history.
+		const next = side === 'after' ? nextUncovered(cut.coverage) : undefined;
+		if (next !== undefined) request.range.start = next;
+		return;
+	}
 	// Other items of an item's checkpoint can lie on either side of it.
 	if (side === 'after') request.range.start = checkpoint;
 	else request.range.end = kind === 'Item' ? checkpoint + 1n : checkpoint;
@@ -272,6 +285,10 @@ function assertRetained(
 		'HistoryUnavailable',
 		`Checkpoint ${pruned} has been pruned; the oldest available is ${retainedFrom}`,
 	);
+}
+
+function lastCheckpoint(end: bigint | undefined): bigint | undefined {
+	return end === undefined ? undefined : end - 1n;
 }
 
 function maxOf(a: bigint | undefined, b: bigint | undefined): bigint | undefined {

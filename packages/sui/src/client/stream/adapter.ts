@@ -32,6 +32,11 @@ export type Bound = { checkpoint: bigint } | { position: StreamPosition };
 /** One page of a range: checkpoints `[range.start, range.end)`, then strictly between cursors. */
 export interface PageRequest {
 	range: { start?: bigint; end?: bigint };
+	/**
+	 * The nearest checkpoint the pass may still have to read: ascending the oldest, descending the
+	 * newest, after its first page.
+	 */
+	unread?: bigint;
 	after?: Uint8Array;
 	before?: Uint8Array;
 	order: SuiClientTypes.Order;
@@ -51,6 +56,8 @@ export interface PageEnd {
 	covered?: bigint;
 	/** The oldest checkpoint the server retains for this read, when the server reports it last. */
 	retainedFrom?: bigint;
+	/** The server has not indexed where this page starts; the pass ends incomplete. */
+	notIndexed?: boolean;
 }
 
 export interface Page<Item> {
