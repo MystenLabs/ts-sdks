@@ -497,6 +497,22 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				);
 			});
 
+			it('keeps counting rejections across reconnects', async () => {
+				const end = await uncoveredEnd();
+				const saved = ledger().list('ListEvents', first);
+				const [frame] = await take(
+					saved.client().streamEvents({ order: 'descending', start: { checkpoint: 90 }, end }),
+					1,
+				);
+				const pages = Array.from({ length: PERSISTENT }, () => [ahead, reset]).flat();
+				const l = ledger().list('ListEvents', ...pages);
+				await expect(read(l, { start: { resumeToken: tokenOf(frame) } })).rejects.toMatchObject({
+					code: 'HistoryUnavailable',
+				});
+				// The last rejection fails the stream before its reconnect.
+				expect(l.requestsTo('ListEvents')).toHaveLength(2 * PERSISTENT - 1);
+			});
+
 			it('fails at once when its first page, which has no cursor to be ahead, is rejected', async () => {
 				const l = ledger().list('ListEvents', ahead);
 				await expect(
