@@ -128,6 +128,14 @@ export class FakeLedger implements RpcTransport {
 	#tip: () => number = () => 0;
 	tipReads = 0;
 
+	/** Answers every retention-floor read (an ascending ListCheckpoints with limit 1). */
+	retainedFrom(checkpoint: number) {
+		this.#floor = checkpoint;
+		return this;
+	}
+	#floor = 0;
+	floorReads = 0;
+
 	requestsTo(method: string) {
 		return this.requests.filter((request) => request.method === method).map((r) => r.input);
 	}
@@ -143,15 +151,17 @@ export class FakeLedger implements RpcTransport {
 	}
 
 	#script(method: MethodInfo, input: object): Script {
-		if (method.name === 'ListCheckpoints' && isTipRead(input)) {
-			this.calls.push('tip');
-			this.tipReads++;
-			const tip = BigInt(this.#tip());
+		const edge = method.name === 'ListCheckpoints' && edgeRead(input);
+		if (edge) {
+			this.calls.push(edge);
+			if (edge === 'tip') this.tipReads++;
+			else this.floorReads++;
+			const checkpoint = BigInt(edge === 'tip' ? this.#tip() : this.#floor);
 			return {
 				frames: [
 					{
-						checkpoint: { sequenceNumber: tip },
-						watermark: { cursor: at(Number(tip)), checkpoint: tip },
+						checkpoint: { sequenceNumber: checkpoint },
+						watermark: { cursor: at(Number(checkpoint)), checkpoint },
 						end: { reason: GrpcTypes.QueryEndReason.ITEM_LIMIT },
 					},
 				],
@@ -274,9 +284,11 @@ export class FakeLedger implements RpcTransport {
 	}
 }
 
-function isTipRead(input: object) {
+/** A one-checkpoint read of the newest or oldest checkpoint the server can list. */
+function edgeRead(input: object) {
 	const request = input as GrpcTypes.ListCheckpointsRequest;
-	return request.options?.limit === 1 && request.options.ordering === GrpcTypes.Ordering.DESCENDING;
+	if (request.options?.limit !== 1 || request.startCheckpoint !== undefined) return undefined;
+	return request.options.ordering === GrpcTypes.Ordering.DESCENDING ? 'tip' : 'floor';
 }
 
 function untilAborted(signal: AbortSignal | undefined) {

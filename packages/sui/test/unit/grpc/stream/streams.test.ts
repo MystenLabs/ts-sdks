@@ -353,6 +353,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 
 		it('fails unavailable history in the gap without retrying, and cancels the subscription', async () => {
 			const l = ledger()
+				.retainedFrom(2)
 				.list('ListEvents', [ended('LEDGER_TIP', 1)], {
 					frames: [],
 					end: new RpcError('pruned', 'OUT_OF_RANGE'),
@@ -361,15 +362,77 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			await expect(
 				collect(l.client().streamEvents({ start: { checkpoint: 1 }, retry: noDelay })),
 			).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			// The gap starts at checkpoint 2, which is not above the retention floor.
+			expect(l.requestsTo('ListEvents')[1].startCheckpoint).toBe(2n);
 			expect(l.requestsTo('ListEvents')).toHaveLength(2);
+			expect(l.floorReads).toBe(1);
 			expect(l.cancelled.SubscribeEvents).toBe(1);
 		});
 
+		it('polls a gap whose start is past the index, then recovers it', async () => {
+			const l = ledger()
+				.retainedFrom(1)
+				.subscribe(
+					'SubscribeEvents',
+					{ frames: [event(5)], end: new RpcError('reset', 'UNAVAILABLE') },
+					[event(7), event(8)],
+				)
+				.list('ListEvents', { frames: [], end: new RpcError('ahead', 'OUT_OF_RANGE') }, [
+					event(6),
+					cursorBound,
+				]);
+			const { log, onStatus } = statusLog();
+			const frames = await take(
+				l.client().streamEvents({ retry: noDelay, pollInterval: 1, onStatus }),
+				4,
+			);
+			expect(eventIds(frames)).toEqual(['5:0', '6:0', '7:0', '8:0']);
+			const [ahead, poll] = l.requestsTo('ListEvents');
+			for (const request of [ahead, poll]) {
+				expect(request.startCheckpoint).toBe(5n);
+				expect(request.options?.after).toEqual(at(5));
+			}
+			expect(l.calls).toEqual([
+				'GetServiceInfo',
+				'SubscribeEvents',
+				'SubscribeEvents',
+				'ListEvents',
+				'floor',
+				'ListEvents',
+			]);
+			expect(log).toContain('Page(gap,indexedTip)');
+		});
+
+		it('bounds a gap after live progress by its coverage, so it can poll past the index', async () => {
+			const l = ledger()
+				.retainedFrom(1)
+				.subscribe(
+					'SubscribeEvents',
+					{ frames: [progress(mark('a'), 4)], end: new RpcError('reset', 'UNAVAILABLE') },
+					[event(6)],
+				)
+				.list('ListEvents', { frames: [], end: new RpcError('ahead', 'OUT_OF_RANGE') }, [
+					event(5),
+					cursorBound,
+				]);
+			const frames = await take(l.client().streamEvents({ retry: noDelay, pollInterval: 1 }), 2);
+			expect(eventIds(frames)).toEqual(['5:0', '6:0']);
+			const [ahead, poll] = l.requestsTo('ListEvents');
+			expect(ahead.startCheckpoint).toBe(5n);
+			expect(ahead.options?.after).toEqual(mark('a'));
+			// The empty pass commits the boundary its start covered, which needs no cursor.
+			expect(poll.startCheckpoint).toBe(5n);
+			expect(poll.options?.after).toBeUndefined();
+			expect(l.floorReads).toBe(1);
+		});
+
 		it('fails pruned transaction history with HistoryUnavailable, without retrying', async () => {
-			const l = ledger().list('ListTransactions', {
-				frames: [],
-				end: new RpcError('pruned', 'OUT_OF_RANGE'),
-			});
+			const l = ledger()
+				.retainedFrom(6)
+				.list('ListTransactions', {
+					frames: [],
+					end: new RpcError('pruned', 'OUT_OF_RANGE'),
+				});
 			await expect(
 				collect(
 					l.client().streamTransactions({
@@ -1081,6 +1144,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					}),
 				),
 			).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			// A descending read has no start for a lagging server to be behind.
 			expect(l.calls).toEqual(['GetServiceInfo', 'tip', 'ListEvents']);
 		});
 
