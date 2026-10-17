@@ -109,6 +109,31 @@ describe('GrpcWebFrameDecoder', () => {
 		]);
 	});
 
+	it('lines up base64 quanta across chunks when the body contains whitespace', () => {
+		const text = new TextDecoder().decode(base64(concat([data(42), ok])));
+		const spaced = new TextEncoder().encode('\n' + text.replace(/(.{3})/g, '$1\r\n\t '));
+		for (const size of [1, 2, 3, 4, 5, 7]) {
+			expect(decode(chunks(spaced, size), { contentType: TEXT })).toEqual([
+				{ type: 'data', data: new Uint8Array([42]) },
+				okTrailer,
+			]);
+		}
+	});
+
+	it('queues decoded text without retaining buffers larger than their bytes', () => {
+		const padded = concat([base64(data(1)), base64(data(2, 3))]);
+		const spaced = concat([padded, new TextEncoder().encode(' '.repeat(4096))]);
+		const decoder = new GrpcWebFrameDecoder(TEXT, 1024);
+		decoder.push(spaced);
+		for (const expected of [[1], [2, 3]]) {
+			const next = decoder.next();
+			expect(next).toEqual({ type: 'data', data: new Uint8Array(expected) });
+			if (next?.type !== 'data') throw new Error('expected a data frame');
+			// Both frames came in one chunk of 6 + 7 bytes.
+			expect(next.data.buffer.byteLength).toBe(13);
+		}
+	});
+
 	it('returns undefined until a frame is complete', () => {
 		const decoder = new GrpcWebFrameDecoder(BINARY, 1024);
 		decoder.push(data(1, 2).subarray(0, 6));
