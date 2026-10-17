@@ -51,6 +51,8 @@ export interface PageEnd {
 	covered?: bigint;
 	/** The oldest checkpoint the server retains for this read, when the server reports it last. */
 	retainedFrom?: bigint;
+	/** The server has not indexed where this page starts; the pass ends incomplete. */
+	notIndexed?: boolean;
 }
 
 export interface Page<Item> {

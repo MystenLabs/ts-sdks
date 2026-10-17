@@ -145,6 +145,7 @@ export async function* readPages<Item>(
 		} finally {
 			await page.items.return?.();
 		}
+		if (pageEnd.notIndexed) return { complete: false, retentionLimit: false };
 		// Retention reported at the end of a page is checked once the page is read.
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
