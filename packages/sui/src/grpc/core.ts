@@ -24,6 +24,7 @@ import {
 import type {
 	ExecutionError as GrpcExecutionError,
 	MoveAbort as GrpcMoveAbort,
+	MoveLocation as GrpcMoveLocation,
 } from './proto/sui/rpc/v2/execution_status.js';
 import {
 	ExecutionError_ExecutionErrorKind,
@@ -1379,7 +1380,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 function parseMoveAbort(abort: GrpcMoveAbort): SuiClientTypes.MoveAbort {
 	return {
 		abortCode: String(abort.abortCode ?? 0n),
-		location: { ...abort.location },
+		location: abort.location && parseMoveLocation(abort.location),
 		cleverError: abort.cleverError
 			? {
 					errorCode:
@@ -1396,6 +1397,16 @@ function parseMoveAbort(abort: GrpcMoveAbort): SuiClientTypes.MoveAbort {
 								: undefined,
 				}
 			: undefined,
+	};
+}
+
+/** Without the function index, which GraphQL does not report. */
+function parseMoveLocation(location: GrpcMoveLocation): SuiClientTypes.MoveLocation {
+	return {
+		package: location.package,
+		module: location.module,
+		functionName: location.functionName,
+		instruction: location.instruction,
 	};
 }
 
@@ -1674,7 +1685,7 @@ export function parseGrpcTransactionResponse<
 					packageId: normalizeSuiAddress(event.packageId!),
 					module: event.module!,
 					sender: normalizeSuiAddress(event.sender!),
-					eventType: event.eventType!,
+					eventType: normalizeStructTag(event.eventType!),
 					bcs: event.contents?.value ?? new Uint8Array(),
 					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
 				})) ?? [])
