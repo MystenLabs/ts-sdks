@@ -473,6 +473,57 @@ export type SubscribeTransactionsSubscriptionVariables = Exact<{
 
 export type SubscribeTransactionsSubscription = { transactions: { cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } } };
 
+export type Checkpoint_Transactions_PageFragment = { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> };
+
+export type ScanCheckpointsWithTransactionsQueryVariables = Exact<{
+  filter?: CheckpointFilter | null | undefined;
+  filters: Array<string> | string;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+  includeTransaction?: boolean | null | undefined;
+  includeEffects?: boolean | null | undefined;
+  includeEvents?: boolean | null | undefined;
+  includeBalanceChanges?: boolean | null | undefined;
+  includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
+  includeBcs?: boolean | null | undefined;
+}>;
+
+
+export type ScanCheckpointsWithTransactionsQuery = { serviceConfig: { availableRange: { first: { sequenceNumber: number } | null, last: { sequenceNumber: number } | null } }, checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null, epoch: { epochId: number } | null } }> } | null };
+
+export type SubscribeCheckpointsWithTransactionsSubscriptionVariables = Exact<{
+  after?: string | null | undefined;
+  afterCheckpoint?: number | null | undefined;
+  includeTransaction?: boolean | null | undefined;
+  includeEffects?: boolean | null | undefined;
+  includeEvents?: boolean | null | undefined;
+  includeBalanceChanges?: boolean | null | undefined;
+  includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
+  includeBcs?: boolean | null | undefined;
+}>;
+
+
+export type SubscribeCheckpointsWithTransactionsSubscription = { checkpoints: { cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null, epoch: { epochId: number } | null } } };
+
+export type CheckpointTransactionsQueryVariables = Exact<{
+  atCheckpoint: number;
+  after?: string | null | undefined;
+  includeTransaction?: boolean | null | undefined;
+  includeEffects?: boolean | null | undefined;
+  includeEvents?: boolean | null | undefined;
+  includeBalanceChanges?: boolean | null | undefined;
+  includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
+  includeBcs?: boolean | null | undefined;
+}>;
+
+
+export type CheckpointTransactionsQuery = { serviceConfig: { availableRange: { first: { sequenceNumber: number } | null, last: { sequenceNumber: number } | null } }, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null };
+
 export type SimulateTransactionQueryVariables = Exact<{
   transaction: unknown;
   includeTransaction?: boolean | null | undefined;
@@ -821,6 +872,91 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"TRANSACTION_FIELDS"}) as unknown as TypedDocumentString<Transaction_FieldsFragment, unknown>;
+export const Checkpoint_Transactions_PageFragmentDoc = new TypedDocumentString(`
+    fragment CHECKPOINT_TRANSACTIONS_PAGE on TransactionConnection {
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+  nodes {
+    ...TRANSACTION_FIELDS
+  }
+}
+    fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    timestamp
+    checkpoint {
+      sequenceNumber
+    }
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeEffectsJson)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`, {"fragmentName":"CHECKPOINT_TRANSACTIONS_PAGE"}) as unknown as TypedDocumentString<Checkpoint_Transactions_PageFragment, unknown>;
 export const ListCheckpointsDocument = new TypedDocumentString(`
     query listCheckpoints($filter: CheckpointFilter, $first: Int, $after: String, $last: Int, $before: String) {
   checkpoints(
@@ -1588,6 +1724,341 @@ export const SubscribeTransactionsDocument = new TypedDocumentString(`
     }
   }
 }`) as unknown as TypedDocumentString<SubscribeTransactionsSubscription, SubscribeTransactionsSubscriptionVariables>;
+export const ScanCheckpointsWithTransactionsDocument = new TypedDocumentString(`
+    query scanCheckpointsWithTransactions($filter: CheckpointFilter, $filters: [String!]!, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  serviceConfig {
+    availableRange(type: "Query", field: "checkpoints", filters: $filters) {
+      first {
+        sequenceNumber
+      }
+      last {
+        sequenceNumber
+      }
+    }
+  }
+  checkpoints(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      ...STREAM_PAGE_INFO
+    }
+    edges {
+      cursor
+      node {
+        ...CHECKPOINT_FIELDS
+        transactions(first: 50) {
+          ...CHECKPOINT_TRANSACTIONS_PAGE
+        }
+      }
+    }
+  }
+}
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}
+fragment STREAM_PAGE_INFO on PageInfo {
+  hasNextPage
+  hasPreviousPage
+  startCursor
+  endCursor
+}
+fragment CHECKPOINT_TRANSACTIONS_PAGE on TransactionConnection {
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+  nodes {
+    ...TRANSACTION_FIELDS
+  }
+}
+fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    timestamp
+    checkpoint {
+      sequenceNumber
+    }
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeEffectsJson)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<ScanCheckpointsWithTransactionsQuery, ScanCheckpointsWithTransactionsQueryVariables>;
+export const SubscribeCheckpointsWithTransactionsDocument = new TypedDocumentString(`
+    subscription subscribeCheckpointsWithTransactions($after: String, $afterCheckpoint: UInt53, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
+    cursor
+    node {
+      ...CHECKPOINT_FIELDS
+      transactions(first: 50) {
+        ...CHECKPOINT_TRANSACTIONS_PAGE
+      }
+    }
+  }
+}
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}
+fragment CHECKPOINT_TRANSACTIONS_PAGE on TransactionConnection {
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+  nodes {
+    ...TRANSACTION_FIELDS
+  }
+}
+fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    timestamp
+    checkpoint {
+      sequenceNumber
+    }
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeEffectsJson)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<SubscribeCheckpointsWithTransactionsSubscription, SubscribeCheckpointsWithTransactionsSubscriptionVariables>;
+export const CheckpointTransactionsDocument = new TypedDocumentString(`
+    query checkpointTransactions($atCheckpoint: UInt53!, $after: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  serviceConfig {
+    availableRange(type: "Query", field: "transactions", filters: ["atCheckpoint"]) {
+      first {
+        sequenceNumber
+      }
+      last {
+        sequenceNumber
+      }
+    }
+  }
+  transactions(filter: { atCheckpoint: $atCheckpoint }, first: 50, after: $after) {
+    ...CHECKPOINT_TRANSACTIONS_PAGE
+  }
+}
+    fragment CHECKPOINT_TRANSACTIONS_PAGE on TransactionConnection {
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+  nodes {
+    ...TRANSACTION_FIELDS
+  }
+}
+fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    timestamp
+    checkpoint {
+      sequenceNumber
+    }
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeEffectsJson)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<CheckpointTransactionsQuery, CheckpointTransactionsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
     query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false, $doGasSelection: Boolean = false, $checksEnabled: Boolean = true) {
   simulateTransaction(

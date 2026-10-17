@@ -156,3 +156,107 @@ subscription subscribeTransactions(
 		}
 	}
 }
+
+# Checkpoints with their transactions. A checkpoint's first page of transactions is nested; the
+# rest are read with `checkpointTransactions`.
+
+fragment CHECKPOINT_TRANSACTIONS_PAGE on TransactionConnection {
+	pageInfo {
+		hasNextPage
+		endCursor
+	}
+	nodes {
+		...TRANSACTION_FIELDS
+	}
+}
+
+query scanCheckpointsWithTransactions(
+	$filter: CheckpointFilter
+	$filters: [String!]!
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
+	serviceConfig {
+		availableRange(type: "Query", field: "checkpoints", filters: $filters) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...CHECKPOINT_FIELDS
+				transactions(first: 50) {
+					...CHECKPOINT_TRANSACTIONS_PAGE
+				}
+			}
+		}
+	}
+}
+
+subscription subscribeCheckpointsWithTransactions(
+	$after: String
+	$afterCheckpoint: UInt53
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
+		cursor
+		node {
+			...CHECKPOINT_FIELDS
+			transactions(first: 50) {
+				...CHECKPOINT_TRANSACTIONS_PAGE
+			}
+		}
+	}
+}
+
+query checkpointTransactions(
+	$atCheckpoint: UInt53!
+	$after: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	# The checkpoints this replica has indexed transactions for.
+	serviceConfig {
+		availableRange(type: "Query", field: "transactions", filters: ["atCheckpoint"]) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+	transactions(filter: { atCheckpoint: $atCheckpoint }, first: 50, after: $after) {
+		...CHECKPOINT_TRANSACTIONS_PAGE
+	}
+}
