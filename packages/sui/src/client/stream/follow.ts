@@ -23,16 +23,21 @@ import type { StreamSession } from './session.js';
  * The live handoff, rerun on every reconnect: subscribe after the resume point, then deliver. The
  * server backfills from there and then goes live. A transport whose subscriptions start at the
  * live tip instead pages history through the indexed tip, then replays the gap before the first
- * live item. Live progress never ends that recovery: a cursor past the tip says nothing about the
- * history before it, and a quiet feed may send nothing else.
+ * live item; so does a resuming transport whose subscription cannot start from the resume point.
+ * Live progress never ends that recovery: a cursor past the tip says nothing about the history
+ * before it, and a quiet feed may send nothing else.
  */
 export async function* followLive<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
 	adapter: LedgerStreamAdapter<Item, Frame>,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
 	const replaysGap = !adapter.resumesSubscriptions;
-	const caughtUp = replaysGap && session.catchesUpFirst();
-	if (caughtUp) yield* session.replay('tip', 'history');
+	// History comes first where the subscription cannot pick up from the resume point itself.
+	const pagesFirst = replaysGap
+		? session.catchesUpFirst()
+		: session.start !== undefined && adapter.canResume?.(session.start) === false;
+	if (pagesFirst) yield* session.replay('tip', 'history');
+	const caughtUp = replaysGap && pagesFirst;
 	// Commit a checkpoint start, so a token exists before the first match.
 	const start = session.start;
 	if (!session.committed && start && 'checkpoint' in start) {

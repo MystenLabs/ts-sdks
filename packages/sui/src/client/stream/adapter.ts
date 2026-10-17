@@ -134,6 +134,11 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 * at the live tip, so the core pages history first and replays the gap before the first event.
 	 */
 	readonly resumesSubscriptions: boolean;
+	/**
+	 * With `resumesSubscriptions`, whether `subscribe(from)` can backfill from `from`. Where it
+	 * cannot, the core pages history first and subscribes after it. Defaults to true.
+	 */
+	canResume?(from: Bound): boolean;
 
 	/**
 	 * Resolves names in the filter. The returned filter is hashed into every token. An adapter that
