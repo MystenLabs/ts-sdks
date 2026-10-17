@@ -34,7 +34,7 @@ export interface PageRequest {
 	range: { start?: bigint; end?: bigint };
 	/**
 	 * The nearest checkpoint the pass may still have to read: ascending the oldest, descending the
-	 * newest, after its first page.
+	 * newest, once a page of the range has been read.
 	 */
 	unread?: bigint;
 	after?: Uint8Array;

@@ -50,6 +50,8 @@ export interface Pass {
 	order: SuiClientTypes.Order;
 	/** The indexed tip captured when a finite range was planned. */
 	capturedTip?: bigint;
+	/** A page of this range was read before, so its low end was retained then. */
+	rangeRead?: boolean;
 	signal: AbortSignal;
 }
 
@@ -115,8 +117,14 @@ export async function* readPages<Item>(
 
 	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
-		// Descending, only once a page has been read: a cursor low end was retained then.
-		const newest = first ? undefined : (previous?.checkpoint ?? lastCheckpoint(request.range.end));
+		// Descending, only once a page of the range has been read: a cursor low end was retained then.
+		const newest =
+			first && !pass.rangeRead
+				? undefined
+				: (previous?.checkpoint ??
+					lastCheckpoint(request.range.end) ??
+					(resumesFrom && indexedThrough(resumesFrom)) ??
+					undefined);
 		const page = await adapter.fetchPage({
 			...request,
 			range: { ...request.range },
