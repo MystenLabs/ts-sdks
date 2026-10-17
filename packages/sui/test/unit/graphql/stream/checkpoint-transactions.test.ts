@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { collect, noDelay, take } from '../../client/stream/fake-ledger.js';
 import {
 	checkpoint,
+	event,
 	fakeGraphQL,
 	live,
 	page,
@@ -89,27 +90,70 @@ describe('GraphQL checkpoint streams with transactions', () => {
 	});
 
 	it('maps transactions exactly as streamTransactions does', async () => {
+		const populated = {
+			effects: {
+				events: {
+					pageInfo: { hasNextPage: false },
+					nodes: [event(1, 0).node, event(1, 1).node],
+				},
+				objectChanges: {
+					nodes: [
+						{
+							address: '0x3',
+							outputState: { asMoveObject: { contents: { type: { repr: '0x2::test::Object' } } } },
+						},
+					],
+				},
+			},
+		};
+		const failed = { effects: { status: 'FAILURE' } };
+		const transactions = [
+			transaction(1, { digest: 'tx1-0', node: populated }),
+			transaction(1, { digest: 'tx1-1', node: failed }),
+		];
+		const edge = checkpoint(1);
+		const withPopulated: Edge = {
+			...edge,
+			node: {
+				...edge.node,
+				transactions: {
+					pageInfo: { hasNextPage: false, endCursor: 'tx:1:2' },
+					nodes: transactions.map(({ node }) => node),
+				},
+			},
+		};
 		const server = fakeGraphQL()
-			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 3)]))
-			.on(
-				'scanTransactions',
-				page(
-					'transactions',
-					digests(1, 0, 3).map((digest) => transaction(1, { digest })),
-				),
-			);
+			.on('scanCheckpointsWithTransactions', page('checkpoints', [withPopulated]))
+			.on('scanTransactions', page('transactions', transactions));
+		const transactionInclude = { events: true, objectTypes: true } as const;
 		const [checkpointFrame] = await collect(
 			server.client.core.streamCheckpoints({
 				...range,
 				end: { checkpoint: 2 },
-				include: { transactions: {} },
+				include: { transactions: transactionInclude },
 			}),
 		);
 		const transactionFrames = await collect(
-			server.client.core.streamTransactions({ ...range, end: { checkpoint: 2 } }),
+			server.client.core.streamTransactions({
+				...range,
+				end: { checkpoint: 2 },
+				include: transactionInclude,
+			}),
 		);
 		expect(checkpointFrame.checkpoint.transactions).toEqual(
-			transactionFrames.map(({ transaction }) => transaction.Transaction),
+			transactionFrames.map(
+				({ transaction }) => transaction.Transaction ?? transaction.FailedTransaction,
+			),
+		);
+		expect(transactionFrames.map(({ transaction }) => transaction.$kind)).toEqual([
+			'Transaction',
+			'FailedTransaction',
+		]);
+		expect(checkpointFrame.checkpoint.transactions[0].events).toHaveLength(2);
+		const selection = (variables: Record<string, unknown>) =>
+			Object.fromEntries(Object.entries(variables).filter(([key]) => key.startsWith('include')));
+		expect(selection(server.sent('scanCheckpointsWithTransactions')[0])).toEqual(
+			selection(server.sent('scanTransactions')[0]),
 		);
 	});
 
