@@ -198,6 +198,47 @@ describe('historical scan', () => {
 		expect(server.sent('scanCheckpoints')).toHaveLength(1);
 	});
 
+	it('fails a descending read whose start has been pruned with HistoryUnavailable', async () => {
+		const server = fakeGraphQL({ tip: 20, first: 9 }).on(
+			'scanCheckpoints',
+			page('checkpoints', []),
+		);
+		const error = await rejection(
+			collect(
+				stream(server.client, 'checkpoints', {
+					order: 'descending',
+					start: { checkpoint: 3 },
+					frames: { completion: true },
+					retry: { ...noDelay, maxAttempts: 0 },
+				}),
+			),
+		);
+		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'HistoryUnavailable' });
+	});
+
+	it('fails with HistoryUnavailable when retention passes unread checkpoints between pages', async () => {
+		const server = fakeGraphQL({ tip: 30, first: 10 });
+		server.on(
+			'scanCheckpoints',
+			after(() => (server.first = 20), page('checkpoints', [checkpoint(10)], { more: true })),
+			page('checkpoints', [checkpoint(20), checkpoint(21)]),
+		);
+		const labels: string[] = [];
+		const error = await rejection(
+			(async () => {
+				for await (const frame of stream(server.client, 'checkpoints', {
+					start: { checkpoint: 10 },
+					end: { checkpoint: 22 },
+					frames: { completion: true },
+					retry: { ...noDelay, maxAttempts: 0 },
+				}))
+					labels.push(label(frame));
+			})(),
+		);
+		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'HistoryUnavailable' });
+		expect(labels).toEqual(['10']);
+	});
+
 	it('reads newest first down to the oldest retained checkpoint, then completes there', async () => {
 		const server = fakeGraphQL({ tip: 12, first: 11 }).on(
 			'scanCheckpoints',
