@@ -125,7 +125,6 @@ function parseBcsExecutionError(failure: {
 			const moveLocation = {
 				package: location.module.address,
 				module: location.module.name,
-				function: location.function,
 				functionName: location.functionName ?? undefined,
 				instruction: location.instruction,
 			};
@@ -667,13 +666,13 @@ function parseTransactionEffectsV2({
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
 			([objectId, object]): SuiClientTypes.UnchangedConsensusObject => {
+				// Unit variants such as `PerEpochConfig` parse as `true` and carry no version.
+				const version =
+					object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[0] : object[object.$kind];
 				return {
 					kind: object.$kind,
 					objectId: objectId,
-					version:
-						object.$kind === 'ReadOnlyRoot'
-							? object.ReadOnlyRoot[0]
-							: (object[object.$kind] as string | null),
+					version: typeof version === 'string' ? version : null,
 					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
 				};
 			},

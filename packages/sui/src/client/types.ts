@@ -1299,6 +1299,7 @@ export namespace SuiClientTypes {
 	export interface MoveLocation {
 		package?: string;
 		module?: string;
+		/** @deprecated Never set, because GraphQL does not report it. Use `functionName`. */
 		function?: number;
 		functionName?: string;
 		instruction?: number;

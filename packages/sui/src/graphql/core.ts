@@ -1090,30 +1090,43 @@ export function parseGraphQLCheckpoint(
 	};
 }
 
+/** The event fields shared by `EVENT_FIELDS` and the events nested in `TRANSACTION_FIELDS`. */
+type GraphQLEventFields = Pick<Event_FieldsFragment, 'transactionModule' | 'sender' | 'contents'>;
+
 /** `source` names the response in the error thrown when required fields are missing. */
-export function parseGraphQLEvent(
-	event: Event_FieldsFragment,
-	checkpoint: string | null,
-	source: string,
-): SuiClientTypes.EventEntry {
+function parseGraphQLEventFields(event: GraphQLEventFields, source: string): SuiClientTypes.Event {
 	const packageId = event.transactionModule?.package?.address;
 	const module = event.transactionModule?.name;
-	// System transactions have no sender; gRPC reports the zero address for their events.
-	const sender = event.sender?.address ?? '0x0';
 	const eventType = event.contents?.type?.repr;
-	const transactionDigest = event.transaction?.digest;
 
-	if (!packageId || !module || !eventType || !transactionDigest) {
+	if (!packageId || !module || !eventType) {
 		throw new Error(`${source} response is missing expected event fields`);
 	}
 
 	return {
 		packageId: normalizeSuiAddress(packageId),
 		module,
-		sender: normalizeSuiAddress(sender),
+		// System transactions have no sender; gRPC reports the zero address for their events.
+		sender: normalizeSuiAddress(event.sender?.address ?? '0x0'),
 		eventType: normalizeStructTag(eventType),
 		bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
 		json: (event.contents?.json as Record<string, unknown>) ?? null,
+	};
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLEvent(
+	event: Event_FieldsFragment,
+	checkpoint: string | null,
+	source: string,
+): SuiClientTypes.EventEntry {
+	const transactionDigest = event.transaction?.digest;
+	if (!transactionDigest) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+
+	return {
+		...parseGraphQLEventFields(event, source),
 		checkpoint,
 		transactionDigest,
 		eventIndex: event.sequenceNumber,
@@ -1249,18 +1262,9 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 				: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
-			? (transaction.effects?.events?.nodes.map((event) => {
-					const eventType = event.contents?.type?.repr!;
-					const [packageId, module] = eventType.split('::');
-					return {
-						packageId,
-						module,
-						sender: event.sender?.address!,
-						eventType,
-						bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-						json: (event.contents?.json as Record<string, unknown>) ?? null,
-					};
-				}) ?? [])
+			? (transaction.effects?.events?.nodes.map((event) =>
+					parseGraphQLEventFields(event, 'Transaction'),
+				) ?? [])
 			: undefined) as SuiClientTypes.Transaction<Include>['events'],
 	};
 
@@ -1288,12 +1292,13 @@ function parseGraphQLExecutionError(
 	executionError: GraphQLExecutionError | null | undefined,
 ): SuiClientTypes.ExecutionError {
 	const name = mapGraphQLExecutionErrorKind(executionError);
+	// GraphQL reports the failing command only in the message, as "in 3rd command".
+	const commandMatch = executionError?.message?.match(/in (\d+)\w* command/);
+	const command = commandMatch ? parseInt(commandMatch[1], 10) - 1 : undefined;
 
 	if (name === 'MoveAbort' && executionError?.abortCode != null) {
 		const location = parseGraphQLMoveLocation(executionError);
 		const cleverError = parseGraphQLCleverError(executionError);
-		const commandMatch = executionError.message?.match(/in (\d+)\w* command/);
-		const command = commandMatch ? parseInt(commandMatch[1], 10) - 1 : undefined;
 
 		return {
 			$kind: 'MoveAbort',
@@ -1328,6 +1333,7 @@ function parseGraphQLExecutionError(
 	return {
 		$kind: 'Unknown',
 		message: executionError?.message ?? 'Transaction failed',
+		command,
 		Unknown: null,
 	};
 }
