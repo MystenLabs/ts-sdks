@@ -134,9 +134,12 @@ export async function* readPages<Item>(
 			const sent = ascending ? request.after : request.before;
 			if (sent && sameBytes(sent, cursor)) throw protocol('Pagination did not advance');
 			if (page.items.length === 0) {
+				// A server resuming a descending cursor clamps to its own tip, so the cursor needs at
+				// least the index this pass already relied on.
+				const relied = !ascending && resumesFrom ? indexedThrough(resumesFrom) : null;
 				const raw = progressPosition(cursor, {
 					coverage: through(page.covered),
-					indexedCheckpoint: page.viewedAt ?? null,
+					indexedCheckpoint: page.viewedAt ?? relied,
 				});
 				yield { $kind: 'Progress', position: advance(raw) };
 			}
