@@ -29,7 +29,7 @@ import {
 	type NativeFilter,
 } from './families.js';
 import { liveSubscription } from './live.js';
-import { fetchListPage, readIndexedTip, type ListQuery } from './page.js';
+import { fetchListPage, readIndexedTip, readRetainedFrom, type ListQuery } from './page.js';
 
 /** What the adapter needs from `GrpcCoreClient`. */
 export interface GrpcStreamContext {
@@ -93,7 +93,8 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 
 	fetchPage(request: PageRequest) {
 		const { family, list } = this.#initializedCalls();
-		return fetchListPage(family, list, request);
+		const retainedFrom = (signal: AbortSignal) => readRetainedFrom(this.#context.transport, signal);
+		return fetchListPage(family, list, retainedFrom, request);
 	}
 
 	subscribe(_from: Bound | undefined, signal: AbortSignal) {
