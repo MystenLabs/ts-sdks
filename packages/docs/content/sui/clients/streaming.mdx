@@ -64,6 +64,31 @@ for await (const frame of client.streamTransactions({
 `include: { transaction: true }` also returns system transactions such as genesis; see
 [transaction data](./executing.mdx#transaction-data) for how to narrow them.
 
+## Index whole checkpoints
+
+`include: { transactions }` on `streamCheckpoints` delivers each checkpoint with all of its
+transactions, in execution order, with the same fields as `streamTransactions`. Failed transactions
+are included with `status.success: false`. A checkpoint is yielded only once all of its transactions
+have been read, so an indexer can commit a checkpoint and its resume token together:
+
+```typescript
+for await (const frame of client.streamCheckpoints({
+	start: savedToken ? { resumeToken: savedToken } : { checkpoint: 1000 },
+	include: { transactions: { effects: true, events: true, balanceChanges: true } },
+	signal: controller.signal,
+})) {
+	await database.transaction(async (db) => {
+		for (const tx of frame.checkpoint.transactions) {
+			await db.processTransaction(frame.checkpoint.sequenceNumber, tx);
+		}
+		await db.saveResumeToken(frame.resumeToken);
+	});
+}
+```
+
+On gRPC each checkpoint arrives as one response message, which must fit in `maxResponseMessageBytes`
+(64 MiB by default; busy mainnet checkpoints are a few MB).
+
 ## Save and resume progress
 
 Each item frame has a `resumeToken`. Store it with the work done for that item, then pass it back as

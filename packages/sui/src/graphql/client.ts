@@ -473,9 +473,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.listCheckpoints(input);
 	}
 
-	streamCheckpoints<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
-		input?: SuiClientTypes.StreamCheckpointsOptions<Frames>,
-	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Frames>> {
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include, Frames>> {
 		return this.core.streamCheckpoints(input);
 	}
 
