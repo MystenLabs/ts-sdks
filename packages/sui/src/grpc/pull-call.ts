@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// Internal: none of this is exported from `@mysten/sui/grpc`.
+// The types, the symbol and `markNonRetryable` are re-exported from `@mysten/sui/grpc/pull-transport`
+// for transport implementations.
 
 import type {
 	MethodInfo,
@@ -27,7 +28,10 @@ export interface ServerStreamingIterableCall<I extends object = object, O extend
 	readonly trailers: Promise<RpcMetadata>;
 }
 
-/** Starts an on-demand server-streaming call. Interceptors are not applied. */
+/**
+ * Starts an on-demand server-streaming call. `options` are the call's own; the transport merges its
+ * defaults into them. Interceptors are not applied.
+ */
 export type PullServerStreaming = <I extends object, O extends object>(
 	method: MethodInfo<I, O>,
 	input: I,
@@ -37,6 +41,17 @@ export type PullServerStreaming = <I extends object, O extends object>(
 /** The key of the on-demand server-streaming method on transports that have one. */
 export const PULL_SERVER_STREAMING = Symbol('PullServerStreaming');
 
+/**
+ * A transport that ledger streams read on demand. `SuiGrpcClient` uses the method when the transport
+ * has no interceptors, and `serverStreaming` otherwise.
+ *
+ * Failures reject `responses.next()`, `headers`, `status` and `trailers` with one `RpcError` whose
+ * `code` is a `GrpcStatusCode` name and whose message is already percent-decoded. A call that loses
+ * its connection fails with `UNAVAILABLE`, and an aborted call with the status
+ * `grpcStatusFromAbortReason` gives for the signal's reason. Ledger streams retry transient codes
+ * such as `UNAVAILABLE`, so mark a failure that would recur on every attempt with
+ * `markNonRetryable`.
+ */
 export interface PullServerStreamingTransport extends RpcTransport {
 	[PULL_SERVER_STREAMING]: PullServerStreaming;
 }
