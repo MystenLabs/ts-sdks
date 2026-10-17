@@ -69,6 +69,8 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	/** The committed state is within one reconnect of the live tip. */
 	#nearLiveTip: boolean;
 	#retentionLimit = false;
+	/** Consecutive passes, across reconnects, that ended on a rejection that may be pruned history. */
+	#rejectedPasses = 0;
 
 	constructor(options: {
 		plan: StreamPlan;
@@ -152,16 +154,14 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	): AsyncGenerator<CoreFrame<Frame>, void> {
 		if (stage === 'gap') this.#status.recovering();
 		const end = to === 'tip' ? undefined : to;
-		let rejected = 0;
 		while (true) {
 			const before = this.#committedBytes;
 			const { complete, mayBePruned } = yield* this.#scanOnce(end, stage);
 			if (complete) break;
-			// A rejection that may be pruned history is lag only if it clears, and a pass that
-			// advanced proves the read was served.
-			const advanced = before !== this.#committedBytes;
-			rejected = mayBePruned && !advanced ? rejected + 1 : 0;
-			if (mayBePruned && rejected >= UNCONFIRMED_REJECTIONS) throw mayBePruned;
+			// A rejection that may be pruned history is lag only if it clears. Any commit resets the
+			// count, including one earlier in this pass.
+			if (mayBePruned && before === this.#committedBytes) this.#rejectedPasses++;
+			if (mayBePruned && this.#rejectedPasses >= UNCONFIRMED_REJECTIONS) throw mayBePruned;
 			// The index has not reached `end` yet. Never move on with a partial range.
 			await sleep(this.#plan.pollInterval, this.signal);
 		}
@@ -272,6 +272,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		this.signal.throwIfAborted();
 		this.#committed = event.position;
 		this.#committedBytes = this.#bytes(event.position);
+		this.#rejectedPasses = 0;
 		if (event.$kind === 'Item') this.#lastItem = event.position;
 		if (this.#plan.order === 'ascending') this.#cover(this.#coverage(event.position));
 
