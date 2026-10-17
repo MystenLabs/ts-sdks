@@ -56,6 +56,236 @@ export namespace SuiClientTypes {
 
 	export type Order = 'ascending' | 'descending';
 
+	/** Opaque resume position, valid only for the stream that produced it. */
+	export type StreamResumeToken = string;
+
+	/**
+	 * A checkpoint or resume token. A checkpoint start is inclusive; a resume token start continues
+	 * after the frame that carried the token, so save a token only once its frame is processed. An
+	 * end is exclusive: it stops before the checkpoint, or before the token's frame.
+	 */
+	export type StreamStart =
+		| { checkpoint: CheckpointNumber; resumeToken?: never }
+		| { resumeToken: StreamResumeToken; checkpoint?: never };
+
+	export type StreamEnd = StreamStart;
+
+	/** A bound as reported by a completion, with checkpoints as decimal strings. */
+	export type StreamBound =
+		| { checkpoint: string; resumeToken?: never }
+		| { resumeToken: StreamResumeToken; checkpoint?: never };
+
+	export interface StreamRetryOptions {
+		/**
+		 * First retry delay in milliseconds.
+		 * @default 250
+		 */
+		initialDelay?: number;
+		/**
+		 * Cap on the exponential delay in milliseconds.
+		 * @default 30_000
+		 */
+		maxDelay?: number;
+		/**
+		 * Maximum random delay added to each retry, in milliseconds.
+		 * @default 500
+		 */
+		jitter?: number;
+		/**
+		 * Consecutive failures without progress before the stream throws; 0 disables retries.
+		 * @default Infinity
+		 */
+		maxAttempts?: number;
+	}
+
+	/** Why a historical page ended. */
+	export type StreamPageEnd = 'limit' | 'bound' | 'indexedTip';
+
+	/** Connection state reported to `onStatus`, for diagnostics only. Use frame tokens to resume. */
+	export type StreamStatus =
+		| { $kind: 'Connecting'; attempt: number }
+		/** The first server response of this attempt. */
+		| { $kind: 'Connected' }
+		/** Reading history to close a gap before live delivery resumes. */
+		| { $kind: 'Recovering' }
+		/** Following frames are live (for polling: a pass reached the indexed tip). */
+		| { $kind: 'Live' }
+		/** A historical page ended. */
+		| {
+				$kind: 'Page';
+				stage: 'history' | 'gap';
+				end: StreamPageEnd;
+				/** Last checkpoint fully covered by this page (ascending), if known. */
+				coveredCheckpoint?: string;
+		  }
+		/** `attempt` 0 is an immediate reconnect after progress. */
+		| { $kind: 'Retrying'; attempt: number; delay: number; error: unknown }
+		| { $kind: 'Error'; error: unknown };
+
+	/** Control frames to emit in addition to items. */
+	export interface StreamFrameOptions {
+		/** Emit a final Complete frame after a successful finite traversal. */
+		completion?: boolean;
+		/** Emit Progress frames carrying resumable positions that no item reported. */
+		progress?: boolean;
+	}
+
+	export interface StreamOptions<
+		Frames extends StreamFrameOptions = {},
+	> extends CoreClientMethodOptions {
+		/**
+		 * Where to start: at a checkpoint, or after the frame that carried a resume token. Required
+		 * for a finite ascending read.
+		 */
+		start?: StreamStart;
+		/** Where to stop (exclusive). */
+		end?: StreamEnd;
+		/** @default 'ascending' */
+		order?: Order;
+		/**
+		 * Keep following new checkpoints after the history. Defaults to `true` for an ascending stream
+		 * without an `end`; a resume token keeps the setting it was created with.
+		 */
+		follow?: boolean;
+		/**
+		 * How a followed stream receives new data: a live subscription, or polling every
+		 * `pollInterval`.
+		 * @default 'subscribe'
+		 */
+		delivery?: 'subscribe' | 'poll';
+		/**
+		 * Polling interval in milliseconds.
+		 * @default 1000
+		 */
+		pollInterval?: number;
+		retry?: StreamRetryOptions;
+		/** Called synchronously with each status. Throwing ends the stream with that error. */
+		onStatus?: (status: StreamStatus) => void;
+		/** Control frames to emit alongside items. */
+		frames?: Frames;
+	}
+
+	/** Data to deliver with each streamed checkpoint. */
+	export interface StreamCheckpointInclude {
+		/**
+		 * Deliver every transaction of the checkpoint, in execution order, with these fields. Each
+		 * checkpoint is yielded once all of its transactions have been read.
+		 */
+		transactions?: TransactionInclude;
+	}
+
+	export interface StreamCheckpointsOptions<
+		Include extends StreamCheckpointInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> extends StreamOptions<Frames> {
+		include?: Include;
+	}
+
+	/** A streamed checkpoint, with `transactions` when `include.transactions` is set. */
+	export type StreamedCheckpoint<Include extends StreamCheckpointInclude = {}> = Checkpoint &
+		(Include extends { transactions: infer TransactionFields extends TransactionInclude }
+			? { transactions: Transaction<TransactionFields>[] }
+			: {});
+
+	export interface StreamTransactionsOptions<
+		Include extends TransactionInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> extends StreamOptions<Frames> {
+		filter?: TransactionFilter;
+		include?: Include;
+	}
+
+	export interface StreamEventsOptions<
+		Frames extends StreamFrameOptions = {},
+	> extends StreamOptions<Frames> {
+		filter?: EventFilter;
+	}
+
+	export interface StreamCheckpointFrame<Include extends StreamCheckpointInclude = {}> {
+		$kind: 'Checkpoint';
+		checkpoint: StreamedCheckpoint<Include>;
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamTransactionFrame<Include extends TransactionInclude = {}> {
+		$kind: 'Transaction';
+		transaction: TransactionResult<Include>;
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamEventFrame {
+		$kind: 'Event';
+		event: EventEntry;
+		resumeToken: StreamResumeToken;
+	}
+
+	/** A resumable position that no item reported, such as the end of an empty page. */
+	export interface StreamProgressFrame {
+		$kind: 'Progress';
+		resumeToken: StreamResumeToken;
+		/** Last checkpoint fully delivered at this position (ascending), if known. */
+		coveredCheckpoint?: string;
+	}
+
+	export interface StreamRange {
+		/** Start of this invocation, including when resuming an earlier stream. */
+		start?: StreamBound;
+		end?: StreamBound;
+		/** Indexed checkpoint captured once when establishing a finite range. */
+		capturedCheckpoint?: string;
+	}
+
+	export interface StreamCompletion {
+		range: StreamRange;
+		order: Order;
+		/**
+		 * `retentionLimit`: a read toward genesis stopped at the oldest checkpoint the server
+		 * retains, because older history has been pruned.
+		 */
+		reason: 'checkpointBound' | 'cursorBound' | 'indexedTip' | 'genesis' | 'retentionLimit';
+		/** Last delivered position, if there is one. */
+		resumeToken?: StreamResumeToken;
+	}
+
+	export interface StreamCompletionFrame {
+		$kind: 'Complete';
+		completion: StreamCompletion;
+	}
+
+	/**
+	 * `T` when `Frames[Key]` may be true; includes non-literal booleans. Distributes over a union of
+	 * option objects, so a frame that any member enables is included.
+	 */
+	type EnabledFrame<
+		Frames extends StreamFrameOptions,
+		Key extends keyof StreamFrameOptions,
+		T,
+	> = Frames extends unknown
+		? Key extends keyof Frames
+			? true extends Frames[Key]
+				? T
+				: never
+			: never
+		: never;
+
+	export type StreamResult<Item, Frames extends StreamFrameOptions = {}> =
+		| Item
+		| EnabledFrame<Frames, 'completion', StreamCompletionFrame>
+		| EnabledFrame<Frames, 'progress', StreamProgressFrame>;
+
+	export type StreamCheckpointResult<
+		Include extends StreamCheckpointInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> = StreamResult<StreamCheckpointFrame<Include>, Frames>;
+	export type StreamTransactionResult<
+		Include extends TransactionInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> = StreamResult<StreamTransactionFrame<Include>, Frames>;
+	export type StreamEventResult<Frames extends StreamFrameOptions = {}> = StreamResult<
+		StreamEventFrame,
+		Frames
+	>;
+
 	/** Object methods */
 	export interface TransportMethods {
 		getObjects: <Include extends ObjectInclude = {}>(

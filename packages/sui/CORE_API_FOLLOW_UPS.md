@@ -48,26 +48,6 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
   sparse filters such as `affectedAddress`, so restarts of a filtered indexer sit idle that long.
   Reading history up to the indexed tip while the subscription connects would remove the wait; the
   later handoff must then dedupe the overlap the same way the recovery scan does.
-- **GraphQL subscriptions skip or repeat items at the server's backfill-to-live handoff** — about
-  one in four resubscribes with an `after` cursor or `afterCheckpoint` either repeats the cursor's
-  item or skips a checkpoint (server side; reproducible with raw SSE). The SDK drops the repeated
-  item and repairs skipped checkpoints for `streamCheckpoints`. Transaction and event streams cannot
-  tell a skipped checkpoint from an unmatched one when a filter is set, so a long GraphQL follow can
-  still lose data across reconnects until the server is fixed; an unfiltered transaction stream
-  could use the same checkpoint-gap repair.
-- **Public fullnodes end every gRPC stream after about 30 s** — both gRPC-web and native HTTP/2
-  (`RST_STREAM INTERNAL_ERROR`). Streams reconnect and recover without gaps, and the first reconnect
-  after progress is immediate, but each cut still costs a recovery scan; tip latency p99 is about
-  3.8 s against a 0.95 s p50. Worth raising with the node operators.
-- **Server errors for pruned history differ by RPC** — `ListCheckpoints` below
-  `lowestAvailableCheckpoint` returns `OUT_OF_RANGE`; `ListTransactions` returns
-  `INTERNAL "missing checkpoint N while resolving tx boundary"`, which callers cannot distinguish
-  from a server fault. GraphQL serves full history, so the same `start` succeeds there.
-- **GraphQL returns an empty page for a checkpoint cursor combined with an `afterCheckpoint` naming
-  the same checkpoint** — the SDK keeps the bound one checkpoint behind the cursor; the server
-  should accept the redundant bound.
-- **Stream option and token errors are plain `Error`s** — applications match on message text to tell
-  a bad or foreign token from a transient failure. A typed error with a code would help.
 - **Event and progress frames carry no timestamp** — measuring lag needs a second checkpoint stream
   or a lookup; `EventEntry.checkpoint` is the only ordering information.
 - **Per-frame CPU** — the full gRPC transaction path costs about 96 µs per transaction (about 10,000
