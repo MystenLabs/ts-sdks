@@ -115,7 +115,13 @@ export async function* readPages<Item>(
 
 	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
-		const page = await adapter.fetchPage({ ...request, range: { ...request.range }, unread });
+		// Descending, only once a page has been read: a cursor low end was retained then.
+		const newest = first ? undefined : (previous?.checkpoint ?? lastCheckpoint(request.range.end));
+		const page = await adapter.fetchPage({
+			...request,
+			range: { ...request.range },
+			unread: ascending ? unread : newest,
+		});
 		let empty = true;
 		let pageEnd: PageEnd;
 		try {
@@ -306,6 +312,10 @@ function assertRetained(
 		'HistoryUnavailable',
 		`Checkpoint ${pruned} has been pruned; the oldest available is ${retainedFrom}`,
 	);
+}
+
+function lastCheckpoint(end: bigint | undefined): bigint | undefined {
+	return end === undefined ? undefined : end - 1n;
 }
 
 function maxOf(a: bigint | undefined, b: bigint | undefined): bigint | undefined {

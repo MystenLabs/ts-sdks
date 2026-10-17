@@ -32,7 +32,10 @@ export type Bound = { checkpoint: bigint } | { position: StreamPosition };
 /** One page of a range: checkpoints `[range.start, range.end)`, then strictly between cursors. */
 export interface PageRequest {
 	range: { start?: bigint; end?: bigint };
-	/** Ascending: the oldest checkpoint the pass may still have to read. */
+	/**
+	 * The nearest checkpoint the pass may still have to read: ascending the oldest, descending the
+	 * newest, after its first page.
+	 */
 	unread?: bigint;
 	after?: Uint8Array;
 	before?: Uint8Array;
