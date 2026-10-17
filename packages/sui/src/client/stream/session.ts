@@ -66,6 +66,8 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	/** The committed state is within one reconnect of the live tip. */
 	#nearLiveTip: boolean;
 	#retentionLimit = false;
+	/** A page of this range was read, so its low end was retained then. */
+	#rangeRead: boolean;
 
 	constructor(options: {
 		plan: StreamPlan;
@@ -95,6 +97,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		}
 		this.#covered = this.#initialCoverage();
 		this.#nearLiveTip = plan.anchored;
+		this.#rangeRead = plan.resumesRange;
 	}
 
 	/** Resume point: the last committed position, else the planned start bound. */
@@ -216,6 +219,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 			end,
 			order,
 			capturedTip,
+			rangeRead: this.#rangeRead,
 			signal: this.signal,
 		});
 		try {
@@ -231,6 +235,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 						this.#status.connected();
 						break;
 					case 'Page':
+						this.#rangeRead = true;
 						this.#status.page(stage, event.end, event.coverage);
 						break;
 					case 'Item':
