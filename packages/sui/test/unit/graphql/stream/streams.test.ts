@@ -79,7 +79,7 @@ function token(frame: Frame | undefined): string {
 async function followTokens(family: Family, edges: Edge[]): Promise<string[]> {
 	const seed = fakeGraphQL({ tip: 10 }).on(subscribeOperation(family), live(family, edges));
 	const frames = await take(
-		stream(seed.client, family, { start: { checkpoint: 0 } }),
+		stream(seed.client, family, { start: { checkpoint: 1 } }),
 		edges.length,
 	);
 	return frames.map(token);
@@ -752,6 +752,41 @@ describe('live handoff', () => {
 		expect(server.sent('scanEvents')).toHaveLength(0);
 		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
 	});
+
+	it.each(['checkpoints', 'transactions', 'events'] as const)(
+		'reads %s history from genesis before subscribing after it',
+		async (family) => {
+			const edge = (cp: number, source: 'history' | 'live' = 'history') =>
+				family === 'checkpoints'
+					? checkpoint(cp, source)
+					: family === 'transactions'
+						? transaction(cp, { source })
+						: event(cp, 0, { source });
+			const server = fakeGraphQL({ tip: 3 });
+			server.on(
+				`scan${family[0].toUpperCase()}${family.slice(1)}`,
+				page(family, [edge(0), edge(2)]),
+			);
+			server.on(subscribeOperation(family), live(family, [edge(4, 'live')]));
+			const frames = await take(
+				stream(server.client, family, {
+					start: { checkpoint: 0 },
+					signal: AbortSignal.timeout(2000),
+				}),
+				3,
+			);
+			expect(frames.map(label)).toEqual(
+				{
+					checkpoints: ['0', '2', '4'],
+					transactions: ['tx0', 'tx2', 'tx4'],
+					events: ['0:0', '2:0', '4:0'],
+				}[family],
+			);
+			expect(server.sent(subscribeOperation(family))[0]).toMatchObject(
+				family === 'checkpoints' ? { afterCheckpoint: 3 } : { filter: { afterCheckpoint: 3 } },
+			);
+		},
+	);
 
 	it('reports Connected when a quiet subscription opens, and Live with its first item', async () => {
 		const server = fakeGraphQL({ tip: 10 }).on('subscribeEvents', live('events', []));

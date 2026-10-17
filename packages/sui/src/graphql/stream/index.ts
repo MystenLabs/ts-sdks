@@ -10,7 +10,7 @@ import type {
 import type { SuiClientTypes } from '../../client/types.js';
 import type { SuiGraphQLClient } from '../client.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
-import { liveSubscription } from './live.js';
+import { canResumeSubscription, liveSubscription } from './live.js';
 import { fetchGraphQLPage } from './page.js';
 import { classifyGraphQLError, readChainTip } from './query.js';
 
@@ -32,6 +32,7 @@ function adapterFor<Node>(
 		// The chain identity is read with the indexed tip, so a fresh follow is anchored there.
 		anchorsAtLiveTip: false,
 		resumesSubscriptions: true,
+		canResume: canResumeSubscription,
 
 		async initialize(signal) {
 			const filter = await family.resolveFilter(signal);
