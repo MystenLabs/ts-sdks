@@ -15,9 +15,10 @@
  * 1. Translate the bounds. Checkpoints become the range. The start adds its cursor, so the pass
  *    resumes exactly; an end position adds only its checkpoint, and items stop at it by
  *    coordinates (`reachesEnd`).
- * 2. Fetch a page. A range that starts below `retainedFrom` fails with `HistoryUnavailable`. A
- *    server that has not indexed the point the page resumes from ends the pass incomplete, so the
- *    caller retries later instead of skipping items.
+ * 2. Fetch a page. If the server no longer retains history the pass has yet to read, the pass
+ *    fails with `HistoryUnavailable`; this is checked on every page, since retention can move
+ *    between them. A server that has not indexed the point the page resumes from ends the pass
+ *    incomplete, so the caller retries later instead of skipping items.
  * 3. Deliver items until one reaches the end. While more pages remain, an empty page's cursor is
  *    progress, and the cursor must advance.
  * 4. After the last page, the pass commits the boundary after what it covered, so a quiet range
@@ -25,7 +26,7 @@
  */
 
 import type { SuiClientTypes } from '../types.js';
-import type { Bound, Coverage, LedgerStreamAdapter, Page, PageRequest } from './adapter.js';
+import type { Bound, Coverage, LedgerStreamAdapter, PageRequest } from './adapter.js';
 import { SuiStreamError } from './errors.js';
 import { boundPosition } from './plan.js';
 import {
@@ -91,10 +92,14 @@ export async function* readPages<Item>(
 		start && (!ascending || 'position' in start) ? boundPosition(start, order) : undefined;
 	let previous: StreamPosition | undefined;
 	let coverage: Coverage = { $kind: 'Unknown' };
+	// Ascending: the oldest checkpoint the pass may still have to read.
+	let unread = request.range.start;
 	const advance = (raw: StreamPosition) => {
 		const position = tracker.apply(raw);
 		resumesFrom = position;
 		coverage = position.coverage;
+		const next = nextUncovered(coverage);
+		if (next !== undefined && (unread === undefined || next > unread)) unread = next;
 		return position;
 	};
 
@@ -105,10 +110,8 @@ export async function* readPages<Item>(
 
 	for (let first = true; ; first = false) {
 		const page = await adapter.fetchPage({ ...request, range: { ...request.range } });
-		if (first) {
-			yield { $kind: 'Connected' };
-			assertRetained(page, request);
-		}
+		if (first) yield { $kind: 'Connected' };
+		assertRetained(page.retainedFrom, order, request, unread, first);
 		// A server behind the point this page resumes from would silently skip items.
 		const needed = resumesFrom && indexedThrough(resumesFrom);
 		if (needed != null && page.viewedAt !== undefined && page.viewedAt < needed) {
@@ -144,7 +147,10 @@ export async function* readPages<Item>(
 		}
 
 		const reached = page.covered ?? page.viewedAt;
-		const complete = target === null || reached === undefined || reached >= target;
+		// An end cursor bounds the page, so coverage stops at the cursor, short of the tip the cursor
+		// was read at; the server's own tip says whether it has indexed that far.
+		const indexed = endCut?.kind === 'Progress' ? maxOf(page.covered, page.viewedAt) : reached;
+		const complete = target === null || indexed === undefined || indexed >= target;
 		// Commit the boundary after what was covered, so a quiet range moves its resume point and a
 		// finished range resumes as empty. A descending pass has covered down to a checkpoint end.
 		let boundary: bigint | undefined;
@@ -220,14 +226,37 @@ function boundaryAfter(
 	return boundary;
 }
 
-function assertRetained(page: Page<unknown>, { range }: PageRequest) {
-	const { retainedFrom } = page;
-	if (retainedFrom !== undefined && range.start !== undefined && range.start < retainedFrom) {
-		throw new SuiStreamError(
-			'HistoryUnavailable',
-			`Checkpoint ${range.start} has been pruned; the oldest available is ${retainedFrom}`,
-		);
+/**
+ * Fails when the server has pruned history the pass still has to read: ascending, anything from
+ * the oldest unread checkpoint; descending, the low end of the range, or on the first page a start
+ * that is already below retention. A descending read to genesis instead stops at retention.
+ */
+function assertRetained(
+	retainedFrom: bigint | undefined,
+	order: SuiClientTypes.Order,
+	{ range }: PageRequest,
+	unread: bigint | undefined,
+	first: boolean,
+) {
+	if (retainedFrom === undefined) return;
+	let pruned: bigint | undefined;
+	if (order === 'ascending') {
+		if (unread !== undefined && unread < retainedFrom) pruned = unread;
+	} else if (range.start !== undefined && range.start < retainedFrom) {
+		pruned = range.start;
+	} else if (first && range.end !== undefined && range.end <= retainedFrom) {
+		pruned = range.end - 1n;
 	}
+	if (pruned === undefined) return;
+	throw new SuiStreamError(
+		'HistoryUnavailable',
+		`Checkpoint ${pruned} has been pruned; the oldest available is ${retainedFrom}`,
+	);
+}
+
+function maxOf(a: bigint | undefined, b: bigint | undefined): bigint | undefined {
+	if (a === undefined) return b;
+	return b === undefined || a > b ? a : b;
 }
 
 function through(checkpoint: bigint | undefined): Coverage {
