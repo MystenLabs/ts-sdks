@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it, onTestFinished } from 'vitest';
 
 import { SuiStreamError } from '../../../../src/client/index.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
 import { markNonRetryable } from '../../../../src/grpc/pull-call.js';
+import { estimateBytes, liveBuffer } from '../../../../src/grpc/stream/call.js';
 import { GrpcLedgerStreamAdapter } from '../../../../src/grpc/stream/index.js';
 import { collect, noDelay, statusLog, take } from '../../client/stream/fake-ledger.js';
 import {
@@ -788,6 +789,11 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		);
 
 		it('reconnects after the live buffer overflows during the gap, without losing items', async () => {
+			const maxBytes = liveBuffer.maxBytes;
+			liveBuffer.maxBytes = 100 * estimateBytes(event(1000));
+			onTestFinished(() => {
+				liveBuffer.maxBytes = maxBytes;
+			});
 			let tip = 1;
 			const l = ledger().tip(() => tip);
 			const page = (input: object) => listUpTo(input as GrpcTypes.ListEventsRequest, tip);
@@ -812,6 +818,110 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(eventIds(frames)).toEqual(range(1, 1101).map((n) => `${n}:0`));
 			expect(l.requestsTo('SubscribeEvents')).toHaveLength(2);
 			expect(log.filter((status) => status.startsWith('Retrying'))).toEqual(['Retrying(0,0)']);
+		});
+	});
+
+	describe('checkpoints with transactions', () => {
+		const objectId = `0x${'ab'.repeat(32)}`;
+		const objectType = '0x2::coin::Coin<0x2::sui::SUI>';
+		const include = { transactions: { effects: true, objectTypes: true } } as const;
+
+		/** A checkpoint with a successful and a failed transaction; types only in its object set. */
+		function withTransactions(checkpoint: number): GrpcTypes.Checkpoint {
+			const transaction = (index: number, success: boolean): GrpcTypes.ExecutedTransaction => ({
+				digest: `tx-${checkpoint}-${index}`,
+				checkpoint: BigInt(checkpoint),
+				signatures: [],
+				balanceChanges: [],
+				effects: {
+					status: success
+						? { success }
+						: {
+								success,
+								error: {
+									description: 'InsufficientGas',
+									command: 0n,
+									errorDetails: { oneofKind: undefined },
+								},
+							},
+					dependencies: [],
+					unchangedConsensusObjects: [],
+					unchangedLoadedRuntimeObjects: [],
+					changedObjects: [{ objectId, inputVersion: 1n, outputVersion: BigInt(checkpoint) }],
+				},
+			});
+			return {
+				...checkpointMessage(checkpoint),
+				transactions: [transaction(0, true), transaction(1, false)],
+				objects: { objects: [{ objectId, version: BigInt(checkpoint), objectType }] },
+			};
+		}
+
+		function expectTransactions(frame: SuiClientTypes.StreamCheckpointFrame<typeof include>) {
+			const { sequenceNumber, transactions } = frame.checkpoint;
+			expect(transactions.map((tx) => [tx.digest, tx.status.success, tx.objectTypes])).toEqual([
+				[`tx-${sequenceNumber}-0`, true, { [objectId]: objectType }],
+				[`tx-${sequenceNumber}-1`, false, { [objectId]: objectType }],
+			]);
+			expect(transactions[0].effects.changedObjects[0].objectType).toBe(objectType);
+		}
+
+		it('reads every transaction with its checkpoint, in the same requests as headers alone', async () => {
+			const pages = () => [
+				{ checkpoint: withTransactions(5), watermark: { cursor: mark('5'), checkpoint: 5n } },
+				{ checkpoint: withTransactions(6), watermark: { cursor: mark('6'), checkpoint: 6n } },
+				ended('CHECKPOINT_BOUND', 6),
+			];
+			const l = ledger().list('ListCheckpoints', pages(), pages());
+			const range = { start: { checkpoint: 5 }, end: { checkpoint: 7 } };
+			const frames = await collect(l.client().streamCheckpoints({ ...range, include }));
+			expect(frames.map((frame) => frame.checkpoint.sequenceNumber)).toEqual(['5', '6']);
+			frames.forEach(expectTransactions);
+			const [request] = l.requestsTo('ListCheckpoints');
+			expect(request.readMask?.paths).toEqual(
+				expect.arrayContaining([
+					'sequence_number',
+					'transactions.digest',
+					'transactions.effects',
+					'objects.objects.object_type',
+				]),
+			);
+
+			const headers = await collect(l.client().streamCheckpoints(range));
+			expect(headers[0].checkpoint).not.toHaveProperty('transactions');
+			expect(l.requestsTo('ListCheckpoints')[1].readMask?.paths).not.toContain(
+				'transactions.digest',
+			);
+			expect(l.calls).toEqual([
+				'GetServiceInfo',
+				'ListCheckpoints',
+				'GetServiceInfo',
+				'ListCheckpoints',
+			]);
+		});
+
+		it('delivers live checkpoints with their transactions and no extra request', async () => {
+			const l = ledger().subscribe('SubscribeCheckpoints', [
+				{ cursor: 5n, checkpoint: withTransactions(5) },
+				{ cursor: 6n, checkpoint: withTransactions(6) },
+			]);
+			const frames = await take(l.client().core.streamCheckpoints({ include }), 2);
+			frames.forEach(expectTransactions);
+			expect(l.calls).toEqual(['GetServiceInfo', 'SubscribeCheckpoints']);
+		});
+
+		it('leaves object types out of the read mask unless they are included', async () => {
+			const l = ledger().subscribe('SubscribeCheckpoints', [
+				{ cursor: 5n, checkpoint: checkpointMessage(5) },
+			]);
+			const [frame] = await take(
+				l.client().streamCheckpoints({ include: { transactions: { events: true } } }),
+				1,
+			);
+			expect(frame.checkpoint.transactions).toEqual([]);
+			const [request] = l.requestsTo('SubscribeCheckpoints');
+			expect(request.readMask?.paths).toContain('transactions.events');
+			expect(request.readMask?.paths).not.toContain('objects.objects.object_type');
 		});
 	});
 

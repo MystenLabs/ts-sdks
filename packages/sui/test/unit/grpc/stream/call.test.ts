@@ -3,13 +3,20 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isBufferOverflow, openLedgerCall } from '../../../../src/grpc/stream/call.js';
+import {
+	estimateBytes,
+	isBufferOverflow,
+	openLedgerCall,
+} from '../../../../src/grpc/stream/call.js';
 import { GRPC_FAMILIES, type LiveFrame } from '../../../../src/grpc/stream/families.js';
 import { event, FakeLedger, Gate, mark, progress, type Delivery } from './fake-grpc.js';
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 
-function open(ledger: FakeLedger, options: { maxItems?: number; coalesceProgress?: boolean } = {}) {
+/** A budget that holds `n` single-digit event frames. */
+const eventBudget = (n: number) => n * estimateBytes(event(1));
+
+function open(ledger: FakeLedger, options: { maxBytes?: number; coalesceProgress?: boolean } = {}) {
 	const controller = new AbortController();
 	const call = openLedgerCall(
 		ledger,
@@ -47,7 +54,7 @@ describe('ledger calls: pull path', () => {
 	it('reads ahead into the bounded queue only while asked to, and overflows past it', async () => {
 		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
 		const ledger = new FakeLedger('pull').subscribe('SubscribeEvents', frames);
-		const { call } = open(ledger, { maxItems: 4 });
+		const { call } = open(ledger, { maxBytes: eventBudget(4) });
 		expect((await call.next()).value?.event?.checkpoint).toBe(1n);
 		call.readAhead(true);
 		await settle();
@@ -88,7 +95,7 @@ describe('ledger calls: push path (interceptor configured)', () => {
 	it('holds at most the bounded queue, draining the protobuf runtime queue', async () => {
 		const frames = Array.from({ length: 100 }, (_, n) => event(n + 1));
 		const ledger = new FakeLedger('push').subscribe('SubscribeEvents', frames);
-		const { call, controller } = open(ledger, { maxItems: 2 });
+		const { call, controller } = open(ledger, { maxBytes: eventBudget(2) });
 		await settle();
 		// The transport pushed past the limit, so the call was cancelled at the third item.
 		expect(controller.signal.aborted).toBe(false);
@@ -97,6 +104,35 @@ describe('ledger calls: push path (interceptor configured)', () => {
 		expect((await call.next()).done).toBe(false);
 		expect(isBufferOverflow(await rejection(call.next()))).toBe(true);
 		await call.return();
+	});
+});
+
+describe('ledger calls: byte budget', () => {
+	it('holds responses by estimated size, not by count', async () => {
+		const frames = Array.from({ length: 2000 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger('push').subscribe('SubscribeEvents', frames);
+		const { call } = open(ledger, { maxBytes: estimateBytes(frames) });
+		await settle();
+		expect(ledger.cancelled.SubscribeEvents ?? 0).toBe(0);
+		for (let n = 1; n <= 2000; n++) {
+			expect((await call.next()).value?.event?.checkpoint).toBe(BigInt(n));
+		}
+		await call.return();
+	});
+
+	it('admits a response larger than the budget into an empty queue', async () => {
+		const ledger = new FakeLedger('push').subscribe('SubscribeEvents', [event(1), event(2)]);
+		const { call } = open(ledger, { maxBytes: 1 });
+		await settle();
+		expect((await call.next()).value?.event?.checkpoint).toBe(1n);
+		expect(isBufferOverflow(await rejection(call.next()))).toBe(true);
+		await call.return();
+	});
+
+	it('estimates bytes and strings by length and other fields by 8', () => {
+		expect(estimateBytes({ a: new Uint8Array(100), b: 'abcd', c: 1n, d: [true, null] })).toBe(
+			8 + 100 + 4 + 8 + (8 + 8 + 0),
+		);
 	});
 });
 
@@ -143,7 +179,7 @@ describe.each(['pull', 'push'] satisfies Delivery[])('ledger calls (%s)', (deliv
 	it('fails with the abort reason when the stream signal aborts after an overflow', async () => {
 		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
 		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', frames);
-		const { call, controller } = open(ledger, { maxItems: 2 });
+		const { call, controller } = open(ledger, { maxBytes: eventBudget(2) });
 		call.readAhead(true);
 		await settle();
 		controller.abort(new Error('stop'));

@@ -88,7 +88,15 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		name: 'checkpoints',
 		list: streamingMethod(LedgerService, 'ListCheckpoints'),
 		subscribe: streamingMethod(SubscriptionService, 'SubscribeCheckpoints'),
-		readMask: () => CHECKPOINT_READ_MASK_PATHS,
+		// With included transactions, the checkpoint frame carries every one of them.
+		readMask: (include) =>
+			include
+				? [
+						...CHECKPOINT_READ_MASK_PATHS,
+						...transactionReadMaskPaths(include, 'transactions.'),
+						...(include.objectTypes ? CHECKPOINT_OBJECT_TYPE_PATHS : []),
+					]
+				: CHECKPOINT_READ_MASK_PATHS,
 		item: (frame) => frame.checkpoint && { $kind: 'Checkpoint', checkpoint: frame.checkpoint },
 		// A checkpoint is positioned by its sequence number alone; streams resume after it by number.
 		position(frame, item) {
@@ -117,6 +125,32 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		position: framePosition,
 	},
 };
+
+const CHECKPOINT_OBJECT_TYPE_PATHS = [
+	'objects.objects.object_id',
+	'objects.objects.version',
+	'objects.objects.object_type',
+];
+
+/**
+ * Servers without sui#28345 leave `changed_objects.object_type` unset in checkpoint reads, so the
+ * types are filled from the checkpoint's object set by id and version.
+ */
+function fillCheckpointObjectTypes(checkpoint: Checkpoint) {
+	const types = new Map<string, string>();
+	for (const object of checkpoint.objects?.objects ?? []) {
+		if (object.objectId && object.objectType) {
+			types.set(`${object.objectId}@${object.version}`, object.objectType);
+		}
+	}
+	for (const transaction of checkpoint.transactions) {
+		for (const change of transaction.effects?.changedObjects ?? []) {
+			change.objectType ??=
+				types.get(`${change.objectId}@${change.outputVersion}`) ??
+				types.get(`${change.objectId}@${change.inputVersion}`);
+		}
+	}
+}
 
 /** A generated method by name; its messages share the fields `ListRequest` and friends name. */
 function streamingMethod<I extends object, O extends object>(
@@ -183,6 +217,17 @@ function itemCoordinates(item: GrpcItem) {
 	}
 }
 
+function parseTransaction(
+	transaction: ExecutedTransaction,
+	include: SuiClientTypes.TransactionInclude | undefined,
+	source: string,
+) {
+	if (!transaction.digest || !transaction.effects?.status) {
+		throw new SuiStreamError('Protocol', `${source} response is incomplete`);
+	}
+	return parseGrpcTransactionResponse(transaction, { include });
+}
+
 type WithoutToken<Frame> = Frame extends unknown ? Omit<Frame, 'resumeToken'> : never;
 
 /** The public frame for an item, without its token. */
@@ -191,18 +236,20 @@ export function mapGrpcItem(
 	include: SuiClientTypes.TransactionInclude | undefined,
 ): WithoutToken<ItemFrame> {
 	switch (item.$kind) {
-		case 'Checkpoint':
-			return {
-				$kind: 'Checkpoint',
-				checkpoint: parseGrpcCheckpoint(item.checkpoint, 'Checkpoint stream'),
-			};
+		case 'Checkpoint': {
+			const checkpoint = parseGrpcCheckpoint(item.checkpoint, 'Checkpoint stream');
+			if (!include) return { $kind: 'Checkpoint', checkpoint };
+			if (include.objectTypes) fillCheckpointObjectTypes(item.checkpoint);
+			const transactions = item.checkpoint.transactions.map((transaction) => {
+				const result = parseTransaction(transaction, include, 'Checkpoint stream');
+				return result.Transaction ?? result.FailedTransaction;
+			});
+			return { $kind: 'Checkpoint', checkpoint: { ...checkpoint, transactions } };
+		}
 		case 'Transaction':
-			if (!item.transaction.digest || !item.transaction.effects?.status) {
-				throw new SuiStreamError('Protocol', 'Transaction stream response is incomplete');
-			}
 			return {
 				$kind: 'Transaction',
-				transaction: parseGrpcTransactionResponse(item.transaction, { include }),
+				transaction: parseTransaction(item.transaction, include, 'Transaction stream'),
 			};
 		case 'Event':
 			return { $kind: 'Event', event: parseGrpcEvent(item.event, 'Event stream') };
