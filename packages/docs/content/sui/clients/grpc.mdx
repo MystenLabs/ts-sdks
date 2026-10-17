@@ -126,7 +126,7 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 const client = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	format: 'binary', // default is 'text' (base64-encoded)
+	format: 'text', // default is 'binary'; use 'text' for proxies that only support base64
 });
 ```
 
@@ -137,8 +137,7 @@ import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	format: 'binary', // default is 'text' (base64-encoded)
-	// Additional transport options like fetchInit
+	// Also accepts format and fetchInit
 });
 
 const client = new SuiGrpcClient({
