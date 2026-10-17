@@ -16,12 +16,14 @@ import type {
 	LedgerStreamAdapter,
 	LiveEvent,
 	Page,
+	PageEnd,
 	PageRequest,
 } from '../../../../src/client/stream/adapter.js';
 import { createLedgerStream } from '../../../../src/client/stream/run.js';
 import {
 	boundaryPosition,
 	itemPosition,
+	pageItems,
 	SuiStreamError,
 	type StreamPosition,
 } from '../../../../src/client/stream/index.js';
@@ -231,19 +233,22 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		if (fault && 'repeatCursor' in fault && resumed) items.unshift(itemAt(resumed));
 		options.afterRead?.(ledger);
 		const last = items.at(-1);
-		const page: Page<FakeItem> = {
-			items: items.map((item) => ({ position: positionOf(item, ledger.opaque), item })),
-			next: { more, cursor: last && cursorOf(last) },
-		};
-		if (!options.watermarks) return { ...page, viewedAt: tip, retainedFrom: floor };
+		const page = (end: Omit<PageEnd, 'next'> = {}, head: Omit<Page<FakeItem>, 'items'> = {}) => ({
+			items: pageItems(
+				items.map((item) => ({ position: positionOf(item, ledger.opaque), item })),
+				{ next: { more, cursor: last && cursorOf(last) }, ...end },
+			),
+			...head,
+		});
+		if (!options.watermarks) return page({}, { viewedAt: tip, retainedFrom: floor });
 		if (order === 'ascending' && !more) {
 			const end = range.end === undefined ? tip : range.end - 1n;
-			return { ...page, covered: end < tip ? end : tip };
+			return page({ covered: end < tip ? end : tip });
 		}
 		if (order === 'descending' && !more && range.start === undefined) {
-			return { ...page, retainedFrom: floor };
+			return page({ retainedFrom: floor });
 		}
-		return page;
+		return page();
 	}
 
 	return {

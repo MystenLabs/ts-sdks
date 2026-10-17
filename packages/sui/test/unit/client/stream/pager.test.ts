@@ -6,8 +6,10 @@ import { describe, expect, it } from 'vitest';
 import type {
 	LedgerStreamAdapter,
 	Page,
+	PageEnd,
 	PageRequest,
 } from '../../../../src/client/stream/adapter.js';
+import { pageItems } from '../../../../src/client/stream/index.js';
 import { readPages, type Pass, type PassEvent } from '../../../../src/client/stream/pager.js';
 import {
 	boundaryPosition,
@@ -19,13 +21,16 @@ import {
 const bytes = (label: string) => new TextEncoder().encode(label);
 const item = (checkpoint: bigint, index: bigint): StreamPosition =>
 	itemPosition(checkpoint, { cursor: bytes(`${checkpoint}:${index}`), transactionIndex: index });
+type PageFields = Pick<Page<string>, 'viewedAt' | 'retainedFrom'> & Pick<PageEnd, 'covered'>;
 const page = (
 	positions: StreamPosition[],
-	next: Page<string>['next'],
-	fields: Partial<Page<string>> = {},
+	next: PageEnd['next'],
+	{ covered, ...fields }: PageFields = {},
 ): Page<string> => ({
-	items: positions.map((position) => ({ position, item: label(position) })),
-	next,
+	items: pageItems(
+		positions.map((position) => ({ position, item: label(position) })),
+		{ next, covered },
+	),
 	...fields,
 });
 const label = (position: StreamPosition) =>
@@ -319,7 +324,7 @@ describe('readPages', () => {
 	});
 
 	it('commits the boundary after a quiet range, within it, and judges completeness', async () => {
-		const quiet = (fields: Partial<Page<string>>) => scripted([page([], { more: false }, fields)]);
+		const quiet = (fields: PageFields) => scripted([page([], { more: false }, fields)]);
 		const pass = {
 			order: 'ascending',
 			start: { checkpoint: 3n },
