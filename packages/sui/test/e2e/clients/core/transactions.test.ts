@@ -27,7 +27,7 @@ const SUI_COIN_TYPE = normalizeStructTag(`0x2::coin::Coin<${SUI_TYPE_ARG}>`);
  * package and module for events in execution and simulation results.
  */
 function reportsExecutedEventOrigin(kind: ClientKind) {
-	return kind !== 'graphql' || inject('streamServerFixes');
+	return kind !== 'graphql' || inject('graphqlStreamFixes');
 }
 
 describe('Core API - Transactions', () => {
