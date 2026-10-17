@@ -19,6 +19,7 @@ import {
 	event,
 	eventIds,
 	FakeLedger,
+	Gate,
 	mark,
 	progress,
 	type Delivery,
@@ -818,6 +819,61 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.requestsTo('SubscribeEvents')).toHaveLength(2);
 			expect(log.filter((status) => status.startsWith('Retrying'))).toEqual(['Retrying(0,0)']);
 		});
+	});
+
+	describe('items within a page', () => {
+		it('delivers the first item before the List call completes', async () => {
+			const gate = new Gate();
+			const l = ledger().list('ListEvents', {
+				frames: [event(1), event(2), ended('CHECKPOINT_BOUND', 2)],
+				gate,
+			});
+			const stream = l.client().streamEvents({ start: { checkpoint: 1 }, end: { checkpoint: 3 } });
+			gate.open();
+			expect(eventIds([(await stream.next()).value!])).toEqual(['1:0']);
+			expect(l.reads.ListEvents).toBe(1);
+			gate.open(2);
+			expect(eventIds(await collect(stream))).toEqual(['2:0']);
+		});
+
+		it('keeps items delivered before a page fails and resumes after them', async () => {
+			const l = ledger().list(
+				'ListEvents',
+				{
+					frames: [event(1), event(2), event(3)],
+					end: new RpcError('reset', 'UNAVAILABLE'),
+				},
+				[event(4), event(5), ended('CHECKPOINT_BOUND', 5)],
+			);
+			const frames = await collect(
+				l.client().streamEvents({
+					start: { checkpoint: 1 },
+					end: { checkpoint: 6 },
+					retry: noDelay,
+				}),
+			);
+			expect(eventIds(frames)).toEqual(['1:0', '2:0', '3:0', '4:0', '5:0']);
+			const requests = l.requestsTo('ListEvents');
+			expect(requests).toHaveLength(2);
+			expect(requests[1].options?.after).toEqual(at(3));
+		});
+
+		if (delivery === 'pull') {
+			it('reads page frames only as they are consumed and cancels the rest', async () => {
+				const frames = Array.from({ length: 50 }, (_, n) => event(n + 1));
+				const l = ledger().list('ListEvents', [...frames, ended('CHECKPOINT_BOUND', 50)]);
+				const stream = l.client().streamEvents({
+					start: { checkpoint: 1 },
+					end: { checkpoint: 51 },
+				});
+				for (let delivered = 1; delivered <= 10; delivered++) {
+					await stream.next();
+					expect(l.reads.ListEvents - delivered).toBeLessThanOrEqual(1);
+				}
+				await stream.return(undefined);
+				expect(l.cancelled.ListEvents).toBe(1);
+			});
+		}
 	});
 
 	describe('checkpoints with transactions', () => {

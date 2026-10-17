@@ -4,7 +4,7 @@
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 
-import type { Page, PageItem, PageRequest } from '../../client/stream/index.js';
+import type { Page, PageEnd, PageItem, PageRequest } from '../../client/stream/index.js';
 import { SuiStreamError } from '../../client/stream/index.js';
 import { Ordering, QueryEndReason } from '../proto/sui/rpc/v2/query_options.js';
 import type { Watermark } from '../proto/sui/rpc/v2/query_options.js';
@@ -27,23 +27,30 @@ export type ListQuery = Omit<ListRequest, 'readMask' | 'filter'>;
 
 /**
  * One List call as a page. The call streams its items and ends with a QueryEnd frame, whose
- * watermark says where the scan stopped.
+ * watermark says where the scan stopped. The call opens on the first read.
  */
 export async function fetchListPage(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
 	request: PageRequest,
 ): Promise<Page<GrpcItem>> {
+	return { items: listItems(family, list, request) };
+}
+
+async function* listItems(
+	family: GrpcFamily,
+	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
+	request: PageRequest,
+): AsyncGenerator<PageItem<GrpcItem>, PageEnd, undefined> {
 	const { order, range } = request;
 	const call = list(listQuery(request), request.signal);
-	const items: PageItem<GrpcItem>[] = [];
 	let end: { reason: QueryEndReason; watermark?: Watermark } | undefined;
 	try {
 		for await (const frame of call) {
 			if (end) throw protocol('Received a frame after QueryEnd');
 			const item = family.item(frame);
-			if (item) items.push({ position: family.position(frame, item), item });
 			if (frame.end) end = { reason: queryEnd(frame.end.reason, item), watermark: frame.watermark };
+			if (item) yield { position: family.position(frame, item), item };
 		}
 	} catch (error) {
 		throw historyError(error);
@@ -55,9 +62,8 @@ export async function fetchListPage(
 	const { reason, watermark } = end;
 	const more = reason === QueryEndReason.ITEM_LIMIT || reason === QueryEndReason.SCAN_LIMIT;
 	// The scan stopped at a cursor bound's own item, which is not a place to resume.
-	if (reason === QueryEndReason.CURSOR_BOUND) return { items, next: { more } };
+	if (reason === QueryEndReason.CURSOR_BOUND) return { next: { more } };
 	return {
-		items,
 		next: { more, cursor: watermark?.cursor },
 		covered: order === 'ascending' ? watermark?.checkpoint : undefined,
 		// Without a lower bound, a descending read stops at the oldest checkpoint the server keeps.
