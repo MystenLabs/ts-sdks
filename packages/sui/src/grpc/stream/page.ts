@@ -32,14 +32,16 @@ export type ListQuery = Omit<ListRequest, 'readMask' | 'filter'>;
 export async function fetchListPage(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
+	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
 	request: PageRequest,
 ): Promise<Page<GrpcItem>> {
-	return { items: listItems(family, list, request) };
+	return { items: listItems(family, list, retainedFrom, request) };
 }
 
 async function* listItems(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
+	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
 	request: PageRequest,
 ): AsyncGenerator<PageItem<GrpcItem>, PageEnd, undefined> {
 	const { order, range } = request;
@@ -53,7 +55,16 @@ async function* listItems(
 			if (item) yield { position: family.position(frame, item), item };
 		}
 	} catch (error) {
-		throw historyError(error);
+		if (!isOutOfRange(error)) throw error;
+		// A server also reports OUT_OF_RANGE for a start past its index, such as a cursor from a
+		// server further ahead. Only a start below retention is pruned. The tip can pass the start
+		// before it is read, so the start is checked against the retention floor instead.
+		const start = order === 'ascending' ? range.start : undefined;
+		if (start === undefined || start <= (await retainedFrom(request.signal))) {
+			throw new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
+		}
+		// Nothing past the start is indexed here yet: the pass ends incomplete and polls.
+		return { next: { more: false }, covered: start - 1n };
 	} finally {
 		await call.return();
 	}
@@ -75,20 +86,26 @@ async function* listItems(
 }
 
 /** The indexed tip: the newest checkpoint a List call can read. */
-export async function readIndexedTip(transport: RpcTransport, signal: AbortSignal) {
+export function readIndexedTip(transport: RpcTransport, signal: AbortSignal) {
+	return readEdge(transport, Ordering.DESCENDING, signal);
+}
+
+/** The oldest checkpoint a List call can read: an unbounded ascending read starts there. */
+export function readRetainedFrom(transport: RpcTransport, signal: AbortSignal) {
+	return readEdge(transport, Ordering.ASCENDING, signal);
+}
+
+async function readEdge(transport: RpcTransport, ordering: Ordering, signal: AbortSignal) {
 	const call = openLedgerCall(
 		transport,
 		GRPC_FAMILIES.checkpoints.list,
-		{
-			readMask: { paths: ['sequence_number'] },
-			options: { limit: 1, ordering: Ordering.DESCENDING },
-		},
+		{ readMask: { paths: ['sequence_number'] }, options: { limit: 1, ordering } },
 		{ signal, isItem: (frame) => frame.checkpoint !== undefined },
 	);
 	try {
 		for await (const frame of call) {
-			const tip = frame.checkpoint?.sequenceNumber;
-			if (tip !== undefined) return tip;
+			const checkpoint = frame.checkpoint?.sequenceNumber;
+			if (checkpoint !== undefined) return checkpoint;
 		}
 	} finally {
 		await call.return();
@@ -128,12 +145,8 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
 	return reason;
 }
 
-/** Pruned history cannot come back by retrying. */
-function historyError(error: unknown): unknown {
-	if (error instanceof RpcError && error.code === 'OUT_OF_RANGE') {
-		return new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
-	}
-	return error;
+function isOutOfRange(error: unknown): error is RpcError {
+	return error instanceof RpcError && error.code === 'OUT_OF_RANGE';
 }
 
 function protocol(message: string) {

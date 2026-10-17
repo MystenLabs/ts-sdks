@@ -80,7 +80,13 @@ export async function* readPages<Item>(
 		? (['after', 'before'] as const)
 		: (['before', 'after'] as const);
 	if (start) {
-		narrow(request, cutAt(boundPosition(start, order), startSide, family), startSide, true);
+		const cut = cutAt(boundPosition(start, order), startSide, family);
+		narrow(request, cut, startSide, true);
+		// A progress cursor has no checkpoint, but what it covers still bounds the range, so a
+		// server can tell a start past its index from pruned history.
+		const covered = ascending && cut.checkpoint === null ? boundCoverage(start, family) : undefined;
+		const next = covered && nextUncovered(covered);
+		if (next !== undefined) request.range.start = next;
 	}
 	const endCut = end && cutAt(boundPosition(end, order), endSide, family);
 	if (endCut) narrow(request, endCut, endSide, false);
