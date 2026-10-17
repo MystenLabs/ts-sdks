@@ -22,6 +22,20 @@ it('codes a failed stream fetch as UNAVAILABLE', async () => {
 	).rejects.toMatchObject({ code: 'UNAVAILABLE', message: 'fetch failed' });
 });
 
+it('codes a failed unary fetch as UNAVAILABLE', async () => {
+	const client = new SuiGrpcClient({
+		network: 'testnet',
+		baseUrl: 'http://localhost',
+		fetch: async () => {
+			throw new TypeError('fetch failed');
+		},
+	});
+	await expect(client.ledgerService.getServiceInfo({}).response).rejects.toMatchObject({
+		code: 'UNAVAILABLE',
+		message: 'fetch failed',
+	});
+});
+
 it('codes a failed response body read as UNAVAILABLE', async () => {
 	const fetch = async () =>
 		new Response(

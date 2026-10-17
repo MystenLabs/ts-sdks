@@ -132,9 +132,9 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 	}
 }
 
-// Upstream erases fetch and body-read failures into INTERNAL. Wrap the fetch used for server
-// streams so those failures surface as UNAVAILABLE (see `toNetworkRpcError`).
-function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
+// Upstream erases fetch and body-read failures into INTERNAL. Wrap the fetch so those failures
+// surface as UNAVAILABLE (see `toNetworkRpcError`).
+function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 	return async (input, init) => {
 		let response: Response;
 		try {
@@ -233,7 +233,10 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		const call = super.unary(method, input, options);
+		const call = super.unary(method, input, {
+			...options,
+			fetch: networkFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
+		} as GrpcWebOptions);
 
 		normalizeRejections([call.headers, call.response, call.status, call.trailers], options.abort);
 
@@ -247,7 +250,7 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 	): ServerStreamingCall<I, O> {
 		const call = super.serverStreaming(method, input, {
 			...options,
-			fetch: streamFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
+			fetch: networkFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
 		} as GrpcWebOptions);
 
 		// A finite stream is often read through `responses` without awaiting `status`.
