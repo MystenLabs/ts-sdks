@@ -231,6 +231,64 @@ describe('readPages', () => {
 		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 	});
 
+	it('fails when retention moves past unread history between pages', async () => {
+		const { adapter } = scripted([
+			page([item(10n, 0n)], { more: true, cursor: bytes('c1') }, { retainedFrom: 5n }),
+			page([item(15n, 0n)], { more: false }, { retainedFrom: 15n }),
+		]);
+		const events: PassEvent<string>[] = [];
+		const pages = readPages(adapter, {
+			order: 'ascending',
+			start: { checkpoint: 5n },
+			end: { checkpoint: 30n },
+			signal: new AbortController().signal,
+		});
+		await expect(
+			(async () => {
+				for await (const event of pages) events.push(event);
+			})(),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+		expect(delivered(events)).toEqual(['10:0']);
+	});
+
+	it('fails a checkpoint range whose next checkpoint is pruned between pages', async () => {
+		const checkpoint = (n: bigint) => itemPosition(n, { cursor: bytes(`${n}`) });
+		const { adapter } = scripted(
+			[
+				page([checkpoint(10n)], { more: true, cursor: bytes('10') }, { retainedFrom: 10n }),
+				page([checkpoint(20n), checkpoint(21n)], { more: false }, { retainedFrom: 20n }),
+			],
+			100n,
+			'checkpoints',
+		);
+		await expect(
+			read(adapter, { order: 'ascending', start: { checkpoint: 10n }, end: { checkpoint: 22n } }),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+	});
+
+	it('fails a descending read that starts below the retained history', async () => {
+		const { adapter } = scripted([page([], { more: false }, { retainedFrom: 9n })]);
+		await expect(
+			read(adapter, { order: 'descending', start: { checkpoint: 3n } }),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+	});
+
+	it('completes a range ending at a progress cursor once the server has indexed past it', async () => {
+		const end = { position: progressPosition(bytes('end'), { indexedCheckpoint: 100n }) };
+		const pass = { order: 'ascending', start: { checkpoint: 1n }, end } as const;
+
+		const caughtUp = scripted([
+			page([item(5n, 0n)], { more: false }, { covered: 9n, viewedAt: 100n }),
+		]);
+		const done = await read(caughtUp.adapter, pass);
+		expect(caughtUp.requests[0].before).toEqual(bytes('end'));
+		expect(delivered(done.events)).toEqual(['5:0']);
+		expect(done.result.complete).toBe(true);
+
+		const lagging = scripted([page([], { more: false }, { covered: 9n, viewedAt: 95n })]);
+		expect((await read(lagging.adapter, pass)).result.complete).toBe(false);
+	});
+
 	it('reports a descending read to genesis that stopped at the retained history', async () => {
 		const { adapter } = scripted([page([item(5n, 0n)], { more: false }, { retainedFrom: 4n })]);
 		const { result } = await read(adapter, { order: 'descending', start: { checkpoint: 6n } });
