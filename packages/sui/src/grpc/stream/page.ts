@@ -29,25 +29,19 @@ export type ListQuery = Omit<ListRequest, 'readMask' | 'filter'>;
  * One List call as a page. The call streams its items and ends with a QueryEnd frame, whose
  * watermark says where the scan stopped. The call opens on the first read.
  */
-/** The newest and oldest checkpoints the server can list, read only to classify a page. */
-export interface IndexEdges {
-	indexedTip(signal: AbortSignal): Promise<bigint>;
-	retainedFrom(signal: AbortSignal): Promise<bigint>;
-}
-
 export async function fetchListPage(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
-	edges: IndexEdges,
+	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
 	request: PageRequest,
 ): Promise<Page<GrpcItem>> {
-	return { items: listItems(family, list, edges, request) };
+	return { items: listItems(family, list, retainedFrom, request) };
 }
 
 async function* listItems(
 	family: GrpcFamily,
 	list: (query: ListQuery, signal: AbortSignal) => LedgerCall<ListFrame>,
-	edges: IndexEdges,
+	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
 	request: PageRequest,
 ): AsyncGenerator<PageItem<GrpcItem>, PageEnd, undefined> {
 	const { order, range } = request;
@@ -62,10 +56,14 @@ async function* listItems(
 		}
 	} catch (error) {
 		if (!isOutOfRange(error)) throw error;
-		if (await startsPastIndex(request, edges)) {
-			return { next: { more: false }, notIndexed: true };
-		}
-		throw new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
+		const pruned = new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
+		const rejection = await classifyOutOfRange(request, retainedFrom);
+		if (rejection === 'pruned') throw pruned;
+		return {
+			next: { more: false },
+			notIndexed: true,
+			mayBePruned: rejection === 'unknown' ? pruned : undefined,
+		};
 	} finally {
 		await call.return();
 	}
@@ -89,7 +87,7 @@ async function* listItems(
 		// Without a lower bound, a descending read stops at the oldest checkpoint the server keeps.
 		retainedFrom:
 			order === 'descending' && !more && range.start === undefined
-				? (checkpoint ?? (await edges.retainedFrom(request.signal)))
+				? (checkpoint ?? (await retainedFrom(request.signal)))
 				: undefined,
 	};
 }
@@ -157,26 +155,23 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
 /**
  * A server reports OUT_OF_RANGE for a starting cursor past its index, such as one from a server
  * further ahead, and for an explicit low end (a start checkpoint or an `after` cursor) below its
- * retention floor. An open low end is raised to the floor instead. A read that still needs nothing
- * below the floor was not pruned. The floor is checked instead of the tip, which can pass the
- * cursor before it is read.
+ * retention floor. An open low end is raised to the floor instead. A read whose low end has a
+ * checkpoint at or above the floor was not pruned; the floor is checked rather than the tip,
+ * which can pass the cursor before it is read. A low end that is a cursor without a checkpoint
+ * is pruned when the floor has passed everything left to read, and is otherwise unknown.
  */
-async function startsPastIndex(
+async function classifyOutOfRange(
 	{ order, range, unread, after, before, signal }: PageRequest,
-	{ indexedTip, retainedFrom }: IndexEdges,
-): Promise<boolean> {
-	if (!(order === 'ascending' ? after : before)) return false;
-	if (order === 'descending' && range.start === undefined) {
-		// Only an `after` cursor makes a descending read's open low end explicit.
-		if (!after) return true;
-		// The low end is a cursor without a checkpoint, which is known only to have been retained
-		// once a page of the range was read. A server that has indexed the newest checkpoint left to
-		// read rejected the low end; one behind it is lagging.
-		if (unread === undefined || unread < (await retainedFrom(signal))) return false;
-		return unread > (await indexedTip(signal));
-	}
-	const needed = order === 'ascending' ? (unread ?? range.start) : range.start;
-	return needed !== undefined && needed >= (await retainedFrom(signal));
+	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
+): Promise<'notIndexed' | 'pruned' | 'unknown'> {
+	if (!(order === 'ascending' ? after : before)) return 'pruned';
+	// Only an `after` cursor makes a descending read's open low end explicit.
+	if (order === 'descending' && range.start === undefined && !after) return 'notIndexed';
+	// Ascending, the oldest checkpoint left to read; descending, the low end or the newest one left.
+	const needed = order === 'ascending' ? (unread ?? range.start) : (range.start ?? unread);
+	if (needed === undefined) return 'unknown';
+	if (needed < (await retainedFrom(signal))) return 'pruned';
+	return order === 'ascending' || range.start !== undefined ? 'notIndexed' : 'unknown';
 }
 
 function isOutOfRange(error: unknown): error is RpcError {
