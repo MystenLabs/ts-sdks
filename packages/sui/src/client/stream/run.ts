@@ -4,7 +4,7 @@
 import { abortableAsyncGenerator, sleep } from '../../utils/abort.js';
 import type { SuiClientTypes } from '../types.js';
 import type { CoreFrame, ErrorClass, LedgerStreamAdapter } from './adapter.js';
-import { isCallbackError, StreamDisconnected, SuiStreamError } from './errors.js';
+import { StreamDisconnected, SuiStreamError } from './errors.js';
 import { followLive } from './follow.js';
 import {
 	assertTokensCompatible,
@@ -28,7 +28,7 @@ export function createLedgerStream<Item, Frame extends { resumeToken: string }>(
 		try {
 			yield* runStream(options, createAdapter(), status, signal);
 		} catch (error) {
-			if (!signal.aborted && !isCallbackError(error)) status.error(error);
+			if (!signal.aborted && !status.callbackFailed) status.error(error);
 			throw error;
 		}
 	}, options.signal);
@@ -49,7 +49,7 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 
 	/** Waits before the next attempt, or throws when `error` ends the stream. */
 	async function backOff(error: unknown, advanced: boolean) {
-		if (signal.aborted) throw error;
+		if (signal.aborted || status.callbackFailed) throw error;
 		const delay = retry.onFailure(error, classify(error, adapter), advanced);
 		status.retrying(retry.attempt, delay, error);
 		await sleep(delay, signal);
@@ -127,7 +127,7 @@ function classify(
 	adapter: Pick<LedgerStreamAdapter<never, never>, 'classify'>,
 ): ErrorClass {
 	if (typeof error !== 'object' || error === null) return 'fatal';
-	if (isCallbackError(error) || error instanceof SuiStreamError) return 'fatal';
+	if (error instanceof SuiStreamError) return 'fatal';
 	if (error instanceof StreamDisconnected) return 'disconnect';
 	return adapter.classify(error);
 }

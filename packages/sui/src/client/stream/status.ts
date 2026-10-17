@@ -3,7 +3,6 @@
 
 import type { SuiClientTypes } from '../types.js';
 import type { Coverage } from './adapter.js';
-import { markCallbackError } from './errors.js';
 
 type Phase = 'reading' | 'recovering' | 'live';
 
@@ -16,9 +15,18 @@ export class StatusReporter {
 	readonly #onStatus: ((status: SuiClientTypes.StreamStatus) => void) | undefined;
 	#phase: Phase = 'reading';
 	#connected = false;
+	#callbackFailed = false;
 
 	constructor(onStatus: ((status: SuiClientTypes.StreamStatus) => void) | undefined) {
 		this.#onStatus = onStatus;
+	}
+
+	/**
+	 * Whether `onStatus` threw. Its error, whatever value it is, then ends the stream: never
+	 * retried or reported.
+	 */
+	get callbackFailed() {
+		return this.#callbackFailed;
 	}
 
 	connecting(attempt: number) {
@@ -66,8 +74,7 @@ export class StatusReporter {
 		try {
 			this.#onStatus?.(status);
 		} catch (error) {
-			// A throwing callback ends the stream with its own error: never retried or reported.
-			markCallbackError(error);
+			this.#callbackFailed = true;
 			throw error;
 		}
 	}
