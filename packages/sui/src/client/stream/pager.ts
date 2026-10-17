@@ -80,13 +80,7 @@ export async function* readPages<Item>(
 		? (['after', 'before'] as const)
 		: (['before', 'after'] as const);
 	if (start) {
-		const cut = cutAt(boundPosition(start, order), startSide, family);
-		narrow(request, cut, startSide, true);
-		// A progress cursor has no checkpoint, but what it covers still bounds the range, so a
-		// server can tell a start past its index from pruned history.
-		const covered = ascending && cut.checkpoint === null ? boundCoverage(start, family) : undefined;
-		const next = covered && nextUncovered(covered);
-		if (next !== undefined) request.range.start = next;
+		narrow(request, cutAt(boundPosition(start, order), startSide, family), startSide, true);
 	}
 	const endCut = end && cutAt(boundPosition(end, order), endSide, family);
 	if (endCut) narrow(request, endCut, endSide, false);
@@ -229,7 +223,13 @@ function narrow(
 ) {
 	const { kind, cursor, checkpoint } = cut;
 	if (cursor && kind !== 'Boundary' && (resumes || checkpoint === null)) request[side] = cursor;
-	if (checkpoint === null) return;
+	if (checkpoint === null) {
+		// A progress cursor has no checkpoint, but what it covers still bounds the range, so a
+		// server can tell a cursor past its index from pruned history.
+		const next = side === 'after' ? nextUncovered(cut.coverage) : undefined;
+		if (next !== undefined) request.range.start = next;
+		return;
+	}
 	// Other items of an item's checkpoint can lie on either side of it.
 	if (side === 'after') request.range.start = checkpoint;
 	else request.range.end = kind === 'Item' ? checkpoint + 1n : checkpoint;
