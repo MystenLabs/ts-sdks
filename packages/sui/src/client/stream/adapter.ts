@@ -4,8 +4,8 @@
 /**
  * Internal contract between the ledger stream core and a transport. The core owns tokens,
  * planning, paging, the live handoff, retries, deduplication and statuses so they match across
- * transports. An adapter fetches one page at a time, opens subscriptions, and builds positions
- * from what its server reports.
+ * transports. An adapter fetches one page at a time and streams its items, opens subscriptions,
+ * and builds positions from what its server reports.
  */
 
 import type { SuiClientTypes } from '../types.js';
@@ -43,17 +43,32 @@ export interface PageItem<Item> {
 	item: Item;
 }
 
-export interface Page<Item> {
-	/** In traversal order. */
-	items: PageItem<Item>[];
+/** What a page reports once its items are read. */
+export interface PageEnd {
 	/** `cursor` continues the scan where the page stopped: `after` ascending, `before` descending. */
 	next: { more: boolean; cursor?: Uint8Array };
 	/** Ascending: every match through this checkpoint is in this page or an earlier one. */
 	covered?: bigint;
+	/** The oldest checkpoint the server retains for this read, when the server reports it last. */
+	retainedFrom?: bigint;
+}
+
+export interface Page<Item> {
+	/** In traversal order, as they arrive. Returns the page end. */
+	items: AsyncIterator<PageItem<Item>, PageEnd, undefined>;
 	/** The indexed tip of the server that answered. */
 	viewedAt?: bigint;
 	/** The oldest checkpoint the server retains for this read. */
 	retainedFrom?: bigint;
+}
+
+/** Items of a page that arrived whole. */
+export async function* pageItems<Item>(
+	items: PageItem<Item>[],
+	end: PageEnd,
+): AsyncGenerator<PageItem<Item>, PageEnd, undefined> {
+	yield* items;
+	return end;
 }
 
 export type LiveEvent<Item> =
@@ -111,7 +126,7 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown; indexedTip?: bigint }>;
 	/** The highest checkpoint that pages can read. */
 	indexedTip(signal: AbortSignal): Promise<bigint>;
-	/** One request. No retries; the core retries. */
+	/** One request. No retries; the core retries. The core always reads or closes `items`. */
 	fetchPage(request: PageRequest): Promise<Page<Item>>;
 	/** A live subscription after `from` (ignored unless `resumesSubscriptions`). */
 	subscribe(from: Bound | undefined, signal: AbortSignal): LiveSubscription<Item>;
