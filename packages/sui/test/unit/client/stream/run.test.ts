@@ -186,6 +186,25 @@ describe('errors', () => {
 		},
 	);
 
+	it.each([
+		['a string', 'callback'],
+		['a number', 42],
+		['null', null],
+		['undefined', undefined],
+	])('ends the stream with %s thrown by onStatus, never reporting it', async (_, error) => {
+		const seen: string[] = [];
+		const frames = stream(fakeAdapter(ledgerOf(3)), {
+			start: { checkpoint: 0 },
+			follow: false,
+			onStatus: (status) => {
+				seen.push(status.$kind);
+				if (status.$kind === 'Connected') throw error;
+			},
+		});
+		await expect(collect(frames)).rejects.toBe(error);
+		expect(seen).toEqual(['Connecting', 'Connected']);
+	});
+
 	it('raises stream errors as SuiClientErrors', async () => {
 		const error = await stream(fakeAdapter(ledgerOf(3)), { pollInterval: 0 })
 			.next()
