@@ -38,14 +38,3 @@ export class StreamDisconnected extends Error {
 		this.name = 'StreamDisconnected';
 	}
 }
-
-const callbackErrors = new WeakSet<object>();
-
-/** Marks an error thrown by a user callback, so the core never retries or reports it. */
-export function markCallbackError(error: unknown) {
-	if (typeof error === 'object' && error !== null) callbackErrors.add(error);
-}
-
-export function isCallbackError(error: unknown): boolean {
-	return typeof error === 'object' && error !== null && callbackErrors.has(error);
-}
