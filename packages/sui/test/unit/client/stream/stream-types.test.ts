@@ -34,7 +34,7 @@ describe('stream types', () => {
 		expectTypeOf<T.StreamEventResult<{ completion: true } | { progress: true }>>().toEqualTypeOf<
 			T.StreamEventFrame | T.StreamCompletionFrame | T.StreamProgressFrame
 		>();
-		expectTypeOf<T.StreamCheckpointResult<{} | { completion: true }>>().toEqualTypeOf<
+		expectTypeOf<T.StreamCheckpointResult<{}, {} | { completion: true }>>().toEqualTypeOf<
 			T.StreamCheckpointFrame | T.StreamCompletionFrame
 		>();
 		expectTypeOf<
@@ -48,6 +48,16 @@ describe('stream types', () => {
 		>();
 		expectTypeOf<'pageSize'>().not.toExtend<keyof T.StreamOptions>();
 		expectTypeOf<'maxBufferedItems'>().not.toExtend<keyof T.StreamOptions>();
+	});
+
+	it('adds checkpoint transactions only when they are included', () => {
+		expectTypeOf<T.StreamCheckpointFrame['checkpoint']>().toEqualTypeOf<T.Checkpoint>();
+		expectTypeOf<
+			T.StreamCheckpointFrame<{ transactions: { effects: true } }>['checkpoint']['transactions']
+		>().toEqualTypeOf<T.Transaction<{ effects: true }>[]>();
+		expectTypeOf<
+			T.StreamCheckpointResult<{ transactions: {} }, { progress: true }>
+		>().toEqualTypeOf<T.StreamCheckpointFrame<{ transactions: {} }> | T.StreamProgressFrame>();
 	});
 
 	it('requires exactly one input bound without a discriminator', () => {

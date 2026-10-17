@@ -15,7 +15,13 @@ import { createLedgerStream } from './stream/run.js';
 
 /** What `CoreClient.createLedgerStreamAdapter` is asked to stream. */
 export type LedgerStreamRequest =
-	| { family: 'checkpoints'; options: SuiClientTypes.StreamCheckpointsOptions<StreamFrames> }
+	| {
+			family: 'checkpoints';
+			options: SuiClientTypes.StreamCheckpointsOptions<
+				SuiClientTypes.StreamCheckpointInclude,
+				StreamFrames
+			>;
+	  }
 	| {
 			family: 'transactions';
 			options: SuiClientTypes.StreamTransactionsOptions<
@@ -162,9 +168,12 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	 * Streams checkpoints in ledger order, resumable from any delivered frame's `resumeToken`.
 	 * Follows new checkpoints by default; see `SuiClientTypes.StreamOptions`.
 	 */
-	streamCheckpoints<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
-		options: SuiClientTypes.StreamCheckpointsOptions<Frames> = {},
-	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Frames>> {
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		options: SuiClientTypes.StreamCheckpointsOptions<Include, Frames> = {},
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include, Frames>> {
 		return this.#ledgerStream({ family: 'checkpoints', options });
 	}
 
