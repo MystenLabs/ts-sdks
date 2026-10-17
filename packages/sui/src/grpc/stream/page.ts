@@ -69,13 +69,18 @@ async function* listItems(
 	const more = reason === QueryEndReason.ITEM_LIMIT || reason === QueryEndReason.SCAN_LIMIT;
 	// The scan stopped at a cursor bound's own item, which is not a place to resume.
 	if (reason === QueryEndReason.CURSOR_BOUND) return { next: { more } };
+	// An empty scan reports no checkpoint. At the tip, nothing past the start is indexed yet.
+	const checkpoint = watermark?.checkpoint;
+	if (order === 'ascending' && reason === QueryEndReason.LEDGER_TIP && checkpoint === undefined) {
+		return { next: { more: false }, notIndexed: true };
+	}
 	return {
 		next: { more, cursor: watermark?.cursor },
-		covered: order === 'ascending' ? watermark?.checkpoint : undefined,
+		covered: order === 'ascending' ? checkpoint : undefined,
 		// Without a lower bound, a descending read stops at the oldest checkpoint the server keeps.
 		retainedFrom:
 			order === 'descending' && !more && range.start === undefined
-				? watermark?.checkpoint
+				? (checkpoint ?? (await retainedFrom(request.signal)))
 				: undefined,
 	};
 }
