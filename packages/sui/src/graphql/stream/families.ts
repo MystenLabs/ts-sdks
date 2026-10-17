@@ -10,6 +10,7 @@ import {
 	type ResolvedTransactionFilter,
 } from '../../client/query-filters.js';
 import type { ItemFrame, PageItem, StreamFamily } from '../../client/stream/adapter.js';
+import { sleep } from '../../utils/abort.js';
 import { itemPosition, SuiStreamError, type StreamPosition } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
@@ -25,13 +26,18 @@ import {
 	toGraphQLTransactionFilter,
 } from '../filters.js';
 import {
+	CheckpointTransactionsDocument,
 	ScanCheckpointsDocument,
+	ScanCheckpointsWithTransactionsDocument,
+	type ScanCheckpointsWithTransactionsQuery,
+	SubscribeCheckpointsWithTransactionsDocument,
 	ScanEventsDocument,
 	ScanTransactionsDocument,
 	SubscribeCheckpointsDocument,
 	SubscribeEventsDocument,
 	SubscribeTransactionsDocument,
 	type Checkpoint_FieldsFragment,
+	type Checkpoint_Transactions_PageFragment,
 	type Event_FieldsFragment,
 	type Transaction_FieldsFragment,
 } from '../generated/queries.js';
@@ -97,6 +103,8 @@ export interface PageRequest {
 /** Each family reads with its list method's fragment and mapper, so streamed items match list results. */
 export interface LedgerFamily<Node> {
 	readonly name: StreamFamily;
+	/** Items per page; defaults to the largest page the service returns. */
+	readonly pageSize?: number;
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	page(request: PageRequest): Promise<Page<Node>>;
 	/** Backfills from the resume point, then continues live. */
@@ -121,7 +129,9 @@ export function ledgerFamily(
 ): LedgerFamily<any> {
 	switch (request.family) {
 		case 'checkpoints':
-			return checkpointsFamily(client);
+			return request.options.include?.transactions
+				? checkpointsWithTransactionsFamily(client, request.options.include.transactions)
+				: checkpointsFamily(client);
 		case 'transactions':
 			return transactionsFamily(client, mvr, request);
 		case 'events':
@@ -161,6 +171,136 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 			checkpoint: parseGraphQLCheckpoint(node, 'Checkpoint stream'),
 		}),
 	};
+}
+
+/** A checkpoint with every one of its transactions, read before the checkpoint is delivered. */
+type CheckpointWithTransactions = Checkpoint_FieldsFragment & {
+	transactions: Checkpoint_Transactions_PageFragment | null;
+};
+
+/**
+ * Checkpoints per scan page when their transactions are nested: more exceeds the service's limit
+ * on output nodes for a full transaction selection.
+ */
+const CHECKPOINT_TRANSACTIONS_PAGE_SIZE = 20;
+/** How often to check whether a replica has indexed a checkpoint's transactions. */
+const INDEX_POLL_INTERVAL = 250;
+
+/**
+ * Checkpoints with their transactions. Each checkpoint carries its first 50 transactions; the rest
+ * are read with `atCheckpoint` pages before it is delivered.
+ */
+function checkpointsWithTransactionsFamily(
+	client: SuiGraphQLClient,
+	include: SuiClientTypes.TransactionInclude,
+): LedgerFamily<CheckpointWithTransactions> {
+	const selection = transactionIncludeVariables(include);
+
+	async function complete(node: CheckpointWithTransactions, signal: AbortSignal) {
+		const first = node.transactions;
+		if (!first)
+			throw new SuiStreamError('Protocol', `Checkpoint ${node.sequenceNumber} has no transactions`);
+		const nodes = [...first.nodes];
+		let { hasNextPage, endCursor } = first.pageInfo;
+		while (hasNextPage) {
+			const data = await queryData(client, {
+				query: CheckpointTransactionsDocument,
+				variables: { atCheckpoint: node.sequenceNumber, after: endCursor, ...selection },
+				signal,
+			});
+			// A live checkpoint can arrive before this replica indexed its transactions, which would
+			// read as an empty last page. Wait for the index instead of truncating.
+			const indexed = data.serviceConfig.availableRange;
+			if ((indexed.last?.sequenceNumber ?? -1) < node.sequenceNumber) {
+				await sleep(INDEX_POLL_INTERVAL, signal);
+				continue;
+			}
+			if ((indexed.first?.sequenceNumber ?? 0) > node.sequenceNumber) {
+				throw new SuiStreamError(
+					'HistoryUnavailable',
+					`Transactions of checkpoint ${node.sequenceNumber} have been pruned`,
+				);
+			}
+			const page = data.transactions;
+			if (!page) throw new SuiStreamError('Protocol', 'GraphQL transactions page is missing');
+			nodes.push(...page.nodes);
+			// A checkpoint of exactly 50 transactions reports one more, empty, page.
+			hasNextPage = page.pageInfo.hasNextPage && page.nodes.length > 0;
+			endCursor = page.pageInfo.endCursor;
+		}
+		return { ...node, transactions: { ...first, nodes } };
+	}
+
+	return {
+		name: 'checkpoints',
+		pageSize: CHECKPOINT_TRANSACTIONS_PAGE_SIZE,
+		resolveFilter: async () => undefined,
+		page: async ({ range, signal, ...cursors }) => {
+			const page = scanPage<ScanCheckpointsWithTransactionsQuery, CheckpointWithTransactions>(
+				'checkpoints',
+				await queryData(client, {
+					query: ScanCheckpointsWithTransactionsDocument,
+					variables: {
+						filter: toGraphQLCheckpointBounds(range),
+						filters: [],
+						...cursors,
+						...selection,
+					},
+					signal,
+				}),
+				(data) => data.checkpoints,
+			);
+			const edges = [];
+			for (const edge of page.edges)
+				edges.push({ ...edge, node: await complete(edge.node, signal) });
+			return { ...page, edges };
+		},
+		subscribe: (signal, { after, start }, onOpen) =>
+			completeEdges(
+				edges(
+					client.subscribe({
+						query: SubscribeCheckpointsWithTransactionsDocument,
+						variables: { after, ...toGraphQLCheckpointBounds({ start }), ...selection },
+						signal,
+						onOpen,
+					}),
+					(data) => data.checkpoints,
+				),
+				(node) => complete(node, signal),
+			),
+		position: (_, checkpoint) => itemPosition(checkpoint),
+		checkpoint: (node) => BigInt(node.sequenceNumber),
+		map: ({ node }) => ({
+			$kind: 'Checkpoint',
+			checkpoint: {
+				...parseGraphQLCheckpoint(node, 'Checkpoint stream'),
+				transactions: node.transactions!.nodes.map((transaction) => {
+					const result = parseStreamTransaction(transaction, include);
+					return result.Transaction ?? result.FailedTransaction;
+				}),
+			},
+		}),
+	};
+}
+
+/** @yields each edge, with its node completed first. */
+async function* completeEdges<Node>(
+	live: AsyncIterable<LiveEdge<Node>>,
+	complete: (node: Node) => Promise<Node>,
+): AsyncGenerator<LiveEdge<Node>> {
+	for await (const edge of live) {
+		yield edge.node ? { ...edge, node: await complete(edge.node) } : edge;
+	}
+}
+
+function parseStreamTransaction(
+	node: Transaction_FieldsFragment,
+	include: SuiClientTypes.TransactionInclude | undefined,
+) {
+	if (!node.effects?.status) {
+		throw new SuiStreamError('Protocol', `Transaction ${node.digest} has no effects`);
+	}
+	return parseTransaction(node, include);
 }
 
 function transactionsFamily(
@@ -207,12 +347,10 @@ function transactionsFamily(
 			),
 		position: (edge, checkpoint) => itemAt(edge, checkpoint, edge.node.digest),
 		checkpoint: (node) => optionalCheckpoint(node.effects?.checkpoint),
-		map: ({ node }) => {
-			if (!node.effects?.status) {
-				throw new SuiStreamError('Protocol', `Transaction ${node.digest} has no effects`);
-			}
-			return { $kind: 'Transaction', transaction: parseTransaction(node, options.include) };
-		},
+		map: ({ node }) => ({
+			$kind: 'Transaction',
+			transaction: parseStreamTransaction(node, options.include),
+		}),
 	};
 }
 
