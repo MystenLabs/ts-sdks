@@ -59,7 +59,11 @@ export namespace SuiClientTypes {
 	/** Opaque resume position, valid only for the stream that produced it. */
 	export type StreamResumeToken = string;
 
-	/** A checkpoint or resume token. Starts are inclusive, ends exclusive. */
+	/**
+	 * A checkpoint or resume token. A checkpoint start is inclusive; a resume token start continues
+	 * after the frame that carried the token, so save a token only once its frame is processed. An
+	 * end is exclusive: it stops before the checkpoint, or before the token's frame.
+	 */
 	export type StreamStart =
 		| { checkpoint: CheckpointNumber; resumeToken?: never }
 		| { resumeToken: StreamResumeToken; checkpoint?: never };
@@ -129,7 +133,10 @@ export namespace SuiClientTypes {
 	export interface StreamOptions<
 		Frames extends StreamFrameOptions = {},
 	> extends CoreClientMethodOptions {
-		/** Where to start (inclusive). Required for a finite ascending read. */
+		/**
+		 * Where to start: at a checkpoint, or after the frame that carried a resume token. Required
+		 * for a finite ascending read.
+		 */
 		start?: StreamStart;
 		/** Where to stop (exclusive). */
 		end?: StreamEnd;

@@ -23,7 +23,10 @@ export type StreamTransport = 'grpc' | 'graphql';
 export type Coverage =
 	{ $kind: 'Unknown' } | { $kind: 'None' } | { $kind: 'Through'; checkpoint: bigint };
 
-/** A checkpoint bound, or a transport position. Inclusive at the start, exclusive at the end. */
+/**
+ * A checkpoint bound, or a transport position. A checkpoint start is inclusive, a position start
+ * continues after the position, and an end of either kind is exclusive.
+ */
 export type Bound = { checkpoint: bigint } | { position: StreamPosition };
 
 /** One page of a range: checkpoints `[range.start, range.end)`, then strictly between cursors. */
