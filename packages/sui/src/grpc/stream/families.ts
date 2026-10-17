@@ -126,6 +126,9 @@ const CHECKPOINT_OBJECT_TYPE_PATHS = [
 	'objects.objects.object_id',
 	'objects.objects.version',
 	'objects.objects.object_type',
+	// The fallback below matches changed objects by version, which `effects` alone would select.
+	'transactions.effects.changed_objects.input_version',
+	'transactions.effects.changed_objects.output_version',
 ];
 
 /**

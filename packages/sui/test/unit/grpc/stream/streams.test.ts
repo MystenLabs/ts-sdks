@@ -899,6 +899,31 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			]);
 		});
 
+		it('reads the changed-object versions object types need without effects', async () => {
+			const pages = [
+				{ checkpoint: withTransactions(5), watermark: { cursor: mark('5'), checkpoint: 5n } },
+				ended('CHECKPOINT_BOUND', 5),
+			];
+			const l = ledger().list('ListCheckpoints', pages);
+			const [frame] = await collect(
+				l.client().streamCheckpoints({
+					start: { checkpoint: 5 },
+					end: { checkpoint: 6 },
+					include: { transactions: { objectTypes: true } },
+				}),
+			);
+			expect(frame.checkpoint.transactions[0].objectTypes).toEqual({ [objectId]: objectType });
+			const paths = l.requestsTo('ListCheckpoints')[0].readMask?.paths ?? [];
+			expect(paths).not.toContain('transactions.effects');
+			expect(paths).toEqual(
+				expect.arrayContaining([
+					'transactions.effects.changed_objects.object_id',
+					'transactions.effects.changed_objects.input_version',
+					'transactions.effects.changed_objects.output_version',
+				]),
+			);
+		});
+
 		it('delivers live checkpoints with their transactions and no extra request', async () => {
 			const l = ledger().subscribe('SubscribeCheckpoints', [
 				{ cursor: 5n, checkpoint: withTransactions(5) },
