@@ -16,7 +16,8 @@ export function toNetworkRpcError(error: unknown, signal: AbortSignal | null | u
 	);
 }
 
-function isAbortError(error: unknown): boolean {
+/** Whether `error` is an `AbortError`, read by shape so another realm's error matches. */
+export function isAbortError(error: unknown): boolean {
 	return (
 		typeof error === 'object' &&
 		error !== null &&
