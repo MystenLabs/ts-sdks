@@ -55,6 +55,8 @@ export interface PageEnd {
 	 * `HistoryUnavailable` failure.
 	 */
 	retainedFrom?: bigint;
+	/** The server has not indexed where this page starts; the pass ends incomplete. */
+	notIndexed?: boolean;
 }
 
 export interface Page<Item> {
