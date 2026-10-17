@@ -63,7 +63,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	/** The committed state is within one reconnect of the live tip. */
 	#nearLiveTip: boolean;
 	#retentionLimit = false;
-	/** A page of this range was read, so its low end was retained then. */
+	/** A server accepted a page of this range, so its low end was retained then. */
 	#rangeRead: boolean;
 
 	constructor(options: {
@@ -231,6 +231,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 						break;
 					case 'Item':
 					case 'Progress':
+						this.#rangeRead = true;
 						if (!this.#isStale(event)) yield* this.#commit(event);
 						break;
 				}
