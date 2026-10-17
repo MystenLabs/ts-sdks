@@ -89,7 +89,7 @@ export class FakeLedger implements RpcTransport {
 	readonly requests: Request[] = [];
 	/** Every call the client made, in order, including tip reads and `GetServiceInfo`. */
 	readonly calls: string[] = [];
-	/** Frames handed to the consumer, per method. */
+	/** Frames the transport delivered, per method, whether or not they were consumed. */
 	readonly reads: Record<string, number> = {};
 	/** Calls cancelled by the client, per method. */
 	readonly cancelled: Record<string, number> = {};
