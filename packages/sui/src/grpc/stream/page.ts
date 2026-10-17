@@ -161,9 +161,10 @@ async function startsPastIndex(
 ): Promise<boolean> {
 	if (!(order === 'ascending' ? after : before)) return false;
 	// Only an `after` cursor makes a descending read's open low end explicit.
-	if (order === 'descending' && range.start === undefined) return !after;
-	// A cursor low end without a checkpoint cannot be compared with the floor.
-	const needed = order === 'ascending' ? (unread ?? range.start) : range.start;
+	if (order === 'descending' && range.start === undefined && !after) return true;
+	// A descending low end without a checkpoint is judged by the newest checkpoint the pass still
+	// has to read, which is known once a page has shown the low end was retained.
+	const needed = order === 'ascending' ? (unread ?? range.start) : (range.start ?? unread);
 	return needed !== undefined && needed >= (await retainedFrom(signal));
 }
 

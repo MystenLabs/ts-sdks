@@ -258,13 +258,17 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		const ahead = { frames: [], end: new RpcError('ahead', 'OUT_OF_RANGE') };
 
 		it('polls a later page that a lagging server has not indexed, keeping its coverage', async () => {
-			// Retention has passed the pass's start, but not the checkpoint it still has to read.
-			const l = ledger()
-				.retainedFrom(50)
-				.list('ListEvents', [event(90, 0, { end: 'ITEM_LIMIT' })], ahead, [
-					event(91),
-					ended('CHECKPOINT_BOUND', 99),
-				]);
+			const l = ledger();
+			l.list(
+				'ListEvents',
+				[event(90, 0, { end: 'ITEM_LIMIT' })],
+				() => {
+					// Retention passes the pass's start between pages, not the checkpoint it still reads.
+					l.retainedFrom(50);
+					return ahead;
+				},
+				[event(91), ended('CHECKPOINT_BOUND', 99)],
+			);
 			const frames = await collect(
 				l.client().streamEvents({
 					start: { checkpoint: 1 },
@@ -279,36 +283,63 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.floorReads).toBe(1);
 		});
 
-		it.each([
-			['polls', 0, 85, ['90:0', '89:0']],
-			['fails pruned history', 87, 85, ['90:0']],
-			// A server clamps an open low end to its floor, so OUT_OF_RANGE cannot mean pruned.
-			['polls toward genesis', 0, undefined, ['90:0', '89:0']],
-		])('%s when a descending page is out of range', async (_, floor, end, delivered) => {
-			const l = ledger()
-				.retainedFrom(floor)
-				.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], ahead, [
-					event(89, 0, { covered: null }),
-					ended('CHECKPOINT_BOUND', 85),
-				]);
+		/** A descending read from 90 whose second page is out of range, with `floor` set before it. */
+		async function descendingOutOfRange(
+			floor: number,
+			end: SuiClientTypes.StreamBound | undefined,
+			lowest: number,
+		) {
+			const l = ledger();
+			l.list(
+				'ListEvents',
+				[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
+				() => {
+					l.retainedFrom(floor);
+					return ahead;
+				},
+				[event(89, 0, { covered: null }), ended('CHECKPOINT_BOUND', lowest)],
+			);
 			const frames: object[] = [];
-			const read = (async () => {
+			let error: unknown;
+			try {
 				for await (const frame of l.client().streamEvents({
 					order: 'descending',
 					start: { checkpoint: 90 },
-					end: end === undefined ? undefined : { checkpoint: end },
+					end,
 					pollInterval: 1,
 					retry: noDelay,
 				})) {
 					frames.push(frame);
 				}
-			})();
-			const pruned = delivered.length === 1;
-			if (pruned) await expect(read).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-			else await read;
-			expect(eventIds(frames)).toEqual(delivered);
-			expect(l.requestsTo('ListEvents')[1].options?.before).toEqual(at(90));
-			expect(l.floorReads).toBe(end === undefined ? 0 : 1);
+			} catch (caught) {
+				error = caught;
+			}
+			const [, request] = l.requestsTo('ListEvents');
+			expect(request.options?.before).toEqual(at(90));
+			return { l, request, delivered: eventIds(frames), error };
+		}
+
+		const outcomes = {
+			polls: { delivered: ['90:0', '89:0'], error: undefined },
+			pruned: {
+				delivered: ['90:0'],
+				error: expect.objectContaining({ code: 'HistoryUnavailable' }),
+			},
+		};
+
+		it.each([
+			['polls', 0, 85, 'polls'],
+			['fails pruned history', 87, 85, 'pruned'],
+			// A server raises an open low end to its floor, so OUT_OF_RANGE cannot mean pruned.
+			['polls toward genesis', 0, undefined, 'polls'],
+		] as const)('%s when a descending page is out of range', async (_, floor, end, outcome) => {
+			const result = await descendingOutOfRange(
+				floor,
+				end === undefined ? undefined : { checkpoint: String(end) },
+				end ?? 0,
+			);
+			expect(result).toMatchObject(outcomes[outcome]);
+			expect(result.l.floorReads).toBe(end === undefined ? 0 : 1);
 		});
 
 		it('waits for a future range whose empty scan reports no checkpoint', async () => {
@@ -351,43 +382,34 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it.each([
-			['polls', 0, ['90:0', '89:0']],
-			['fails pruned history', 10, ['90:0']],
-		])(
+			['polls', 'covered', 0, 'polls'],
+			['fails pruned history', 'covered', 10, 'pruned'],
+			['polls, without coverage,', 'uncovered', 0, 'polls'],
+			['fails pruned history, without coverage,', 'uncovered', 95, 'pruned'],
+		] as const)(
 			'%s when a descending read bounded below by a progress cursor is out of range',
-			async (_, floor, delivered) => {
-				const live = ledger().subscribe('SubscribeEvents', [progress(mark('p'), 4)]);
+			async (_, coverage, floor, outcome) => {
+				// A live progress token covers checkpoint 4; an empty descending page's covers nothing.
+				const source =
+					coverage === 'covered'
+						? ledger().subscribe('SubscribeEvents', [progress(mark('p'), 4)])
+						: ledger().list('ListEvents', [progress(mark('p'), undefined, 'SCAN_LIMIT')]);
 				const [endFrame] = await take(
-					live.client().streamEvents({ frames: { progress: true } }),
+					source.client().streamEvents({
+						frames: { progress: true },
+						...(coverage === 'uncovered' && {
+							order: 'descending',
+							start: { checkpoint: 100 },
+						}),
+					}),
 					1,
 				);
-				const l = ledger()
-					.retainedFrom(floor)
-					.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], ahead, [
-						event(89, 0, { covered: null }),
-						ended('CHECKPOINT_BOUND', 5),
-					]);
-				const frames: object[] = [];
-				const read = (async () => {
-					for await (const frame of l.client().streamEvents({
-						order: 'descending',
-						start: { checkpoint: 90 },
-						end: { resumeToken: tokenOf(endFrame) },
-						pollInterval: 1,
-						retry: noDelay,
-					})) {
-						frames.push(frame);
-					}
-				})();
-				if (floor) await expect(read).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-				else await read;
-				expect(eventIds(frames)).toEqual(delivered);
-				// The cursor's coverage bounds the read below, so the floor can be compared.
-				const [, request] = l.requestsTo('ListEvents');
-				expect(request.options?.before).toEqual(at(90));
-				expect(request.options?.after).toEqual(mark('p'));
-				expect(request.startCheckpoint).toBe(5n);
-				expect(l.floorReads).toBe(1);
+				const result = await descendingOutOfRange(floor, { resumeToken: tokenOf(endFrame) }, 5);
+				expect(result).toMatchObject(outcomes[outcome]);
+				expect(result.request.options?.after).toEqual(mark('p'));
+				// A cursor's coverage bounds the read below, so the floor can be compared.
+				expect(result.request.startCheckpoint).toBe(coverage === 'covered' ? 5n : undefined);
+				expect(result.l.floorReads).toBe(1);
 			},
 		);
 	});
