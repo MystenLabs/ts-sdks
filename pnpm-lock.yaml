@@ -1231,7 +1231,7 @@ importers:
         specifier: ^6.1.6
         version: 6.1.6(graphql@17.0.2)
       '@grpc/grpc-js':
-        specifier: '>=1.14.5'
+        specifier: ^1.14.5
         version: 1.14.5
       '@parcel/watcher':
         specifier: ^2.6.0
