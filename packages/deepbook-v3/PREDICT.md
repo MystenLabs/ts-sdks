@@ -328,9 +328,8 @@ the room from the model.
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
   `createQueue` (registry, desk and market), `commit`, `resolve`, `refund`, `adminRefund`,
   `settleStep`, `payOpen`, `claimParked` and `cleanup`. `SessionsContract` has the `enqueue*`
-  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3. The
-  Testnet `getSessionsConfig` records v3. The Mainnet one records v2 until the Mainnet Sessions v3
-  upgrade is synced.
+  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3, which
+  `getSessionsConfig` records on both networks.
 
 #### Queued orders from a session key
 
@@ -742,14 +741,14 @@ passing `config` — `predict({ network, config })` or
 `new PredictClient({ client, network, config })` — and `network` is then not consulted.
 
 Mainnet runs Predict **v4** and Testnet Predict **v5**, both built from the same sources, with
-`deepbook_predict_orders` and `deepbook_predict_math` at v1 on both. Sessions is **v3** on Testnet
-and **v2** on Mainnet. The Published.toml records are in deepbookv3 through PR #1364.
-`packages.predict` and `sessionsPackageId` are the current Move-call targets; `packages.predictV1`
-and `sessionsPackageIdV1` retain the original IDs for existing struct types, events and
-dynamic-field keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom
-deployments that have never been upgraded. A type first introduced in a later version uses that
-version's defining ID, and version numbers do not line up across networks, so check the defining ID
-on each one. For example, `MintRange` was introduced in v2 on both networks, and
+`deepbook_predict_orders` and `deepbook_predict_math` at v1 on both. Sessions is **v3** on both. The
+Published.toml records are in deepbookv3 through PR #1365. `packages.predict` and
+`sessionsPackageId` are the current Move-call targets; `packages.predictV1` and
+`sessionsPackageIdV1` retain the original IDs for existing struct types, events and dynamic-field
+keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom deployments
+that have never been upgraded. A type first introduced in a later version uses that version's
+defining ID, and version numbers do not line up across networks, so check the defining ID on each
+one. For example, `MintRange` was introduced in v2 on both networks, and
 `vault_events::UsdcAddedToPlp` is defined by Mainnet v3 (`0x08fa3ef1…`) and Testnet v3
 (`0xb5155d4c…`), neither of them the current call target. The types and events delayed execution
 added are defined by Mainnet v4 and Testnet v5, which the configs record as

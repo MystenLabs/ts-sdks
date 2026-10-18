@@ -14,10 +14,21 @@ trading moves to queued orders, as Testnet did in 2.7.0.
 - `deepbook_predict_math`: `0x19262d18a3ce9f1c304defbacc89f36585152acde73e626231200d10617fb9a7`
   (v1)
 - Pyth Lazer `State`: `0xd0db9c1e9212a98120384bf78d8b8c985d87b9ee6921dffcf9d1394062911573`
-- Sessions: TODO(DBU-899) PLACEHOLDER, fill in before release. `0xec678aee…0a1a` (v2) → the
-  Mainnet Sessions v3 ID, once its upgrade executes and its `Published.toml` record lands.
+- Sessions: `0xec678aee…0a1a` (v2) →
+  `0xfd9ef53ca443517d6a3a4d8742e00eaa1e7f35b0997697caab8c3e62870c0ce5` (v3)
 
-`predictV1` keeps the original ID.
+`predictV1` and `sessionsPackageIdV1` keep the original IDs.
+
+**Move every Mainnet session client to this release before the cutover, spot included.** The
+Mainnet cutover transaction raises the Sessions version watermark to 3. From then on, every call
+into Sessions v1 or v2 aborts with `session_config::EPackageVersionDisabled`. That includes spot
+session-key trading (`sessionsMoveCalls.placeLimitOrder`, `placeMarketOrder`, `cancelLiveOrder`,
+`cancelLiveOrders` and `withdrawSettledAmounts`), `authorizeSession` and the Predict wrappers. Older
+releases call v2. This release calls v3 for every Sessions builder: the `SessionsContract`
+wrappers, and the `sessionsMoveCalls` builders given `getSessionsConfig('mainnet')`. v3 is a
+compatible upgrade, so the spot builders' arguments are unchanged. Only `revokeSession` and
+`sessionExpirationMs` aren't version-gated, so they keep working on every version. Queued Predict
+orders through a session key need v3 too, because the `enqueue*` wrappers exist only there.
 
 **Migrate off the immediate trades.** The Mainnet call target is now Predict v4, which always aborts
 them with `EDelayedExecutionRequired`. On Mainnet, `tx.mint`, `tx.mintAmount`, `tx.mintCost`,
@@ -32,9 +43,3 @@ Predict's version watermark to 4, which retires the v3 package those releases ca
 `getConfig('mainnet')` now turns on the queued-order surface. Until the cutover, neither path trades
 on Mainnet. Trading is paused, `read.executionMode()` reads `'awaiting-cutover'` until Mainnet's
 version watermark reaches 4, and Predict's admission refuses enqueues until then.
-
-Sessions v3 becomes the Mainnet call target for every `SessionsContract` wrapper, the spot ones
-included. It's a compatible upgrade, so the spot wrappers are unchanged. Queued Predict orders
-through a session key need it, because the `enqueue*` wrappers exist only in v3. Sessions v2 keeps
-working for now, since its version watermark wasn't bumped. A later Sessions upgrade will retire
-it, so move session-key integrations to this release.

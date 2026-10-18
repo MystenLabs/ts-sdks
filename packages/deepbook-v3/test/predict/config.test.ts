@@ -3,6 +3,7 @@
 import { expect, test } from 'vitest';
 
 import { MAINNET_CONFIG, TESTNET_CONFIG, getConfig } from '../../src/predict/config/index.js';
+import { getSessionsConfig } from '../../src/sessions.js';
 
 const ID_RE = /^0x[0-9a-f]{1,64}$/;
 
@@ -76,6 +77,19 @@ test('Mainnet records delayed execution', () => {
 	// The two networks' order-flow deployments are distinct publications.
 	expect(MAINNET_CONFIG.packages.predictOrders).not.toBe(TESTNET_CONFIG.packages.predictOrders);
 	expect(MAINNET_CONFIG.objects.orderDesk).not.toBe(TESTNET_CONFIG.objects.orderDesk);
+});
+
+test('Mainnet sessions target v3, the first version with the queued-order wrappers', () => {
+	// The Mainnet Sessions v3 upgrade (DBU-899). `sessionsPackageIdV1` keeps the original ID,
+	// which the `SessionsApp` dynamic-field key and the session events are typed by.
+	const sessions = getSessionsConfig('mainnet');
+	expect(sessions.sessionsPackageId).toBe(
+		'0xfd9ef53ca443517d6a3a4d8742e00eaa1e7f35b0997697caab8c3e62870c0ce5',
+	);
+	expect(sessions.sessionsPackageIdV1).toBe(
+		'0x9a068beffa019ae756f4a6d2611e9899d3c6dd888812dd9eca87535d2ac55e2a',
+	);
+	expect(sessions.protocolConfig).toBe(MAINNET_CONFIG.objects.protocolConfig);
 });
 
 test('quoteCoinType is the renamed USDC collateral', () => {
