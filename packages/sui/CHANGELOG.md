@@ -1,5 +1,32 @@
 # @mysten/sui.js
 
+## 2.37.0
+
+### Minor Changes
+
+- 785655d: Fix verifying multisig signatures with zkLogin members: the client passed to
+  `verifyTransactionSignature`, `verifyPersonalMessageSignature`, `publicKeyFromSuiBytes`, or
+  `MultiSigPublicKey.fromPublicKeys` (new optional `client` option) is now used to verify each
+  zkLogin member. zkLogin signatures are now verified against the identifier's own address rather
+  than one derived from the signature, so a member's signature must come from that member's zkLogin
+  identity.
+
+### Patch Changes
+
+- 3aa65e2: Speed up BCS parsing and serialization: faster ULEB, integer and byte reads and writes,
+  enum and option encoding, string decoding, and a single input conversion per write for transformed
+  types. Base58, base64 and hex helpers in `@mysten/utils` are faster and no longer depend on
+  `@scure/base`. Sui address and object digest encoding is faster.
+
+  Behaviour changes:
+
+  - `BcsReader.readBytes` and `readULEB` throw instead of reading past the end of a view into the
+    rest of its buffer.
+  - `bcs.option(T)` returns `null`/`undefined` when `T` reads as `null`/`undefined` (for example a
+    nested option's inner `None`), instead of `true`.
+  - `bcs.Address.serializedSize` and `bcs.ObjectDigest.serializedSize` throw on invalid input
+    instead of returning a size.
+
 ## 2.36.0
 
 ### Minor Changes
