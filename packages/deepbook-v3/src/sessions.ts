@@ -504,8 +504,8 @@ export class SessionsContract {
 	// raw Move units. Each returns the new queue record ID (u64). The queue and Predict perform
 	// every check; the caps below are only the ones a session key should never send by accident.
 	//
-	// They need a config whose `sessionsPackageId` is a Sessions v3 publication. Testnet records
-	// Sessions v3. TODO(DBU-887): Mainnet still records Sessions v2, which has none of them.
+	// They need a config whose `sessionsPackageId` is a Sessions v3 publication, which both
+	// network records are. Sessions v1 and v2 have none of them.
 
 	/**
 	 * @description Queue a mint of an exact payout quantity, as `session`. `maxCost` (all-in cap)

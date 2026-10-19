@@ -107,10 +107,12 @@ one `MarketQueue`, at an ID derived from the package's single `QueueRegistry` an
 `deepbook_predict_math` holds the pure pricing math. Every queued-order call goes to
 `deepbook_predict_orders`, while a fill still emits Predict's `OrderMinted` or `LiveOrderRedeemed`.
 
-> The Testnet config records delayed execution. The Mainnet config doesn't until the Mainnet rollout
-> is synced, and until then the queued surface throws `PredictInputError` there. Pass a `config`
-> with `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk` and
-> `objects.queueRegistry` set (a localnet publish) to use it on a network without a record.
+> Both the Testnet and Mainnet configs record delayed execution. On a network without a record the
+> queued surface throws `PredictInputError`. Pass a `config` with
+> `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk` and
+> `objects.queueRegistry` set (a localnet publish) to use it there. Until a network's version
+> watermark reaches 4, `read.executionMode()` returns `'awaiting-cutover'` and Predict's admission
+> refuses enqueues.
 
 ```ts
 import { snapStrike } from '@mysten/deepbook-v3/predict';
@@ -326,8 +328,8 @@ the room from the model.
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
   `createQueue` (registry, desk and market), `commit`, `resolve`, `refund`, `adminRefund`,
   `settleStep`, `payOpen`, `claimParked` and `cleanup`. `SessionsContract` has the `enqueue*`
-  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3. The
-  Testnet `getSessionsConfig` records v3, and the Mainnet one doesn't until its rollout is synced.
+  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3, which
+  `getSessionsConfig` records on both networks.
 
 #### Queued orders from a session key
 
@@ -738,16 +740,19 @@ Move-call targets resolve from the config's package ids, so a deployment of your
 passing `config` — `predict({ network, config })` or
 `new PredictClient({ client, network, config })` — and `network` is then not consulted.
 
-Mainnet runs Predict **v3** and Testnet Predict **v4**, both built from the same sources; Sessions
-is **v2** on both. The Published.toml records are in deepbookv3 through PR #1321. `packages.predict`
-and `sessionsPackageId` are the current Move-call targets; `packages.predictV1` and
+Mainnet runs Predict **v4** and Testnet Predict **v5**, both built from the same sources, with
+`deepbook_predict_orders` and `deepbook_predict_math` at v1 on both. Sessions is **v3** on both. The
+Published.toml records are in deepbookv3 through PR #1365. `packages.predict` and
+`sessionsPackageId` are the current Move-call targets; `packages.predictV1` and
 `sessionsPackageIdV1` retain the original IDs for existing struct types, events and dynamic-field
 keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom deployments
 that have never been upgraded. A type first introduced in a later version uses that version's
 defining ID, and version numbers do not line up across networks, so check the defining ID on each
 one. For example, `MintRange` was introduced in v2 on both networks, and
 `vault_events::UsdcAddedToPlp` is defined by Mainnet v3 (`0x08fa3ef1…`) and Testnet v3
-(`0xb5155d4c…`). The Testnet ID is one version behind that network's current call target.
+(`0xb5155d4c…`), neither of them the current call target. The types and events delayed execution
+added are defined by Mainnet v4 and Testnet v5, which the configs record as
+`packages.predictDelayedExecution`.
 
 **Adding USDC to the pool without minting PLP:** `plpMoveCalls.addUsdcToPlp` wraps
 `add_usdc_to_plp`, which pays a `Coin<USDC>` into the pool's idle cash and mints nothing in return.
