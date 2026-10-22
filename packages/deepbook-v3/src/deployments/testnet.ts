@@ -47,7 +47,7 @@ export const TESTNET_ACCOUNT: AccountIds = Object.freeze({
  * the package root for one id.
  */
 export const TESTNET_SESSIONS: SessionsIds = Object.freeze({
-	sessionsPackageId: '0x25cfc04f97ef75c530872e630c1b3e21845e615a5a68d185291372e196cbd3de',
+	sessionsPackageId: '0x3c50acf2d3bf48719ca9dfa2fd538e134d5c778c3502349b6417bb511f3c9889',
 	sessionsPackageIdV1: '0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',
 	sessionsConfig: '0xc096b97289821b27badfdf758d614bbbfa386f93d3faa409ecc1fcc6075d1186',
 	accountPackageId: '0x1e57d6554b99e4ca68330322c3e5c409ba1b681642726b603bf1be92c1840ca9',
@@ -75,12 +75,13 @@ export const TESTNET_UNITS: DeploymentUnits = Object.freeze({
 export const TESTNET_PREDICT: PredictIds = Object.freeze({
 	network: 'testnet',
 	packages: Object.freeze({
-		predict: '0x0654ecbed7c0f2645d9de7cb6cf08e65c2ee05cdbb39a415f17a6bd1cd92e267',
+		predict: '0x340a77ce690e683138790592be6c6d02dc56a7e88e2555dc17f8a4967d003816',
 		predictV1: '0x59d71119e990573a738dd3ff9c4c7d28d6893af69c87c1a7f3a2e90e280ce2f4',
 		account: '0x1e57d6554b99e4ca68330322c3e5c409ba1b681642726b603bf1be92c1840ca9',
 		propbook: '0xa83f9d7651de09672a40cea371c387bf954e0f3092947670d71428d4fbc9edd9',
-		predictOrders: '0xd723ddef890bff70bd492cd384c913b5e7daeb6e8900cb3a5606546ac4f3907f',
-		predictMath: '0x471592f682a9560b7046ca1bbf240e608bf5b2071ff1a9bd129b8011166a43c5',
+		predictOrders: '0x0b1aefb17d4c158ff6e060b1f3677648125fdb0516106e318f9234d07e5a7a0e',
+		predictOrdersV1: '0xd723ddef890bff70bd492cd384c913b5e7daeb6e8900cb3a5606546ac4f3907f',
+		predictMath: '0x2039bac8c1ec51ce3d7cb366ec36b45fdbbafe1aa2aaea0ed9bef52db40e1562',
 	}),
 	objects: Object.freeze({
 		registry: '0x85cfaa857f9dfca75f6ba624eead063c4a1bc9b701201b8f21e1f9c15833ccc4',

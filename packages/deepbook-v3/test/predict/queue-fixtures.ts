@@ -58,6 +58,9 @@ export const QUEUE_CFG: PredictConfig = {
 		predict: DELAYED_PKG,
 		predictDelayedExecution: DELAYED_PKG,
 		predictOrders: ORDERS_PKG,
+		// A freshly published companion: its call target is also its original ID. Clear
+		// Testnet's own original ID, which the spread above would otherwise carry in.
+		predictOrdersV1: undefined,
 		predictMath: MATH_PKG,
 	},
 	objects: { ...TESTNET_CONFIG.objects, orderDesk: DESK, queueRegistry: REGISTRY },
