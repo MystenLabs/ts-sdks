@@ -77,8 +77,8 @@
 		"ts-node": "^10.9.2",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^7.0.2",
-		"vite": "^8.2.1",
-		"vitest": "^4.1.11",
+		"vite": "^8.2.4",
+		"vitest": "^4.1.12",
 		"wait-on": "^9.1.0"
 	},
 	"peerDependencies": {

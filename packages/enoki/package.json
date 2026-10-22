@@ -55,7 +55,7 @@
 		"@vitejs/plugin-react-swc": "^4.3.3",
 		"react-dom": "^19.2.8",
 		"typescript": "^7.0.2",
-		"vite": "^8.2.1"
+		"vite": "^8.2.4"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",

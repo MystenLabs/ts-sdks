@@ -54,7 +54,7 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/blob/main/packages/codegen#readme",
 	"devDependencies": {
-		"vitest": "^4.1.11"
+		"vitest": "^4.1.12"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
@@ -64,7 +64,7 @@
 		"@types/node": "^26.2.0",
 		"cosmiconfig": "^10.0.0",
 		"prettier": "3.9.6",
-		"toml": "^5.0.0",
+		"toml": "^5.0.1",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"zod": "^4.4.3"
 	}
