@@ -18,6 +18,11 @@ import { getSessionsConfig } from '../../../src/sessions.js';
 // The Predict v2 publication, which introduced `MintRange`. No record carries it, because the
 // call target has moved on, so it is pinned here.
 const PREDICT_V2 = '0x30a03c33eab1e79e0f891540dc00d4e213101b1efb6890f2232e77e36ddd25ce';
+// The math library's original ID; the record carries only its latest call target.
+const PREDICT_MATH_V1 = '0x471592f682a9560b7046ca1bbf240e608bf5b2071ff1a9bd129b8011166a43c5';
+// The order-flow companion's original ID, which types its desk, registry, queues and events.
+const PREDICT_ORDERS_V1 =
+	TESTNET_CONFIG.packages.predictOrdersV1 ?? TESTNET_CONFIG.packages.predictOrders!;
 
 const client = new SuiGrpcClient({
 	network: 'testnet',
@@ -106,27 +111,28 @@ describe('the deployment record matches the live chain', () => {
 });
 
 describe('package publication and type origins', () => {
-	// Testnet's delayed-execution rollout (DBU-887): Predict v5, Sessions v3 and the two fresh
-	// packages at version 1.
+	// Testnet's relink to Propbook v2 (DBU-1027): Predict v6, Sessions v4, and predict_orders and
+	// predict_math at version 2, after the delayed-execution rollout (DBU-887) published them.
 	test.each([
-		[TESTNET_PREDICT.packages.predict, 5n, TESTNET_PREDICT.packages.predictV1],
+		[TESTNET_PREDICT.packages.predict, 6n, TESTNET_PREDICT.packages.predictV1],
 		[
 			getSessionsConfig('testnet').sessionsPackageId,
-			3n,
+			4n,
 			getSessionsConfig('testnet').sessionsPackageIdV1,
 		],
-		[TESTNET_CONFIG.packages.predictOrders!, 1n, TESTNET_CONFIG.packages.predictOrders!],
-		[TESTNET_CONFIG.packages.predictMath!, 1n, TESTNET_CONFIG.packages.predictMath!],
+		[TESTNET_CONFIG.packages.predictOrders!, 2n, PREDICT_ORDERS_V1],
+		[TESTNET_CONFIG.packages.predictMath!, 2n, PREDICT_MATH_V1],
 	])('latest package %s is version %s of %s', async (packageId, version, originalId) => {
 		const { response } = await client.movePackageService.getPackage({ packageId });
 		expect(response.package?.version).toBe(version);
 		expect(response.package?.originalId).toBe(originalId);
 	});
 	test('the order desk and queue registry belong to the recorded order-flow package', async () => {
-		const orders = TESTNET_CONFIG.packages.predictOrders!;
-		expect(await typeOf(TESTNET_CONFIG.objects.orderDesk!)).toBe(`${orders}::desk::OrderDesk`);
+		expect(await typeOf(TESTNET_CONFIG.objects.orderDesk!)).toBe(
+			`${PREDICT_ORDERS_V1}::desk::OrderDesk`,
+		);
 		expect(await typeOf(TESTNET_CONFIG.objects.queueRegistry!)).toBe(
-			`${orders}::desk::QueueRegistry`,
+			`${PREDICT_ORDERS_V1}::desk::QueueRegistry`,
 		);
 	});
 	test.each([
@@ -161,12 +167,7 @@ describe('package publication and type origins', () => {
 			'OrderFlowUpdated',
 			TESTNET_CONFIG.packages.predictDelayedExecution!,
 		],
-		[
-			TESTNET_CONFIG.packages.predictOrders!,
-			'queue',
-			'MarketQueue',
-			TESTNET_CONFIG.packages.predictOrders!,
-		],
+		[TESTNET_CONFIG.packages.predictOrders!, 'queue', 'MarketQueue', PREDICT_ORDERS_V1],
 		[
 			getSessionsConfig('testnet').sessionsPackageId,
 			'sessions',
