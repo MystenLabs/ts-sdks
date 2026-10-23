@@ -307,6 +307,8 @@ export const ObjectArgSchema = safeEnum({
 		// snake case in rust
 		initialSharedVersion: JsonU64,
 		mutable: boolean(),
+		// Only set for the non-exclusive write access that system transactions take.
+		mutability: optional(literal('NonExclusiveWrite')),
 	}),
 	Receiving: ObjectRefSchema,
 });

@@ -473,6 +473,16 @@ export function extractStatusFromEffectsBcs(
 	};
 }
 
+/** Map a BCS owner onto the client owner type; party ownership has no client representation. */
+function mapBcsOwner(owner: typeof bcs.Owner.$inferType): SuiClientTypes.ObjectOwner;
+function mapBcsOwner(owner: typeof bcs.Owner.$inferType | null): SuiClientTypes.ObjectOwner | null;
+function mapBcsOwner(owner: typeof bcs.Owner.$inferType | null): SuiClientTypes.ObjectOwner | null {
+	if (owner?.$kind === 'Party') {
+		return { $kind: 'Unknown' };
+	}
+	return owner;
+}
+
 export function parseTransactionEffectsBcs(effects: Uint8Array): SuiClientTypes.TransactionEffects {
 	const parsed = bcs.TransactionEffects.parse(effects);
 
@@ -533,7 +543,7 @@ function parseTransactionEffectsV1({
 			mapChangedObject(reference, {
 				inputState,
 				outputState: 'ObjectWrite',
-				outputOwner: owner,
+				outputOwner: mapBcsOwner(owner),
 				idOperation,
 			}),
 		);
@@ -608,7 +618,7 @@ function parseTransactionEffectsV2({
 				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
 				inputVersion: change.inputState.Exist?.[0][0] ?? null,
 				inputDigest: change.inputState.Exist?.[0][1] ?? null,
-				inputOwner: change.inputState.Exist?.[1] ?? null,
+				inputOwner: mapBcsOwner(change.inputState.Exist?.[1] ?? null),
 				outputState:
 					change.outputState.$kind === 'NotExist' ? 'DoesNotExist' : change.outputState.$kind,
 				outputVersion:
@@ -624,7 +634,9 @@ function parseTransactionEffectsV2({
 							? (change.outputState.ObjectWrite?.[0] ?? null)
 							: null,
 				outputOwner:
-					change.outputState.$kind === 'ObjectWrite' ? change.outputState.ObjectWrite[1] : null,
+					change.outputState.$kind === 'ObjectWrite'
+						? mapBcsOwner(change.outputState.ObjectWrite[1])
+						: null,
 				idOperation: change.idOperation.$kind,
 				// BCS effects do not carry object types
 				objectType: null,
