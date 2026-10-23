@@ -36,6 +36,21 @@ it('codes a failed unary fetch as UNAVAILABLE', async () => {
 	});
 });
 
+it('retries a ledger stream whose startup fetch fails', async () => {
+	const fetch = vi.fn(async () => {
+		throw new TypeError('fetch failed');
+	});
+	const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost', fetch });
+	const stream = client.streamEvents({
+		retry: { maxAttempts: 1, initialDelay: 0, maxDelay: 0, jitter: 0 },
+	});
+	await expect(stream[Symbol.asyncIterator]().next()).rejects.toMatchObject({
+		code: 'UNAVAILABLE',
+	});
+	// The first attempt and one retry.
+	expect(fetch).toHaveBeenCalledTimes(2);
+});
+
 it('codes a failed response body read as UNAVAILABLE', async () => {
 	const fetch = async () =>
 		new Response(

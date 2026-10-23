@@ -7,6 +7,7 @@ import {
 	formatMoveAbortMessage,
 	ObjectError,
 	SimulationError,
+	SuiStreamError,
 	TransactionError,
 } from '../client/index.js';
 import { raceSignal } from '../client/mvr.js';
@@ -74,6 +75,8 @@ import {
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 import { hasDecodedStatusMessage } from './transport.js';
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
+import { GrpcLedgerStreamAdapter, type GrpcLedgerStreamRequest } from './stream/index.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -97,11 +100,37 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
 }
 
+/** Ledger streams call the transport directly to read responses on demand. Internal. */
+const clientTransports = new WeakMap<SuiGrpcClient, RpcTransport>();
+
+export function registerClientTransport(client: SuiGrpcClient, transport: RpcTransport) {
+	clientTransports.set(client, transport);
+}
+
 export class GrpcCoreClient extends CoreClient {
 	#client: SuiGrpcClient;
 	constructor({ client, ...options }: GrpcCoreClientOptions) {
 		super(options);
 		this.#client = client;
+	}
+
+	protected override createLedgerStreamAdapter(request: GrpcLedgerStreamRequest) {
+		const transport = clientTransports.get(this.#client);
+		if (!transport) {
+			throw new SuiStreamError(
+				'InvalidOptions',
+				'Ledger streams need a client built by SuiGrpcClient',
+			);
+		}
+		return new GrpcLedgerStreamAdapter(
+			{
+				transport,
+				mvr: this.mvr,
+				chainIdentifier: async (signal) =>
+					(await this.getChainIdentifier({ signal })).chainIdentifier,
+			},
+			request,
+		);
 	}
 
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
@@ -1123,7 +1152,7 @@ function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): Quer
 	};
 }
 
-function transactionReadMaskPaths(
+export function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
 ): string[] {
