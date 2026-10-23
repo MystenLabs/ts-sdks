@@ -1,10 +1,21 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import { resolve } from 'path';
-import { GenericContainer, getContainerRuntimeClient, Network, PullPolicy } from 'testcontainers';
+import {
+	GenericContainer,
+	getContainerRuntimeClient,
+	Network,
+	PullPolicy,
+	Wait,
+	type StartedTestContainer,
+} from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
+import { requestSuiFromFaucetV2 } from '../../../src/faucet/index.js';
+import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import type { PrePublishedPackage } from './prePublish.js';
 import { prePublishPackages } from './prePublish.js';
 
@@ -12,6 +23,9 @@ declare module 'vitest' {
 	export interface ProvidedContext {
 		localnetPort: number;
 		graphqlPort: number;
+		graphqlSubscriptions: boolean;
+		graphqlStreamFixes: boolean;
+		grpcStreamFixes: boolean;
 		faucetPort: number;
 		suiToolsContainerId: string;
 		prePublishedPackages: Record<string, PrePublishedPackage>;
@@ -23,6 +37,12 @@ const SUI_TOOLS_TAG =
 	(process.arch === 'arm64'
 		? '987123842623d6cb0e772dc665789cfd69bdec9f-arm64'
 		: '987123842623d6cb0e772dc665789cfd69bdec9f');
+
+// `sui start --with-graphql` does not configure the checkpoint stream that GraphQL subscriptions
+// require. Either variable starts a separate GraphQL service with subscriptions enabled.
+const GRAPHQL_IMAGE = process.env.SUI_GRAPHQL_IMAGE;
+const GRAPHQL_BINARY = process.env.SUI_GRAPHQL_BINARY;
+const SEPARATE_GRAPHQL = !!(GRAPHQL_IMAGE || GRAPHQL_BINARY);
 
 export default async function setup(project: TestProject) {
 	console.log('Starting test containers');
@@ -47,14 +67,15 @@ export default async function setup(project: TestProject) {
 			'start',
 			'--with-faucet',
 			'--force-regenesis',
-			'--with-graphql',
+			SEPARATE_GRAPHQL ? '--with-consistent-store' : '--with-graphql',
 			`--with-indexer=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
 		])
 		.withCopyDirectoriesToContainer([
 			{ source: resolve(__dirname, '../data'), target: '/test-data' },
 		])
 		.withNetwork(network)
-		.withExposedPorts(9000, 9123, 9124, 9125)
+		.withExposedPorts(9000, 9123, 9124, ...(SEPARATE_GRAPHQL ? [] : [9125]))
+		.withStartupTimeout(180_000)
 		.withLogConsumer((stream) => {
 			stream.on('data', (data) => {
 				console.log(data.toString());
@@ -64,7 +85,130 @@ export default async function setup(project: TestProject) {
 
 	const faucetPort = localnet.getMappedPort(9123);
 	const localnetPort = localnet.getMappedPort(9000);
-	const graphqlPort = localnet.getMappedPort(9125);
+	const fullnodeUrl = `http://${localnet.getIpAddress(network.getName())}:9000`;
+	let graphqlPort: number;
+	let stopGraphQL: (() => void) | undefined;
+	if (GRAPHQL_BINARY) {
+		// Native staging builds avoid amd64 emulation on ARM developer machines.
+		graphqlPort = await unusedPort();
+		const graphqlProcess = spawn(
+			resolve(GRAPHQL_BINARY),
+			[
+				'rpc',
+				`--database-url=postgres://postgres:postgrespw@127.0.0.1:${pg.getMappedPort(5432)}/sui_indexer_v2`,
+				`--fullnode-rpc-url=http://127.0.0.1:${localnetPort}`,
+				`--ledger-grpc-url=http://127.0.0.1:${localnetPort}`,
+				'--enable-list-apis=true',
+				`--consistent-store-url=http://127.0.0.1:${localnet.getMappedPort(9124)}`,
+				`--checkpoint-stream-url=http://127.0.0.1:${localnetPort}`,
+				`--rpc-listen-address=127.0.0.1:${graphqlPort}`,
+				'--metrics-address=127.0.0.1:0',
+				`--indexer-config=${resolve(__dirname, '../data/graphql-indexer.toml')}`,
+			],
+			{ stdio: 'inherit' },
+		);
+		stopGraphQL = () => {
+			graphqlProcess.kill('SIGTERM');
+		};
+		process.once('exit', stopGraphQL);
+		let startupError: Error | undefined;
+		graphqlProcess.once('error', (error) => {
+			startupError = error;
+		});
+		try {
+			const deadline = Date.now() + 180_000;
+			while (true) {
+				if (startupError) throw startupError;
+				if (graphqlProcess.exitCode !== null)
+					throw new Error('GraphQL process exited during startup');
+				try {
+					const response = await fetch(`http://127.0.0.1:${graphqlPort}/graphql`, {
+						method: 'POST',
+						headers: { 'content-type': 'application/json' },
+						body: JSON.stringify({ query: '{chainIdentifier}' }),
+						signal: AbortSignal.timeout(1000),
+					});
+					if (response.ok && (await response.json()).data?.chainIdentifier) break;
+				} catch {
+					/* Wait until the server has its indexed watermarks. */
+				}
+				if (Date.now() >= deadline) throw new Error('GraphQL startup timed out');
+				await new Promise((resolve) => setTimeout(resolve, 250));
+			}
+		} catch (error) {
+			stopGraphQL();
+			throw error;
+		}
+	} else if (GRAPHQL_IMAGE) {
+		const graphql = await new GenericContainer(GRAPHQL_IMAGE)
+			// The published preview image is amd64, including on ARM developer machines.
+			.withPlatform(process.env.SUI_GRAPHQL_PLATFORM || 'linux/amd64')
+			.withCommand([
+				'sui-indexer-alt-graphql',
+				'rpc',
+				`--database-url=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
+				`--fullnode-rpc-url=${fullnodeUrl}`,
+				`--ledger-grpc-url=${fullnodeUrl}`,
+				'--enable-list-apis=true',
+				`--consistent-store-url=http://${localnet.getIpAddress(network.getName())}:9124`,
+				`--checkpoint-stream-url=${fullnodeUrl}`,
+				'--rpc-listen-address=0.0.0.0:9125',
+				'--indexer-config=/graphql-indexer.toml',
+			])
+			.withNetwork(network)
+			.withCopyFilesToContainer([
+				{
+					source: resolve(__dirname, '../data/graphql-indexer.toml'),
+					target: '/graphql-indexer.toml',
+				},
+			])
+			.withExposedPorts(9125)
+			.withWaitStrategy(Wait.forListeningPorts())
+			.withStartupTimeout(180_000)
+			.withLogConsumer((stream) => stream.on('data', (data) => console.log(data.toString())))
+			.start();
+		graphqlPort = graphql.getMappedPort(9125);
+	} else {
+		graphqlPort = localnet.getMappedPort(9125);
+	}
+	const teardown = () => {
+		if (stopGraphQL) {
+			process.removeListener('exit', stopGraphQL);
+			stopGraphQL();
+		}
+	};
+	try {
+		await finishSetup(project, { localnet, localnetPort, faucetPort, graphqlPort });
+	} catch (error) {
+		// Stop the native GraphQL process when anything after it started fails.
+		teardown();
+		throw error;
+	}
+	return teardown;
+}
+
+async function finishSetup(
+	project: TestProject,
+	{
+		localnet,
+		localnetPort,
+		faucetPort,
+		graphqlPort,
+	}: {
+		localnet: StartedTestContainer;
+		localnetPort: number;
+		faucetPort: number;
+		graphqlPort: number;
+	},
+) {
+	const graphqlSubscriptions = await probe('GraphQL subscriptions', () =>
+		supportsGraphQLSubscriptions(graphqlPort),
+	);
+	if (!graphqlSubscriptions) {
+		console.warn(
+			'GraphQL subscription tests will be skipped: the localnet GraphQL service does not serve subscriptions. Set SUI_GRAPHQL_IMAGE or SUI_GRAPHQL_BINARY to run them (see test/e2e/README.md).',
+		);
+	}
 	const containerId = localnet.getId();
 
 	// Set up the default sui config so `sui keytool` and `sui move build` commands work.
@@ -81,6 +225,7 @@ export default async function setup(project: TestProject) {
 	project.provide('faucetPort', faucetPort);
 	project.provide('localnetPort', localnetPort);
 	project.provide('graphqlPort', graphqlPort);
+	project.provide('graphqlSubscriptions', graphqlSubscriptions);
 	project.provide('suiToolsContainerId', containerId);
 
 	// Pre-publish shared packages
@@ -90,4 +235,135 @@ export default async function setup(project: TestProject) {
 		containerId,
 	});
 	project.provide('prePublishedPackages', prePublished);
+
+	const graphqlStreamFixes = await probe('GraphQL checkpoint resume', () =>
+		resumesCheckpointsBelowBound(graphqlPort),
+	);
+	if (!graphqlStreamFixes) {
+		console.warn(
+			'GraphQL checkpoint resume tests will be skipped: the GraphQL service lacks the stream fixes (see test/e2e/README.md).',
+		);
+	}
+	const grpcStreamFixes = await probe('gRPC subscription object types', () =>
+		subscriptionsHaveObjectTypes(localnetPort, faucetPort),
+	);
+	if (!grpcStreamFixes) {
+		console.warn(
+			'gRPC transaction subscription parity tests will be skipped: the fullnode lacks the stream fixes (see test/e2e/README.md).',
+		);
+	}
+	project.provide('graphqlStreamFixes', graphqlStreamFixes);
+	project.provide('grpcStreamFixes', grpcStreamFixes);
+}
+
+/**
+ * Runs a capability probe. A probe returns false only for a valid answer that shows the capability
+ * is missing; anything else is an operational failure, retried and then thrown, so a broken server
+ * fails setup instead of silently skipping tests.
+ */
+async function probe(name: string, run: () => Promise<boolean>, attempts = 3): Promise<boolean> {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return await run();
+		} catch (error) {
+			if (attempt >= attempts) {
+				throw new Error(`Capability probe "${name}" failed`, { cause: error });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+		}
+	}
+}
+
+async function unusedPort(): Promise<number> {
+	const server = createServer();
+	await new Promise<void>((resolve, reject) => {
+		server.once('error', reject);
+		server.listen(0, '127.0.0.1', resolve);
+	});
+	const address = server.address();
+	if (!address || typeof address === 'string') throw new Error('Failed to allocate GraphQL port');
+	await new Promise<void>((resolve, reject) =>
+		server.close((error) => (error ? reject(error) : resolve())),
+	);
+	return address.port;
+}
+
+/** Whether GraphQL pages checkpoints after a cursor that lies below the `afterCheckpoint` bound. */
+async function resumesCheckpointsBelowBound(port: number): Promise<boolean> {
+	const query = async (query: string, variables = {}) => {
+		const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ query, variables }),
+			signal: AbortSignal.timeout(10_000),
+		});
+		if (!response.ok) throw new Error(`GraphQL responded with HTTP ${response.status}`);
+		const body = await response.json();
+		if (body.errors?.length || !body.data) {
+			throw new Error(`GraphQL responded with errors: ${JSON.stringify(body.errors)}`);
+		}
+		return body.data;
+	};
+	const first = await query('{ checkpoints(first: 1) { edges { cursor } } }');
+	const after = first.checkpoints?.edges?.[0]?.cursor;
+	if (!after) throw new Error('GraphQL returned no checkpoint to probe with');
+	const next = await query(
+		'query ($after: String) { checkpoints(first: 1, after: $after, filter: { afterCheckpoint: 1 }) { nodes { sequenceNumber } } }',
+		{ after },
+	);
+	if (!Array.isArray(next.checkpoints?.nodes))
+		throw new Error('GraphQL returned no checkpoint page');
+	return next.checkpoints.nodes[0]?.sequenceNumber === 2;
+}
+
+/**
+ * Whether gRPC checkpoint subscriptions fill the object types of changed objects. A faucet request
+ * makes sure a live checkpoint with changed objects arrives.
+ */
+async function subscriptionsHaveObjectTypes(port: number, faucetPort: number): Promise<boolean> {
+	const client = new SuiGrpcClient({ baseUrl: `http://127.0.0.1:${port}`, network: 'localnet' });
+	const controller = new AbortController();
+	try {
+		const call = client.subscriptionService.subscribeCheckpoints(
+			{ readMask: { paths: ['transactions.effects.changed_objects'] } },
+			{ abort: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]) },
+		);
+		const frames = call.responses[Symbol.asyncIterator]();
+		const first = frames.next();
+		// Observed below; this only keeps an early failure from being reported as unhandled.
+		first.catch(() => {});
+		await requestSuiFromFaucetV2({
+			host: `http://127.0.0.1:${faucetPort}`,
+			recipient: `0x${'5'.repeat(64)}`,
+		});
+		for (let next = await first; !next.done; next = await frames.next()) {
+			const frame = next.value as GrpcTypes.SubscribeCheckpointsResponse;
+			const changed = (frame.checkpoint?.transactions ?? []).flatMap(
+				(transaction) => transaction.effects?.changedObjects ?? [],
+			);
+			if (changed.length > 0) return changed.some((object) => !!object.objectType);
+		}
+		throw new Error('The checkpoint subscription ended before a checkpoint with changes arrived');
+	} finally {
+		controller.abort();
+	}
+}
+
+async function supportsGraphQLSubscriptions(port: number): Promise<boolean> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 10_000);
+	try {
+		const response = await fetch(`http://127.0.0.1:${port}/graphql/subscriptions`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+			body: JSON.stringify({ query: 'subscription { checkpoints { cursor } }' }),
+			signal: controller.signal,
+		});
+		// A server error or a failed request is retried; any other response decides.
+		if (response.status >= 500) throw new Error(`GraphQL responded with HTTP ${response.status}`);
+		return response.ok && !!response.headers.get('content-type')?.startsWith('text/event-stream');
+	} finally {
+		clearTimeout(timeout);
+		controller.abort();
+	}
 }
