@@ -5,8 +5,8 @@ For more complete docs, visit the [Sui TypeScript SDK docs](https://sdk.mystenla
 # Sui TypeScript SDK
 
 This is the Sui TypeScript SDK providing utility classes and functions for applications to sign
-transactions and interact with the Sui network. It supports multiple communication protocols
-including gRPC (recommended), GraphQL, and JSON RPC (deprecated).
+transactions and interact with the Sui network. It supports two communication protocols: gRPC
+(recommended) and GraphQL.
 
 ## Building Locally
 

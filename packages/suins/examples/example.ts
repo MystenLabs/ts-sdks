@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 
 import { SuinsClient } from '../src/suins-client.js';
@@ -10,9 +10,10 @@ import { SuinsTransaction } from '../src/suins-transaction.js';
 // Initialize and execute the SuinsClient to fetch the renewal price list
 (async () => {
 	const network = 'testnet';
-	// Step 1: Create a SuiJsonRpcClient instance
-	const suiClient = new SuiJsonRpcClient({
-		url: getJsonRpcFullnodeUrl(network), // Sui testnet endpoint
+	// Step 1: Create a SuiGrpcClient instance
+	const suiClient = new SuiGrpcClient({
+		baseUrl: 'https://fullnode.testnet.sui.io:443', // Sui testnet endpoint
+		network,
 	});
 
 	// Step 2: Create a SuinsClient instance using TESTNET_CONFIG

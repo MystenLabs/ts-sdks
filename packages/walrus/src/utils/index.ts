@@ -3,7 +3,6 @@
 
 import { fromBase64, toBase64 } from '@mysten/bcs';
 import type { InferBcsType } from '@mysten/bcs';
-import type { SuiMoveNormalizedType } from '@mysten/sui/jsonRpc';
 
 import type { Committee } from '../contracts/walrus/committee.js';
 import type { EncodingType } from '../types.js';
@@ -159,57 +158,6 @@ export function nodesByShardIndex(committee: InferBcsType<typeof Committee>) {
 	}
 
 	return nodesByShardIndex;
-}
-
-export function toTypeString(type: SuiMoveNormalizedType): string {
-	if (typeof type === 'string') {
-		switch (type) {
-			case 'Address':
-				return 'address';
-			case 'Bool':
-				return 'bool';
-			case 'U8':
-				return 'u8';
-			case 'U16':
-				return 'u16';
-			case 'U32':
-				return 'u32';
-			case 'U64':
-				return 'u64';
-			case 'U128':
-				return 'u128';
-			case 'U256':
-				return 'u256';
-			default:
-				throw new Error(`Unexpected type ${type}`);
-		}
-	}
-
-	if ('Vector' in type) {
-		return `vector<${toTypeString(type.Vector)}>`;
-	}
-
-	if ('Struct' in type) {
-		if (type.Struct.typeArguments.length > 0) {
-			return `${type.Struct.address}::${type.Struct.module}::${type.Struct.name}<${type.Struct.typeArguments.map(toTypeString).join(',')}>`;
-		} else {
-			return `${type.Struct.address}::${type.Struct.module}::${type.Struct.name}`;
-		}
-	}
-
-	if ('TypeParameter' in type) {
-		throw new Error(`Type parameters can't be converted to type strings`);
-	}
-
-	if ('Reference' in type) {
-		return toTypeString(type.Reference);
-	}
-
-	if ('MutableReference' in type) {
-		return toTypeString(type.MutableReference);
-	}
-
-	throw new Error(`Unexpected type ${JSON.stringify(type)}`);
 }
 
 export function urlSafeBase64(bytes: Uint8Array): string {

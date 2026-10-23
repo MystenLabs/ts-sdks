@@ -6,11 +6,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
-import type {
-	JsonRpcTransport,
-	JsonRpcTransportRequestOptions,
-} from '../../../src/jsonRpc/index.js';
-import { SuiJsonRpcClient } from '../../../src/jsonRpc/index.js';
 
 const name = '@mysten';
 const address = '0x123';
@@ -77,26 +72,6 @@ describe('resolveNameServiceAddress', () => {
 			variables: { name },
 		});
 	});
-
-	it.each([address, null])('maps JSON-RPC address results (%s)', async (resolvedAddress) => {
-		let requestInput: JsonRpcTransportRequestOptions | undefined;
-		const transport: JsonRpcTransport = {
-			async request<T>(input: JsonRpcTransportRequestOptions) {
-				requestInput = input;
-				return resolvedAddress as T;
-			},
-		};
-		const client = new SuiJsonRpcClient({ network: 'mainnet', transport });
-
-		await expect(client.core.resolveNameServiceAddress({ name })).resolves.toEqual({
-			address: resolvedAddress,
-		});
-		expect(requestInput).toEqual({
-			method: 'suix_resolveNameServiceAddress',
-			params: [name],
-			signal: undefined,
-		});
-	});
 });
 
 describe('defaultNameServiceName', () => {
@@ -159,22 +134,6 @@ describe('defaultNameServiceName', () => {
 		});
 		expect(JSON.parse(String(requestInit?.body))).toMatchObject({
 			variables: { address },
-		});
-	});
-
-	it.each([
-		['mysten.sui', ['mysten.sui']],
-		[null, []],
-	])('maps JSON-RPC default name results (%s)', async (expectedName, names) => {
-		const transport: JsonRpcTransport = {
-			async request<T>() {
-				return { data: names, hasNextPage: false, nextCursor: null } as T;
-			},
-		};
-		const client = new SuiJsonRpcClient({ network: 'mainnet', transport });
-
-		await expect(client.core.defaultNameServiceName({ address })).resolves.toEqual({
-			data: { name: expectedName },
 		});
 	});
 });

@@ -4,7 +4,6 @@
 import type { BcsType } from '@mysten/bcs';
 
 import { bcs } from '../bcs/index.js';
-import type { SuiMoveNormalizedType } from '../jsonRpc/index.js';
 import { MOVE_STDLIB_ADDRESS, SUI_FRAMEWORK_ADDRESS } from '../utils/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { SuiClientTypes } from '../client/types.js';
@@ -94,75 +93,6 @@ export function getPureBcsSchema(
 		case 'unknown':
 			return null;
 	}
-}
-
-export function normalizedTypeToMoveTypeSignature(
-	type: SuiMoveNormalizedType,
-): SuiClientTypes.OpenSignature {
-	if (typeof type === 'object' && 'Reference' in type) {
-		return {
-			reference: 'immutable',
-			body: normalizedTypeToMoveTypeSignatureBody(type.Reference),
-		};
-	}
-	if (typeof type === 'object' && 'MutableReference' in type) {
-		return {
-			reference: 'mutable',
-			body: normalizedTypeToMoveTypeSignatureBody(type.MutableReference),
-		};
-	}
-
-	return {
-		reference: null,
-		body: normalizedTypeToMoveTypeSignatureBody(type),
-	};
-}
-
-function normalizedTypeToMoveTypeSignatureBody(
-	type: SuiMoveNormalizedType,
-): SuiClientTypes.OpenSignatureBody {
-	if (typeof type === 'string') {
-		switch (type) {
-			case 'Address':
-				return { $kind: 'address' };
-			case 'Bool':
-				return { $kind: 'bool' };
-			case 'U8':
-				return { $kind: 'u8' };
-			case 'U16':
-				return { $kind: 'u16' };
-			case 'U32':
-				return { $kind: 'u32' };
-			case 'U64':
-				return { $kind: 'u64' };
-			case 'U128':
-				return { $kind: 'u128' };
-			case 'U256':
-				return { $kind: 'u256' };
-			default:
-				throw new Error(`Unexpected type ${type}`);
-		}
-	}
-
-	if ('Vector' in type) {
-		return { $kind: 'vector', vector: normalizedTypeToMoveTypeSignatureBody(type.Vector) };
-	}
-
-	if ('Struct' in type) {
-		return {
-			$kind: 'datatype',
-			datatype: {
-				typeName: `${type.Struct.address}::${type.Struct.module}::${type.Struct.name}`,
-				typeParameters: type.Struct.typeArguments.map(normalizedTypeToMoveTypeSignatureBody),
-			},
-		};
-	}
-
-	if ('TypeParameter' in type) {
-		return { $kind: 'typeParameter', index: type.TypeParameter };
-	}
-
-	throw new Error(`Unexpected type ${JSON.stringify(type)}`);
 }
 
 export function pureBcsSchemaFromOpenSignatureBody(

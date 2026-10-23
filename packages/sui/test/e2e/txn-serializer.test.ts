@@ -7,7 +7,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { Transaction } from '../../src/transactions/index.js';
 import { TransactionDataBuilder } from '../../src/transactions/TransactionData.js';
 import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils/index.js';
-import { setup, TestToolbox } from './utils/setup.js';
+import type { ClientWithCoreApi } from '../../src/client/index.js';
+import { createTestWithAllClients, setup, TestToolbox } from './utils/setup.js';
 
 let toolbox: TestToolbox;
 let packageId: string;
@@ -23,7 +24,7 @@ describe('Transaction bcs Serialization and deserialization', () => {
 	async function serializeAndDeserialize(tx: Transaction, mutable: boolean[]) {
 		tx.setSender(toolbox.address());
 		const transactionBytes = await tx.build({
-			client: toolbox.jsonRpcClient,
+			client: toolbox.grpcClient,
 		});
 		const deserializedTxnBuilder = TransactionDataBuilder.fromBytes(transactionBytes);
 		expect(
@@ -38,15 +39,15 @@ describe('Transaction bcs Serialization and deserialization', () => {
 	it('Move Shared Object Call with mutable reference', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
-		const coin = coins.data[2];
+		const coin = coins[2];
 		tx.moveCall({
 			target: '0x3::sui_system::request_add_stake',
 			arguments: [
 				tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-				tx.object(coin.coinObjectId),
+				tx.object(coin.objectId),
 				tx.pure.address(validatorAddress),
 			],
 		});
@@ -107,15 +108,15 @@ describe('TXB v2 JSON serialization', () => {
 	it('Move Shared Object Call with mutable reference', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
-		const coin = coins.data[2];
+		const coin = coins[2];
 		tx.moveCall({
 			target: '0x3::sui_system::request_add_stake',
 			arguments: [
 				tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-				tx.object(coin.coinObjectId),
+				tx.object(coin.objectId),
 				tx.pure.address(validatorAddress),
 			],
 		});
@@ -123,7 +124,7 @@ describe('TXB v2 JSON serialization', () => {
 	});
 
 	it('serialized pure inputs', async () => {
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
 
@@ -172,21 +173,21 @@ describe('TXB v2 JSON serialization', () => {
 });
 
 describe('TXB v1 JSON serialization', () => {
-	async function serializeAndDeserialize(tx: Transaction, json?: string) {
+	const testWithAllClients = createTestWithAllClients(() => toolbox);
+
+	async function serializeAndDeserialize(
+		client: ClientWithCoreApi,
+		tx: Transaction,
+		json?: string,
+	) {
 		tx.setSender(toolbox.address());
 		tx.setGasOwner(toolbox.address());
 		tx.setExpiration({ None: true });
 		tx.setSender(toolbox.address());
 		const transactionJson = json ?? (await tx.serialize());
 		const deserializedTxnBuilder = Transaction.from(transactionJson);
-		const reserializedTxnBytes = await deserializedTxnBuilder.build({
-			client: toolbox.jsonRpcClient,
-		});
-		expect(reserializedTxnBytes).toEqual(
-			await tx.build({
-				client: toolbox.jsonRpcClient,
-			}),
-		);
+		const reserializedTxnBytes = await deserializedTxnBuilder.build({ client });
+		expect(reserializedTxnBytes).toEqual(await tx.build({ client }));
 
 		const blockData = tx.getData();
 		const blockDataFromJson = deserializedTxnBuilder.getData();
@@ -203,26 +204,26 @@ describe('TXB v1 JSON serialization', () => {
 		expect(blockData).toMatchObject(blockDataFromJson);
 	}
 
-	it('Move Shared Object Call with mutable reference', async () => {
+	testWithAllClients('Move Shared Object Call with mutable reference', async (client) => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
-		const coin = coins.data[2];
+		const coin = coins[2];
 		tx.moveCall({
 			target: '0x3::sui_system::request_add_stake',
 			arguments: [
 				tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-				tx.object(coin.coinObjectId),
+				tx.object(coin.objectId),
 				tx.pure.address(validatorAddress),
 			],
 		});
-		await serializeAndDeserialize(tx);
+		await serializeAndDeserialize(client, tx);
 	});
 
-	it('serializes pure inputs', async () => {
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+	testWithAllClients('serializes pure inputs', async (client) => {
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
 
@@ -266,10 +267,10 @@ describe('TXB v1 JSON serialization', () => {
 			arguments: [tx.pure.bool(true)],
 		});
 
-		await serializeAndDeserialize(tx);
+		await serializeAndDeserialize(client, tx);
 	});
 
-	it('parses raw values in pure inputs', async () => {
+	testWithAllClients('parses raw values in pure inputs', async (client) => {
 		const tx = new Transaction();
 
 		tx.moveCall({
@@ -447,6 +448,6 @@ describe('TXB v1 JSON serialization', () => {
 			],
 		};
 
-		await serializeAndDeserialize(tx, JSON.stringify(v1JSON));
+		await serializeAndDeserialize(client, tx, JSON.stringify(v1JSON));
 	});
 });
