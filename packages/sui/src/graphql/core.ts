@@ -61,11 +61,12 @@ import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/tra
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import {
+	resolveCheckpointRange,
 	resolveEventFilter,
 	resolvePagination,
 	resolveTransactionFilter,
-	validateTransactionQuery,
 } from '../client/query-filters.js';
+import { toGraphQLEventFilter, toGraphQLTransactionFilter } from './filters.js';
 
 const GRAPHQL_OBJECT_BATCH_SIZE = 40;
 
@@ -653,25 +654,19 @@ export class GraphQLCoreClient extends CoreClient {
 	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ListTransactionsOptions<Include>,
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
-		const pagination = resolvePagination(options);
-		const { descending, after, before, limit } = pagination;
+		const { descending, after, before, limit } = resolvePagination(options);
+		const range = resolveCheckpointRange(options);
 		const filter = options.filter
 			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
 			: undefined;
-		validateTransactionQuery(filter, pagination);
+		const graphqlFilter = toGraphQLTransactionFilter(filter, range);
 
 		const transactions = await this.#graphqlQuery(
 			{
 				query: ListTransactionsDocument,
 				signal: options.signal,
 				variables: {
-					filter: filter && {
-						sentAddress: filter.$kind === 'sender' ? filter.sender : undefined,
-						function:
-							filter.$kind === 'function'
-								? [filter.package, filter.module, filter.function].filter(Boolean).join('::')
-								: undefined,
-					},
+					filter: graphqlFilter,
 					first: descending ? undefined : limit,
 					after,
 					last: descending ? limit : undefined,
@@ -690,15 +685,16 @@ export class GraphQLCoreClient extends CoreClient {
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...transactions.nodes].reverse() : transactions.nodes;
 
+		const { pageInfo } = transactions;
+		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
+
 		return {
 			transactions: nodes.map((transaction) => parseTransaction(transaction, options.include)),
-			hasNextPage: descending
-				? transactions.pageInfo.hasPreviousPage
-				: transactions.pageInfo.hasNextPage,
-			startCursor:
-				(descending ? transactions.pageInfo.endCursor : transactions.pageInfo.startCursor) ?? null,
-			endCursor:
-				(descending ? transactions.pageInfo.startCursor : transactions.pageInfo.endCursor) ?? null,
+			// A page without a cursor to continue from cannot have a next page
+			hasNextPage:
+				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
+			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
+			endCursor,
 		};
 	}
 
@@ -706,26 +702,18 @@ export class GraphQLCoreClient extends CoreClient {
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse> {
 		const { descending, after, before, limit } = resolvePagination(options);
+		const range = resolveCheckpointRange(options);
 		const filter = options.filter
 			? await resolveEventFilter(this.mvr, options.filter, options.signal)
 			: undefined;
+		const graphqlFilter = toGraphQLEventFilter(filter, range);
 
 		const events = await this.#graphqlQuery(
 			{
 				query: ListEventsDocument,
 				signal: options.signal,
 				variables: {
-					filter: filter && {
-						sender: filter.$kind === 'sender' ? filter.sender : undefined,
-						module:
-							filter.$kind === 'emitModule' ? `${filter.package}::${filter.module}` : undefined,
-						type:
-							filter.$kind === 'eventTypeModule'
-								? `${filter.package}::${filter.module}`
-								: filter.$kind === 'eventType'
-									? filter.eventType
-									: undefined,
-					},
+					filter: graphqlFilter,
 					first: descending ? undefined : limit,
 					after,
 					last: descending ? limit : undefined,
@@ -737,6 +725,8 @@ export class GraphQLCoreClient extends CoreClient {
 
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
+		const { pageInfo } = events;
+		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
 
 		return {
 			events: nodes.map((event): SuiClientTypes.EventEntry => {
@@ -745,8 +735,16 @@ export class GraphQLCoreClient extends CoreClient {
 				const sender = event.sender?.address;
 				const eventType = event.contents?.type?.repr;
 				const transactionDigest = event.transaction?.digest;
+				const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
 
-				if (!packageId || !module || !sender || !eventType || !transactionDigest) {
+				if (
+					!packageId ||
+					!module ||
+					!sender ||
+					!eventType ||
+					!transactionDigest ||
+					checkpoint == null
+				) {
 					throw new Error('listEvents response is missing expected event fields');
 				}
 
@@ -757,14 +755,16 @@ export class GraphQLCoreClient extends CoreClient {
 					eventType: normalizeStructTag(eventType),
 					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
 					json: (event.contents?.json as Record<string, unknown>) ?? null,
-					checkpoint: event.transaction?.effects?.checkpoint?.sequenceNumber?.toString() ?? null,
+					checkpoint: String(checkpoint),
 					transactionDigest,
 					eventIndex: event.sequenceNumber,
 				};
 			}),
-			hasNextPage: descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage,
-			startCursor: (descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null,
-			endCursor: (descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null,
+			// A page without a cursor to continue from cannot have a next page
+			hasNextPage:
+				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
+			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
+			endCursor,
 		};
 	}
 
