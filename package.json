@@ -20,10 +20,7 @@
 	"pnpm": {
 		"overrides": {
 			"axios": ">=1.20.0",
-			"js-yaml@>=4.0.0 <4.3.2": "4.3.2",
-			"next@>=16.0.0 <16.3.8": "16.3.8",
-			"source-map-js@>=1.0.0 <1.2.2": "1.2.2",
-			"vue@>=3.5.0 <3.5.42": "3.5.42"
+			"js-yaml@>=4.0.0 <4.3.2": "4.3.2"
 		},
 		"patchedDependencies": {
 			"braces@3.0.3": "patches/braces@3.0.3.patch"
@@ -45,8 +42,8 @@
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@manypkg/cli": "^0.25.1",
 		"@testcontainers/postgresql": "^12.1.0",
-		"concurrently": "^10.0.5",
-		"graphql-config": "^5.1.5",
+		"concurrently": "^10.0.6",
+		"graphql-config": "^5.1.8",
 		"oxlint": "1.78.0",
 		"oxlint-tsgolint": "^7.0.2001",
 		"prettier": "3.9.6",

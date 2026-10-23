@@ -57,12 +57,12 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@storybook/web-components": "^10.5.8",
-		"@storybook/web-components-vite": "^10.5.8",
-		"storybook": "^10.5.8",
+		"@storybook/web-components": "^10.6.2",
+		"@storybook/web-components-vite": "^10.6.2",
+		"storybook": "^10.6.2",
 		"tsdown": "0.22.14",
 		"typescript": "^7.0.2",
-		"vitest": "^4.1.11"
+		"vitest": "^4.1.12"
 	},
 	"dependencies": {
 		"@floating-ui/dom": "^1.8.0",
