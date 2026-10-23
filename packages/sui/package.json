@@ -117,6 +117,11 @@
 			"types": "./dist/graphql/schema/index.d.mts",
 			"import": "./dist/graphql/schema/index.mjs",
 			"default": "./dist/graphql/schema/index.mjs"
+		},
+		"./grpc/pull-transport": {
+			"types": "./dist/grpc/pull-transport/index.d.mts",
+			"import": "./dist/grpc/pull-transport/index.mjs",
+			"default": "./dist/grpc/pull-transport/index.mjs"
 		}
 	},
 	"scripts": {
@@ -164,7 +169,7 @@
 		"@graphql-codegen/typescript": "6.1.0",
 		"@graphql-codegen/typescript-document-nodes": "6.1.0",
 		"@graphql-codegen/typescript-operations": "^6.1.6",
-		"@grpc/grpc-js": ">=1.14.5",
+		"@grpc/grpc-js": "^1.14.5",
 		"@parcel/watcher": "^2.6.0",
 		"@protobuf-ts/grpc-transport": "^2.11.1",
 		"@types/node": "^26.2.0",
