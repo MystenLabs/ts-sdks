@@ -59,6 +59,8 @@ export type GraphQLSubscriptionOptions<
 		 * @default 16 * 1024 * 1024
 		 */
 		maxMessageSize?: number;
+		/** Called once the server accepts the subscription, before the first result. */
+		onOpen?: () => void;
 	};
 
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
@@ -223,6 +225,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 				body: requestBody(options),
 				signal,
 			});
+			if (response.ok) options.onOpen?.();
 			yield* readGraphQLSSE<Result>(
 				response,
 				signal,
@@ -468,6 +471,30 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		input: SuiClientTypes.ListCheckpointsOptions,
 	): Promise<SuiClientTypes.ListCheckpointsResponse> {
 		return this.core.listCheckpoints(input);
+	}
+
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include, Frames>> {
+		return this.core.streamCheckpoints(input);
+	}
+
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include, Frames>> {
+		return this.core.streamTransactions(input);
+	}
+
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		input?: SuiClientTypes.StreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
+		return this.core.streamEvents(input);
 	}
 
 	getMoveFunction(
