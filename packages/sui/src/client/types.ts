@@ -3,8 +3,15 @@
 
 import type { EnumOutputShape } from '@mysten/bcs';
 import type {
-	SerializedTransactionDataV2,
+	EndOfEpochTransactionKind as BcsEndOfEpochTransactionKindSchema,
+	TransactionKind as BcsTransactionKindSchema,
+} from '../bcs/transactions.js';
+import type {
 	TransactionPlugin,
+	Argument,
+	CallArg as BuilderCallArg,
+	Command as BuilderCommand,
+	TransactionData as BuilderTransactionData,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
 import type { Signer } from '../cryptography/keypair.js';
@@ -21,6 +28,9 @@ export type SuiClientRegistration<
 };
 
 export type ClientWithExtensions<T, Base extends BaseClient = BaseClient> = Base & T;
+
+type BcsTransactionKind = typeof BcsTransactionKindSchema.$inferType;
+type BcsEndOfEpochTransactionKind = typeof BcsEndOfEpochTransactionKindSchema.$inferType;
 
 export namespace SuiClientTypes {
 	export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet' | (string & {});
@@ -429,7 +439,75 @@ export namespace SuiClientTypes {
 		amount: string;
 	}
 
-	export interface TransactionData extends SerializedTransactionDataV2 {}
+	/** Ledger transaction data. Narrow `kind.$kind` to read the transaction's payload. */
+	export interface TransactionData {
+		version: 2;
+		sender: string | null;
+		gasData: TransactionGasData;
+		expiration: TransactionExpiration | null;
+		/**
+		 * The inputs of a `ProgrammableTransaction` or `ProgrammableSystemTransaction` kind; empty for
+		 * every other kind.
+		 */
+		inputs: TransactionInput[];
+		/**
+		 * The commands of a `ProgrammableTransaction` or `ProgrammableSystemTransaction` kind; empty
+		 * for every other kind.
+		 */
+		commands: TransactionCommand[];
+		kind: TransactionKind;
+	}
+
+	export type TransactionGasData = BuilderTransactionData['gasData'];
+	export type TransactionExpiration = NonNullable<BuilderTransactionData['expiration']>;
+	/** A kind this SDK cannot fully map, inputs and commands included, is `Unknown`. */
+	export type TransactionKind = EnumOutputShape<{
+		[Kind in BcsTransactionKind['$kind'] | 'Unknown']: Kind extends 'Unknown'
+			? true
+			: Kind extends 'ProgrammableTransaction' | 'ProgrammableSystemTransaction'
+				? ProgrammableTransaction
+				: Kind extends 'EndOfEpochTransaction'
+					? EndOfEpochTransactionKind[]
+					: NonNullable<BcsTransactionKind[Exclude<Kind, 'Unknown'>]>;
+	}>;
+	export interface ProgrammableTransaction {
+		inputs: TransactionInput[];
+		commands: TransactionCommand[];
+	}
+	/** A resolved input; transactions on chain never contain unresolved inputs. */
+	export type TransactionInput = Exclude<
+		BuilderCallArg,
+		{ $kind: 'UnresolvedPure' | 'UnresolvedObject' }
+	>;
+	/** A command; transactions on chain never contain intents. */
+	export type TransactionCommand = Exclude<BuilderCommand, { $kind: '$Intent' }>;
+	export type TransactionArgument = Argument;
+	export type ChangeEpochTransaction = NonNullable<TransactionKind['ChangeEpoch']>;
+	export type GenesisTransaction = NonNullable<TransactionKind['Genesis']>;
+	export type GenesisObject = GenesisTransaction['objects'][number];
+	export type ConsensusCommitPrologue = NonNullable<TransactionKind['ConsensusCommitPrologue']>;
+	export type ConsensusCommitPrologueV2 = NonNullable<TransactionKind['ConsensusCommitPrologueV2']>;
+	export type ConsensusCommitPrologueV3 = NonNullable<TransactionKind['ConsensusCommitPrologueV3']>;
+	export type ConsensusCommitPrologueV4 = NonNullable<TransactionKind['ConsensusCommitPrologueV4']>;
+	export type AuthenticatorStateUpdate = NonNullable<TransactionKind['AuthenticatorStateUpdate']>;
+	export type ActiveJwk = AuthenticatorStateUpdate['newActiveJwks'][number];
+	export type RandomnessStateUpdate = NonNullable<TransactionKind['RandomnessStateUpdate']>;
+	export type EndOfEpochTransaction = EndOfEpochTransactionKind[];
+	/** An end-of-epoch operation; ones this SDK version does not recognize are `Unknown`. */
+	export type EndOfEpochTransactionKind = EnumOutputShape<{
+		[Kind in BcsEndOfEpochTransactionKind['$kind'] | 'Unknown']: Kind extends 'Unknown'
+			? true
+			: Kind extends 'BridgeStateCreate'
+				? BridgeStateCreate
+				: NonNullable<BcsEndOfEpochTransactionKind[Exclude<Kind, 'Unknown'>]>;
+	}>;
+	export interface BridgeStateCreate {
+		/**
+		 * The chain identifier the bridge was created for: the first 4 bytes of the genesis
+		 * checkpoint digest, hex encoded.
+		 */
+		chainId: string;
+	}
 
 	export interface GetTransactionOptions<
 		Include extends TransactionInclude = {},
