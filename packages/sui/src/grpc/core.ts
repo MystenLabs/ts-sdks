@@ -1055,6 +1055,7 @@ function transactionReadMaskPaths(
 		'transaction.digest',
 		'signatures',
 		'effects.status',
+		'effects.epoch',
 		'timestamp',
 		'checkpoint',
 	];
