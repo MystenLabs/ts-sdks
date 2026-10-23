@@ -17,7 +17,10 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
+import { DEFAULT_MAX_RESPONSE_MESSAGE_BYTES, GrpcWebPullCall } from './grpc-web-pull.js';
 import { toNetworkRpcError } from './network-error.js';
+import { PULL_SERVER_STREAMING } from './pull-call.js';
+import type { PullServerStreamingTransport, ServerStreamingIterableCall } from './pull-call.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -206,16 +209,32 @@ function bodyChunks(body: unknown): BodyChunks | null {
 	return null;
 }
 
+export interface GrpcWebFetchTransportOptions extends GrpcWebOptions {
+	/**
+	 * Largest response message, in bytes, accepted by the SDK's incremental stream reader. A larger
+	 * message fails with a non-retryable `RESOURCE_EXHAUSTED`. Does not apply to unary calls or
+	 * `serverStreaming`.
+	 * @default 64 MiB
+	 */
+	maxResponseMessageBytes?: number;
+}
+
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
  * messages, to code an aborted call from its reason rather than as `INTERNAL`, to send the
- * `x-sui-client-protocol-version` header, and to default to the binary wire format.
+ * `x-sui-client-protocol-version` header, and to default to the binary wire format. It can also
+ * read server streams on demand, which the SDK uses internally.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`
  * keeps that package's behaviour.
  */
-export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
-	constructor(options: GrpcWebOptions) {
+export class GrpcWebFetchTransport
+	extends UpstreamGrpcWebFetchTransport
+	implements PullServerStreamingTransport
+{
+	readonly #maxResponseMessageBytes: number;
+
+	constructor({ maxResponseMessageBytes, ...options }: GrpcWebFetchTransportOptions) {
 		// Lets the server avoid sending types this SDK cannot decode. Caller-supplied `meta` wins.
 		super({
 			...options,
@@ -225,6 +244,22 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 				[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
 				...options.meta,
 			},
+		});
+		this.#maxResponseMessageBytes = maxResponseMessageBytes ?? DEFAULT_MAX_RESPONSE_MESSAGE_BYTES;
+	}
+
+	/** Internal: an on-demand server-streaming call. Interceptors are not applied. */
+	[PULL_SERVER_STREAMING]<I extends object, O extends object>(
+		method: MethodInfo<I, O>,
+		input: I,
+		options: RpcOptions = {},
+	): ServerStreamingIterableCall<I, O> {
+		const merged = this.mergeOptions(options) as GrpcWebOptions;
+		return new GrpcWebPullCall(method, input, {
+			options: merged,
+			url: this.makeUrl(method, merged),
+			maxResponseMessageBytes: this.#maxResponseMessageBytes,
+			normalizeError: normalizeGrpcError,
 		});
 	}
 
@@ -278,5 +313,12 @@ export function withClientProtocolVersion(transport: RpcTransport): RpcTransport
 		serverStreaming: transport.serverStreaming.bind(transport),
 		clientStreaming: transport.clientStreaming.bind(transport),
 		duplex: transport.duplex.bind(transport),
+		// The pull method merges the inner transport's options, which already carry the header when
+		// it is this package's `GrpcWebFetchTransport`, the only transport that has the method.
+		...(PULL_SERVER_STREAMING in transport && {
+			[PULL_SERVER_STREAMING]: (transport as PullServerStreamingTransport)[
+				PULL_SERVER_STREAMING
+			].bind(transport),
+		}),
 	};
 }
