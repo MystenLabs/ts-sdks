@@ -341,6 +341,12 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.listEvents(input);
 	}
 
+	listCheckpoints(
+		input: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse> {
+		return this.core.listCheckpoints(input);
+	}
+
 	getMoveFunction(
 		input: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {

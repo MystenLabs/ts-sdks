@@ -16,6 +16,25 @@ import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/index.js';
 
 const EXCLUDE: ClientKind[] = [];
 
+/**
+ * Asserts that a page reaching the end of a window ends the read. gRPC reports no next page.
+ * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must then be
+ * empty and report no next page.
+ */
+async function expectWindowEnd(
+	kind: ClientKind,
+	page: { hasNextPage: boolean; endCursor: string | null },
+	fetchNext: (cursor: string | null) => Promise<{ items: unknown[]; hasNextPage: boolean }>,
+) {
+	if (kind === 'grpc') {
+		expect(page.hasNextPage).toBe(false);
+		return;
+	}
+	if (page.hasNextPage) {
+		expect(await fetchNext(page.endCursor)).toEqual({ items: [], hasNextPage: false });
+	}
+}
+
 describe('Core API - Queries', () => {
 	let toolbox: TestToolbox;
 	let senderAddress: string;
@@ -682,25 +701,6 @@ describe('Core API - Queries', () => {
 				if (page.transactions.length) cursors.push(page.startCursor!);
 				if (!page.hasNextPage) return cursors;
 				after = nextCursor(page, seen);
-			}
-		}
-
-		/**
-		 * Asserts that a page reaching the end of a window ends the read. gRPC reports no next page.
-		 * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must then be
-		 * empty and report no next page.
-		 */
-		async function expectWindowEnd(
-			kind: ClientKind,
-			page: { hasNextPage: boolean; endCursor: string | null },
-			fetchNext: (cursor: string | null) => Promise<{ items: unknown[]; hasNextPage: boolean }>,
-		) {
-			if (kind === 'grpc') {
-				expect(page.hasNextPage).toBe(false);
-				return;
-			}
-			if (page.hasNextPage) {
-				expect(await fetchNext(page.endCursor)).toEqual({ items: [], hasNextPage: false });
 			}
 		}
 
@@ -1425,5 +1425,262 @@ describe('Core API - Queries', () => {
 				{ skip: EXCLUDE },
 			);
 		});
+	});
+
+	describe('listCheckpoints', () => {
+		type ClientWithCore = Parameters<
+			Parameters<TestToolbox['expectAllClientsReturnSameData']>[0]
+		>[0];
+
+		let transaction: SuiClientTypes.Transaction;
+		let first: bigint;
+		let range: { startCheckpoint: bigint; endCheckpoint: bigint };
+
+		/** Pages through a checkpoint query, keeping the fixed bound and moving the other one. */
+		async function collectCheckpointPages(
+			client: ClientWithCore,
+			options: SuiClientTypes.ListCheckpointsOptions,
+		) {
+			const order =
+				options.order ??
+				(options.before != null && options.after == null ? 'descending' : 'ascending');
+			let after = options.after;
+			let before = options.before;
+			const pages: { sequenceNumbers: string[]; hasNextPage: boolean }[] = [];
+			for (;;) {
+				const page = await client.core.listCheckpoints({ ...options, after, before, order });
+				pages.push({
+					sequenceNumbers: page.checkpoints.map((checkpoint) => checkpoint.sequenceNumber),
+					hasNextPage: page.hasNextPage,
+				});
+				if (!page.hasNextPage) return pages;
+				if (order === 'ascending') after = page.endCursor;
+				else before = page.endCursor;
+			}
+		}
+
+		/**
+		 * Pages through a window between two cursors, keeping the fixed bound and moving the other one.
+		 * Every page but the last reports a next page, and the last one ends the window as
+		 * `expectWindowEnd` describes.
+		 */
+		async function collectCheckpointWindow(
+			client: ClientWithCore,
+			kind: ClientKind,
+			options: SuiClientTypes.ListCheckpointsOptions,
+		) {
+			const descending = options.order === 'descending';
+			const read = (cursor: string | null) =>
+				client.core.listCheckpoints({
+					...options,
+					after: descending ? options.after : cursor,
+					before: descending ? cursor : options.before,
+				});
+			const pages: {
+				sequenceNumbers: string[];
+				startCursor: string | null;
+				endCursor: string | null;
+			}[] = [];
+			let page = await client.core.listCheckpoints(options);
+			for (;;) {
+				pages.push({
+					sequenceNumbers: page.checkpoints.map((checkpoint) => checkpoint.sequenceNumber),
+					startCursor: page.startCursor,
+					endCursor: page.endCursor,
+				});
+				if (!page.hasNextPage) return pages;
+				const next = await read(page.endCursor);
+				if (!next.checkpoints.length) {
+					await expectWindowEnd(kind, page, async () => ({
+						items: next.checkpoints,
+						hasNextPage: next.hasNextPage,
+					}));
+					return pages;
+				}
+				page = next;
+			}
+		}
+
+		/** The cursor of a single checkpoint, as both ends of a page holding only that checkpoint. */
+		async function cursorOf(client: ClientWithCore, sequenceNumber: bigint) {
+			const page = await client.core.listCheckpoints({
+				startCheckpoint: sequenceNumber,
+				endCheckpoint: sequenceNumber + 1n,
+			});
+			expect(page.startCursor).toBe(page.endCursor);
+			return page.startCursor;
+		}
+
+		/** Sequence numbers from `start` to `end` (inclusive) as strings. */
+		function sequence(start: bigint, end: bigint) {
+			const result: string[] = [];
+			for (let n = start; n <= end; n++) result.push(n.toString());
+			return result;
+		}
+
+		beforeAll(async () => {
+			await toolbox.waitForTransaction({ digest: digests[0] });
+			const result = await toolbox.grpcClient.core.getTransaction({ digest: digests[0] });
+			if (result.$kind !== 'Transaction' || result.Transaction.checkpoint == null) {
+				throw new Error(`Transaction ${digests[0]} has no checkpoint`);
+			}
+			transaction = result.Transaction;
+			first = BigInt(transaction.checkpoint!);
+			range = { startCheckpoint: first, endCheckpoint: first + 5n };
+
+			// Wait until every transport has indexed the whole range
+			for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+				for (let attempt = 0; ; attempt++) {
+					const last = await client.core.listCheckpoints({
+						startCheckpoint: range.endCheckpoint - 1n,
+						endCheckpoint: range.endCheckpoint,
+					});
+					if (last.checkpoints.length) break;
+					if (attempt >= 60) throw new Error('Timed out waiting for checkpoints');
+					await new Promise((resolve) => setTimeout(resolve, 500));
+				}
+			}
+		});
+
+		it('all clients return same data: checkpoint ranges in both orders', async () => {
+			for (const order of ['ascending', 'descending'] as const) {
+				await toolbox.expectAllClientsReturnSameData(
+					(client) => client.core.listCheckpoints({ ...range, order }),
+					stripCursors,
+					{ exclude: EXCLUDE, attempts: 3 },
+				);
+			}
+		});
+
+		it('all clients return same data: pagination and windows', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				async (client, kind) => {
+					const oldest = await client.core.listCheckpoints({ ...range, limit: 1 });
+					const newest = await client.core.listCheckpoints({
+						...range,
+						limit: 1,
+						order: 'descending',
+					});
+					const window = { after: oldest.startCursor, before: newest.startCursor };
+
+					return {
+						ascending: await collectCheckpointPages(client, { ...range, limit: 2 }),
+						descending: await collectCheckpointPages(client, {
+							...range,
+							limit: 2,
+							order: 'descending',
+						}),
+						windowAscending: (
+							await collectCheckpointWindow(client, kind, { ...window, limit: 2 })
+						).map(stripCursors),
+						windowDescending: (
+							await collectCheckpointWindow(client, kind, {
+								...window,
+								limit: 2,
+								order: 'descending',
+							})
+						).map(stripCursors),
+					};
+				},
+				undefined,
+				{ exclude: EXCLUDE, attempts: 3 },
+			);
+		});
+
+		it('all clients return same data: unbounded from genesis', async () => {
+			await toolbox.expectAllClientsReturnSameData(
+				(client) => client.core.listCheckpoints({ limit: 3 }),
+				stripCursors,
+				{ exclude: EXCLUDE },
+			);
+		});
+
+		testWithAllClients(
+			'should list checkpoints in a range',
+			async (client) => {
+				const last = range.endCheckpoint - 1n;
+
+				const ascending = await client.core.listCheckpoints(range);
+				expect(ascending.checkpoints.map((checkpoint) => checkpoint.sequenceNumber)).toEqual(
+					sequence(first, last),
+				);
+				expect(ascending.hasNextPage).toBe(false);
+
+				const descending = await client.core.listCheckpoints({ ...range, order: 'descending' });
+				expect(descending.checkpoints).toEqual([...ascending.checkpoints].reverse());
+
+				// The checkpoint agrees with the transaction it contains
+				expect(ascending.checkpoints[0]).toMatchObject({
+					sequenceNumber: transaction.checkpoint,
+					epoch: transaction.epoch,
+					timestampMs: transaction.timestampMs,
+				});
+				expect(ascending.checkpoints[0].digest).toBeTruthy();
+
+				const pages = await collectCheckpointPages(client, { ...range, limit: 2 });
+				expect(pages).toEqual([
+					{ sequenceNumbers: sequence(first, first + 1n), hasNextPage: true },
+					{ sequenceNumbers: sequence(first + 2n, first + 3n), hasNextPage: true },
+					{ sequenceNumbers: [last.toString()], hasNextPage: false },
+				]);
+
+				const genesis = await client.core.listCheckpoints({ limit: 3 });
+				expect(genesis.checkpoints.map((checkpoint) => checkpoint.sequenceNumber)).toEqual([
+					'0',
+					'1',
+					'2',
+				]);
+				expect(genesis.hasNextPage).toBe(true);
+			},
+			{ skip: EXCLUDE },
+		);
+
+		testWithAllClients(
+			'should page checkpoint windows in both directions',
+			async (client, kind) => {
+				const cursors = await Promise.all(
+					sequence(first, first + 4n).map((n) => cursorOf(client, BigInt(n))),
+				);
+				const window = { after: cursors[0], before: cursors[4] };
+
+				expect(await collectCheckpointWindow(client, kind, { ...window, limit: 2 })).toEqual([
+					{
+						sequenceNumbers: sequence(first + 1n, first + 2n),
+						startCursor: cursors[1],
+						endCursor: cursors[2],
+					},
+					{
+						sequenceNumbers: [(first + 3n).toString()],
+						startCursor: cursors[3],
+						endCursor: cursors[3],
+					},
+				]);
+				expect(
+					await collectCheckpointWindow(client, kind, { ...window, limit: 2, order: 'descending' }),
+				).toEqual([
+					{
+						sequenceNumbers: [(first + 3n).toString(), (first + 2n).toString()],
+						startCursor: cursors[3],
+						endCursor: cursors[2],
+					},
+					{
+						sequenceNumbers: [(first + 1n).toString()],
+						startCursor: cursors[1],
+						endCursor: cursors[1],
+					},
+				]);
+			},
+			{ skip: EXCLUDE },
+		);
+
+		testWithAllClients(
+			'should reject ranges that end before they start',
+			async (client) => {
+				await expect(
+					client.core.listCheckpoints({ startCheckpoint: first, endCheckpoint: first - 1n }),
+				).rejects.toThrow('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+			},
+			{ skip: EXCLUDE },
+		);
 	});
 });
