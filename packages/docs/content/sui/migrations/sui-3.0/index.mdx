@@ -68,7 +68,40 @@ together with `@mysten/sui`.
   [Querying](/sui/clients/querying) for the current rules.
 
 `@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`;
-their users have nothing to change.
+their users have nothing to change. If your code names legacy response types such as
+`SuiTransactionBlockResponse`, import them from the `SuiJsonRpcTypes` namespace in
+`@mysten/wallet-standard` instead.
+
+Wallets that still implement the deprecated `sui:signAndExecuteTransactionBlock` feature can build
+its legacy response from a gRPC or GraphQL execution with `@mysten/wallet-sdk/json-rpc-compat`:
+
+```typescript
+import {
+	mappableIncludeFor,
+	transactionBlockResponseFromExecution,
+} from '@mysten/wallet-sdk/json-rpc-compat';
+
+// `input` is the dApp's `sui:signAndExecuteTransactionBlock` input; `bytes` and `signature` are what
+// the wallet signed.
+const result = await client.core.executeTransaction({
+	transaction: bytes,
+	signatures: [signature],
+	include: mappableIncludeFor(input.options),
+});
+
+return transactionBlockResponseFromExecution(result.Transaction ?? result.FailedTransaction, {
+	bytes,
+	signatures: [signature],
+	options: input.options,
+	requestType: input.requestType,
+});
+```
+
+Some fields are approximations: `confirmedLocalExecution` is only `true` when you pass
+`waited: true` after waiting for the transaction yourself, and error strings, event `parsedJson`,
+and decoded pure inputs are best-effort. `dryRunFromSimulation` similarly builds the legacy
+`DryRunTransactionBlockResponse` from a `simulateTransaction` result. New dApps should use
+`sui:signAndExecuteTransaction`.
 
 ## New in 3.0
 
