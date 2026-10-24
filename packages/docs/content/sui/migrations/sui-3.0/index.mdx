@@ -1,0 +1,81 @@
+---
+title: Migrate to 3.0
+description: Breaking changes in @mysten/sui 3.0, which removes the deprecated JSON-RPC transport
+keywords:
+  - migration
+  - '3.0'
+  - upgrade
+  - breaking changes
+  - JSON-RPC
+  - SuiJsonRpcClient
+  - gRPC
+  - GraphQL
+questions:
+  - What changed in @mysten/sui 3.0?
+  - How do I migrate from SuiJsonRpcClient in @mysten/sui 3.0?
+  - Do I need to update other @mysten packages for @mysten/sui 3.0?
+answer: >-
+  @mysten/sui 3.0 removes the deprecated JSON-RPC transport. Move to SuiGrpcClient or
+  SuiGraphQLClient using the existing JSON-RPC migration guide, then check a short list of smaller
+  breaking changes.
+goal:
+  description: Reader can upgrade an app or library from @mysten/sui 2.x to 3.0
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
+---
+
+`@mysten/sui` 3.0 removes the JSON-RPC transport, which was deprecated in 2.0. If you still use
+`SuiJsonRpcClient`, move to [`SuiGrpcClient`](/sui/clients/grpc) (recommended) or
+[`SuiGraphQLClient`](/sui/clients/graphql) by following
+[Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), which maps every JSON-RPC
+method to its replacement. Code that already runs on gRPC or GraphQL needs few or no changes.
+
+Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a major release that requires
+`@mysten/sui@^3`. Apart from the items below, those packages have no API changes: upgrade them
+together with `@mysten/sui`.
+
+## Breaking changes
+
+- **`@mysten/sui/jsonRpc` is removed**, including `SuiJsonRpcClient`, `JsonRpcHTTPTransport`, and
+  all JSON-RPC request and response types. Follow
+  [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration).
+- **`getJsonRpcFullnodeUrl` is removed.** Pass the full node URL (for example
+  `https://fullnode.mainnet.sui.io:443`) to `SuiGrpcClient`'s `baseUrl`.
+- **JSON-RPC types such as `ObjectOwner` and `SuiMoveNormalizedType` are removed.** Use the
+  `SuiClientTypes` equivalents from `@mysten/sui/client`, such as `SuiClientTypes.ObjectOwner` and
+  `SuiClientTypes.OpenSignature`.
+- **`normalizedTypeToMoveTypeSignature` is removed** from `@mysten/sui/transactions`. Use
+  `getMoveFunction`, which already returns `OpenSignature`s.
+- **`GraphQLSimulateTransactionOptions` is removed** from `@mysten/sui/graphql`. Use
+  `SuiClientTypes.SimulateTransactionOptions`, which now includes `doGasSelection`.
+- **`SuiClientTypes.ChangedObject` has a new required `objectType: string | null` field.** Set it
+  wherever you construct `ChangedObject` values yourself, such as test mocks.
+- **`EventEntry.checkpoint` is now `string`** instead of `string | null`. Drop any `null` handling
+  your types flag.
+- **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
+  and `before` can be used together, and the validation errors have new messages. Update code that
+  matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
+  [Querying](/sui/clients/querying) for the current rules.
+
+`@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`;
+their users have nothing to change.
+
+## New in 3.0
+
+- `listTransactions` filters accept `affectedAddress` and `affectedObject`, and `sender` combines
+  with other predicates.
+- `listTransactions` and `listEvents` accept `startCheckpoint` and `endCheckpoint`, and `after` and
+  `before` can be combined to read a window.
+- Effects `changedObjects` and `gasObject` entries include `objectType`.
+- `doGasSelection` is available on every client's `simulateTransaction`.
+- A `listCheckpoints` method for paging through checkpoints.
