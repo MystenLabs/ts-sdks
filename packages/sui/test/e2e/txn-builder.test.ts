@@ -4,7 +4,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { bcs } from '../../src/bcs/index.js';
-import { SuiObjectChangeCreated } from '../../src/jsonRpc/index.js';
 import type { Keypair } from '../../src/cryptography/index.js';
 import { Transaction } from '../../src/transactions/index.js';
 import { normalizeSuiObjectId, SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils/index.js';
@@ -38,9 +37,9 @@ describe('Transaction Builders', () => {
 	it('SplitCoins + TransferObjects', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 		const tx = new Transaction();
-		const coin_0 = coins.data[0];
+		const coin_0 = coins[0];
 
-		const coin = tx.splitCoins(tx.object(coin_0.coinObjectId), [
+		const coin = tx.splitCoins(tx.object(coin_0.objectId), [
 			bcs.u64().serialize(DEFAULT_GAS_BUDGET * 2),
 		]);
 		tx.transferObjects([coin], toolbox.address());
@@ -49,20 +48,20 @@ describe('Transaction Builders', () => {
 
 	it('MergeCoins', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
-		const [coin_0, coin_1] = coins.data;
+		const [coin_0, coin_1] = coins;
 		const tx = new Transaction();
-		tx.mergeCoins(coin_0.coinObjectId, [coin_1.coinObjectId]);
+		tx.mergeCoins(coin_0.objectId, [coin_1.objectId]);
 		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
 	it('MoveCall', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
-		const [coin_0] = coins.data;
+		const [coin_0] = coins;
 		const tx = new Transaction();
 		tx.moveCall({
 			target: '0x2::pay::split',
 			typeArguments: ['0x2::sui::SUI'],
-			arguments: [tx.object(coin_0.coinObjectId), tx.pure.u64(DEFAULT_GAS_BUDGET * 2)],
+			arguments: [tx.object(coin_0.objectId), tx.pure.u64(DEFAULT_GAS_BUDGET * 2)],
 		});
 		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
@@ -75,16 +74,16 @@ describe('Transaction Builders', () => {
 		},
 		async () => {
 			const coins = await toolbox.getGasObjectsOwnedByAddress();
-			const coin_2 = coins.data[2];
+			const coin_2 = coins[2];
 
-			const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+			const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 			const tx = new Transaction();
 			tx.moveCall({
 				target: '0x3::sui_system::request_add_stake',
 				arguments: [
 					tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-					tx.object(coin_2.coinObjectId),
+					tx.object(coin_2.objectId),
 					tx.pure.address(validatorAddress),
 				],
 			});
@@ -109,9 +108,9 @@ describe('Transaction Builders', () => {
 	it('TransferObject', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 		const tx = new Transaction();
-		const coin_0 = coins.data[2];
+		const coin_0 = coins[2];
 
-		tx.transferObjects([coin_0.coinObjectId], DEFAULT_RECIPIENT);
+		tx.transferObjects([coin_0.objectId], DEFAULT_RECIPIENT);
 		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
@@ -135,21 +134,19 @@ describe('Transaction Builders', () => {
 		createTx.moveCall({
 			target: `${packageId}::serializer_tests::create_mutable_shared`,
 		});
-		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const createResult = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: createTx,
 			signer: toolbox.keypair,
+			include: { effects: true },
 		});
-		const createResult = await toolbox.jsonRpcClient.waitForTransaction({
-			digest,
-			options: { showEffects: true },
-		});
+		await toolbox.grpcClient.core.waitForTransaction({ result: createResult });
 
 		// Get the newly created shared object ID
-		const createdObj = createResult.effects?.created?.find(
-			(o) => typeof o.owner === 'object' && 'Shared' in o.owner,
+		const createdObj = createResult.Transaction?.effects.changedObjects.find(
+			(o) => o.idOperation === 'Created' && o.outputOwner?.$kind === 'Shared',
 		);
 		expect(createdObj).toBeDefined();
-		const newSharedObjectId = createdObj!.reference.objectId;
+		const newSharedObjectId = createdObj!.objectId;
 
 		// Now test delete_value with the new object
 		const tx = new Transaction();
@@ -183,25 +180,18 @@ describe('Transaction Builders', () => {
 			// Step 1. Publish the package
 			const { packageId, publishTxn } = await publishPackage('serializer', toolbox);
 
-			const capId = (
-				publishTxn.objectChanges?.find(
-					(a) =>
-						a.type === 'created' &&
-						a.objectType.endsWith('UpgradeCap') &&
-						'Immutable' !== a.owner &&
-						'AddressOwner' in a.owner &&
-						a.owner.AddressOwner === toolbox.address(),
-				) as SuiObjectChangeCreated
-			)?.objectId;
+			const created = publishTxn.effects.changedObjects.filter((o) => o.idOperation === 'Created');
+
+			const capId = created.find(
+				(o) =>
+					publishTxn.objectTypes[o.objectId]?.endsWith('UpgradeCap') &&
+					o.outputOwner?.$kind === 'AddressOwner' &&
+					o.outputOwner.AddressOwner === toolbox.address(),
+			)?.objectId!;
 
 			expect(capId).toBeTruthy();
 
-			const sharedObjectId = publishTxn.effects?.created!.filter(
-				(o) =>
-					typeof o.owner === 'object' &&
-					'Shared' in o.owner &&
-					o.owner.Shared.initial_shared_version !== undefined,
-			)[0].reference.objectId!;
+			const sharedObjectId = created.find((o) => o.outputOwner?.$kind === 'Shared')!.objectId;
 
 			// Step 2. Confirm that its functions work as expected in its
 			// first version

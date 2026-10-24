@@ -53,6 +53,7 @@ import {
 	transactionToGrpcJson,
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
+import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
 import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
@@ -914,11 +915,16 @@ export class GraphQLCoreClient extends CoreClient {
 
 	resolveTransactionPlugin() {
 		const graphqlClient = this.#graphqlClient;
+		const core = this.core;
 		return async function resolveTransactionData(
 			transactionData: TransactionDataBuilder,
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
 		) {
+			// Raw pure values need the target function signatures to be serialized, which the
+			// server-side resolver cannot do, so resolve them here first.
+			await resolveUnresolvedPureInputs(transactionData, { core });
+
 			const snapshot = transactionData.snapshot();
 			// If sender is not set, use a dummy address for resolution purposes
 			if (!snapshot.sender) {
