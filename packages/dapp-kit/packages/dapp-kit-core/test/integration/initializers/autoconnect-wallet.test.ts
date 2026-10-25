@@ -221,6 +221,51 @@ describe('[Integration] autoConnectWallet initializer', () => {
 		expect(dAppKit.stores.$connection.get().status).toBe('disconnected');
 	});
 
+	test('Settles to disconnected when the saved wallet rejects the silent connect', async () => {
+		const account = createMockAccount();
+		const walletId = crypto.randomUUID();
+		const [wallet] = createMockWallets({ id: walletId, name: 'Rejecting Wallet', accounts: [] });
+		wallet.mocks.connect.mockRejectedValue(new Error('Unexpected error'));
+		registerWallets(wallet);
+
+		const storage = createInMemoryStorage();
+		await storage.setItem(storageKey, savedSessionValue(walletId, account.address));
+
+		const dAppKit = createKit({ storage });
+		dAppKit.stores.$connection.subscribe(() => {});
+
+		await allTasks();
+
+		expect(wallet.mocks.connect).toHaveBeenCalledWith({ silent: true });
+		expect(dAppKit.stores.$connection.get()).toMatchObject({
+			status: 'disconnected',
+			isReconnecting: false,
+			account: null,
+		});
+	});
+
+	test('Restores the session when a later silent connect succeeds after a rejection', async () => {
+		const account = createMockAccount();
+		const walletId = crypto.randomUUID();
+		const [wallet] = createMockWallets({ id: walletId, name: 'Flaky Wallet', accounts: [] });
+		wallet.mocks.connect
+			.mockRejectedValueOnce(new Error('Unexpected error'))
+			.mockResolvedValueOnce({ accounts: [account] });
+		registerWallets(wallet);
+
+		const storage = createInMemoryStorage();
+		await storage.setItem(storageKey, savedSessionValue(walletId, account.address));
+
+		const dAppKit = createKit({ storage });
+		dAppKit.stores.$connection.subscribe(() => {});
+
+		await allTasks();
+
+		const connection = dAppKit.stores.$connection.get();
+		expect(connection.status).toBe('connected');
+		expect(connection.account?.address).toBe(account.address);
+	});
+
 	test('Does not give up on a wallet that registers within the grace period', async () => {
 		const { wallet, account } = createSavedWallet();
 		const storage = createInMemoryStorage();
