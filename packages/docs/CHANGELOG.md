@@ -1,5 +1,30 @@
 # @mysten/docs
 
+## 0.1.80
+
+### Patch Changes
+
+- Updated dependencies [7b88b72]
+  - @mysten/sui@2.38.0
+  - @mysten/dapp-kit-core@1.6.40
+  - @mysten/deepbook-v3@2.8.2
+  - @mysten/enoki@1.3.2
+  - @mysten/enoki-connect@1.1.38
+  - @mysten/kiosk@1.4.22
+  - @mysten/payment-kit@0.2.36
+  - @mysten/seal@1.5.2
+  - @mysten/signers@1.1.36
+  - @mysten/aws-kms-signer@0.3.33
+  - @mysten/gcp-kms-signer@0.2.36
+  - @mysten/ledger-signer@0.2.36
+  - @mysten/webcrypto-signer@0.2.36
+  - @mysten/slush-wallet@1.3.6
+  - @mysten/suins@2.0.18
+  - @mysten/wallet-standard@0.21.36
+  - @mysten/walrus@1.2.37
+  - @mysten/zksend@1.2.39
+  - @mysten/dapp-kit-react@2.1.42
+
 ## 0.1.79
 
 ### Patch Changes
