@@ -13,7 +13,7 @@ import {
 } from '../../cryptography/keypair.js';
 import { isValidHardenedPath, mnemonicToSeed } from '../../cryptography/mnemonics.js';
 import type { SignatureScheme } from '../../cryptography/signature-scheme.js';
-import { derivePath } from './mldsa65-hd-key.js';
+import { derivePath, MLDSA65_SLIP10_MASTER_KEY } from '../../cryptography/slip10.js';
 import { MLDSA65PublicKey } from './publickey.js';
 
 export const DEFAULT_MLDSA65_DERIVATION_PATH = "m/94'/784'/0'/0'/0'";
@@ -151,7 +151,11 @@ export class MLDSA65Keypair extends Keypair {
 		if (!isValidHardenedPath(path, MLDSA65_DERIVATION_PURPOSE)) {
 			throw new Error('Invalid derivation path');
 		}
-		const { key, chainCode } = derivePath(path, typeof seed === 'string' ? fromHex(seed) : seed);
+		const { key, chainCode } = derivePath(
+			MLDSA65_SLIP10_MASTER_KEY,
+			path,
+			typeof seed === 'string' ? fromHex(seed) : seed,
+		);
 
 		// `fromSecretKey` copies the seed, so the node can be wiped here.
 		const keypair = MLDSA65Keypair.fromSecretKey(key);

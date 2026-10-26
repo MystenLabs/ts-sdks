@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toHex } from '@mysten/bcs';
+import { fromHex } from '@mysten/bcs';
 import { ed25519 } from '@noble/curves/ed25519.js';
 
 import {
@@ -10,9 +10,9 @@ import {
 	Keypair,
 	PRIVATE_KEY_SIZE,
 } from '../../cryptography/keypair.js';
-import { isValidHardenedPath, mnemonicToSeedHex } from '../../cryptography/mnemonics.js';
+import { isValidHardenedPath, mnemonicToSeed } from '../../cryptography/mnemonics.js';
 import type { SignatureScheme } from '../../cryptography/signature-scheme.js';
-import { derivePath } from './ed25519-hd-key.js';
+import { derivePath, ED25519_SLIP10_MASTER_KEY } from '../../cryptography/slip10.js';
 import { Ed25519PublicKey } from './publickey.js';
 
 export const DEFAULT_ED25519_DERIVATION_PATH = "m/44'/784'/0'/0'/0'";
@@ -151,15 +151,7 @@ export class Ed25519Keypair extends Keypair {
 	 * be compliant to SLIP-0010 in form m/44'/784'/{account_index}'/{change_index}'/{address_index}'.
 	 */
 	static deriveKeypair(mnemonics: string, path?: string): Ed25519Keypair {
-		if (path == null) {
-			path = DEFAULT_ED25519_DERIVATION_PATH;
-		}
-		if (!isValidHardenedPath(path)) {
-			throw new Error('Invalid derivation path');
-		}
-		const { key } = derivePath(path, mnemonicToSeedHex(mnemonics));
-
-		return Ed25519Keypair.fromSecretKey(key);
+		return Ed25519Keypair.deriveKeypairFromSeed(mnemonicToSeed(mnemonics), path);
 	}
 
 	/**
@@ -177,9 +169,14 @@ export class Ed25519Keypair extends Keypair {
 		if (!isValidHardenedPath(path)) {
 			throw new Error('Invalid derivation path');
 		}
-		const seedHex = typeof seed === 'string' ? seed : toHex(seed);
-		const { key } = derivePath(path, seedHex);
+		const { key, chainCode } = derivePath(
+			ED25519_SLIP10_MASTER_KEY,
+			path,
+			typeof seed === 'string' ? fromHex(seed) : seed,
+		);
 
+		// The keypair keeps `key` as its secret; only the chain code is surplus.
+		chainCode.fill(0);
 		return Ed25519Keypair.fromSecretKey(key);
 	}
 }

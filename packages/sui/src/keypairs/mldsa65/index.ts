@@ -6,5 +6,5 @@ export {
 	MLDSA65Keypair,
 	type MLDSA65KeypairData,
 } from './keypair.js';
-export { MLDSA65_SLIP10_MASTER_KEY } from './mldsa65-hd-key.js';
+export { MLDSA65_SLIP10_MASTER_KEY } from '../../cryptography/slip10.js';
 export { MLDSA65PublicKey, MLDSA65_PUBLIC_KEY_SIZE, MLDSA65_SIGNATURE_SIZE } from './publickey.js';
