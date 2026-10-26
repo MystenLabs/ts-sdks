@@ -21,4 +21,10 @@ describe('coin reservation utils', () => {
 	test('isCoinReservationDigest rejects a normal object digest', () => {
 		expect(isCoinReservationDigest(toBase58(new Uint8Array(32).fill(7)))).toBe(false);
 	});
+
+	test('isCoinReservationDigest rejects digests shorter than 32 bytes', () => {
+		expect(isCoinReservationDigest('')).toBe(false);
+		expect(isCoinReservationDigest('1')).toBe(false);
+		expect(isCoinReservationDigest(toBase58(new Uint8Array(12).fill(7)))).toBe(false);
+	});
 });

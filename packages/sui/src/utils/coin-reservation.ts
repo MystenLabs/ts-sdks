@@ -25,6 +25,9 @@ export const COIN_RESERVATION_MAGIC = new Uint8Array([
  */
 export function isCoinReservationDigest(digestBase58: string): boolean {
 	const digestBytes = fromBase58(digestBase58);
+	if (digestBytes.length !== 32) {
+		return false;
+	}
 	const last20Bytes = digestBytes.slice(12, 32);
 	return last20Bytes.every((byte, i) => byte === COIN_RESERVATION_MAGIC[i]);
 }
