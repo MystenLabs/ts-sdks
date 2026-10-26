@@ -1,5 +1,11 @@
 # @mysten/codegen
 
+## 0.12.21
+
+### Patch Changes
+
+- de91ff2: Upgrade toml to require version 5.0.1 or later, fixing reported security vulnerabilities.
+
 ## 0.12.20
 
 ### Patch Changes
