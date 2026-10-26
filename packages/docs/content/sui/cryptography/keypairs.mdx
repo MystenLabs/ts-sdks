@@ -62,14 +62,16 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
 ML-DSA-65 is the post-quantum scheme from FIPS 204. Its secret key is a 32-byte seed, so it imports
 and exports like the other schemes, but its public keys (1952 bytes) and signatures (3309 bytes) are
-much larger, and every signature is randomized. Deriving an ML-DSA-65 keypair from a mnemonic is not
-supported yet, and the scheme is only accepted by networks where it has been enabled.
+much larger, and every signature is randomized. Mnemonic derivation uses purpose `94'`, so the
+default path is `m/94'/784'/0'/0'/0'`, hardened at every level like Ed25519. The scheme is only
+accepted by networks where it has been enabled.
 
 ```typescript
 import { MLDSA65Keypair } from '@mysten/sui/keypairs/mldsa65';
 
 const keypair = MLDSA65Keypair.generate();
 const restored = MLDSA65Keypair.fromSecretKey(keypair.getSecretKey());
+const derived = MLDSA65Keypair.deriveKeypair(mnemonic);
 ```
 
 ## Creating a key pair

@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fromHex } from '@mysten/bcs';
 import { randomBytes } from '@noble/hashes/utils.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 
@@ -10,8 +11,14 @@ import {
 	Keypair,
 	PRIVATE_KEY_SIZE,
 } from '../../cryptography/keypair.js';
+import { isValidHardenedPath, mnemonicToSeed } from '../../cryptography/mnemonics.js';
 import type { SignatureScheme } from '../../cryptography/signature-scheme.js';
+import { derivePath, MLDSA65_SLIP10_MASTER_KEY } from '../../cryptography/slip10.js';
 import { MLDSA65PublicKey } from './publickey.js';
+
+export const DEFAULT_MLDSA65_DERIVATION_PATH = "m/94'/784'/0'/0'/0'";
+
+const MLDSA65_DERIVATION_PURPOSE = 94;
 
 /**
  * ML-DSA-65 Keypair data. `seed` is the 32-byte FIPS 204 seed, the only form
@@ -116,6 +123,45 @@ export class MLDSA65Keypair extends Keypair {
 	 */
 	async sign(data: Uint8Array) {
 		return ml_dsa65.sign(data, this.keypair.secretKey) as Uint8Array<ArrayBuffer>;
+	}
+
+	/**
+	 * Derive ML-DSA-65 keypair from mnemonics and path. The mnemonics must be normalized
+	 * and validated against the english wordlist.
+	 *
+	 * If path is none, it will default to m/94'/784'/0'/0'/0', otherwise the path must
+	 * be compliant to SLIP-0010 in form m/94'/784'/{account_index}'/{change_index}'/{address_index}'.
+	 */
+	static deriveKeypair(mnemonics: string, path?: string): MLDSA65Keypair {
+		return MLDSA65Keypair.deriveKeypairFromSeed(mnemonicToSeed(mnemonics), path);
+	}
+
+	/**
+	 * Derive ML-DSA-65 keypair from mnemonicSeed and path.
+	 *
+	 * If path is none, it will default to m/94'/784'/0'/0'/0', otherwise the path must
+	 * be compliant to SLIP-0010 in form m/94'/784'/{account_index}'/{change_index}'/{address_index}'.
+	 *
+	 * @param seed - The seed as a hex string or Uint8Array.
+	 */
+	static deriveKeypairFromSeed(seed: string | Uint8Array, path?: string): MLDSA65Keypair {
+		if (path == null) {
+			path = DEFAULT_MLDSA65_DERIVATION_PATH;
+		}
+		if (!isValidHardenedPath(path, MLDSA65_DERIVATION_PURPOSE)) {
+			throw new Error('Invalid derivation path');
+		}
+		const { key, chainCode } = derivePath(
+			MLDSA65_SLIP10_MASTER_KEY,
+			path,
+			typeof seed === 'string' ? fromHex(seed) : seed,
+		);
+
+		// `fromSecretKey` copies the seed, so the node can be wiped here.
+		const keypair = MLDSA65Keypair.fromSecretKey(key);
+		key.fill(0);
+		chainCode.fill(0);
+		return keypair;
 	}
 }
 
