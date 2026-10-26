@@ -62,10 +62,18 @@ verifyDepsBeforeRun: 'prompt'
 # bounds parser nesting. Audit only sees the original version. Remove the patch
 # and exception when an upstream release fixes
 # https://github.com/advisories/GHSA-vfj7-8cjw-p6xm.
+#
+# zod is fixed in 4.6.6, but no 3.x release has the fix for
+# https://github.com/advisories/GHSA-mrhx-c7xc-m3w5. The remaining zod 3 copies
+# come from @reown/appkit-wallet and @coinbase/cdp-sdk under
+# @mysten/walletconnect-wallet. Remove the exception once both move to zod 4.6.6
+# or later.
 auditConfig:
   # pnpm 10 (local development)
   ignoreCves:
     - CVE-2026-93687
+    - CVE-2023-54404
   # pnpm 11 (the audit CI job)
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
+    - GHSA-mrhx-c7xc-m3w5
