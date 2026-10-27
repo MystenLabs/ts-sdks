@@ -1,5 +1,13 @@
 # @mysten/dapp-kit-core
 
+## 1.6.41
+
+### Patch Changes
+
+- 98094f8: Fix auto-connect when the saved wallet rejects the silent `standard:connect` call. A
+  failed restore attempt now counts as no saved session, so the connection settles to `disconnected`
+  and the rejection is no longer left unhandled.
+
 ## 1.6.40
 
 ## 1.6.39
