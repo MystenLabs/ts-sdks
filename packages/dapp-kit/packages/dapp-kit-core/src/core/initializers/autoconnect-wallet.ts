@@ -63,7 +63,7 @@ export function autoConnectWallet({
 					storage,
 					storageKey,
 					wallets,
-				});
+				}).catch(() => null);
 
 				if (done) return;
 
