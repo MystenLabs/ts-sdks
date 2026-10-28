@@ -238,9 +238,10 @@ throwing from it ends the stream. Store tokens from frames, never from statuses.
 | `Error`      | The stream is about to throw `error`.                                                   |
 
 GraphQL subscriptions resume on the server, which replays history without `Page` or `Recovering`
-statuses; a GraphQL follow reports `Live` with its first item at or past the chain tip when the
-stream started, so a quiet filter stays `Connected` until its first match. gRPC resumes on the
-client by reading history pages first.
+statuses. A GraphQL follow that starts at the tip, or reconnects there, reports `Live` when its
+subscription opens; one that replays history reports it with its first item at or past the chain tip
+when the stream started, so a quiet filter catching up stays `Connected` until its first match. gRPC
+resumes on the client by reading history pages first.
 
 ## Measure lag
 

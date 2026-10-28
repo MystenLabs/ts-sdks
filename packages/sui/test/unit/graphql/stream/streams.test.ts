@@ -806,6 +806,49 @@ describe('live handoff', () => {
 		]);
 	});
 
+	it('never reports Live for progress edges while it backfills', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live('events', [{ cursor: 'live:progress:a', node: null }] as unknown as Edge[]),
+		);
+		const log = statusLog();
+		await take(
+			stream(server.client, 'events', {
+				start: { checkpoint: 5 },
+				frames: { progress: true },
+				onStatus: log.onStatus,
+			}),
+			2,
+		);
+		expect(log.log).toEqual(['Connecting(0)', 'Connected']);
+	});
+
+	it('reports Live again when it reconnects near the tip after being live', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live('events', [event(10, 0, { source: 'live' })], 'eof'),
+			live('events', [{ cursor: 'live:progress:quiet', node: null }] as unknown as Edge[]),
+		);
+		const log = statusLog();
+		const frames = await take(
+			stream(server.client, 'events', {
+				start: { checkpoint: 5 },
+				frames: { progress: true },
+				onStatus: log.onStatus,
+			}),
+			3,
+		);
+		expect(frames.map(label)).toEqual(['Progress', '10:0', 'Progress']);
+		// Live at open on the reconnect, though the new feed is quiet.
+		expect(log.log.slice(log.log.indexOf('Connecting(0)', 1))).toEqual([
+			'Connecting(0)',
+			'Connected',
+			'Live',
+		]);
+	});
+
 	it('reports Live for checkpoint subscriptions at the tip checkpoint', async () => {
 		const server = fakeGraphQL({ tip: 7 });
 		server.on('subscribeCheckpoints', live('checkpoints', [checkpoint(6), checkpoint(7)]));
@@ -930,7 +973,7 @@ describe('live handoff', () => {
 describe('subscription progress', () => {
 	const progressEdge = (label: string) => ({ cursor: `live:progress:${label}`, node: null });
 
-	it('advances a quiet filtered stream through progress edges, which never report Live', async () => {
+	it('advances a quiet fresh follow through progress edges, Live from the tip it starts at', async () => {
 		const server = fakeGraphQL({ tip: 10 });
 		server.on(
 			'subscribeEvents',
@@ -947,7 +990,7 @@ describe('subscription progress', () => {
 		);
 		expect(frames.map(label)).toEqual(['Progress', 'Progress', 'Progress']);
 		expect(new Set(frames.map(token)).size).toBe(3);
-		expect(log.log).toEqual(['Connecting(0)', 'Connected']);
+		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
 		// The tip anchor covers the tip; progress edges carry no checkpoint, so they claim nothing.
 		expect(frames[0]).toMatchObject({ coveredCheckpoint: '10' });
 		expect(frames[1]).not.toHaveProperty('coveredCheckpoint');
