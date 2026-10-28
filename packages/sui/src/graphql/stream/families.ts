@@ -488,7 +488,6 @@ async function* edges<Result, Node>(
 		if (!value || typeof value.cursor !== 'string' || value.cursor === '') {
 			throw new SuiStreamError('Protocol', 'GraphQL subscription response has no edge');
 		}
-		// A null node is a progress edge; the bundled schema still declares `node` non-null.
 		yield { cursor: value.cursor, node: value.node ?? null };
 	}
 }
