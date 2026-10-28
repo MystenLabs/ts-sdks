@@ -1219,6 +1219,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		function withTransactions(checkpoint: number): GrpcTypes.Checkpoint {
 			const transaction = (index: number, success: boolean): GrpcTypes.ExecutedTransaction => ({
 				digest: `tx-${checkpoint}-${index}`,
+				transaction: { sender: '0x1' },
 				checkpoint: BigInt(checkpoint),
 				signatures: [],
 				balanceChanges: [],
