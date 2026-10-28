@@ -410,10 +410,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface DynamicFieldInclude {
-		/**
-		 * Include each field's value. For dynamic object fields this is the child object's
-		 * BCS-encoded Move struct content, so `value.type` always matches `valueType`.
-		 */
+		/** Include each field's `value`. */
 		value?: boolean;
 	}
 
@@ -501,9 +498,14 @@ export namespace SuiClientTypes {
 		fieldId: string;
 		/** Type of the `0x2::dynamic_field::Field` object. */
 		type: string;
+		/** For dynamic object fields, the name type is reported without the `Wrapper`. */
 		name: DynamicFieldName;
 		/** Type of the value. For dynamic object fields this is the child object's type. */
 		valueType: string;
+		/**
+		 * The field's value; `value.type` always equals `valueType`. For dynamic object fields
+		 * this is the child object's BCS-encoded Move struct content.
+		 */
 		value: Include extends { value: true } ? DynamicFieldValue : undefined;
 	} & ({ $kind: 'DynamicField'; childId?: never } | { $kind: 'DynamicObject'; childId: string });
 

@@ -214,6 +214,49 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	async getDynamicField(
 		options: SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<SuiClientTypes.GetDynamicFieldResponse> {
+		const field = await this.#getDynamicFieldObject(options);
+		const { fieldObject, nameType, isDynamicObject, valueBcs } = field;
+
+		const entry = {
+			fieldId: fieldObject.objectId,
+			type: fieldObject.type,
+			name: { type: nameType, bcs: options.name.bcs },
+			digest: fieldObject.digest,
+			version: fieldObject.version,
+			previousTransaction: fieldObject.previousTransaction,
+		};
+
+		if (!isDynamicObject) {
+			return {
+				dynamicField: {
+					...entry,
+					$kind: 'DynamicField',
+					valueType: field.valueType,
+					value: { type: field.valueType, bcs: valueBcs },
+				},
+			};
+		}
+
+		const childId = bcs.Address.parse(valueBcs);
+		const { object: child } = await this.getObject({
+			objectId: childId,
+			signal: options.signal,
+			include: { content: true },
+		});
+
+		return {
+			dynamicField: {
+				...entry,
+				$kind: 'DynamicObject',
+				childId,
+				valueType: child.type,
+				value: { type: child.type, bcs: child.content },
+			},
+		};
+	}
+
+	/** Fetches and decodes the `Field` object without resolving a dynamic object field's child. */
+	async #getDynamicFieldObject(options: SuiClientTypes.GetDynamicFieldOptions) {
 		const normalizedNameType = TypeTagSerializer.parseFromStr(
 			(
 				await this.core.mvr.resolveType({
@@ -239,40 +282,21 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		}
 
 		const fieldType = parseStructTag(fieldObject.type);
-		const content = await fieldObject.content;
-
-		const nameTypeParam = fieldType.typeParams[0];
+		const [nameTypeParam, valueTypeParam] = fieldType.typeParams;
 		const isDynamicObject =
 			typeof nameTypeParam !== 'string' &&
 			nameTypeParam.module === 'dynamic_object_field' &&
 			nameTypeParam.name === 'Wrapper';
-
-		const valueBcs = content.slice(SUI_ADDRESS_LENGTH + options.name.bcs.length);
-
-		const valueType =
-			typeof fieldType.typeParams[1] === 'string'
-				? fieldType.typeParams[1]
-				: normalizeStructTag(fieldType.typeParams[1]);
+		// Report the unwrapped name type for dynamic object fields, as listDynamicFields does
+		const nameTypeTag = isDynamicObject ? nameTypeParam.typeParams[0] : nameTypeParam;
 
 		return {
-			dynamicField: {
-				$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
-				fieldId: fieldObject.objectId,
-				digest: fieldObject.digest,
-				version: fieldObject.version,
-				type: fieldObject.type,
-				previousTransaction: fieldObject.previousTransaction,
-				name: {
-					type:
-						typeof nameTypeParam === 'string' ? nameTypeParam : normalizeStructTag(nameTypeParam),
-					bcs: options.name.bcs,
-				},
-				value: {
-					type: valueType,
-					bcs: valueBcs,
-				},
-				childId: isDynamicObject ? bcs.Address.parse(valueBcs) : undefined,
-			} as SuiClientTypes.GetDynamicFieldResponse['dynamicField'],
+			fieldObject,
+			isDynamicObject,
+			nameType: typeof nameTypeTag === 'string' ? nameTypeTag : normalizeStructTag(nameTypeTag),
+			valueType:
+				typeof valueTypeParam === 'string' ? valueTypeParam : normalizeStructTag(valueTypeParam),
+			valueBcs: fieldObject.content.slice(SUI_ADDRESS_LENGTH + options.name.bcs.length),
 		};
 	}
 
@@ -285,19 +309,18 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 				signal: options.signal,
 			})
 		).type;
-		const wrappedType = `0x2::dynamic_object_field::Wrapper<${resolvedNameType}>`;
 
-		const { dynamicField } = await this.getDynamicField({
+		const { valueBcs } = await this.#getDynamicFieldObject({
 			parentId: options.parentId,
 			name: {
-				type: wrappedType,
+				type: `0x2::dynamic_object_field::Wrapper<${resolvedNameType}>`,
 				bcs: options.name.bcs,
 			},
 			signal: options.signal,
 		});
 
 		const { object } = await this.getObject({
-			objectId: dynamicField.childId!,
+			objectId: bcs.Address.parse(valueBcs),
 			signal: options.signal,
 			include: options.include,
 		});
