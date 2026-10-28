@@ -3,8 +3,9 @@
 
 import type { ErrorClass } from '../../client/stream/adapter.js';
 import { SuiStreamError } from '../../client/stream/index.js';
+import type { SuiClientTypes } from '../../client/types.js';
 import type { GraphQLQueryOptions, GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
-import { SuiGraphQLRequestError } from '../errors.js';
+import { isNetworkFailure, SuiGraphQLRequestError } from '../errors.js';
 import { LedgerStreamStateDocument } from '../generated/queries.js';
 
 /** Response error codes that mean the same request may succeed later. */
@@ -39,9 +40,34 @@ export function classifyGraphQLError(error: unknown): ErrorClass {
 	return error instanceof SuiGraphQLRequestError && error.retryable ? 'retry' : 'fatal';
 }
 
+const notIndexed = new WeakSet<object>();
+
 /** The index is behind the data a stream needs; retried like any transient failure. */
 export function notIndexedYet(message: string) {
-	return new SuiGraphQLRequestError(message, { retryable: true });
+	const error = new SuiGraphQLRequestError(message, { retryable: true });
+	notIndexed.add(error);
+	return error;
+}
+
+export function graphQLRetryReason(error: unknown): SuiClientTypes.StreamRetryReason {
+	if (!(error instanceof SuiGraphQLRequestError)) return 'ServerError';
+	if (isNetworkFailure(error)) return 'Network';
+	if (notIndexed.has(error)) return 'NotIndexed';
+	if (error.status !== undefined) {
+		if (error.status === 429) return 'RateLimited';
+		if (error.status === 408 || error.status === 504) return 'Timeout';
+		if (error.status === 502 || error.status === 503) return 'Unavailable';
+		return 'ServerError';
+	}
+	// Response errors are kept as the cause.
+	const codes = Array.isArray(error.cause)
+		? (error.cause as ResponseErrors).map((cause) => cause.extensions?.code)
+		: [];
+	if (codes.includes('REQUEST_TIMEOUT')) return 'Timeout';
+	if (codes.includes('SERVICE_UNAVAILABLE') || codes.includes('RESOURCE_EXHAUSTED')) {
+		return 'Unavailable';
+	}
+	return 'ServerError';
 }
 
 export function unwrap<Result>(

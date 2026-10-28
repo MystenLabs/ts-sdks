@@ -1230,23 +1230,50 @@ describe('errors', () => {
 		expect(server.sent('scanCheckpoints')).toHaveLength(1);
 	});
 
-	it.each<[string, Answer]>([
-		['fetch', networkFailure],
-		['body', brokenBody],
-		['HTTP 503', httpStatus(503)],
-		[
-			'transient response error',
-			reply({ errors: [{ message: 'busy', extensions: { code: 'SERVICE_UNAVAILABLE' } }] }),
-		],
-	])('retries a %s failure', async (_name, failure) => {
+	const responseError = (code: string) =>
+		reply({ errors: [{ message: code, extensions: { code } }] });
+	it.each<[string, Answer, SuiClientTypes.StreamRetryReason]>([
+		['fetch', networkFailure, 'Network'],
+		['body', brokenBody, 'Network'],
+		['HTTP 429', httpStatus(429), 'RateLimited'],
+		['HTTP 504', httpStatus(504), 'Timeout'],
+		['HTTP 503', httpStatus(503), 'Unavailable'],
+		['HTTP 500', httpStatus(500), 'ServerError'],
+		['SERVICE_UNAVAILABLE', responseError('SERVICE_UNAVAILABLE'), 'Unavailable'],
+		['REQUEST_TIMEOUT', responseError('REQUEST_TIMEOUT'), 'Timeout'],
+		['INTERNAL_SERVER_ERROR', responseError('INTERNAL_SERVER_ERROR'), 'ServerError'],
+	])('retries a %s failure', async (_name, failure, reason) => {
 		const server = fakeGraphQL().on(
 			'scanCheckpoints',
 			failure,
 			page('checkpoints', [checkpoint(1)]),
 		);
-		const frames = await collect(stream(server.client, 'checkpoints', finiteCheckpoints));
+		const reasons: string[] = [];
+		const frames = await collect(
+			stream(server.client, 'checkpoints', {
+				...finiteCheckpoints,
+				onStatus: (status) => status.$kind === 'Retrying' && reasons.push(status.reason),
+			}),
+		);
 		expect(frames.map(label)).toEqual(['1']);
 		expect(server.sent('scanCheckpoints')).toHaveLength(2);
+		expect(reasons).toEqual([reason]);
+	});
+
+	it('retries an index that has nothing yet as NotIndexed', async () => {
+		const server = fakeGraphQL().on('scanCheckpoints', page('checkpoints', [checkpoint(1)]));
+		server.tip = null;
+		const reasons: string[] = [];
+		const frames = stream(server.client, 'checkpoints', {
+			...finiteCheckpoints,
+			onStatus: (status) => {
+				if (status.$kind !== 'Retrying') return;
+				reasons.push(status.reason);
+				server.tip = 1;
+			},
+		});
+		await collect(frames);
+		expect(reasons).toEqual(['NotIndexed']);
 	});
 
 	it('throws response errors as a non-retryable SuiGraphQLRequestError', async () => {

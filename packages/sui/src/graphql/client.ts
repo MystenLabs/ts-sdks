@@ -20,7 +20,7 @@ import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { abortableAsyncGenerator } from '../utils/abort.js';
-import { isRetryableStatus, SuiGraphQLRequestError } from './errors.js';
+import { isRetryableStatus, markNetworkFailure, SuiGraphQLRequestError } from './errors.js';
 import { readGraphQLSSE } from './subscribe.js';
 
 export { SuiGraphQLRequestError } from './errors.js';
@@ -221,10 +221,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			body = await res.text();
 		} catch (cause) {
 			options.signal?.throwIfAborted();
-			throw new SuiGraphQLRequestError('GraphQL response body could not be read', {
-				retryable: true,
-				cause,
-			});
+			throw markNetworkFailure(
+				new SuiGraphQLRequestError('GraphQL response body could not be read', {
+					retryable: true,
+					cause,
+				}),
+			);
 		}
 		// Invalid JSON is a protocol error, not a transport failure, so it is not retryable.
 		return JSON.parse(body);
@@ -288,10 +290,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			if (resolved === null ? !this.#customFetch : !/^https?:/i.test(resolved)) {
 				throw new SuiGraphQLRequestError('GraphQL request URL is not an http(s) URL', { cause });
 			}
-			throw new SuiGraphQLRequestError('GraphQL network request failed', {
-				retryable: true,
-				cause,
-			});
+			throw markNetworkFailure(
+				new SuiGraphQLRequestError('GraphQL network request failed', {
+					retryable: true,
+					cause,
+				}),
+			);
 		}
 	}
 
