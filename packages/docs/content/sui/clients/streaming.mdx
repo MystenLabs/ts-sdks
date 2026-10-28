@@ -267,7 +267,7 @@ client.streamEvents({
 	start: { checkpoint: 1000 },
 	retry: { initialDelay: 250, maxDelay: 30_000, jitter: 500, maxAttempts: 5 },
 	onStatus(status) {
-		if (status.$kind === 'Retrying') console.log(status.attempt, status.delay);
+		if (status.$kind === 'Retrying') console.log(status.reason, status.attempt, status.delay);
 	},
 });
 ```
@@ -275,6 +275,10 @@ client.streamEvents({
 Transient failures retry with exponential backoff and jitter. `maxAttempts` bounds consecutive
 failures without progress, and `maxAttempts: 0` disables retries. If the server or a proxy closes
 the stream after progress, it reconnects at once and resumes from the last frame.
+
+`reason` says why: `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
+streams, while `Network`, `RateLimited`, `Timeout`, `Unavailable`, `NotIndexed`, `SlowConsumer` and
+`ServerError` can point at a problem worth alerting on.
 
 Retries don't bound waiting: a stream waiting for the index or for a sparse filter to match can stay
 quiet indefinitely. Use a signal to bound the total time:
