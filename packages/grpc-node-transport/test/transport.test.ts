@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError, SuiGrpcClient } from '@mysten/sui/grpc';
-import { PULL_SERVER_STREAMING } from '@mysten/sui/grpc/pull-transport';
+import { isConnectionLost, PULL_SERVER_STREAMING } from '@mysten/sui/grpc/pull-transport';
 import type { PullServerStreamingTransport } from '@mysten/sui/grpc/pull-transport';
 import { constants } from 'node:http2';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -183,10 +183,13 @@ describe('GrpcNodeTransport', () => {
 				const call = lossy[PULL_SERVER_STREAMING](listCheckpoints(client), {});
 				const first = await call.responses.next();
 				expect(first.value).toMatchObject({ checkpoint: { sequenceNumber: 1n } });
-				await expect(call.responses.next()).rejects.toMatchObject({
+				const error = await call.responses.next().catch((error: unknown) => error);
+				expect(error).toMatchObject({
 					code: 'UNAVAILABLE',
 					message: expect.stringContaining('RST_STREAM'),
 				});
+				// Streams report a marked reset as Disconnected, not as an unavailable server.
+				expect(isConnectionLost(error)).toBe(true);
 			} finally {
 				lossy.close();
 				await resetting.stop();
@@ -198,10 +201,14 @@ describe('GrpcNodeTransport', () => {
 			const lossy = new GrpcNodeTransport({ baseUrl: resetting.baseUrl });
 			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
 			try {
-				await expect(client.ledgerService.getServiceInfo({}).response).rejects.toMatchObject({
+				const error = await client.ledgerService
+					.getServiceInfo({})
+					.response.catch((error: unknown) => error);
+				expect(error).toMatchObject({
 					code: 'INTERNAL',
 					message: expect.stringContaining('RST_STREAM'),
 				});
+				expect(isConnectionLost(error)).toBe(false);
 			} finally {
 				lossy.close();
 				await resetting.stop();
