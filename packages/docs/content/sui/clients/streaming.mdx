@@ -241,6 +241,25 @@ statuses; a GraphQL follow reports `Live` with its first item at or past the cha
 stream started, so a quiet filter stays `Connected` until its first match. gRPC resumes on the
 client by reading history pages first.
 
+## Measure lag
+
+Checkpoint and transaction frames carry `timestampMs`; event and `Progress` frames do not. To see
+how far a stream is behind, follow checkpoint headers alongside it and compare checkpoints:
+
+```typescript
+let tip = 0n;
+(async () => {
+	for await (const frame of client.streamCheckpoints({ signal: controller.signal })) {
+		tip = BigInt(frame.checkpoint.sequenceNumber);
+		console.log('chain delay', Date.now() - frame.checkpoint.timestampMs, 'ms');
+	}
+})();
+
+for await (const frame of client.streamEvents({ filter, signal: controller.signal })) {
+	console.log('behind by', tip - BigInt(frame.event.checkpoint), 'checkpoints');
+}
+```
+
 ## Retries
 
 ```typescript
