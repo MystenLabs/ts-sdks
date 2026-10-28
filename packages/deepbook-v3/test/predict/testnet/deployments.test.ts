@@ -7,8 +7,12 @@
 // the ids still exist on chain and still have the types the SDK assumes — which is the
 // failure a redeploy actually produces: a record that compiles, passes every offline
 // test, and addresses a package that no longer exists or has been retired.
+import { bcs } from '@mysten/sui/bcs';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
+
+import { cadencePeriods } from '../../../src/contracts/deepbook_predict/registry.js';
 
 import { getAccountConfig } from '../../../src/account.js';
 import { getDeployment, TESTNET_PREDICT } from '../../../src/deployments/index.js';
@@ -111,10 +115,11 @@ describe('the deployment record matches the live chain', () => {
 });
 
 describe('package publication and type origins', () => {
-	// Testnet's relink to Propbook v2 (DBU-1027): Predict v6, Sessions v4, and predict_orders and
-	// predict_math at version 2, after the delayed-execution rollout (DBU-887) published them.
+	// Testnet's relink to Propbook v2 (DBU-1027): Sessions v4, and predict_orders and predict_math
+	// at version 2, after the delayed-execution rollout (DBU-887) published them. Predict is v7,
+	// the cadence-table upgrade (DBU-1109).
 	test.each([
-		[TESTNET_PREDICT.packages.predict, 6n, TESTNET_PREDICT.packages.predictV1],
+		[TESTNET_PREDICT.packages.predict, 7n, TESTNET_PREDICT.packages.predictV1],
 		[
 			getSessionsConfig('testnet').sessionsPackageId,
 			4n,
@@ -126,6 +131,38 @@ describe('package publication and type origins', () => {
 		const { response } = await client.movePackageService.getPackage({ packageId });
 		expect(response.package?.version).toBe(version);
 		expect(response.package?.originalId).toBe(originalId);
+	});
+	test('the recorded Predict call target serves the cadence table', async () => {
+		// The table starts with the six built-in cadences (1m, 5m, 1h, 1d, 1w, 30d) and only grows
+		// through add_cadence, so its prefix is fixed. Every added period is a whole minute.
+		const tx = new Transaction();
+		tx.add(
+			cadencePeriods({
+				package: TESTNET_CONFIG.packages.predict,
+				arguments: { registry: TESTNET_CONFIG.objects.registry },
+			}),
+		);
+		const result = await client.core.simulateTransaction({
+			transaction: tx,
+			checksEnabled: false,
+			include: { commandResults: true },
+		});
+		const periods = bcs
+			.vector(bcs.u64())
+			.parse(Uint8Array.from(result.commandResults![0].returnValues[0].bcs))
+			.map(BigInt);
+		expect(periods.slice(0, 6)).toEqual([
+			60_000n,
+			300_000n,
+			3_600_000n,
+			86_400_000n,
+			604_800_000n,
+			2_592_000_000n,
+		]);
+		expect(periods.length).toBeLessThanOrEqual(16);
+		for (const period of periods) {
+			expect(period > 0n && period % 60_000n === 0n).toBe(true);
+		}
 	});
 	test('the order desk and queue registry belong to the recorded order-flow package', async () => {
 		expect(await typeOf(TESTNET_CONFIG.objects.orderDesk!)).toBe(

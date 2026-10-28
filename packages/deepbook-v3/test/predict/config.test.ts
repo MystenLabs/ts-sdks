@@ -21,11 +21,11 @@ test('all shared object IDs are well-formed', () => {
 
 test('Testnet records delayed execution', () => {
 	// Testnet's v5 rollout (DBU-887) introduced the delayed-execution types, and the relink to
-	// Propbook v2 (DBU-1027) moved the call targets: Predict v6, predict_orders v2 and
-	// predict_math v2. The delayed-execution type origin stays v5, and predict_orders' events stay
-	// typed by its v1 original ID.
+	// Propbook v2 (DBU-1027) moved the call targets: predict_orders v2 and predict_math v2. The
+	// cadence-table upgrade (DBU-1109) moved Predict to v7. The delayed-execution type origin
+	// stays v5, and predict_orders' events stay typed by its v1 original ID.
 	expect(TESTNET_CONFIG.packages.predict).toBe(
-		'0x340a77ce690e683138790592be6c6d02dc56a7e88e2555dc17f8a4967d003816',
+		'0x0e6ce5fcfd8f647f2a1ba134d9f3bc919bc3ea767871d24f6c2799e3d7d47fc9',
 	);
 	expect(TESTNET_CONFIG.packages.predictDelayedExecution).toBe(
 		'0x0654ecbed7c0f2645d9de7cb6cf08e65c2ee05cdbb39a415f17a6bd1cd92e267',
