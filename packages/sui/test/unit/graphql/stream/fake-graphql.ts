@@ -4,8 +4,8 @@
 /**
  * A scripted GraphQL server for ledger stream tests.
  *
- * `ledgerStreamState` is answered from `server.tip`, and every scan page reports `server.tip` and
- * the retention for its filters. Every other operation is answered from its script, in order,
+ * `ledgerStreamState` and every scan page report `server.tip` and the retention for their
+ * filters. Every other operation is answered from its script, in order,
  * repeating the last answer:
  *
  *   server.on('scanEvents', page('events', [event(1)]), page('events', []));
@@ -72,7 +72,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		const operation = /(?:query|subscription)\s+(\w+)/.exec(body.query)![1];
 		const request = { operation, variables: body.variables ?? {}, signal: init!.signal!, server };
 		server.requests.push(request);
-		if (operation === 'ledgerStreamState') return stateResponse(server);
+		if (operation === 'ledgerStreamState') return stateResponse(server, request.variables.filters);
 		const script = scripts.get(operation);
 		if (!script?.length) throw new Error(`Unexpected ${operation}`);
 		const answer = script.length > 1 ? script.shift()! : script[0];
@@ -86,11 +86,12 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 	return server;
 }
 
-function stateResponse(server: FakeServer) {
+function stateResponse(server: FakeServer, filters: string[]) {
 	return Response.json({
 		data: {
 			chainIdentifier: 'chain',
 			checkpoint: server.tip === null ? null : { sequenceNumber: server.tip },
+			serviceConfig: { availableRange: availableRange(server, filters, server.tip) },
 		},
 	});
 }

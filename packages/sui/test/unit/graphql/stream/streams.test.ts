@@ -195,7 +195,8 @@ describe('historical scan', () => {
 		);
 		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'HistoryUnavailable' });
 		expect(labels).toEqual([]);
-		expect(server.sent('scanCheckpoints')).toHaveLength(1);
+		// The retention read with the tip already rules the start out.
+		expect(server.sent('scanCheckpoints')).toHaveLength(0);
 	});
 
 	it('fails a descending read whose start has been pruned with HistoryUnavailable', async () => {
@@ -925,8 +926,10 @@ describe('subscription progress', () => {
 		expect(frames.map(label)).toEqual(['Progress', 'Progress', 'Progress']);
 		expect(new Set(frames.map(token)).size).toBe(3);
 		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
-		// Progress edges carry no checkpoint, so coverage stays at the tip anchor.
-		expect(frames[2]).toMatchObject({ coveredCheckpoint: '10' });
+		// The tip anchor covers the tip; progress edges carry no checkpoint, so they claim nothing.
+		expect(frames[0]).toMatchObject({ coveredCheckpoint: '10' });
+		expect(frames[1]).not.toHaveProperty('coveredCheckpoint');
+		expect(frames[2]).not.toHaveProperty('coveredCheckpoint');
 	});
 
 	it('resumes from a progress token without re-reading anything before it', async () => {
@@ -947,6 +950,34 @@ describe('subscription progress', () => {
 		// The subscription resumes after the progress cursor itself.
 		expect(server.sent('subscribeEvents')[0].after).toBe('live:progress:a');
 		expect(server.sent('scanEvents')).toHaveLength(0);
+	});
+
+	it('polls after a live progress token without moving behind it on a lagging replica', async () => {
+		const seed = fakeGraphQL({ tip: 10 });
+		seed.on('subscribeEvents', live('events', [progressEdge('a')] as unknown as Edge[]));
+		const [, progress] = await take(
+			stream(seed.client, 'events', { frames: { progress: true } }),
+			2,
+		);
+
+		// The replica is behind the checkpoint the progress cursor was minted at.
+		const server = fakeGraphQL({ tip: 4 });
+		server.on('scanEvents', page('events', []), page('events', [event(12)]));
+		const [frame] = await take(
+			stream(server.client, 'events', {
+				start: { resumeToken: token(progress) },
+				delivery: 'poll',
+				pollInterval: 1,
+				frames: { progress: true },
+			}),
+			1,
+		);
+		// No boundary from the replica's tip was committed: the next poll still resumes after the cursor.
+		expect(label(frame)).toBe('12:0');
+		expect(server.sent('scanEvents').map((variables) => variables.after)).toEqual([
+			'live:progress:a',
+			'live:progress:a',
+		]);
 	});
 });
 
@@ -1088,10 +1119,12 @@ describe('request counts', () => {
 	});
 
 	it('fails a start below the retention limit with HistoryUnavailable after one request', async () => {
-		const pruned = { message: 'pruned', extensions: { code: 'OUT_OF_RANGE' } };
+		// The server retries its backfill scan and then reports an internal error, which alone
+		// would read as transient.
+		const failed = { message: 'scan failed', extensions: { code: 'INTERNAL_SERVER_ERROR' } };
 		const server = fakeGraphQL({ tip: 12, first: 9 }).on(
 			'subscribeCheckpoints',
-			liveMessages([{ errors: [pruned] }]),
+			liveMessages([{ errors: [failed] }]),
 		);
 		await expect(
 			collect(
@@ -1101,7 +1134,7 @@ describe('request counts', () => {
 				}),
 			),
 		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-		expect(operations(server)).toEqual(['ledgerStreamState', 'subscribeCheckpoints']);
+		expect(operations(server)).toEqual(['ledgerStreamState']);
 	});
 
 	it('makes one request per poll tick', async () => {
