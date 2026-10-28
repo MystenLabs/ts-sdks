@@ -19,7 +19,12 @@ import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { abortableAsyncGenerator } from '../utils/abort.js';
-import { isRetryableStatus, markNetworkFailure, SuiGraphQLRequestError } from './errors.js';
+import {
+	isRetryableStatus,
+	markConnectionLost,
+	markNetworkFailure,
+	SuiGraphQLRequestError,
+} from './errors.js';
 import { readGraphQLSSE } from './subscribe.js';
 
 export { SuiGraphQLRequestError } from './errors.js';
@@ -196,7 +201,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			body = await res.text();
 		} catch (cause) {
 			options.signal?.throwIfAborted();
-			throw markNetworkFailure(
+			throw markConnectionLost(
 				new SuiGraphQLRequestError('GraphQL response body could not be read', {
 					retryable: true,
 					cause,

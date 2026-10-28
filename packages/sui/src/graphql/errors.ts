@@ -27,7 +27,7 @@ export function isRetryableStatus(status: number) {
 
 const networkFailures = new WeakSet<object>();
 
-/** Marks a failure to reach the server or to read its response, as opposed to a server answer. */
+/** Marks a request that failed before the server answered. */
 export function markNetworkFailure<E extends object>(error: E): E {
 	networkFailures.add(error);
 	return error;
@@ -36,4 +36,17 @@ export function markNetworkFailure<E extends object>(error: E): E {
 /** Whether `error` was marked with `markNetworkFailure`. */
 export function isNetworkFailure(error: unknown): boolean {
 	return typeof error === 'object' && error !== null && networkFailures.has(error);
+}
+
+const connectionLost = new WeakSet<object>();
+
+/** Marks a response whose body broke after the server answered. */
+export function markConnectionLost<E extends object>(error: E): E {
+	connectionLost.add(error);
+	return error;
+}
+
+/** Whether `error` was marked with `markConnectionLost`. */
+export function isConnectionLost(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && connectionLost.has(error);
 }

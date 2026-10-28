@@ -5,7 +5,7 @@ import type { ErrorClass } from '../../client/stream/adapter.js';
 import { SuiStreamError } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { GraphQLQueryOptions, GraphQLQueryResult, SuiGraphQLClient } from '../client.js';
-import { isNetworkFailure, SuiGraphQLRequestError } from '../errors.js';
+import { isConnectionLost, isNetworkFailure, SuiGraphQLRequestError } from '../errors.js';
 import { LedgerStreamStateDocument } from '../generated/queries.js';
 
 /** Response error codes that mean the same request may succeed later. */
@@ -51,6 +51,7 @@ export function notIndexedYet(message: string) {
 
 export function graphQLRetryReason(error: unknown): SuiClientTypes.StreamRetryReason {
 	if (!(error instanceof SuiGraphQLRequestError)) return 'ServerError';
+	if (isConnectionLost(error)) return 'Disconnected';
 	if (isNetworkFailure(error)) return 'Network';
 	if (notIndexed.has(error)) return 'NotIndexed';
 	if (error.status !== undefined) {
@@ -64,9 +65,10 @@ export function graphQLRetryReason(error: unknown): SuiClientTypes.StreamRetryRe
 		? (error.cause as ResponseErrors).map((cause) => cause.extensions?.code)
 		: [];
 	if (codes.includes('REQUEST_TIMEOUT')) return 'Timeout';
-	if (codes.includes('SERVICE_UNAVAILABLE') || codes.includes('RESOURCE_EXHAUSTED')) {
-		return 'Unavailable';
-	}
+	if (codes.includes('SERVICE_UNAVAILABLE')) return 'Unavailable';
+	// RESOURCE_EXHAUSTED covers server load and per-item limits alike. A lagging subscriber and a
+	// server-side interruption arrive as INTERNAL_SERVER_ERROR, so GraphQL can't report them as
+	// SlowConsumer or Disconnected.
 	return 'ServerError';
 }
 
