@@ -1129,6 +1129,7 @@ function transactionReadMaskPaths(
 	const paths = [
 		'digest',
 		'transaction.digest',
+		'transaction.sender',
 		'signatures',
 		'effects.status',
 		'effects.epoch',
@@ -1137,12 +1138,7 @@ function transactionReadMaskPaths(
 	];
 
 	if (include?.transaction) {
-		paths.push(
-			'transaction.sender',
-			'transaction.gas_payment',
-			'transaction.expiration',
-			'transaction.kind',
-		);
+		paths.push('transaction.gas_payment', 'transaction.expiration', 'transaction.kind');
 	}
 	if (include?.bcs) {
 		paths.push('transaction.bcs');
@@ -1653,8 +1649,12 @@ export function parseGrpcTransactionResponse<
 						},
 			};
 
+	const sender = transaction.transaction?.sender;
+	if (!sender) throw new Error('Transaction sender is missing from gRPC response');
+
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
+		sender: normalizeSuiAddress(sender),
 		epoch: transaction.effects?.epoch?.toString() ?? null,
 		timestampMs: transaction.timestamp
 			? Number(transaction.timestamp.seconds) * 1000 +

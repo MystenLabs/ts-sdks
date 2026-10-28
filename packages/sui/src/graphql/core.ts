@@ -1240,6 +1240,8 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
+		// System transactions have no sender over GraphQL; gRPC reports them as 0x0.
+		sender: normalizeSuiAddress(transaction.sender?.address ?? '0x0'),
 		status,
 		effects: (include?.effects
 			? withObjectTypes(

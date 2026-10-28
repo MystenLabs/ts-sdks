@@ -25,13 +25,16 @@ function clients(grpcTransaction: object, graphqlTransaction: object) {
 			transaction: GrpcTypes.ExecutedTransaction.create({
 				digest,
 				checkpoint: 10n,
+				transaction: { sender },
 				...grpcTransaction,
 			}),
 		},
 	})) as never;
 	const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
 	graphql.query = vi.fn(async () => ({
-		data: { transaction: { digest, signatures: [], ...graphqlTransaction } },
+		data: {
+			transaction: { digest, sender: { address: sender }, signatures: [], ...graphqlTransaction },
+		},
 	})) as never;
 	return [grpc, graphql] as const;
 }
@@ -64,6 +67,23 @@ function graphqlFailure(executionError: object) {
 }
 
 describe('transaction mappers across transports', () => {
+	it('reports the sender, and 0x0 for a system transaction', async () => {
+		const success = { effects: { status: { success: true } } };
+		const graphqlSuccess = { effects: { status: 'SUCCESS', checkpoint: { sequenceNumber: 10 } } };
+		const sent = await readBoth(success, graphqlSuccess);
+		expect(sent.map((result) => result.Transaction!.sender)).toEqual([sender, sender]);
+
+		// GraphQL reports no sender for system transactions; gRPC reports 0x0.
+		const system = await readBoth(
+			{ ...success, transaction: { sender: '0x0' } },
+			{ ...graphqlSuccess, sender: null },
+		);
+		expect(system.map((result) => result.Transaction!.sender)).toEqual([
+			normalizeSuiAddress('0x0'),
+			normalizeSuiAddress('0x0'),
+		]);
+	});
+
 	it('reads an event package and module from the call that emitted it, not from its type', async () => {
 		const [fromGrpc, fromGraphQL] = await readBoth(
 			{
