@@ -17,7 +17,7 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
-import { markHttpStatus, toNetworkRpcError } from './network-error.js';
+import { markConnectionLost, markHttpStatus, toNetworkRpcError } from './network-error.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -148,12 +148,15 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 			const [code, detail, meta] = readGrpcWebResponseHeader(response);
 			if (code !== undefined && code !== GrpcStatusCode.OK) {
 				const name = GrpcStatusCode[code];
+				// Release the connection the unread body holds.
+				cancelBody(response.body);
 				throw markHttpStatus(new RpcError(detail ?? name, name, meta), response.status);
 			}
 		}
 		const chunks = bodyChunks(response.body);
 		if (!chunks) return response;
 		const signal = init?.signal;
+		const frames = isBinaryGrpcWeb(response.headers) ? new FrameTracker() : undefined;
 		// Upstream reads only this metadata and iterates the body, so this shape avoids needing a
 		// global `Response` or `ReadableStream`, which some runtimes lack. The getters stay lazy
 		// because Cloudflare Workers throw on `type`, which upstream catches.
@@ -173,7 +176,7 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 			get type() {
 				return response.type;
 			},
-			body: { [Symbol.asyncIterator]: () => networkBody(chunks, signal) },
+			body: { [Symbol.asyncIterator]: () => networkBody(chunks, signal, frames) },
 		} as unknown as Response;
 	};
 }
@@ -181,6 +184,7 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 async function* networkBody(
 	chunks: BodyChunks,
 	signal: AbortSignal | null | undefined,
+	frames: FrameTracker | undefined,
 ): AsyncGenerator<Uint8Array> {
 	while (true) {
 		let next: IteratorResult<Uint8Array>;
@@ -189,9 +193,60 @@ async function* networkBody(
 		} catch (error) {
 			throw toNetworkRpcError(error, signal, 'response');
 		}
-		if (next.done) return;
+		if (next.done) {
+			// Upstream codes a body cut short as DATA_LOSS; it is a connection lost mid-response.
+			const cut = frames?.cut();
+			if (cut) throw markConnectionLost(new RpcError(cut, 'UNAVAILABLE'));
+			return;
+		}
+		frames?.push(next.value);
 		yield next.value;
 	}
+}
+
+function isBinaryGrpcWeb(headers: Headers): boolean {
+	const type = headers.get('content-type') ?? '';
+	return type.startsWith('application/grpc-web') && !type.startsWith('application/grpc-web-text');
+}
+
+/** Follows binary gRPC-web frame boundaries to tell a complete body from one cut short. */
+class FrameTracker {
+	readonly #header = new Uint8Array(5);
+	#headerLength = 0;
+	#remaining = 0;
+	#sawData = false;
+	#sawTrailer = false;
+
+	push(chunk: Uint8Array) {
+		let offset = 0;
+		while (offset < chunk.length) {
+			if (this.#remaining > 0) {
+				const skipped = Math.min(this.#remaining, chunk.length - offset);
+				this.#remaining -= skipped;
+				offset += skipped;
+				continue;
+			}
+			this.#header[this.#headerLength++] = chunk[offset++];
+			if (this.#headerLength < 5) continue;
+			const [flags, a, b, c, d] = this.#header;
+			if (flags & 0x80) this.#sawTrailer = true;
+			else this.#sawData = true;
+			this.#remaining = ((a << 24) | (b << 16) | (c << 8) | d) >>> 0;
+			this.#headerLength = 0;
+		}
+	}
+
+	/** Why the body is incomplete, if it is. */
+	cut(): string | undefined {
+		if (this.#headerLength > 0 || this.#remaining > 0) return 'premature EOF';
+		if (this.#sawData && !this.#sawTrailer) return 'missing trailers';
+		return undefined;
+	}
+}
+
+function cancelBody(body: unknown) {
+	const cancel = (body as { cancel?: () => Promise<void> } | null)?.cancel;
+	if (typeof cancel === 'function') cancel.call(body).catch(() => {});
 }
 
 interface BodyChunks {
