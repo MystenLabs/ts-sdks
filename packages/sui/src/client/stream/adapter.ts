@@ -121,9 +121,12 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	/**
 	 * Resolves names in the filter. The returned filter is hashed into every token. An adapter that
 	 * reads the indexed tip with the chain identity returns it, and planning then uses it instead of
-	 * calling `indexedTip`.
+	 * calling `indexedTip`. An adapter that also reads the oldest retained checkpoint returns it, so
+	 * an ascending start below it fails before any read.
 	 */
-	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown; indexedTip?: bigint }>;
+	initialize(
+		signal: AbortSignal,
+	): Promise<{ chain: string; filter: unknown; indexedTip?: bigint; retainedFrom?: bigint }>;
 	/** The highest checkpoint that pages can read. */
 	indexedTip(signal: AbortSignal): Promise<bigint>;
 	/** One request. No retries; the core retries. The core always reads or closes `items`. */

@@ -155,6 +155,8 @@ export interface FakeOptions {
 	opaqueOrder?: boolean;
 	/** `initialize` also returns the indexed tip, as GraphQL does. */
 	initializeReadsTip?: boolean;
+	/** `initialize` also returns the oldest retained checkpoint, as GraphQL does. */
+	initializeReadsRetention?: boolean;
 	initializeFaults?: Error[];
 	tipFaults?: Error[];
 	pageFaults?: (PageFault | undefined)[];
@@ -266,6 +268,7 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 				chain: options.chain ?? 'test-chain',
 				filter: options.filter ?? { sender: '0x1' },
 				indexedTip: options.initializeReadsTip ? ledger.indexedTip : undefined,
+				retainedFrom: options.initializeReadsRetention ? floor : undefined,
 			};
 		},
 		async indexedTip() {

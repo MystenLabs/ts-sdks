@@ -8,7 +8,10 @@ import { SuiStreamError } from './errors.js';
 import {
 	boundaryPosition,
 	comparePositions,
+	maxCoverage,
+	nextUncovered,
 	positionBytes,
+	positionCoverage,
 	type StreamPosition,
 } from './position.js';
 import {
@@ -239,6 +242,29 @@ export async function planStream(
 		startCoverage: tokens.start?.coverage ?? { $kind: 'Unknown' },
 		empty,
 	};
+}
+
+/**
+ * Fails an ascending read whose start the server no longer retains. Subscriptions that backfill
+ * from the start never read a page, so this is their only retention check.
+ */
+export function assertStartRetained(
+	plan: StreamPlan,
+	family: LedgerStreamAdapter<unknown, any>['family'],
+	retainedFrom: bigint | undefined,
+) {
+	const { start, order } = plan;
+	if (retainedFrom === undefined || order !== 'ascending' || !start) return;
+	const needed =
+		'checkpoint' in start
+			? start.checkpoint
+			: nextUncovered(maxCoverage(positionCoverage(start.position, family), plan.startCoverage));
+	if (needed !== undefined && needed < retainedFrom) {
+		throw new SuiStreamError(
+			'HistoryUnavailable',
+			`Checkpoint ${needed} has been pruned; the oldest available is ${retainedFrom}`,
+		);
+	}
 }
 
 /** Throws `InvalidOptions` for reversed bounds; returns whether they are equal. */
