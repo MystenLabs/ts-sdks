@@ -52,7 +52,7 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 	async function backOff(error: unknown, advanced: boolean) {
 		if (signal.aborted || status.callbackFailed) throw error;
 		const delay = retry.onFailure(error, classify(error, adapter), advanced);
-		status.retrying(retry.attempt, delay, error);
+		status.retrying(retry.attempt, delay, retryReason(error, adapter, status), error);
 		await sleep(delay, signal);
 	}
 	async function withRetries<T>(request: () => Promise<T>): Promise<T> {
@@ -132,4 +132,15 @@ function classify(
 	if (error instanceof SuiStreamError) return 'fatal';
 	if (error instanceof StreamDisconnected) return 'disconnect';
 	return adapter.classify(error);
+}
+
+function retryReason(
+	error: unknown,
+	adapter: Pick<LedgerStreamAdapter<never, never>, 'retryReason'>,
+	status: StatusReporter,
+): SuiClientTypes.StreamRetryReason {
+	if (error instanceof StreamDisconnected) return 'Disconnected';
+	const reason = adapter.retryReason(error);
+	// A connection that fails after its server answered was established, then lost.
+	return reason === 'Network' && status.connectedThisAttempt ? 'Disconnected' : reason;
 }

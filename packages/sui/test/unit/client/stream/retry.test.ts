@@ -118,6 +118,34 @@ describe('retries in a stream', () => {
 		]);
 	});
 
+	it('reports why it retries, upgrading a network failure after the server answered', async () => {
+		const ledger = new Ledger(Array(10).fill(1), 6);
+		const reasons: string[] = [];
+		const adapter = fakeAdapter(ledger, {
+			anchorsAtLiveTip: true,
+			afterRead: () => (ledger.indexedTip = 9n),
+			initializeFaults: [new NetworkError()],
+			live: [
+				{ events: [ledger.item(6)], end: new Overflow() },
+				{ events: [ledger.item(7)], end: 'eof' },
+				{ events: [ledger.item(8)], end: new NetworkError() },
+				{ events: [ledger.item(9)], end: 'hang' },
+			],
+		});
+		const frames = await take(
+			stream(adapter, {
+				retry: { initialDelay: 0, jitter: 0 },
+				onStatus: (status) => {
+					if (status.$kind === 'Retrying') reasons.push(status.reason);
+				},
+			}),
+			4,
+		);
+		expect(ids(frames)).toEqual(['6:0', '7:0', '8:0', '9:0']);
+		// Before any attempt, a failure is a network failure; within one, the connection was lost.
+		expect(reasons).toEqual(['Network', 'SlowConsumer', 'Disconnected', 'Disconnected']);
+	});
+
 	it('reconnects for free after a disconnect that followed progress, even with maxAttempts 0', async () => {
 		// Checkpoints 0..9; the index starts at 6 and catches up one checkpoint per scan.
 		const ledger = new Ledger(Array(10).fill(1), 6);
