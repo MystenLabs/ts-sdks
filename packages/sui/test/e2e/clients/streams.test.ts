@@ -30,7 +30,7 @@ const LIVE: [ClientKind, Delivery][] = [
 const KINDS: ClientKind[] = ['grpc', 'graphql'];
 const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
 
-/** A GraphQL subscription reports `Live` with its first match or progress edge; until then it is `Connected`. */
+/** A GraphQL subscription reports `Live` with its first match past the starting tip; until then it is `Connected`. */
 function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
 	return kind === 'graphql' && delivery === 'subscribe' ? 'Connected' : 'Live';
 }
@@ -1053,7 +1053,7 @@ describe('ledger streams', () => {
 		);
 
 		it.skipIf(skip)(
-			'reports Live for a sparse filter before its first match, and stays connected while quiet',
+			'stays connected while a sparse filter is quiet, and reports Live by its first match',
 			async () => {
 				const from = await newSigner();
 				type Frame = SuiClientTypes.StreamEventResult<{ progress: true }>;
@@ -1082,8 +1082,9 @@ describe('ledger streams', () => {
 				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
 				expect(quiet).not.toContain('Retrying');
 				expect(quiet).not.toContain('Error');
-				// A GraphQL subscription is Live once it reports a match or a progress edge.
-				if (kind !== 'graphql' || delivery !== 'subscribe') expect(quiet).toContain('Live');
+				// A GraphQL subscription is Live only once it delivers a match past the starting tip.
+				if (kind === 'graphql' && delivery === 'subscribe') expect(quiet).not.toContain('Live');
+				else expect(quiet).toContain('Live');
 				const baseline = reader.frames.findLast((frame) => frame.$kind === 'Progress');
 				expect(baseline).toBeDefined();
 				expect(events(reader.frames)).toEqual([]);
