@@ -1315,6 +1315,7 @@ describe('item mapping', () => {
 			reply({
 				data: {
 					transactions: {
+						edges: [{ cursor: edge.cursor }],
 						nodes: [edge.node],
 						pageInfo: {
 							hasNextPage: false,
