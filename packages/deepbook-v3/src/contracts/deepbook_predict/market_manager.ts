@@ -5,9 +5,11 @@
 /**
  * Market identity and deployment cadence manager for Predict.
  *
- * `Registry` owns this state and delegates market admission to it. Fixed cadence
- * IDs, periods, and rank order are upgrade-required. Underlying rows, cadence
- * deployment terms, and per-underlying watermarks are stored here.
+ * `Registry` owns this state and delegates market admission to it. Cadence periods
+ * live in the registry's admin-extended cadence table and are passed in, indexed
+ * by cadence ID; underlying rows, cadence deployment terms, and per-underlying
+ * watermarks are stored here. When two enabled cadences can create the same
+ * expiry, the one with the longer period owns it.
  */
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
@@ -66,9 +68,13 @@ export const DeployableMarket = new MoveStruct({
 export const UnderlyingMarketConfig = new MoveStruct({
 	name: `${$moduleName}::UnderlyingMarketConfig`,
 	fields: {
-		/** Deployment config indexed by cadence ID. */
+		/**
+		 * Deployment config indexed by cadence ID. Rows past its length are disabled; the
+		 * vector grows past the six built-ins only when an added cadence is set or
+		 * created, because package versions before the cadence table abort on longer rows.
+		 */
 		cadences: bcs.vector(CadenceConfig),
-		/** Highest deployed expiry timestamp indexed by cadence ID. */
+		/** Highest deployed expiry timestamp indexed by cadence ID; missing rows are 0. */
 		last_deployed_expiries: bcs.vector(U64),
 	},
 });

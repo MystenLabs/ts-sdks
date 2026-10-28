@@ -153,6 +153,14 @@ export const CadenceConfigUpdated = new MoveStruct({
 		window_size: U64,
 	},
 });
+export const CadenceAdded = new MoveStruct({
+	name: `${$moduleName}::CadenceAdded`,
+	fields: {
+		registry_id: bcs.Address,
+		cadence_id: bcs.u8(),
+		period_ms: U64,
+	},
+});
 export const ExpiryMarketMintPausedUpdated = new MoveStruct({
 	name: `${$moduleName}::ExpiryMarketMintPausedUpdated`,
 	fields: {

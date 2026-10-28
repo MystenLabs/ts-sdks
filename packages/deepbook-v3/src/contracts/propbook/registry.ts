@@ -594,3 +594,48 @@ export function replacePythBindingForUnderlying(options: ReplacePythBindingForUn
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SetBlockScholesSviModelArguments {
+	sviStore: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	sviModel: RawTransactionArgument<string>;
+}
+export interface SetBlockScholesSviModelOptions {
+	package?: string;
+	arguments:
+		| SetBlockScholesSviModelArguments
+		| [
+				sviStore: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				sviModel: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * Admin-set the Block Scholes model `svi_store` derives its accepted and served
+ * SVI series ids from.
+ *
+ * The provider can publish more than one SVI surface for the same asset and
+ * expiry, each under its own model name, and the series id hashes that name.
+ * Setting the model therefore chooses which surface every consumer of this store
+ * prices from, for every expiry at once. A store whose model was never set uses
+ * `"SVI"`, and the store must be at the running package version. After a change, a
+ * batch signed under any other model aborts as a foreign series, so a relayer must
+ * resubscribe under the new model. A model never used on this store reads `none`
+ * until its first signed observation lands; a model set back serves its last
+ * stored rows again, which consumers accept for as long as those rows are within
+ * their freshness windows. Consumers linked to package version 1 keep reading the
+ * `"SVI"` rows under that version's hardcoded model until those rows age out.
+ * Confirm the provider publishes the model for every expiry the store serves
+ * before setting it.
+ */
+export function setBlockScholesSviModel(options: SetBlockScholesSviModelOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
+	const parameterNames = ['sviStore', 'AdminCap', 'sviModel'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'set_block_scholes_svi_model',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}

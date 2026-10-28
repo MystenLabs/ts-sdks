@@ -13,11 +13,18 @@
  * so an unusable observation cannot claim a permanent key. Value and SVI
  * observations use separate stores because the verifier exposes distinct batch and
  * value types. The registry creates and binds both stores atomically from one
- * base-asset input.
+ * base-asset input. An SVI store also derives its series ids from an admin-set
+ * provider model, so the admin chooses which of the provider's SVI surfaces the
+ * store accepts and serves.
  */
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	MoveTuple,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { U64, U128, U256 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
@@ -86,6 +93,10 @@ export const BlockScholesSVIStore = new MoveStruct({
 		svis: table.Table,
 	},
 });
+export const SviModelKey = new MoveTuple({
+	name: `${$moduleName}::SviModelKey`,
+	fields: [bcs.bool()],
+});
 /**
  * Emitted only for observations that were stored, so its presence means the series
  * advanced.
@@ -119,6 +130,14 @@ export function BlockScholesObservationInserted<Observation extends BcsType<any>
 		},
 	});
 }
+export const BlockScholesSVIModelSet = new MoveStruct({
+	name: `${$moduleName}::BlockScholesSVIModelSet`,
+	fields: {
+		propbook_underlying_id: bcs.u32(),
+		propbook_oracle_id: bcs.Address,
+		svi_model: bcs.string(),
+	},
+});
 export const BlockScholesBatchIngested = new MoveStruct({
 	name: `${$moduleName}::BlockScholesBatchIngested`,
 	fields: {
@@ -257,6 +276,29 @@ export function sviStoreVersion(options: SviStoreVersionOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SviModelArguments {
+	store: RawTransactionArgument<string>;
+}
+export interface SviModelOptions {
+	package?: string;
+	arguments: SviModelArguments | [store: RawTransactionArgument<string>];
+}
+/**
+ * Returns the provider model this store's SVI series ids derive from, for relayer
+ * subscription construction through devInspect.
+ */
+export function sviModel(options: SviModelOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['store'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'svi_model',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface SpotSidArguments {
 	store: RawTransactionArgument<string>;
 }
@@ -310,7 +352,10 @@ export interface SviSidOptions {
 		| SviSidArguments
 		| [store: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
 }
-/** Returns one canonical SVI series id for external subscription construction. */
+/**
+ * Returns one canonical SVI series id, under the store's current model, for
+ * external subscription construction.
+ */
 export function sviSid(options: SviSidOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];

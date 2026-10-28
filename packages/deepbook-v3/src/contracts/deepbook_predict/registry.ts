@@ -14,6 +14,7 @@
 
 import {
 	MoveStruct,
+	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 	type ConfigValue,
@@ -48,6 +49,10 @@ export const Registry = new MoveStruct({
 		 */
 		allowed_pool_valuation_caps: vec_set.VecSet(bcs.Address),
 	},
+});
+export const CadencePeriodsKey = new MoveTuple({
+	name: `${$moduleName}::CadencePeriodsKey`,
+	fields: [bcs.bool()],
 });
 export interface IdArguments {
 	registry?: RawTransactionArgument<string>;
@@ -165,9 +170,9 @@ export interface CadenceConfigsOptions {
  * Return one underlying's complete deployment policy as a single coherent
  * snapshot, for off-chain consumers (SDK and devInspect cadence discovery by the
  * keeper, price updater, and dashboard) that would otherwise need one read per
- * cadence. The vector holds one entry per supported cadence, indexed by cadence
- * ID; disabled cadences are present as their all-zero configuration. Aborts if the
- * underlying is not registered.
+ * cadence. The vector holds one entry per cadence in `cadence_periods`, indexed by
+ * cadence ID; disabled cadences are present as their all-zero configuration.
+ * Aborts if the underlying is not registered.
  */
 export function cadenceConfigs(options: CadenceConfigsOptions) {
 	const packageAddress =
@@ -179,6 +184,43 @@ export function cadenceConfigs(options: CadenceConfigsOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'cadence_configs',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface CadencePeriodsArguments {
+	registry?: RawTransactionArgument<string>;
+}
+export interface CadencePeriodsOptions {
+	package?: string;
+	arguments?: CadencePeriodsArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return every cadence's period in milliseconds, indexed by cadence ID, for
+ * devInspect cadence discovery by the keeper, price collector, and dashboard. The
+ * table starts with the six built-in cadences and grows through `add_cadence`;
+ * read it in the same transaction as `cadence_configs` for a consistent pair.
+ */
+export function cadencePeriods(options: CadencePeriodsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['registry'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'cadence_periods',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -592,6 +634,49 @@ export function registerUnderlying(options: RegisterUnderlyingOptions) {
 			),
 		});
 }
+export interface AddCadenceArguments {
+	registry?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	periodMs: RawTransactionArgument<number | bigint>;
+}
+export interface AddCadenceOptions {
+	package?: string;
+	arguments: AddCadenceArguments;
+	config?: {
+		registry: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Append a cadence with period `period_ms` to the cadence table and return its ID.
+ * The period is a whole number of minutes, at most one year, and not already in
+ * the table, which holds at most 16 cadences. A new cadence is disabled on every
+ * underlying until `set_template_cadence_config` sets its terms; periods never
+ * change, so retire a cadence by disabling it.
+ */
+export function addCadence(options: AddCadenceOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['registry', 'config', 'AdminCap', 'periodMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'add_cadence',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface SetTemplateCadenceConfigArguments {
 	registry?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
@@ -616,6 +701,8 @@ export interface SetTemplateCadenceConfigOptions {
 /**
  * Set all deployment terms for one underlying's cadence. Passing zero for all five
  * values disables the cadence; otherwise all values must be nonzero and valid.
+ * Aborts if the underlying's enabled windows would sum past the pool's live-market
+ * cap.
  */
 export function setTemplateCadenceConfig(options: SetTemplateCadenceConfigOptions) {
 	const packageAddress =
@@ -686,9 +773,10 @@ export interface CreateAndShareExpiryMarketOptions {
  *
  * Requires an allowlisted lifecycle capability, a registered underlying with all
  * canonical feed objects bound, and an enabled cadence with a deployable slot.
- * Higher-rank cadence overlaps and existing markets are skipped. The market
- * snapshots cadence and expiry policy, starts with zero cash, and cannot mint
- * until pool rebalancing funds it. Live pricing reads current Propbook bindings.
+ * Slots owned by a longer enabled cadence and existing markets are skipped. The
+ * market snapshots cadence and expiry policy, starts with zero cash, and cannot
+ * mint until pool rebalancing funds it. Live pricing reads current Propbook
+ * bindings.
  */
 export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOptions) {
 	const packageAddress =
@@ -717,6 +805,74 @@ export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOp
 			package: packageAddress,
 			module: 'registry',
 			function: 'create_and_share_expiry_market',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					poolVault: options.arguments?.poolVault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface CreateAndShareExpiryMarketAtArguments {
+	registry?: RawTransactionArgument<string>;
+	poolVault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
+	lifecycleCap: RawTransactionArgument<string>;
+	propbookUnderlyingId: RawTransactionArgument<number>;
+	cadenceId: RawTransactionArgument<number>;
+	expectedExpiry: RawTransactionArgument<number | bigint>;
+}
+export interface CreateAndShareExpiryMarketAtOptions {
+	package?: string;
+	arguments: CreateAndShareExpiryMarketAtArguments;
+	config?: {
+		registry: ConfigValue;
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * `create_and_share_expiry_market`, aborting unless the deployable expiry is
+ * `expected_expiry`. A keeper that planned the expiry off chain uses this so that
+ * a stale view of the cadence table fails instead of creating an unplanned market.
+ */
+export function createAndShareExpiryMarketAt(options: CreateAndShareExpiryMarketAtOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u32',
+		'u8',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'poolVault',
+		'config',
+		'propbookRegistry',
+		'lifecycleCap',
+		'propbookUnderlyingId',
+		'cadenceId',
+		'expectedExpiry',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'create_and_share_expiry_market_at',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
