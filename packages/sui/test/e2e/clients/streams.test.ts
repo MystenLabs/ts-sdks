@@ -1071,6 +1071,13 @@ describe('ledger streams', () => {
 				);
 				await waitFor(() => log.kinds().includes(listening(kind, delivery)));
 				await sleep(5_000);
+				if (kind === 'graphql' && delivery === 'subscribe') {
+					// The server keeps sending progress while the filter is quiet (every two checkpoints
+					// with the test config), so the baseline below is a live progress position.
+					const progress = () => reader!.frames.filter((frame) => frame.$kind === 'Progress');
+					const before = progress().length;
+					await waitFor(() => progress().length > before, 10_000);
+				}
 				const quiet = log.kinds();
 				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
 				expect(quiet).not.toContain('Retrying');
@@ -1674,18 +1681,25 @@ describe('ledger streams', () => {
 			});
 			// With `progress: true`, a filtered subscription also sends progress edges: a cursor with a
 			// null node and no errors.
+			const next = async () => {
+				const { value, done } = await subscription.next();
+				if (done) throw new Error('Subscription ended');
+				expect(value.errors).toBeUndefined();
+				return value.data!.transactions;
+			};
 			const nextDigest = async () => {
 				while (true) {
-					const { value, done } = await subscription.next();
-					if (done) throw new Error('Subscription ended');
-					expect(value.errors).toBeUndefined();
-					const node = value.data?.transactions.node;
+					const { node } = await next();
 					if (node) return node.digest;
 				}
 			};
 			expect(await nextDigest()).toBe(second.digest);
 			const third = await emitEvents(from, 1);
 			expect(await nextDigest()).toBe(third.digest);
+			// The test config sends live progress after two quiet checkpoints.
+			const progress = await next();
+			expect(progress.node).toBeNull();
+			expect(progress.cursor).toEqual(expect.any(String));
 			await subscription.return(undefined);
 		});
 
