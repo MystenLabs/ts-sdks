@@ -184,7 +184,7 @@ export namespace SuiClientTypes {
 	/** A streamed checkpoint, with `transactions` when `include.transactions` is set. */
 	export type StreamedCheckpoint<Include extends StreamCheckpointInclude = {}> = Checkpoint &
 		(Include extends { transactions: infer TransactionFields extends TransactionInclude }
-			? { transactions: Transaction<TransactionFields>[] }
+			? { transactions: TransactionResult<TransactionFields>[] }
 			: {});
 
 	export interface StreamTransactionsOptions<
