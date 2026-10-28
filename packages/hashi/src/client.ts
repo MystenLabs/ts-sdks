@@ -957,17 +957,23 @@ export class HashiClient {
 
 				const requestsBagId = btcState.deposit_queue.requests.id;
 
-				const reqResult = await this.#client.core
-					.getDynamicField({
-						parentId: requestsBagId,
-						name: {
-							type: OBJECT_BAG_ADDRESS_TYPE,
-							bcs: bcs.Address.serialize(parsed.request_id).toBytes(),
-						},
-					})
-					.catch(() => null);
+				// Existence check on the bag's field object. Only a missing field means
+				// confirmed; any other failure must propagate rather than misreport.
+				const fieldId = deriveDynamicFieldID(
+					requestsBagId,
+					OBJECT_BAG_ADDRESS_TYPE,
+					bcs.Address.serialize(parsed.request_id).toBytes(),
+				);
+				const {
+					objects: [field],
+				} = await this.#client.core.getObjects({ objectIds: [fieldId] });
 
-				status = reqResult?.dynamicField ? 'pending' : 'confirmed';
+				if (field instanceof Error) {
+					if (!isObjectNotFoundError(field)) throw field;
+					status = 'confirmed';
+				} else {
+					status = 'pending';
+				}
 			} catch (err) {
 				if (err instanceof Error && isObjectNotFoundError(err)) {
 					status = 'expired';
