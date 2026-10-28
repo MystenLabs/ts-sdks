@@ -232,17 +232,19 @@ describe('transport parity of transaction mappings', () => {
 				client.core.streamTransactions({ ...range, include: INCLUDE }),
 			);
 			expect(checkpoints.flatMap((checkpoint) => checkpoint.transactions)).toEqual(
-				transactions.map((frame) => unwrap(frame.transaction)),
+				transactions.map((frame) => frame.transaction),
 			);
 			const delivered = new Set(
-				checkpoints.flatMap((checkpoint) => checkpoint.transactions.map((tx) => tx.digest)),
+				checkpoints.flatMap((checkpoint) =>
+					checkpoint.transactions.map((result) => unwrap(result).digest),
+				),
 			);
 			for (const digest of Object.values(digests)) expect(delivered).toContain(digest);
 			// Other test files run alongside this one; compare only this file's transactions.
 			const ours = new Set(Object.values(digests));
 			return checkpoints.map((checkpoint) => ({
 				...checkpoint,
-				transactions: checkpoint.transactions.filter((tx) => ours.has(tx.digest)),
+				transactions: checkpoint.transactions.filter((result) => ours.has(unwrap(result).digest)),
 			}));
 		}, withoutErrorMessages);
 	});
