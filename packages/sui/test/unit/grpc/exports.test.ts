@@ -41,6 +41,7 @@ describe('@mysten/sui/grpc/pull-transport', () => {
 		expect(Object.keys(pullTransport).sort()).toEqual([
 			'PULL_SERVER_STREAMING',
 			'grpcStatusFromAbortReason',
+			'markConnectionLost',
 			'markNonRetryable',
 		]);
 	});
