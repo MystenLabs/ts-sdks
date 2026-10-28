@@ -85,6 +85,55 @@ it('keeps the HTTP status of a proxy error on unary and streaming calls', async 
 	expect(httpStatusOf(stream)).toBe(429);
 });
 
+/** A binary gRPC-web response whose body is `chunks`. */
+function grpcWebResponse(chunks: Uint8Array[]) {
+	return new Response(
+		new ReadableStream({
+			start(controller) {
+				for (const chunk of chunks) controller.enqueue(chunk);
+				controller.close();
+			},
+		}),
+		{ headers: { 'content-type': 'application/grpc-web+proto' } },
+	);
+}
+
+function frame(flags: number, payload: Uint8Array) {
+	const bytes = new Uint8Array(5 + payload.length);
+	bytes[0] = flags;
+	new DataView(bytes.buffer).setUint32(1, payload.length);
+	bytes.set(payload, 5);
+	return bytes;
+}
+
+describe('a response body cut short', () => {
+	// An empty ListEventsResponse message, then the trailer.
+	const data = frame(0, new Uint8Array());
+	const trailer = frame(0x80, new TextEncoder().encode('grpc-status: 0\r\n'));
+
+	it.each([
+		['before its trailers', [data], 'missing trailers'],
+		['inside a frame', [data, trailer.subarray(0, 3)], 'premature EOF'],
+	])('is a lost connection %s', async (_, chunks, message) => {
+		const error = await read(async () => grpcWebResponse(chunks)).catch((error: unknown) => error);
+		expect(error).toMatchObject({ code: 'UNAVAILABLE', message });
+		expect(isConnectionLost(error)).toBe(true);
+	});
+
+	it('reads a complete body', async () => {
+		await expect(read(async () => grpcWebResponse([data, trailer]))).resolves.toBeUndefined();
+	});
+});
+
+it('cancels the body of a non-2xx response', async () => {
+	const cancel = vi.fn();
+	await read(async () => {
+		const response = new Response(new ReadableStream({ cancel }), { status: 503 });
+		return response;
+	}).catch(() => {});
+	expect(cancel).toHaveBeenCalled();
+});
+
 it('codes a failed response body read as UNAVAILABLE', async () => {
 	const fetch = async () =>
 		new Response(
