@@ -45,15 +45,16 @@ function transactionsPage(
 	cp: number,
 	from: number,
 	to: number,
-	options: { more?: boolean; indexedThrough?: number; count?: number } = {},
+	options: { more?: boolean; indexedThrough?: number; count?: number | null } = {},
 ): Answer {
-	// Running totals before and through the checkpoint, when the test gives its count.
+	// Running totals before and through the checkpoint, when the test gives its count; `null`: the
+	// server no longer has the previous checkpoint.
 	const totals =
 		options.count === undefined
 			? {}
 			: {
-					total: { networkTotalTransactions: 1_000 + options.count },
-					previousTotal: { networkTotalTransactions: 1_000 },
+					total: { networkTotalTransactions: 1_000 + (options.count ?? 0) },
+					previousTotal: options.count === null ? null : { networkTotalTransactions: 1_000 },
 				};
 	return ({ server }) =>
 		Response.json({
@@ -188,6 +189,24 @@ describe('GraphQL checkpoint streams with transactions', () => {
 			previousCheckpoint: 0,
 			hasPrevious: true,
 		});
+
+		// Totals are read once, on the first follow-up page.
+		const paged = fakeGraphQL()
+			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 120)]))
+			.on(
+				'checkpointTransactions',
+				transactionsPage(1, 50, 100, { more: true, count: 120 }),
+				transactionsPage(1, 100, 120),
+			);
+		await collect(paged.client.core.streamCheckpoints({ ...range, include }));
+		expect(paged.sent('checkpointTransactions').map((v) => v.withTotals)).toEqual([true, false]);
+
+		// Without the previous checkpoint's total the count is unknown, and the pages are trusted.
+		const unknown = fakeGraphQL()
+			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 60)]))
+			.on('checkpointTransactions', transactionsPage(1, 50, 60, { count: null }));
+		const read = await collect(unknown.client.core.streamCheckpoints({ ...range, include }));
+		expect(transactionDigests(read)).toEqual([digests(1, 0, 60)]);
 
 		// A server that no longer has some of them ends the pages early.
 		const pruned = fakeGraphQL()

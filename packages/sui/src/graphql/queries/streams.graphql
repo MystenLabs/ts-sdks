@@ -226,6 +226,7 @@ subscription subscribeCheckpointsWithTransactions(
 query checkpointTransactions(
 	$atCheckpoint: UInt53!
 	$previousCheckpoint: UInt53 = 0
+	$withTotals: Boolean!
 	$hasPrevious: Boolean!
 	$after: String
 	$includeTransaction: Boolean = false
@@ -241,7 +242,7 @@ query checkpointTransactions(
 		sequenceNumber
 	}
 	# Running transaction totals, whose difference is the checkpoint's transaction count.
-	total: checkpoint(sequenceNumber: $atCheckpoint) {
+	total: checkpoint(sequenceNumber: $atCheckpoint) @include(if: $withTotals) {
 		networkTotalTransactions
 	}
 	previousTotal: checkpoint(sequenceNumber: $previousCheckpoint) @include(if: $hasPrevious) {
