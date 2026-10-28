@@ -31,7 +31,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bech32, bech32m } from '@scure/base';
-import { fromHex, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
+import { deriveDynamicFieldID, fromHex, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
 
 const HASHI_OBJECT_ID = '0x0000000000000000000000000000000000000000000000000000000000000001';
 const PACKAGE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002';
@@ -1683,7 +1683,10 @@ describe('HashiClient', () => {
 			expect(result).toBeNull();
 		});
 
-		it('returns pending status when request exists in the requests bag', async () => {
+		const REQUESTS_BAG_ID = '0x' + 'd1'.repeat(32);
+
+		/** Mocks every read `depositStatus` makes before the requests-bag lookup. */
+		function mockDepositUpToBagLookup(approvedTimestampMs: string | null) {
 			vi.spyOn(client.core, 'getTransaction').mockResolvedValueOnce({
 				Transaction: {
 					events: [
@@ -1702,18 +1705,16 @@ describe('HashiClient', () => {
 			} as never);
 
 			vi.spyOn(DepositRequest, 'get').mockResolvedValueOnce({
-				json: { approved_timestamp_ms: null },
+				json: { approved_timestamp_ms: approvedTimestampMs },
 			} as never);
 
-			const getDfSpy = vi.spyOn(client.core, 'getDynamicField');
-			// First call: fetchBitcoinState
-			getDfSpy.mockResolvedValueOnce({
+			vi.spyOn(client.core, 'getDynamicField').mockResolvedValueOnce({
 				dynamicField: {
 					value: {
 						bcs: BitcoinState.serialize({
 							id: '0x' + 'b0'.repeat(32),
 							deposit_queue: {
-								requests: { id: '0x' + 'd1'.repeat(32), size: '0' },
+								requests: { id: REQUESTS_BAG_ID, size: '0' },
 								processed: { id: '0x' + 'd2'.repeat(32), size: '0' },
 							},
 							withdrawal_queue: {
@@ -1731,12 +1732,23 @@ describe('HashiClient', () => {
 					},
 				},
 			} as never);
-			// Second call: check requests bag — found means pending
-			getDfSpy.mockResolvedValueOnce({
-				dynamicField: { objectId: REQUEST_ID },
+		}
+
+		const requestFieldId = () =>
+			deriveDynamicFieldID(
+				REQUESTS_BAG_ID,
+				'0x2::dynamic_object_field::Wrapper<address>',
+				bcs.Address.serialize(REQUEST_ID).toBytes(),
+			);
+
+		it('returns pending status when request exists in the requests bag', async () => {
+			mockDepositUpToBagLookup(null);
+			const getObjectsSpy = vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [{ objectId: requestFieldId() }],
 			} as never);
 
 			const result = await client.hashi.view.depositStatus('test-digest');
+			expect(getObjectsSpy).toHaveBeenCalledWith({ objectIds: [requestFieldId()] });
 			expect(result).not.toBeNull();
 			expect(result!.status).toBe('pending');
 			expect(result!.amountSats).toBe(50_000n);
@@ -1746,65 +1758,32 @@ describe('HashiClient', () => {
 		});
 
 		it('returns confirmed status when request exists but is not in the requests bag', async () => {
-			vi.spyOn(client.core, 'getTransaction').mockResolvedValueOnce({
-				Transaction: {
-					events: [
-						{
-							eventType: `${PACKAGE_ID}::deposit::DepositRequested`,
-							json: {
-								request_id: REQUEST_ID,
-								utxo_id: { txid: '0x' + 'ab'.repeat(32), vout: 0 },
-								amount: '50000',
-								derivation_path: TEST_SUI_ADDRESS,
-								timestamp_ms: '1000',
-							},
-						},
-					],
-				},
-			} as never);
-
-			vi.spyOn(DepositRequest, 'get').mockResolvedValueOnce({
-				json: { approved_timestamp_ms: '5000' },
-			} as never);
-
+			mockDepositUpToBagLookup('5000');
 			mockHashiWithConfig(WELL_FORMED_CONFIG);
-
-			const getDfSpy = vi.spyOn(client.core, 'getDynamicField');
-			// fetchBitcoinState
-			getDfSpy.mockResolvedValueOnce({
-				dynamicField: {
-					value: {
-						bcs: BitcoinState.serialize({
-							id: '0x' + 'b0'.repeat(32),
-							deposit_queue: {
-								requests: { id: '0x' + 'd1'.repeat(32), size: '0' },
-								processed: { id: '0x' + 'd2'.repeat(32), size: '0' },
-							},
-							withdrawal_queue: {
-								requests: { id: '0x' + 'c1'.repeat(32), size: '0' },
-								processed: { id: '0x' + 'c2'.repeat(32), size: '0' },
-								withdrawal_txns: { id: '0x' + 'c3'.repeat(32), size: '0' },
-								confirmed_txns: { id: '0x' + 'c4'.repeat(32), size: '0' },
-							},
-							utxo_pool: {
-								utxo_records: { id: '0x' + 'a1'.repeat(32), size: '0' },
-								spent_utxos: { id: '0x' + 'a2'.repeat(32), size: '0' },
-							},
-							user_requests: { id: '0x' + 'a3'.repeat(32), size: '0' },
-						}).toBytes(),
-					},
-				},
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [
+					new ObjectError('notExists', 'Object not found', {
+						reason: 'notFound',
+						objectId: requestFieldId(),
+					}),
+				],
 			} as never);
-			// requests bag lookup — not found means confirmed
-			getDfSpy.mockRejectedValueOnce(
-				Object.assign(new Error('not found'), { code: 'dynamicFieldNotFound' }),
-			);
 
 			const result = await client.hashi.view.depositStatus('test-digest');
 			expect(result).not.toBeNull();
 			expect(result!.status).toBe('confirmed');
 			expect(result!.approvalTimestampMs).toBe(5_000n);
 			expect(result!.confirmableAtMs).toBe(5_000n + 600_000n);
+		});
+
+		it('propagates requests-bag lookup failures other than not found', async () => {
+			mockDepositUpToBagLookup(null);
+			const failure = new ObjectError('INTERNAL', 'internal server error', { reason: 'unknown' });
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [failure],
+			} as never);
+
+			await expect(client.hashi.view.depositStatus('test-digest')).rejects.toBe(failure);
 		});
 
 		it('returns expired status when request object is not found', async () => {
