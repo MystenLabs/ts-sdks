@@ -1486,10 +1486,11 @@ export class HashiClient {
 		const keys: string[] = [];
 		let cursor: string | null = null;
 		do {
-			const page = await this.#client.core.listDynamicFields({
-				parentId,
-				cursor: cursor ?? undefined,
-			});
+			const page: SuiClientTypes.ListDynamicFieldsResponse =
+				await this.#client.core.listDynamicFields({
+					parentId,
+					cursor: cursor ?? undefined,
+				});
 			for (const df of page.dynamicFields) {
 				keys.push(bcs.Address.parse(new Uint8Array(df.name.bcs)));
 			}

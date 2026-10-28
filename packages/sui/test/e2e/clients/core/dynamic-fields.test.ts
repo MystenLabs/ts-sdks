@@ -5,14 +5,15 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import { bcs } from '../../../../src/bcs/index.js';
-import type { SuiGrpcClient } from '../../../../src/grpc/index.js';
-import type { SuiGraphQLClient } from '../../../../src/graphql/index.js';
+import type { SuiClientTypes } from '../../../../src/client/index.js';
+import { deriveDynamicFieldID } from '../../../../src/utils/dynamic-fields.js';
 
 describe('Core API - Dynamic Fields', () => {
 	let toolbox: TestToolbox;
 	let testPackageId: string;
 	let objectWithDynamicFieldsId: string;
 	let objectWithMixedFieldsId: string;
+	let objectWithStructFieldsId: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
@@ -67,9 +68,43 @@ describe('Core API - Dynamic Fields', () => {
 		expect(mixedObj).toBeDefined();
 		objectWithMixedFieldsId = mixedObj!.objectId;
 
+		// Create an object whose fields use struct names and struct values
+		const tx3 = new Transaction();
+		tx3.moveCall({
+			target: `${testPackageId}::test_objects::create_object_with_struct_dynamic_fields`,
+		});
+
+		const result3 = await toolbox.signAndExecuteTransaction({
+			transaction: tx3,
+			signer: toolbox.keypair,
+			include: { effects: true, objectTypes: true },
+		});
+
+		expect(result3.$kind).toBe('Transaction');
+		const structObj = result3.Transaction?.effects.changedObjects.find(
+			(change) =>
+				change.idOperation === 'Created' &&
+				result3.Transaction?.objectTypes[change.objectId]?.includes(
+					'test_objects::ObjectWithDynamicFields',
+				),
+		);
+		expect(structObj).toBeDefined();
+		objectWithStructFieldsId = structObj!.objectId;
+
 		expect(objectWithDynamicFieldsId).toBeDefined();
 		expect(objectWithMixedFieldsId).toBeDefined();
 	});
+
+	const sortByFieldId = <T extends { cursor: string | null; dynamicFields: { fieldId: string }[] }>(
+		result: T,
+	) => ({
+		...result,
+		cursor: null,
+		dynamicFields: [...result.dynamicFields].sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
+	});
+
+	const decodeName = (field: SuiClientTypes.DynamicFieldEntry<any>) =>
+		new TextDecoder().decode(new Uint8Array(bcs.vector(bcs.u8()).parse(field.name.bcs)));
 
 	describe('getDynamicFields', () => {
 		it('all clients return same data: getDynamicFields', async () => {
@@ -205,153 +240,109 @@ describe('Core API - Dynamic Fields', () => {
 	});
 
 	describe('listDynamicFields with include: { value: true }', () => {
-		it('[gRPC] should return value BCS when include value is true', async () => {
-			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
-			const result = await grpcClient.listDynamicFields({
+		for (const [label, getParentId] of [
+			['dynamic fields', () => objectWithDynamicFieldsId],
+			['mixed dynamic and dynamic object fields', () => objectWithMixedFieldsId],
+			['struct names and values', () => objectWithStructFieldsId],
+		] as const) {
+			it(`all clients return same data: ${label}`, async () => {
+				await toolbox.expectAllClientsReturnSameData(
+					(client) => client.core.listDynamicFields({ parentId: getParentId() }),
+					sortByFieldId,
+				);
+			});
+
+			it(`all clients return same data with values: ${label}`, async () => {
+				await toolbox.expectAllClientsReturnSameData(
+					(client) =>
+						client.core.listDynamicFields({
+							parentId: getParentId(),
+							include: { value: true },
+						}),
+					sortByFieldId,
+				);
+			});
+
+			testWithAllClients(`entries match the field objects: ${label}`, async (client) => {
+				const parentId = getParentId();
+				const { dynamicFields } = await client.core.listDynamicFields({
+					parentId,
+					include: { value: true },
+				});
+				const { objects } = await client.core.getObjects({
+					objectIds: dynamicFields.map((field) => field.fieldId),
+				});
+
+				dynamicFields.forEach((field, i) => {
+					const fieldObject = objects[i];
+					if (fieldObject instanceof Error) throw fieldObject;
+					expect(field.type).toBe(fieldObject.type);
+					expect(field.value.type).toBe(field.valueType);
+
+					const nameType =
+						field.$kind === 'DynamicObject'
+							? `0x2::dynamic_object_field::Wrapper<${field.name.type}>`
+							: field.name.type;
+					expect(field.fieldId).toBe(deriveDynamicFieldID(parentId, nameType, field.name.bcs));
+				});
+			});
+		}
+
+		testWithAllClients('should return field values', async (client) => {
+			const result = await client.core.listDynamicFields({
 				parentId: objectWithDynamicFieldsId,
 				include: { value: true },
 			});
 
 			expect(result.dynamicFields.length).toBe(3);
-			for (const field of result.dynamicFields) {
-				expect(field.value).toBeDefined();
-				expect(field.value.type).toBeTypeOf('string');
-				expect(field.value.bcs).toBeInstanceOf(Uint8Array);
-				expect(field.value.bcs.length).toBeGreaterThan(0);
-			}
-
-			// Find the u64 field and verify the decoded value is 42
-			const u64Field = result.dynamicFields.find((f) => {
-				const decodedArray = bcs.vector(bcs.u8()).parse(f.name.bcs);
-				return new TextDecoder().decode(new Uint8Array(decodedArray)) === 'field_u64';
-			});
-			expect(u64Field).toBeDefined();
-			expect(bcs.u64().parse(u64Field!.value.bcs)).toBe('42');
+			const values = Object.fromEntries(
+				result.dynamicFields.map((field) => [decodeName(field), field.value]),
+			);
+			expect(values.field_u64.type).toBe('u64');
+			expect(bcs.u64().parse(values.field_u64.bcs)).toBe('42');
+			expect(values.field_bool.type).toBe('bool');
+			expect(bcs.bool().parse(values.field_bool.bcs)).toBe(true);
+			expect(values.field_address.type).toBe('address');
+			expect(bcs.Address.parse(values.field_address.bcs)).toBe(toolbox.address());
 		});
 
-		it('[GraphQL] should return value BCS when include value is true', async () => {
-			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
-			const result = await graphqlClient.listDynamicFields({
-				parentId: objectWithDynamicFieldsId,
-				include: { value: true },
+		testWithAllClients('should return undefined value without include', async (client) => {
+			const result = await client.core.listDynamicFields({
+				parentId: objectWithMixedFieldsId,
 			});
 
-			expect(result.dynamicFields.length).toBe(3);
-			for (const field of result.dynamicFields) {
-				expect(field.value).toBeDefined();
-				expect(field.value.type).toBeTypeOf('string');
-				expect(field.value.bcs).toBeInstanceOf(Uint8Array);
-				expect(field.value.bcs.length).toBeGreaterThan(0);
-			}
-
-			// Find the u64 field and verify the decoded value is 42
-			const u64Field = result.dynamicFields.find((f) => {
-				const decodedArray = bcs.vector(bcs.u8()).parse(f.name.bcs);
-				return new TextDecoder().decode(new Uint8Array(decodedArray)) === 'field_u64';
-			});
-			expect(u64Field).toBeDefined();
-			expect(bcs.u64().parse(u64Field!.value.bcs)).toBe('42');
-		});
-
-		it('[gRPC] should return undefined value without include', async () => {
-			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
-			const result = await grpcClient.listDynamicFields({
-				parentId: objectWithDynamicFieldsId,
-			});
-
+			expect(result.dynamicFields.length).toBe(2);
 			for (const field of result.dynamicFields) {
 				expect(field.value).toBeUndefined();
 			}
 		});
 
-		it('[GraphQL] should return undefined value without include', async () => {
-			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
-			const result = await graphqlClient.listDynamicFields({
-				parentId: objectWithDynamicFieldsId,
-			});
-
-			for (const field of result.dynamicFields) {
-				expect(field.value).toBeUndefined();
-			}
-		});
-
-		it('[gRPC] should return value for mixed dynamic fields including DOFs', async () => {
-			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
-			const result = await grpcClient.listDynamicFields({
-				parentId: objectWithMixedFieldsId,
-				include: { value: true },
-			});
-
-			expect(result.dynamicFields.length).toBe(2);
-
-			const regularField = result.dynamicFields.find((f) => f.$kind === 'DynamicField');
-			const objectField = result.dynamicFields.find((f) => f.$kind === 'DynamicObject');
-
-			expect(regularField).toBeDefined();
-			expect(objectField).toBeDefined();
-
-			// Both should have value
-			expect(regularField!.value).toBeDefined();
-			expect(regularField!.value.bcs.length).toBeGreaterThan(0);
-			expect(objectField!.value).toBeDefined();
-			expect(objectField!.value.bcs.length).toBeGreaterThan(0);
-
-			// Regular field value should decode to 100u64
-			expect(bcs.u64().parse(regularField!.value.bcs)).toBe('100');
-		});
-
-		it('[GraphQL] should return value for mixed dynamic fields including DOFs', async () => {
-			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
-			const result = await graphqlClient.listDynamicFields({
-				parentId: objectWithMixedFieldsId,
-				include: { value: true },
-			});
-
-			expect(result.dynamicFields.length).toBe(2);
-
-			const regularField = result.dynamicFields.find((f) => f.$kind === 'DynamicField');
-			const objectField = result.dynamicFields.find((f) => f.$kind === 'DynamicObject');
-
-			expect(regularField).toBeDefined();
-			expect(objectField).toBeDefined();
-
-			// Both should have value
-			expect(regularField!.value).toBeDefined();
-			expect(regularField!.value.bcs.length).toBeGreaterThan(0);
-			expect(objectField!.value).toBeDefined();
-			expect(objectField!.value.bcs.length).toBeGreaterThan(0);
-
-			// Regular field value should decode to 100u64
-			expect(bcs.u64().parse(regularField!.value.bcs)).toBe('100');
-		});
-
-		it('gRPC and GraphQL return same data with include value', async () => {
-			const grpcClient = toolbox.grpcClient as SuiGrpcClient;
-			const graphqlClient = toolbox.graphqlClient as SuiGraphQLClient;
-
-			const [grpcResult, graphqlResult] = await Promise.all([
-				grpcClient.listDynamicFields({
-					parentId: objectWithDynamicFieldsId,
+		testWithAllClients(
+			'should return the child object content for dynamic object fields',
+			async (client) => {
+				const result = await client.core.listDynamicFields({
+					parentId: objectWithMixedFieldsId,
 					include: { value: true },
-				}),
-				graphqlClient.listDynamicFields({
-					parentId: objectWithDynamicFieldsId,
-					include: { value: true },
-				}),
-			]);
+				});
 
-			const normalize = (fields: typeof grpcResult.dynamicFields) =>
-				fields
-					.sort((a, b) => a.fieldId.localeCompare(b.fieldId))
-					.map((f) => ({
-						fieldId: f.fieldId,
-						$kind: f.$kind,
-						valueType: f.valueType,
-						valueBcs: Array.from(f.value.bcs),
-					}));
+				const regularField = result.dynamicFields.find((f) => f.$kind === 'DynamicField')!;
+				const objectField = result.dynamicFields.find((f) => f.$kind === 'DynamicObject')!;
 
-			expect(normalize(grpcResult.dynamicFields)).toEqual(normalize(graphqlResult.dynamicFields));
-		});
+				expect(bcs.u64().parse(regularField.value.bcs)).toBe('100');
+
+				const { object: child } = await client.core.getObject({
+					objectId: objectField.childId!,
+					include: { content: true },
+				});
+				expect(objectField.valueType).toBe(child.type);
+				expect(objectField.value).toEqual({ type: child.type, bcs: child.content });
+				expect(
+					bcs
+						.struct('SimpleObject', { id: bcs.Address, value: bcs.u64() })
+						.parse(objectField.value.bcs),
+				).toEqual({ id: objectField.childId, value: '42' });
+			},
+		);
 	});
 
 	describe('getDynamicField', () => {
