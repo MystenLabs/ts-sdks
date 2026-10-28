@@ -12,7 +12,7 @@ import type { SuiGraphQLClient } from '../client.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
 import { canResumeSubscription, liveSubscription } from './live.js';
 import { fetchGraphQLPage } from './page.js';
-import { classifyGraphQLError, readChainTip } from './query.js';
+import { classifyGraphQLError, graphQLRetryReason, readChainTip } from './query.js';
 
 export function graphQLLedgerStreamAdapter(
 	client: SuiGraphQLClient,
@@ -48,5 +48,6 @@ function adapterFor<Node>(
 
 		mapItem: (item) => family.map(item),
 		classify: classifyGraphQLError,
+		retryReason: graphQLRetryReason,
 	};
 }

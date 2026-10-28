@@ -24,3 +24,16 @@ export class SuiGraphQLRequestError extends Error {
 export function isRetryableStatus(status: number) {
 	return status === 408 || status === 429 || status >= 500;
 }
+
+const networkFailures = new WeakSet<object>();
+
+/** Marks a failure to reach the server or to read its response, as opposed to a server answer. */
+export function markNetworkFailure<E extends object>(error: E): E {
+	networkFailures.add(error);
+	return error;
+}
+
+/** Whether `error` was marked with `markNetworkFailure`. */
+export function isNetworkFailure(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && networkFailures.has(error);
+}
