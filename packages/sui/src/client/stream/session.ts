@@ -59,6 +59,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	#lastItem: StreamPosition | undefined;
 	#covered: Coverage;
 	#attemptStartBytes: Uint8Array | undefined;
+	#deliveredItem = false;
 	#delivering = false;
 	/** The committed state is within one reconnect of the live tip. */
 	#nearLiveTip: boolean;
@@ -105,6 +106,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 
 	beginAttempt(attempt: number) {
 		this.#attemptStartBytes = this.#committedBytes;
+		this.#deliveredItem = false;
 		this.#delivering = false;
 		this.#status.connecting(attempt);
 	}
@@ -120,6 +122,11 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	 */
 	catchesUpFirst(): boolean {
 		return this.start !== undefined && !this.#nearLiveTip;
+	}
+
+	/** Whether an item was delivered since `beginAttempt`. */
+	deliveredItemThisAttempt(): boolean {
+		return this.#deliveredItem;
 	}
 
 	/** Whether the committed position changed since `beginAttempt`. */
@@ -257,7 +264,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		this.signal.throwIfAborted();
 		this.#committed = event.position;
 		this.#committedBytes = this.#bytes(event.position);
-		if (event.$kind === 'Item') this.#lastItem = event.position;
+		if (event.$kind === 'Item') {
+			this.#lastItem = event.position;
+			this.#deliveredItem = true;
+		}
 		if (this.#plan.order === 'ascending') this.#cover(this.#coverage(event.position));
 
 		if (event.$kind === 'Item') {

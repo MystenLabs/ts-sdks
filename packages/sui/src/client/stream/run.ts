@@ -49,11 +49,11 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 	const prepared = prepareStream(traversal, tokens, adapter);
 
 	/** Waits before the next attempt, or throws when `error` ends the stream. */
-	async function backOff(error: unknown, advanced: boolean) {
+	async function backOff(error: unknown, advanced: boolean, progressOnly = false) {
 		if (signal.aborted || status.callbackFailed) throw error;
 		const errorClass = classify(error, adapter);
 		const reason = errorClass === 'fatal' ? undefined : retryReason(error, adapter);
-		const delay = retry.onFailure(error, errorClass, advanced, reason);
+		const delay = retry.onFailure(error, errorClass, advanced, reason, progressOnly);
 		status.retrying(retry.attempt, delay, reason!, error);
 		await sleep(delay, signal);
 	}
@@ -96,7 +96,7 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 			return;
 		} catch (error) {
 			session.endAttempt();
-			await backOff(error, session.advancedThisAttempt());
+			await backOff(error, session.advancedThisAttempt(), !session.deliveredItemThisAttempt());
 		}
 	}
 }
