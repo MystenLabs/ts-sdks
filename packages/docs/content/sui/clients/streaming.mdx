@@ -249,16 +249,20 @@ Checkpoint and transaction frames carry `timestampMs`; event and `Progress` fram
 how far a stream is behind, follow checkpoint headers alongside it and compare checkpoints:
 
 ```typescript
-let tip = 0n;
+let tip: bigint | undefined;
 (async () => {
 	for await (const frame of client.streamCheckpoints({ signal: controller.signal })) {
 		tip = BigInt(frame.checkpoint.sequenceNumber);
 		console.log('chain delay', Date.now() - frame.checkpoint.timestampMs, 'ms');
 	}
-})();
+})().catch((error) => {
+	if (!controller.signal.aborted) throw error;
+});
 
 for await (const frame of client.streamEvents({ filter, signal: controller.signal })) {
-	console.log('behind by', tip - BigInt(frame.event.checkpoint), 'checkpoints');
+	if (tip !== undefined) {
+		console.log('behind by', tip - BigInt(frame.event.checkpoint), 'checkpoints');
+	}
 }
 ```
 
@@ -275,12 +279,14 @@ client.streamEvents({
 ```
 
 Transient failures retry with exponential backoff and jitter. `maxAttempts` bounds consecutive
-failures without progress, and `maxAttempts: 0` disables retries. If the server or a proxy closes
-the stream after progress, it reconnects at once and resumes from the last frame.
+failures without progress, and `maxAttempts: 0` disables retries. If the connection breaks after
+progress, the stream reconnects at once without spending the budget and resumes from the last frame.
 
-`reason` says why: `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
-streams, while `Network`, `RateLimited`, `Timeout`, `Unavailable`, `NotIndexed`, `SlowConsumer` and
-`ServerError` can point at a problem worth alerting on.
+`reason` says why. `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
+streams, and `NotIndexed` is expected briefly near the tip and on new networks; alert on those only
+if they persist. `Network`, `RateLimited`, `Timeout`, `Unavailable`, `SlowConsumer` and
+`ServerError` can point at a problem. GraphQL reports a lagging subscriber or a server-side
+interruption as `ServerError`, where gRPC reports `SlowConsumer` or `Disconnected`.
 
 Retries don't bound waiting: a stream waiting for the index or for a sparse filter to match can stay
 quiet indefinitely. Use a signal to bound the total time:

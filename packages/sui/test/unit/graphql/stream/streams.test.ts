@@ -1290,7 +1290,7 @@ describe('errors', () => {
 		reply({ errors: [{ message: code, extensions: { code } }] });
 	it.each<[string, Answer, SuiClientTypes.StreamRetryReason]>([
 		['fetch', networkFailure, 'Network'],
-		['body', brokenBody, 'Network'],
+		['body', brokenBody, 'Disconnected'],
 		['HTTP 429', httpStatus(429), 'RateLimited'],
 		['HTTP 504', httpStatus(504), 'Timeout'],
 		['HTTP 503', httpStatus(503), 'Unavailable'],
@@ -1298,6 +1298,7 @@ describe('errors', () => {
 		['SERVICE_UNAVAILABLE', responseError('SERVICE_UNAVAILABLE'), 'Unavailable'],
 		['REQUEST_TIMEOUT', responseError('REQUEST_TIMEOUT'), 'Timeout'],
 		['INTERNAL_SERVER_ERROR', responseError('INTERNAL_SERVER_ERROR'), 'ServerError'],
+		['RESOURCE_EXHAUSTED', responseError('RESOURCE_EXHAUSTED'), 'ServerError'],
 	])('retries a %s failure', async (_name, failure, reason) => {
 		const server = fakeGraphQL().on(
 			'scanCheckpoints',
