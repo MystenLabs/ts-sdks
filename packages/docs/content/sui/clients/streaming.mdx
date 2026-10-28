@@ -67,9 +67,9 @@ for await (const frame of client.streamTransactions({
 ## Index whole checkpoints
 
 `include: { transactions }` on `streamCheckpoints` delivers each checkpoint with all of its
-transactions, in execution order, with the same fields as `streamTransactions`. Failed transactions
-are included with `status.success: false`. A checkpoint is yielded only once all of its transactions
-have been read, so an indexer can commit a checkpoint and its resume token together:
+transactions, in execution order, as the same `Transaction` or `FailedTransaction` results as
+`streamTransactions`. A checkpoint is yielded only once all of its transactions have been read, so
+an indexer can commit a checkpoint and its resume token together:
 
 ```typescript
 for await (const frame of client.streamCheckpoints({
@@ -78,7 +78,8 @@ for await (const frame of client.streamCheckpoints({
 	signal: controller.signal,
 })) {
 	await database.transaction(async (db) => {
-		for (const tx of frame.checkpoint.transactions) {
+		for (const result of frame.checkpoint.transactions) {
+			const tx = result.Transaction ?? result.FailedTransaction;
 			await db.processTransaction(frame.checkpoint.sequenceNumber, tx);
 		}
 		await db.saveResumeToken(frame.resumeToken);

@@ -67,7 +67,10 @@ function transactionsPage(
 const transactionDigests = (frames: { $kind: string }[]) =>
 	frames.map((frame) =>
 		frame.$kind === 'Checkpoint'
-			? (frame as any).checkpoint.transactions.map((tx: { digest: string }) => tx.digest)
+			? (frame as any).checkpoint.transactions.map(
+					(result: { Transaction?: { digest: string }; FailedTransaction?: { digest: string } }) =>
+						(result.Transaction ?? result.FailedTransaction)!.digest,
+				)
 			: frame.$kind,
 	);
 
@@ -141,15 +144,13 @@ describe('GraphQL checkpoint streams with transactions', () => {
 			}),
 		);
 		expect(checkpointFrame.checkpoint.transactions).toEqual(
-			transactionFrames.map(
-				({ transaction }) => transaction.Transaction ?? transaction.FailedTransaction,
-			),
+			transactionFrames.map(({ transaction }) => transaction),
 		);
 		expect(transactionFrames.map(({ transaction }) => transaction.$kind)).toEqual([
 			'Transaction',
 			'FailedTransaction',
 		]);
-		expect(checkpointFrame.checkpoint.transactions[0].events).toHaveLength(2);
+		expect(checkpointFrame.checkpoint.transactions[0].Transaction?.events).toHaveLength(2);
 		const selection = (variables: Record<string, unknown>) =>
 			Object.fromEntries(Object.entries(variables).filter(([key]) => key.startsWith('include')));
 		expect(selection(server.sent('scanCheckpointsWithTransactions')[0])).toEqual(

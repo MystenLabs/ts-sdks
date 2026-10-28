@@ -276,10 +276,9 @@ function checkpointsWithTransactionsFamily(
 			$kind: 'Checkpoint',
 			checkpoint: {
 				...parseGraphQLCheckpoint(node, 'Checkpoint stream'),
-				transactions: node.transactions!.nodes.map((transaction) => {
-					const result = parseStreamTransaction(transaction, include);
-					return result.Transaction ?? result.FailedTransaction;
-				}),
+				transactions: node.transactions!.nodes.map((transaction) =>
+					parseStreamTransaction(transaction, include),
+				),
 			},
 		}),
 	};
