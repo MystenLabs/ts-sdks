@@ -28,167 +28,208 @@ declare module 'vitest' {
 	}
 }
 
-const SUI_TOOLS_TAG =
-	process.env.SUI_TOOLS_TAG ||
-	(process.arch === 'arm64'
-		? '16d2dc1e05edcf600320a82e17b9392edb0983a5-arm64'
-		: '16d2dc1e05edcf600320a82e17b9392edb0983a5');
+const DEFAULT_SUI_TOOLS_TAG = '16d2dc1e05edcf600320a82e17b9392edb0983a5';
 
-// `sui start --with-graphql` does not configure the checkpoint stream that GraphQL subscriptions
-// require, so a separate GraphQL service from the same release runs instead. The published image is
-// amd64 only and stalls under emulation, so ARM machines need SUI_GRAPHQL_BINARY or
-// SUI_GRAPHQL_IMAGE for the subscription tests.
-const GRAPHQL_IMAGE =
-	process.env.SUI_GRAPHQL_IMAGE ||
-	(process.arch === 'arm64'
-		? undefined
-		: `mysten/sui-indexer-alt-graphql:${SUI_TOOLS_TAG.replace(/-arm64$/, '')}`);
-const GRAPHQL_BINARY = process.env.SUI_GRAPHQL_BINARY;
-const SEPARATE_GRAPHQL = !!(GRAPHQL_IMAGE || GRAPHQL_BINARY);
+type GraphQLService =
+	| { kind: 'binary'; path: string }
+	| { kind: 'image'; image: string }
+	| { kind: 'localnet'; explicit: boolean };
+
+/**
+ * `sui start --with-graphql` does not configure the checkpoint stream that GraphQL subscriptions
+ * require, so a separate GraphQL service from the same release runs instead. The published image
+ * is amd64 only and stalls under emulation, so ARM Docker hosts fall back to the localnet service
+ * unless SUI_GRAPHQL_BINARY or SUI_GRAPHQL_IMAGE is set.
+ */
+function graphqlService(arm: boolean, suiToolsTag: string): GraphQLService {
+	if (process.env.SUI_GRAPHQL === 'localnet') return { kind: 'localnet', explicit: true };
+	if (process.env.SUI_GRAPHQL_BINARY) {
+		return { kind: 'binary', path: resolve(process.env.SUI_GRAPHQL_BINARY) };
+	}
+	if (process.env.SUI_GRAPHQL_IMAGE) return { kind: 'image', image: process.env.SUI_GRAPHQL_IMAGE };
+	if (arm) return { kind: 'localnet', explicit: false };
+	return {
+		kind: 'image',
+		image: `mysten/sui-indexer-alt-graphql:${suiToolsTag.replace(/-arm64$/, '')}`,
+	};
+}
 
 export default async function setup(project: TestProject) {
-	console.log('Starting test containers');
-	const network = await new Network().start();
+	const runtime = await getContainerRuntimeClient();
+	const arm = /^(arm64|aarch64)/.test(runtime.info.containerRuntime.architecture);
+	const suiToolsTag =
+		process.env.SUI_TOOLS_TAG || (arm ? `${DEFAULT_SUI_TOOLS_TAG}-arm64` : DEFAULT_SUI_TOOLS_TAG);
+	const graphqlConfig = graphqlService(arm, suiToolsTag);
+	const separateGraphQL = graphqlConfig.kind !== 'localnet';
 
-	const pg = await new GenericContainer('postgres')
-		.withEnvironment({
-			POSTGRES_USER: 'postgres',
-			POSTGRES_PASSWORD: 'postgrespw',
-			POSTGRES_DB: 'sui_indexer_v2',
-		})
-		.withCommand(['-c', 'max_connections=500'])
-		.withExposedPorts(5432)
-		.withNetwork(network)
-		.withPullPolicy(PullPolicy.alwaysPull())
-		.start();
-
-	const localnet = await new GenericContainer(`mysten/sui-tools:${SUI_TOOLS_TAG}`)
-		// .withPullPolicy(PullPolicy.alwaysPull())
-		.withCommand([
-			'sui',
-			'start',
-			'--with-faucet',
-			'--force-regenesis',
-			SEPARATE_GRAPHQL ? '--with-consistent-store' : '--with-graphql',
-			`--with-indexer=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
-		])
-		.withCopyDirectoriesToContainer([
-			{ source: resolve(__dirname, '../data'), target: '/test-data' },
-		])
-		.withNetwork(network)
-		.withExposedPorts(9000, 9123, 9124, ...(SEPARATE_GRAPHQL ? [] : [9125]))
-		.withStartupTimeout(180_000)
-		.withLogConsumer((stream) => {
-			stream.on('data', (data) => {
-				console.log(data.toString());
-			});
-		})
-		.start();
-
-	const faucetPort = localnet.getMappedPort(9123);
-	const localnetPort = localnet.getMappedPort(9000);
-	const fullnodeUrl = `http://${localnet.getIpAddress(network.getName())}:9000`;
-	let graphqlPort: number;
-	let stopGraphQL: (() => void) | undefined;
-	if (GRAPHQL_BINARY) {
-		// Native staging builds avoid amd64 emulation on ARM developer machines.
-		graphqlPort = await unusedPort();
-		const graphqlProcess = spawn(
-			resolve(GRAPHQL_BINARY),
-			[
-				'rpc',
-				`--database-url=postgres://postgres:postgrespw@127.0.0.1:${pg.getMappedPort(5432)}/sui_indexer_v2`,
-				`--fullnode-rpc-url=http://127.0.0.1:${localnetPort}`,
-				`--ledger-grpc-url=http://127.0.0.1:${localnetPort}`,
-				'--enable-list-apis=true',
-				`--consistent-store-url=http://127.0.0.1:${localnet.getMappedPort(9124)}`,
-				`--checkpoint-stream-url=http://127.0.0.1:${localnetPort}`,
-				`--rpc-listen-address=127.0.0.1:${graphqlPort}`,
-				'--metrics-address=127.0.0.1:0',
-				`--config=${resolve(__dirname, '../data/graphql.toml')}`,
-				`--indexer-config=${resolve(__dirname, '../data/graphql-indexer.toml')}`,
-			],
-			{ stdio: 'inherit' },
-		);
-		stopGraphQL = () => {
-			graphqlProcess.kill('SIGTERM');
-		};
-		process.once('exit', stopGraphQL);
-		let startupError: Error | undefined;
-		graphqlProcess.once('error', (error) => {
-			startupError = error;
-		});
-		try {
-			const deadline = Date.now() + 180_000;
-			while (true) {
-				if (startupError) throw startupError;
-				if (graphqlProcess.exitCode !== null)
-					throw new Error('GraphQL process exited during startup');
-				try {
-					const response = await fetch(`http://127.0.0.1:${graphqlPort}/graphql`, {
-						method: 'POST',
-						headers: { 'content-type': 'application/json' },
-						body: JSON.stringify({ query: '{chainIdentifier}' }),
-						signal: AbortSignal.timeout(1000),
-					});
-					if (response.ok && (await response.json()).data?.chainIdentifier) break;
-				} catch {
-					/* Wait until the server has its indexed watermarks. */
-				}
-				if (Date.now() >= deadline) throw new Error('GraphQL startup timed out');
-				await new Promise((resolve) => setTimeout(resolve, 250));
+	// Stopped in reverse order on teardown, and when setup fails part-way.
+	const cleanups: (() => Promise<unknown> | void)[] = [];
+	const teardown = async () => {
+		for (const cleanup of cleanups.splice(0).reverse()) {
+			try {
+				await cleanup();
+			} catch (error) {
+				console.warn('e2e teardown step failed', error);
 			}
-		} catch (error) {
-			stopGraphQL();
-			throw error;
-		}
-	} else if (GRAPHQL_IMAGE) {
-		const graphql = await new GenericContainer(GRAPHQL_IMAGE)
-			.withPlatform(process.env.SUI_GRAPHQL_PLATFORM || 'linux/amd64')
-			.withCommand([
-				'sui-indexer-alt-graphql',
-				'rpc',
-				`--database-url=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
-				`--fullnode-rpc-url=${fullnodeUrl}`,
-				`--ledger-grpc-url=${fullnodeUrl}`,
-				'--enable-list-apis=true',
-				`--consistent-store-url=http://${localnet.getIpAddress(network.getName())}:9124`,
-				`--checkpoint-stream-url=${fullnodeUrl}`,
-				'--rpc-listen-address=0.0.0.0:9125',
-				'--config=/graphql.toml',
-				'--indexer-config=/graphql-indexer.toml',
-			])
-			.withNetwork(network)
-			.withCopyFilesToContainer([
-				{ source: resolve(__dirname, '../data/graphql.toml'), target: '/graphql.toml' },
-				{
-					source: resolve(__dirname, '../data/graphql-indexer.toml'),
-					target: '/graphql-indexer.toml',
-				},
-			])
-			.withExposedPorts(9125)
-			.withWaitStrategy(Wait.forListeningPorts())
-			.withStartupTimeout(180_000)
-			.withLogConsumer((stream) => stream.on('data', (data) => console.log(data.toString())))
-			.start();
-		graphqlPort = graphql.getMappedPort(9125);
-	} else {
-		graphqlPort = localnet.getMappedPort(9125);
-	}
-	const teardown = () => {
-		if (stopGraphQL) {
-			process.removeListener('exit', stopGraphQL);
-			stopGraphQL();
 		}
 	};
+
 	try {
-		await finishSetup(project, { localnet, localnetPort, faucetPort, graphqlPort });
+		console.log('Starting test containers');
+		const network = await new Network().start();
+		cleanups.push(() => network.stop());
+
+		const pg = await new GenericContainer('postgres')
+			.withEnvironment({
+				POSTGRES_USER: 'postgres',
+				POSTGRES_PASSWORD: 'postgrespw',
+				POSTGRES_DB: 'sui_indexer_v2',
+			})
+			.withCommand(['-c', 'max_connections=500'])
+			.withExposedPorts(5432)
+			.withNetwork(network)
+			.withPullPolicy(PullPolicy.alwaysPull())
+			.start();
+		cleanups.push(() => pg.stop());
+
+		const localnet = await new GenericContainer(`mysten/sui-tools:${suiToolsTag}`)
+			// .withPullPolicy(PullPolicy.alwaysPull())
+			.withCommand([
+				'sui',
+				'start',
+				'--with-faucet',
+				'--force-regenesis',
+				separateGraphQL ? '--with-consistent-store' : '--with-graphql',
+				`--with-indexer=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
+			])
+			.withCopyDirectoriesToContainer([
+				{ source: resolve(__dirname, '../data'), target: '/test-data' },
+			])
+			.withNetwork(network)
+			.withExposedPorts(9000, 9123, 9124, ...(separateGraphQL ? [] : [9125]))
+			.withStartupTimeout(180_000)
+			.withLogConsumer((stream) => {
+				stream.on('data', (data) => {
+					console.log(data.toString());
+				});
+			})
+			.start();
+		cleanups.push(() => localnet.stop());
+
+		const faucetPort = localnet.getMappedPort(9123);
+		const localnetPort = localnet.getMappedPort(9000);
+		const fullnodeUrl = `http://${localnet.getIpAddress(network.getName())}:9000`;
+		let graphqlPort: number;
+		if (graphqlConfig.kind === 'binary') {
+			// Native builds avoid amd64 emulation on ARM developer machines.
+			graphqlPort = await unusedPort();
+			const graphqlProcess = spawn(
+				graphqlConfig.path,
+				[
+					'rpc',
+					`--database-url=postgres://postgres:postgrespw@127.0.0.1:${pg.getMappedPort(5432)}/sui_indexer_v2`,
+					`--fullnode-rpc-url=http://127.0.0.1:${localnetPort}`,
+					`--ledger-grpc-url=http://127.0.0.1:${localnetPort}`,
+					'--enable-list-apis=true',
+					`--consistent-store-url=http://127.0.0.1:${localnet.getMappedPort(9124)}`,
+					`--checkpoint-stream-url=http://127.0.0.1:${localnetPort}`,
+					`--rpc-listen-address=127.0.0.1:${graphqlPort}`,
+					'--metrics-address=127.0.0.1:0',
+					`--config=${resolve(__dirname, '../data/graphql.toml')}`,
+					`--indexer-config=${resolve(__dirname, '../data/graphql-indexer.toml')}`,
+				],
+				{ stdio: 'inherit' },
+			);
+			const stopGraphQL = () => {
+				graphqlProcess.kill('SIGTERM');
+			};
+			process.once('exit', stopGraphQL);
+			cleanups.push(() => {
+				process.removeListener('exit', stopGraphQL);
+				stopGraphQL();
+			});
+			let startupError: Error | undefined;
+			graphqlProcess.once('error', (error) => {
+				startupError = error;
+			});
+			await waitForGraphQL(graphqlPort, () => {
+				if (startupError) throw startupError;
+				if (graphqlProcess.exitCode !== null) {
+					throw new Error('GraphQL process exited during startup');
+				}
+			});
+		} else if (graphqlConfig.kind === 'image') {
+			const graphql = await new GenericContainer(graphqlConfig.image)
+				.withPlatform(process.env.SUI_GRAPHQL_PLATFORM || 'linux/amd64')
+				.withCommand([
+					'sui-indexer-alt-graphql',
+					'rpc',
+					`--database-url=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
+					`--fullnode-rpc-url=${fullnodeUrl}`,
+					`--ledger-grpc-url=${fullnodeUrl}`,
+					'--enable-list-apis=true',
+					`--consistent-store-url=http://${localnet.getIpAddress(network.getName())}:9124`,
+					`--checkpoint-stream-url=${fullnodeUrl}`,
+					'--rpc-listen-address=0.0.0.0:9125',
+					'--config=/graphql.toml',
+					'--indexer-config=/graphql-indexer.toml',
+				])
+				.withNetwork(network)
+				.withCopyFilesToContainer([
+					{ source: resolve(__dirname, '../data/graphql.toml'), target: '/graphql.toml' },
+					{
+						source: resolve(__dirname, '../data/graphql-indexer.toml'),
+						target: '/graphql-indexer.toml',
+					},
+				])
+				.withExposedPorts(9125)
+				.withWaitStrategy(Wait.forListeningPorts())
+				.withStartupTimeout(180_000)
+				.withLogConsumer((stream) => stream.on('data', (data) => console.log(data.toString())))
+				.start();
+			cleanups.push(() => graphql.stop());
+			graphqlPort = graphql.getMappedPort(9125);
+			await waitForGraphQL(graphqlPort);
+		} else {
+			graphqlPort = localnet.getMappedPort(9125);
+		}
+
+		await finishSetup(project, {
+			localnet,
+			localnetPort,
+			faucetPort,
+			graphqlPort,
+			// The separate service exists to serve subscriptions, and CI must not skip them quietly.
+			requireSubscriptions:
+				separateGraphQL ||
+				(!!process.env.CI && !(graphqlConfig.kind === 'localnet' && graphqlConfig.explicit)),
+		});
 	} catch (error) {
-		// Stop the native GraphQL process when anything after it started fails.
-		teardown();
+		await teardown();
 		throw error;
 	}
 	return teardown;
+}
+
+/** Waits until GraphQL answers a query with its indexed data. `check` throws to stop waiting. */
+async function waitForGraphQL(port: number, check?: () => void) {
+	const deadline = Date.now() + 180_000;
+	while (true) {
+		check?.();
+		try {
+			const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ query: '{chainIdentifier}' }),
+				signal: AbortSignal.timeout(1000),
+			});
+			if (response.ok && (await response.json()).data?.chainIdentifier) return;
+		} catch {
+			/* Wait until the server has its indexed watermarks. */
+		}
+		if (Date.now() >= deadline) throw new Error('GraphQL startup timed out');
+		await new Promise((resolve) => setTimeout(resolve, 250));
+	}
 }
 
 async function finishSetup(
@@ -198,19 +239,24 @@ async function finishSetup(
 		localnetPort,
 		faucetPort,
 		graphqlPort,
+		requireSubscriptions,
 	}: {
 		localnet: StartedTestContainer;
 		localnetPort: number;
 		faucetPort: number;
 		graphqlPort: number;
+		requireSubscriptions: boolean;
 	},
 ) {
 	const graphqlSubscriptions = await probe('GraphQL subscriptions', () =>
 		supportsGraphQLSubscriptions(graphqlPort),
 	);
 	if (!graphqlSubscriptions) {
+		if (requireSubscriptions) {
+			throw new Error('The GraphQL service does not serve subscriptions');
+		}
 		console.warn(
-			'GraphQL subscription tests will be skipped: the localnet GraphQL service does not serve subscriptions. Set SUI_GRAPHQL_IMAGE or SUI_GRAPHQL_BINARY to run them (see test/e2e/README.md).',
+			'GraphQL subscription tests will be skipped: `sui start --with-graphql` does not serve subscriptions. Set SUI_GRAPHQL_BINARY to run them (see test/e2e/README.md).',
 		);
 	}
 	const containerId = localnet.getId();
