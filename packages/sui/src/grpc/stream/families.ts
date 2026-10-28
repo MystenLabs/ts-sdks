@@ -239,10 +239,9 @@ export function mapGrpcItem(
 			const checkpoint = parseGrpcCheckpoint(item.checkpoint, 'Checkpoint stream');
 			if (!include) return { $kind: 'Checkpoint', checkpoint };
 			if (include.objectTypes) fillCheckpointObjectTypes(item.checkpoint);
-			const transactions = item.checkpoint.transactions.map((transaction) => {
-				const result = parseTransaction(transaction, include, 'Checkpoint stream');
-				return result.Transaction ?? result.FailedTransaction;
-			});
+			const transactions = item.checkpoint.transactions.map((transaction) =>
+				parseTransaction(transaction, include, 'Checkpoint stream'),
+			);
 			return { $kind: 'Checkpoint', checkpoint: { ...checkpoint, transactions } };
 		}
 		case 'Transaction':

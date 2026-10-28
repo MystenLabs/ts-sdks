@@ -1248,11 +1248,16 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 
 		function expectTransactions(frame: SuiClientTypes.StreamCheckpointFrame<typeof include>) {
 			const { sequenceNumber, transactions } = frame.checkpoint;
-			expect(transactions.map((tx) => [tx.digest, tx.status.success, tx.objectTypes])).toEqual([
-				[`tx-${sequenceNumber}-0`, true, { [objectId]: objectType }],
-				[`tx-${sequenceNumber}-1`, false, { [objectId]: objectType }],
+			expect(
+				transactions.map((result) => {
+					const tx = result.Transaction ?? result.FailedTransaction;
+					return [result.$kind, tx.digest, tx.objectTypes];
+				}),
+			).toEqual([
+				['Transaction', `tx-${sequenceNumber}-0`, { [objectId]: objectType }],
+				['FailedTransaction', `tx-${sequenceNumber}-1`, { [objectId]: objectType }],
 			]);
-			expect(transactions[0].effects.changedObjects[0].objectType).toBe(objectType);
+			expect(transactions[0].Transaction?.effects.changedObjects[0].objectType).toBe(objectType);
 		}
 
 		it('reads every transaction with its checkpoint, in the same requests as headers alone', async () => {
@@ -1302,7 +1307,9 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					include: { transactions: { objectTypes: true } },
 				}),
 			);
-			expect(frame.checkpoint.transactions[0].objectTypes).toEqual({ [objectId]: objectType });
+			expect(frame.checkpoint.transactions[0].Transaction?.objectTypes).toEqual({
+				[objectId]: objectType,
+			});
 			const paths = l.requestsTo('ListCheckpoints')[0].readMask?.paths ?? [];
 			expect(paths).not.toContain('transactions.effects');
 			expect(paths).toEqual(
