@@ -7,7 +7,6 @@ import {
 	TestToolbox,
 	createTestWithAllClients,
 	getRandomAddresses,
-	type ClientKind,
 } from '../../utils/setup.js';
 import { bcs } from '../../../../src/bcs/index.js';
 import { parseTransactionDataBcs } from '../../../../src/client/transaction-data.js';
@@ -21,14 +20,6 @@ import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/keypair.js';
 import { TransactionError } from '../../../../src/client/index.js';
 
 const SUI_COIN_TYPE = normalizeStructTag(`0x2::coin::Coin<${SUI_TYPE_ARG}>`);
-
-/**
- * The pinned localnet GraphQL service reports the wrong package and module for events in
- * execution and simulation results; indexed reads report them correctly.
- */
-function reportsExecutedEventOrigin(kind: ClientKind) {
-	return kind !== 'graphql';
-}
 
 describe('Core API - Transactions', () => {
 	let toolbox: TestToolbox;
@@ -879,49 +870,44 @@ describe('Core API - Transactions', () => {
 	});
 
 	describe('events', () => {
-		testWithAllClients(
-			'should return events for transaction that emits events',
-			async (client, kind) => {
-				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
-				// Call a function that emits events
-				const tx = new Transaction();
-				tx.moveCall({
-					target: `${packageId}::test_objects::create_object_with_event`,
-					arguments: [tx.pure.u64(42)],
-				});
+		testWithAllClients('should return events for transaction that emits events', async (client) => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+			// Call a function that emits events
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(42)],
+			});
 
-				tx.setSender(address);
-				const bytes = await tx.build({ client });
-				const signature = await keypair.signTransaction(bytes);
+			tx.setSender(address);
+			const bytes = await tx.build({ client });
+			const signature = await keypair.signTransaction(bytes);
 
-				const result = await client.core.executeTransaction({
-					transaction: bytes,
-					signatures: [signature.signature],
-					include: { events: true },
-				});
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+				include: { events: true },
+			});
 
-				// Verify events field exists
-				expect(result.Transaction!.events).toBeDefined();
-				expect(Array.isArray(result.Transaction!.events)).toBe(true);
-				expect(result.Transaction!.events?.length).toBeGreaterThan(0);
+			// Verify events field exists
+			expect(result.Transaction!.events).toBeDefined();
+			expect(Array.isArray(result.Transaction!.events)).toBe(true);
+			expect(result.Transaction!.events?.length).toBeGreaterThan(0);
 
-				// Verify event structure
-				const event = result.Transaction!.events?.[0];
-				if (reportsExecutedEventOrigin(kind)) {
-					expect(event?.packageId).toBe(packageId);
-					expect(event?.module).toBe('test_objects');
-				}
-				expect(event?.sender).toBe(address);
-				expect(event?.eventType).toContain('ObjectCreated');
-				expect(event?.bcs).toBeInstanceOf(Uint8Array);
+			// Verify event structure
+			const event = result.Transaction!.events?.[0];
+			expect(event?.packageId).toBe(packageId);
+			expect(event?.module).toBe('test_objects');
+			expect(event?.sender).toBe(address);
+			expect(event?.eventType).toContain('ObjectCreated');
+			expect(event?.bcs).toBeInstanceOf(Uint8Array);
 
-				// Verify event json field
-				expect(event?.json).toBeDefined();
-				expect(event?.json).not.toBeNull();
-				expect(typeof event?.json).toBe('object');
-				expect(event?.json).toHaveProperty('value');
-			},
-		);
+			// Verify event json field
+			expect(event?.json).toBeDefined();
+			expect(event?.json).not.toBeNull();
+			expect(typeof event?.json).toBe('object');
+			expect(event?.json).toHaveProperty('value');
+		});
 
 		testWithAllClients(
 			'should return empty events array for transactions without events',
@@ -988,38 +974,33 @@ describe('Core API - Transactions', () => {
 			expect(event?.json).toHaveProperty('value');
 		});
 
-		testWithAllClients(
-			'should include events in simulateTransaction response',
-			async (client, kind) => {
-				const tx = new Transaction();
-				tx.moveCall({
-					target: `${packageId}::test_objects::create_object_with_event`,
-					arguments: [tx.pure.u64(999)],
-				});
+		testWithAllClients('should include events in simulateTransaction response', async (client) => {
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(999)],
+			});
 
-				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.grpcClient });
+			tx.setSender(testAddress);
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
-				const result = await client.core.simulateTransaction({
-					transaction: bytes,
-					include: { events: true },
-				});
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: { events: true },
+			});
 
-				expect(result.Transaction!.events).toBeDefined();
-				expect(Array.isArray(result.Transaction!.events)).toBe(true);
-				expect(result.Transaction!.events?.length).toBeGreaterThan(0);
-				if (reportsExecutedEventOrigin(kind)) {
-					expect(result.Transaction!.events?.[0]?.packageId).toBe(packageId);
-				}
-				expect(result.Transaction!.events?.[0]?.eventType).toContain('ObjectCreated');
+			expect(result.Transaction!.events).toBeDefined();
+			expect(Array.isArray(result.Transaction!.events)).toBe(true);
+			expect(result.Transaction!.events?.length).toBeGreaterThan(0);
+			expect(result.Transaction!.events?.[0]?.packageId).toBe(packageId);
+			expect(result.Transaction!.events?.[0]?.eventType).toContain('ObjectCreated');
 
-				// Verify event json field
-				const event = result.Transaction!.events?.[0];
-				expect(event?.json).toBeDefined();
-				expect(event?.json).not.toBeNull();
-				expect(event?.json).toHaveProperty('value');
-			},
-		);
+			// Verify event json field
+			const event = result.Transaction!.events?.[0];
+			expect(event?.json).toBeDefined();
+			expect(event?.json).not.toBeNull();
+			expect(event?.json).toHaveProperty('value');
+		});
 	});
 
 	describe('getTransaction - Include Options', () => {
