@@ -6,7 +6,11 @@ import { describe, expect, expectTypeOf, it, onTestFinished } from 'vitest';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
-import { markConnectionLost } from '../../../../src/grpc/network-error.js';
+import {
+	markConnectionLost,
+	markHttpStatus,
+	toNetworkRpcError,
+} from '../../../../src/grpc/network-error.js';
 import { markNonRetryable } from '../../../../src/grpc/pull-call.js';
 import { estimateBytes, liveBuffer } from '../../../../src/grpc/stream/call.js';
 import { GrpcLedgerStreamAdapter } from '../../../../src/grpc/stream/index.js';
@@ -1540,7 +1544,15 @@ describe('gRPC ledger stream error classes', () => {
 
 	it('reports a lost connection, an unindexed network and other errors by their marker', async () => {
 		expect(adapter.retryReason(markConnectionLost(new RpcError('reset', 'UNAVAILABLE')))).toBe(
-			'Network',
+			'Disconnected',
+		);
+		const failedFetch = toNetworkRpcError(new TypeError('fetch failed'), undefined, 'request');
+		expect(adapter.retryReason(failedFetch)).toBe('Network');
+		expect(adapter.retryReason(markHttpStatus(new RpcError('bad gateway', 'UNKNOWN'), 502))).toBe(
+			'Unavailable',
+		);
+		expect(adapter.retryReason(markHttpStatus(new RpcError('timeout', 'UNKNOWN'), 408))).toBe(
+			'Timeout',
 		);
 		const empty = new FakeLedger().tip(null);
 		const notIndexed = await readIndexedTip(empty, new AbortController().signal).catch(

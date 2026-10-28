@@ -17,7 +17,7 @@ import type {
 import { SuiStreamError } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from '../filters.js';
-import { isConnectionLost } from '../network-error.js';
+import { httpStatusOf, isConnectionLost, isRequestFailed } from '../network-error.js';
 import { isNonRetryable } from '../pull-call.js';
 import { isBufferOverflow, openLedgerCall, type LedgerCall } from './call.js';
 import {
@@ -121,10 +121,12 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 
 	retryReason(error: unknown): SuiClientTypes.StreamRetryReason {
 		if (isBufferOverflow(error)) return 'SlowConsumer';
-		if (isConnectionLost(error)) return 'Network';
+		if (isConnectionLost(error)) return 'Disconnected';
+		if (isRequestFailed(error)) return 'Network';
 		if (isNotIndexed(error)) return 'NotIndexed';
 		if (!(error instanceof RpcError)) return 'ServerError';
-		// HTTP 429, 504 and 503 from a proxy arrive with these codes too.
+		const status = httpStatusOf(error);
+		if (status !== undefined) return httpStatusReason(status);
 		switch (error.code) {
 			case 'RESOURCE_EXHAUSTED':
 				return 'RateLimited';
@@ -193,4 +195,12 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		if (!this.#calls) throw new Error('gRPC ledger stream used before initialize');
 		return this.#calls;
 	}
+}
+
+/** A proxy's HTTP error status, which gRPC-web codes coarsely, read as GraphQL reads it. */
+function httpStatusReason(status: number): SuiClientTypes.StreamRetryReason {
+	if (status === 429) return 'RateLimited';
+	if (status === 408 || status === 504) return 'Timeout';
+	if (status === 502 || status === 503) return 'Unavailable';
+	return 'ServerError';
 }
