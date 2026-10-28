@@ -32,6 +32,7 @@ function adapterFor<Node>(
 		// The chain identity is read with the indexed tip, so a fresh follow is anchored there.
 		anchorsAtLiveTip: false,
 		resumesSubscriptions: true,
+		liveAtIndexedTip: true,
 		canResume: canResumeSubscription,
 
 		async initialize(signal) {
