@@ -758,8 +758,8 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(gap.options?.after).toEqual(mark('a'));
 			expect(gap.options?.before).toEqual(mark('b'));
 			expect(poll.options?.before).toEqual(mark('b'));
-			// Progress was committed, so the reconnect is immediate despite the long backoff.
-			expect(log).toContain('Retrying(1,0)');
+			// Progress was committed, so the reconnect only pauses briefly despite the long backoff.
+			expect(log).toContain('Retrying(1,250)');
 		});
 
 		it('keeps progress inside an unfinished checkpoint apart from item positions', async () => {
