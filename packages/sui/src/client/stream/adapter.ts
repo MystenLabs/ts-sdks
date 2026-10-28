@@ -135,6 +135,12 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 */
 	readonly resumesSubscriptions: boolean;
 	/**
+	 * true: a live feed starts with the server's backfill, which looks like live data, so `Live` is
+	 * reported at the first item at or past the indexed tip read at startup, not when the feed opens.
+	 * Progress carries no checkpoint and never reports it.
+	 */
+	readonly liveAtIndexedTip?: boolean;
+	/**
 	 * With `resumesSubscriptions`, whether `subscribe(from)` can backfill from `from`. Where it
 	 * cannot, the core pages history first and subscribes after it. Defaults to true.
 	 */

@@ -799,6 +799,45 @@ describe('live handoff', () => {
 		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
 	});
 
+	it('reports Live at the first item at or past the tip read at startup, not with backfill', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			live('events', [event(5), event(9), event(10, 0, { source: 'live' })]),
+		);
+		const log = statusLog();
+		const frames = stream(server.client, 'events', {
+			start: { checkpoint: 5 },
+			onStatus: log.onStatus,
+		});
+		await frames.next();
+		await frames.next();
+		expect(log.log).toEqual(['Connecting(0)', 'Connected']);
+		expect(label((await frames.next()).value!)).toBe('10:0');
+		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
+		await frames.return(undefined);
+		// One request reads the identity and the tip; Live needs no other.
+		expect(server.requests.map((request) => request.operation)).toEqual([
+			'ledgerStreamState',
+			'subscribeEvents',
+		]);
+	});
+
+	it('reports Live for checkpoint subscriptions at the tip checkpoint', async () => {
+		const server = fakeGraphQL({ tip: 7 });
+		server.on('subscribeCheckpoints', live('checkpoints', [checkpoint(6), checkpoint(7)]));
+		const log = statusLog();
+		const frames = stream(server.client, 'checkpoints', {
+			start: { checkpoint: 6 },
+			onStatus: log.onStatus,
+		});
+		await frames.next();
+		expect(log.log).not.toContain('Live');
+		await frames.next();
+		expect(log.log.at(-1)).toBe('Live');
+		await frames.return(undefined);
+	});
+
 	it.each(['checkpoints', 'transactions', 'events'] as const)(
 		'reads %s history from genesis before subscribing after it',
 		async (family) => {
@@ -908,7 +947,7 @@ describe('live handoff', () => {
 describe('subscription progress', () => {
 	const progressEdge = (label: string) => ({ cursor: `live:progress:${label}`, node: null });
 
-	it('advances a quiet filtered stream through progress edges and reports Live with the first', async () => {
+	it('advances a quiet filtered stream through progress edges, which never report Live', async () => {
 		const server = fakeGraphQL({ tip: 10 });
 		server.on(
 			'subscribeEvents',
@@ -925,7 +964,7 @@ describe('subscription progress', () => {
 		);
 		expect(frames.map(label)).toEqual(['Progress', 'Progress', 'Progress']);
 		expect(new Set(frames.map(token)).size).toBe(3);
-		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
+		expect(log.log).toEqual(['Connecting(0)', 'Connected']);
 		// The tip anchor covers the tip; progress edges carry no checkpoint, so they claim nothing.
 		expect(frames[0]).toMatchObject({ coveredCheckpoint: '10' });
 		expect(frames[1]).not.toHaveProperty('coveredCheckpoint');
