@@ -1363,20 +1363,44 @@ describe('errors', () => {
 		expect(reasons).toEqual([reason]);
 	});
 
-	it('gives RESOURCE_EXHAUSTED only a few attempts, since a per-item limit recurs', async () => {
-		const server = fakeGraphQL().on('scanCheckpoints', responseError('RESOURCE_EXHAUSTED'));
-		const error = await rejection(
-			collect(
-				stream(server.client, 'checkpoints', {
-					start: { checkpoint: 1 },
-					end: { checkpoint: 2 },
-					retry: noDelay,
-				}),
-			),
-		);
-		expect(error).toBeInstanceOf(SuiGraphQLRequestError);
-		// The first attempt and three retries, although the stream's own budget is unbounded.
-		expect(server.sent('scanCheckpoints')).toHaveLength(4);
+	describe('RESOURCE_EXHAUSTED', () => {
+		const exhausted = responseError('RESOURCE_EXHAUSTED');
+		const finite = {
+			start: { checkpoint: 1 },
+			end: { checkpoint: 2 },
+			retry: noDelay,
+		};
+		const repeat = (answer: Answer, times: number) => Array<Answer>(times).fill(answer);
+
+		it('survives a capacity rejection that clears', async () => {
+			const server = fakeGraphQL().on(
+				'scanCheckpoints',
+				...repeat(exhausted, 5),
+				page('checkpoints', [checkpoint(1)]),
+			);
+			const frames = await collect(stream(server.client, 'checkpoints', finite));
+			expect(frames.map(label)).toEqual(['1']);
+		});
+
+		it('ends the stream once a streak passes its cap, though the budget is unbounded', async () => {
+			const server = fakeGraphQL().on('scanCheckpoints', exhausted);
+			const error = await rejection(collect(stream(server.client, 'checkpoints', finite)));
+			expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+			// The first attempt and ten retries.
+			expect(server.sent('scanCheckpoints')).toHaveLength(11);
+		});
+
+		it('counts its streak apart from other failures', async () => {
+			const server = fakeGraphQL().on(
+				'scanCheckpoints',
+				...repeat(httpStatus(503), 5),
+				...repeat(exhausted, 10),
+				page('checkpoints', [checkpoint(1)]),
+			);
+			const frames = await collect(stream(server.client, 'checkpoints', finite));
+			expect(frames.map(label)).toEqual(['1']);
+			expect(server.sent('scanCheckpoints')).toHaveLength(16);
+		});
 	});
 
 	it('retries an index that has nothing yet as NotIndexed', async () => {
