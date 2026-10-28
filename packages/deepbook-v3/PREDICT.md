@@ -446,10 +446,10 @@ strikes away from the reference remain fully supported.
 
 New mint strikes must be a whole multiple of the market's **`admissionTickSize`** — a step
 deliberately coarser than `tickSize`, and it is configured per cadence (both recorded deployments
-run `$1` against a `$0.01` tick on their enabled cadences, 1m and 5m). Always read it off the market
-rather than assuming a value. The market's `referencePrice` is the one finite strike the chain
-admits off-grid. `read.markets()` and `read.market()` both report `admissionTickSize`, so a board
-can be built from it directly:
+run `$1` against a `$0.01` tick on their enabled cadences: 1m and 5m, plus 15m on Testnet). Always
+read it off the market rather than assuming a value. The market's `referencePrice` is the one finite
+strike the chain admits off-grid. `read.markets()` and `read.market()` both report
+`admissionTickSize`, so a board can be built from it directly:
 
 ```ts
 const m = (await client.predict.read.markets())[0];
@@ -740,15 +740,16 @@ Move-call targets resolve from the config's package ids, so a deployment of your
 passing `config` — `predict({ network, config })` or
 `new PredictClient({ client, network, config })` — and `network` is then not consulted.
 
-Mainnet runs Predict **v4** and Testnet Predict **v5**, both built from the same sources, with
-`deepbook_predict_orders` and `deepbook_predict_math` at v1 on both. Sessions is **v3** on both. The
-Published.toml records are in deepbookv3 through PR #1365. `packages.predict` and
-`sessionsPackageId` are the current Move-call targets; `packages.predictV1` and
-`sessionsPackageIdV1` retain the original IDs for existing struct types, events and dynamic-field
-keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom deployments
-that have never been upgraded. A type first introduced in a later version uses that version's
-defining ID, and version numbers do not line up across networks, so check the defining ID on each
-one. For example, `MintRange` was introduced in v2 on both networks, and
+Mainnet runs Predict **v4**, with `deepbook_predict_orders` and `deepbook_predict_math` at v1 and
+Sessions at **v3**. Testnet runs Predict **v7**, with `deepbook_predict_orders` and
+`deepbook_predict_math` at v2 and Sessions at **v4**. Testnet's newer versions relink Propbook v2
+and add the admin-managed cadence table (below). The Published.toml records are in deepbookv3
+through PR #1395. `packages.predict` and `sessionsPackageId` are the current Move-call targets;
+`packages.predictV1` and `sessionsPackageIdV1` retain the original IDs for existing struct types,
+events and dynamic-field keys. Custom upgraded configs must supply both IDs. The v1 fallback is only
+for custom deployments that have never been upgraded. A type first introduced in a later version
+uses that version's defining ID, and version numbers do not line up across networks, so check the
+defining ID on each one. For example, `MintRange` was introduced in v2 on both networks, and
 `vault_events::UsdcAddedToPlp` is defined by Mainnet v3 (`0x08fa3ef1…`) and Testnet v3
 (`0xb5155d4c…`), neither of them the current call target. The types and events delayed execution
 added are defined by Mainnet v4 and Testnet v5, which the configs record as
@@ -761,6 +762,18 @@ contribution when the pool has no PLP supply yet, the payment is under 10 USDC, 
 flight, or pool cash after the contribution would exceed 10 USDC per PLP. `client.predict` has no
 builder or decoder for this entrypoint. Match `UsdcAddedToPlp` against its defining ID, not
 `predictV1`.
+
+**Cadence table (Testnet v7 and later):** market lengths are an admin-managed table on the
+`Registry`, not a fixed list. `registryMoveCalls.cadencePeriods` returns each cadence's period in
+milliseconds, indexed by cadence ID, and `registryMoveCalls.cadenceConfigs` returns that
+underlying's terms in the same order. Read both in one simulation for a consistent pair. The table
+starts with the six built-in cadences (1m, 5m, 1h, 1d, 1w, 30d) and grows only through `addCadence`,
+which takes the `AdminCap`. Testnet added 15m as cadence ID 6. When two enabled cadences could list
+the same expiry, the longer one owns it, so 15m markets take every quarter-hour and 5m markets the
+other five-minute marks. Every market is still an ordinary expiry market, so trading and queued
+orders need nothing cadence-specific. `CadenceAdded` is defined by Testnet v7, so match it against
+`packages.predict` there, not `predictV1`. Mainnet v4 has neither the table nor these functions: the
+calls fail there until Mainnet's next Predict upgrade.
 
 **All-in budget mint (v2 and later):** `spend` caps the debit including all trade fees, and
 `minQuantity` is the minimum payout quantity accepted. It may spend less than the budget because of
