@@ -639,9 +639,10 @@ export namespace SuiClientTypes {
 		/**
 		 * Whether more items may be available after this page.
 		 *
-		 * gRPC servers bound how much of the ledger a single request scans, so a scan-limited
-		 * query can return fewer items than `limit` (even none) with `hasNextPage: true`;
-		 * continuing from `endCursor` always makes progress through the scanned range.
+		 * Servers can bound how much of the ledger a single request scans, on gRPC and GraphQL
+		 * alike, so a query can return fewer items than `limit` (even none) with
+		 * `hasNextPage: true`; continuing from `endCursor` always makes progress through the
+		 * scanned range.
 		 */
 		hasNextPage: boolean;
 		/**
@@ -676,9 +677,10 @@ export namespace SuiClientTypes {
 		/**
 		 * Whether more items may be available after this page.
 		 *
-		 * gRPC servers bound how much of the ledger a single request scans, so a scan-limited
-		 * query can return fewer items than `limit` (even none) with `hasNextPage: true`;
-		 * continuing from `endCursor` always makes progress through the scanned range.
+		 * Servers can bound how much of the ledger a single request scans, on gRPC and GraphQL
+		 * alike, so a query can return fewer items than `limit` (even none) with
+		 * `hasNextPage: true`; continuing from `endCursor` always makes progress through the
+		 * scanned range.
 		 */
 		hasNextPage: boolean;
 		/**

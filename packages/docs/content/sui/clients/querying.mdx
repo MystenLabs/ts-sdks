@@ -538,7 +538,8 @@ while (page.hasNextPage) {
 ```
 
 On GraphQL, the page that reaches a cursor bound may report `hasNextPage: true` and be followed by
-one empty page. Loops driven by `hasNextPage`, like the one above, handle this.
+empty pages. On both transports a page can also be short or empty with `hasNextPage: true`. Loops
+driven by `hasNextPage`, like the one above, handle both.
 
 Cursors are only valid for the query that produced them: pass them back with the same filter and
 checkpoint range.
