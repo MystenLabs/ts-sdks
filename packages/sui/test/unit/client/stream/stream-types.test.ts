@@ -54,7 +54,7 @@ describe('stream types', () => {
 		expectTypeOf<T.StreamCheckpointFrame['checkpoint']>().toEqualTypeOf<T.Checkpoint>();
 		expectTypeOf<
 			T.StreamCheckpointFrame<{ transactions: { effects: true } }>['checkpoint']['transactions']
-		>().toEqualTypeOf<T.Transaction<{ effects: true }>[]>();
+		>().toEqualTypeOf<T.TransactionResult<{ effects: true }>[]>();
 		expectTypeOf<
 			T.StreamCheckpointResult<{ transactions: {} }, { progress: true }>
 		>().toEqualTypeOf<T.StreamCheckpointFrame<{ transactions: {} }> | T.StreamProgressFrame>();
