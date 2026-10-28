@@ -45,17 +45,12 @@ function transactionsPage(
 	cp: number,
 	from: number,
 	to: number,
-	options: { more?: boolean; indexedThrough?: number; first?: number } = {},
+	options: { more?: boolean; indexedThrough?: number } = {},
 ): Answer {
 	return ({ server }) =>
 		Response.json({
 			data: {
-				serviceConfig: {
-					availableRange: {
-						first: { sequenceNumber: options.first ?? 0 },
-						last: { sequenceNumber: options.indexedThrough ?? server.tip },
-					},
-				},
+				checkpoint: { sequenceNumber: options.indexedThrough ?? server.tip },
 				transactions: {
 					pageInfo: { hasNextPage: options.more ?? false, endCursor: `tx:${cp}:${to}` },
 					nodes: nodes(cp, from, to),
@@ -238,14 +233,5 @@ describe('GraphQL checkpoint streams with transactions', () => {
 			'ledgerStreamState',
 			'subscribeCheckpointsWithTransactions',
 		]);
-	});
-
-	it('fails with HistoryUnavailable when the checkpoint’s transactions are pruned', async () => {
-		const server = fakeGraphQL()
-			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 60)]))
-			.on('checkpointTransactions', transactionsPage(1, 50, 60, { first: 5 }));
-		await expect(
-			collect(server.client.core.streamCheckpoints({ ...range, include })),
-		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 	});
 });

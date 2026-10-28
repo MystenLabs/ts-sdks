@@ -393,12 +393,11 @@ export type Object_Owner_FieldsFragment =
 ;
 
 export type LedgerStreamStateQueryVariables = Exact<{
-  field: string;
-  filters: Array<string> | string;
+  checkpointRetention: boolean;
 }>;
 
 
-export type LedgerStreamStateQuery = { chainIdentifier: string, checkpoint: { sequenceNumber: number } | null, serviceConfig: { availableRange: { first: { sequenceNumber: number } | null } } };
+export type LedgerStreamStateQuery = { chainIdentifier: string, checkpoint: { sequenceNumber: number } | null, serviceConfig?: { availableRange: { first: { sequenceNumber: number } | null } } };
 
 export type Stream_Page_InfoFragment = { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null };
 
@@ -424,7 +423,6 @@ export type SubscribeCheckpointsSubscription = { checkpoints: { cursor: string, 
 
 export type ScanEventsQueryVariables = Exact<{
   filter?: EventFilter | null | undefined;
-  filters: Array<string> | string;
   first?: number | null | undefined;
   after?: string | null | undefined;
   last?: number | null | undefined;
@@ -432,7 +430,7 @@ export type ScanEventsQueryVariables = Exact<{
 }>;
 
 
-export type ScanEventsQuery = { serviceConfig: { availableRange: { first: { sequenceNumber: number } | null, last: { sequenceNumber: number } | null } }, events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } }> } | null };
+export type ScanEventsQuery = { checkpoint: { sequenceNumber: number } | null, events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } }> } | null };
 
 export type SubscribeEventsSubscriptionVariables = Exact<{
   filter?: EventFilter | null | undefined;
@@ -444,7 +442,6 @@ export type SubscribeEventsSubscription = { events: { cursor: string, node: { se
 
 export type ScanTransactionsQueryVariables = Exact<{
   filter?: TransactionFilter | null | undefined;
-  filters: Array<string> | string;
   first?: number | null | undefined;
   after?: string | null | undefined;
   last?: number | null | undefined;
@@ -459,7 +456,7 @@ export type ScanTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type ScanTransactionsQuery = { serviceConfig: { availableRange: { first: { sequenceNumber: number } | null, last: { sequenceNumber: number } | null } }, transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
+export type ScanTransactionsQuery = { checkpoint: { sequenceNumber: number } | null, transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
 
 export type SubscribeTransactionsSubscriptionVariables = Exact<{
   filter?: TransactionFilter | null | undefined;
@@ -525,7 +522,7 @@ export type CheckpointTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type CheckpointTransactionsQuery = { serviceConfig: { availableRange: { first: { sequenceNumber: number } | null, last: { sequenceNumber: number } | null } }, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null };
+export type CheckpointTransactionsQuery = { checkpoint: { sequenceNumber: number } | null, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null };
 
 export type SimulateTransactionQueryVariables = Exact<{
   transaction: unknown;
@@ -1374,13 +1371,13 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const LedgerStreamStateDocument = new TypedDocumentString(`
-    query ledgerStreamState($field: String!, $filters: [String!]!) {
+    query ledgerStreamState($checkpointRetention: Boolean!) {
   chainIdentifier
   checkpoint {
     sequenceNumber
   }
-  serviceConfig {
-    availableRange(type: "Query", field: $field, filters: $filters) {
+  serviceConfig @include(if: $checkpointRetention) {
+    availableRange(type: "Query", field: "checkpoints") {
       first {
         sequenceNumber
       }
@@ -1450,16 +1447,9 @@ export const SubscribeCheckpointsDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<SubscribeCheckpointsSubscription, SubscribeCheckpointsSubscriptionVariables>;
 export const ScanEventsDocument = new TypedDocumentString(`
-    query scanEvents($filter: EventFilter, $filters: [String!]!, $first: Int, $after: String, $last: Int, $before: String) {
-  serviceConfig {
-    availableRange(type: "Query", field: "events", filters: $filters) {
-      first {
-        sequenceNumber
-      }
-      last {
-        sequenceNumber
-      }
-    }
+    query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  checkpoint {
+    sequenceNumber
   }
   events(
     filter: $filter
@@ -1549,16 +1539,9 @@ export const SubscribeEventsDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<SubscribeEventsSubscription, SubscribeEventsSubscriptionVariables>;
 export const ScanTransactionsDocument = new TypedDocumentString(`
-    query scanTransactions($filter: TransactionFilter, $filters: [String!]!, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
-  serviceConfig {
-    availableRange(type: "Query", field: "transactions", filters: $filters) {
-      first {
-        sequenceNumber
-      }
-      last {
-        sequenceNumber
-      }
-    }
+    query scanTransactions($filter: TransactionFilter, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  checkpoint {
+    sequenceNumber
   }
   transactions(
     filter: $filter
@@ -1992,15 +1975,8 @@ fragment TRANSACTION_FIELDS on Transaction {
 }`) as unknown as TypedDocumentString<SubscribeCheckpointsWithTransactionsSubscription, SubscribeCheckpointsWithTransactionsSubscriptionVariables>;
 export const CheckpointTransactionsDocument = new TypedDocumentString(`
     query checkpointTransactions($atCheckpoint: UInt53!, $after: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
-  serviceConfig {
-    availableRange(type: "Query", field: "transactions", filters: ["atCheckpoint"]) {
-      first {
-        sequenceNumber
-      }
-      last {
-        sequenceNumber
-      }
-    }
+  checkpoint {
+    sequenceNumber
   }
   transactions(filter: { atCheckpoint: $atCheckpoint }, first: 50, after: $after) {
     ...CHECKPOINT_TRANSACTIONS_PAGE
