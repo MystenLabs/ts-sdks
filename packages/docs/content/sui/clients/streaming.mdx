@@ -152,7 +152,8 @@ follows. `start` is still inclusive and `end` exclusive, so `start: { checkpoint
 
 On a server that has pruned old history, a descending read without an `end` stops at the oldest
 checkpoint the server keeps and completes with `reason: 'retentionLimit'`, while a `start` or `end`
-below that checkpoint fails with `SuiStreamError` code `HistoryUnavailable`.
+below that checkpoint fails with `SuiStreamError` code `HistoryUnavailable`. On GraphQL this applies
+to checkpoint streams; transaction and event streams read whatever history the server serves.
 
 ```typescript
 client.streamTransactions({

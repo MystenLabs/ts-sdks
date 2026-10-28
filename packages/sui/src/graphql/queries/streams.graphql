@@ -3,15 +3,17 @@
 
 # Ledger streams use the list methods' fragments so streamed items match list results.
 
-# The oldest checkpoint the stream's indexes retain is read with the tip, so a follow that subscribes
-# without reading pages still fails on pruned history.
-query ledgerStreamState($field: String!, $filters: [String!]!) {
+# Checkpoint streams also read the oldest retained checkpoint with the tip, so a follow that
+# subscribes without reading pages still fails on pruned history. Transactions and events don't:
+# servers with subscriptions answer them from the fullnode, whose retention `availableRange` does
+# not report.
+query ledgerStreamState($checkpointRetention: Boolean!) {
 	chainIdentifier
 	checkpoint {
 		sequenceNumber
 	}
-	serviceConfig {
-		availableRange(type: "Query", field: $field, filters: $filters) {
+	serviceConfig @include(if: $checkpointRetention) {
+		availableRange(type: "Query", field: "checkpoints") {
 			first {
 				sequenceNumber
 			}
@@ -67,24 +69,10 @@ subscription subscribeCheckpoints($after: String, $afterCheckpoint: UInt53) {
 	}
 }
 
-query scanEvents(
-	$filter: EventFilter
-	$filters: [String!]!
-	$first: Int
-	$after: String
-	$last: Int
-	$before: String
-) {
-	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
-	serviceConfig {
-		availableRange(type: "Query", field: "events", filters: $filters) {
-			first {
-				sequenceNumber
-			}
-			last {
-				sequenceNumber
-			}
-		}
+query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	# The checkpoint this page was read at.
+	checkpoint {
+		sequenceNumber
 	}
 	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
@@ -110,7 +98,6 @@ subscription subscribeEvents($filter: EventFilter, $after: String) {
 
 query scanTransactions(
 	$filter: TransactionFilter
-	$filters: [String!]!
 	$first: Int
 	$after: String
 	$last: Int
@@ -123,16 +110,9 @@ query scanTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
-	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
-	serviceConfig {
-		availableRange(type: "Query", field: "transactions", filters: $filters) {
-			first {
-				sequenceNumber
-			}
-			last {
-				sequenceNumber
-			}
-		}
+	# The checkpoint this page was read at.
+	checkpoint {
+		sequenceNumber
 	}
 	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
 		pageInfo {
@@ -254,16 +234,9 @@ query checkpointTransactions(
 	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
-	# The checkpoints this replica has indexed transactions for.
-	serviceConfig {
-		availableRange(type: "Query", field: "transactions", filters: ["atCheckpoint"]) {
-			first {
-				sequenceNumber
-			}
-			last {
-				sequenceNumber
-			}
-		}
+	# The checkpoint this replica has indexed through.
+	checkpoint {
+		sequenceNumber
 	}
 	transactions(filter: { atCheckpoint: $atCheckpoint }, first: 50, after: $after) {
 		...CHECKPOINT_TRANSACTIONS_PAGE

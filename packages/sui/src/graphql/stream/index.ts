@@ -37,11 +37,15 @@ function adapterFor<Node>(
 
 		async initialize(signal) {
 			const filter = await family.resolveFilter(signal);
-			const { chain, tip, retainedFrom } = await readChainTip(client, family.retention(), signal);
+			const { chain, tip, retainedFrom } = await readChainTip(
+				client,
+				family.name === 'checkpoints',
+				signal,
+			);
 			return { chain, filter, indexedTip: tip, retainedFrom };
 		},
 		async indexedTip(signal) {
-			return (await readChainTip(client, family.retention(), signal)).tip;
+			return (await readChainTip(client, false, signal)).tip;
 		},
 		fetchPage: (request) => fetchGraphQLPage(family, request),
 		subscribe: (from, signal) => liveSubscription(family, from, signal),

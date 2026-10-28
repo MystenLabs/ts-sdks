@@ -106,8 +106,6 @@ export interface LedgerFamily<Node> {
 	readonly pageSize?: number;
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	page(request: PageRequest): Promise<Page<Node>>;
-	/** The `availableRange` field and filters that decide this family's retention. */
-	retention(): { field: string; filters: string[] };
 	/** Backfills from the resume point, then continues live. */
 	subscribe(
 		signal: AbortSignal,
@@ -144,7 +142,6 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 	return {
 		name: 'checkpoints',
 		resolveFilter: async () => undefined,
-		retention: () => ({ field: 'checkpoints', filters: [] }),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'checkpoints',
@@ -210,16 +207,9 @@ function checkpointsWithTransactionsFamily(
 			});
 			// A live checkpoint can arrive before this replica indexed its transactions, which would
 			// read as an empty last page. Retry later instead of truncating.
-			const indexed = data.serviceConfig.availableRange;
-			if ((indexed.last?.sequenceNumber ?? -1) < node.sequenceNumber) {
+			if ((data.checkpoint?.sequenceNumber ?? -1) < node.sequenceNumber) {
 				throw notIndexedYet(
 					`Transactions of checkpoint ${node.sequenceNumber} are not indexed yet`,
-				);
-			}
-			if ((indexed.first?.sequenceNumber ?? 0) > node.sequenceNumber) {
-				throw new SuiStreamError(
-					'HistoryUnavailable',
-					`Transactions of checkpoint ${node.sequenceNumber} have been pruned`,
 				);
 			}
 			const page = data.transactions;
@@ -236,7 +226,6 @@ function checkpointsWithTransactionsFamily(
 		name: 'checkpoints',
 		pageSize: CHECKPOINT_TRANSACTIONS_PAGE_SIZE,
 		resolveFilter: async () => undefined,
-		retention: () => ({ field: 'checkpoints', filters: [] }),
 		page: async ({ range, signal, ...cursors }) => {
 			const page = scanPage<ScanCheckpointsWithTransactionsQuery, CheckpointWithTransactions>(
 				'checkpoints',
@@ -317,10 +306,6 @@ function transactionsFamily(
 			filter = options.filter && (await resolveTransactionFilter(mvr, options.filter, signal));
 			return filter;
 		},
-		retention: () => ({
-			field: 'transactions',
-			filters: setFields(toGraphQLTransactionFilter(filter, {})),
-		}),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'transactions',
@@ -328,7 +313,6 @@ function transactionsFamily(
 					query: ScanTransactionsDocument,
 					variables: {
 						filter: toGraphQLTransactionFilter(filter, range),
-						filters: setFields(toGraphQLTransactionFilter(filter, {})),
 						...cursors,
 						...selection,
 					},
@@ -371,7 +355,6 @@ function eventsFamily(
 			filter = options.filter && (await resolveEventFilter(mvr, options.filter, signal));
 			return filter;
 		},
-		retention: () => ({ field: 'events', filters: setFields(toGraphQLEventFilter(filter, {})) }),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'events',
@@ -379,7 +362,6 @@ function eventsFamily(
 					query: ScanEventsDocument,
 					variables: {
 						filter: toGraphQLEventFilter(filter, range),
-						filters: setFields(toGraphQLEventFilter(filter, {})),
 						...cursors,
 					},
 					signal,
@@ -409,13 +391,6 @@ function eventsFamily(
 	};
 }
 
-/** The filter fields set, which pick the indexes and so the retention range. */
-function setFields(filter: object): string[] {
-	return Object.entries(filter)
-		.filter(([, value]) => value != null)
-		.map(([key]) => key);
-}
-
 /** Index-backed pages always carry each node's checkpoint. */
 export function pageItem<Node>(
 	family: LedgerFamily<Node>,
@@ -443,19 +418,29 @@ interface AvailableRange {
 	last: { sequenceNumber: number } | null;
 }
 
-function scanPage<Result extends { serviceConfig?: { availableRange?: AvailableRange } }, Node>(
-	name: string,
-	data: Result,
-	select: (data: Result) => unknown,
-): Page<Node> {
+/**
+ * A scan page. Checkpoint scans read the retention of their index with `availableRange`;
+ * transaction and event scans read only the checkpoint the page was read at, since servers with
+ * subscriptions answer them from the fullnode, whose retention `availableRange` does not report.
+ */
+function scanPage<
+	Result extends {
+		serviceConfig?: { availableRange?: AvailableRange };
+		checkpoint?: { sequenceNumber: number } | null;
+	},
+	Node,
+>(name: string, data: Result, select: (data: Result) => unknown): Page<Node> {
 	const page = connection<Node>(name, select(data));
 	const range = data.serviceConfig?.availableRange;
-	if (!range) throw new SuiStreamError('Protocol', `GraphQL ${name} page has no availableRange`);
-	if (!range.last) throw notIndexedYet('No checkpoint has been indexed yet');
+	const viewedAt = range ? range.last : data.checkpoint;
+	if (range === undefined && data.checkpoint === undefined) {
+		throw new SuiStreamError('Protocol', `GraphQL ${name} page has no checkpoint`);
+	}
+	if (!viewedAt) throw notIndexedYet('No checkpoint has been indexed yet');
 	return {
 		...page,
-		viewedAt: BigInt(range.last.sequenceNumber),
-		retainedFrom: range.first ? BigInt(range.first.sequenceNumber) : null,
+		viewedAt: BigInt(viewedAt.sequenceNumber),
+		retainedFrom: range?.first ? BigInt(range.first.sequenceNumber) : null,
 	};
 }
 

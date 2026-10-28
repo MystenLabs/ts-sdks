@@ -102,19 +102,22 @@ export async function queryData<Result, Variables>(
 	return unwrap(await client.query(options));
 }
 
-/** The chain identity, the indexed tip and the oldest checkpoint `retention` retains, in one request. */
+/**
+ * The chain identity and the indexed tip in one request, with the oldest retained checkpoint for
+ * checkpoint streams.
+ */
 export async function readChainTip(
 	client: SuiGraphQLClient,
-	retention: { field: string; filters: string[] },
+	checkpointRetention: boolean,
 	signal: AbortSignal,
 ): Promise<{ chain: string; tip: bigint; retainedFrom?: bigint }> {
 	const data = await queryData(client, {
 		query: LedgerStreamStateDocument,
-		variables: retention,
+		variables: { checkpointRetention },
 		signal,
 	});
 	if (!data.checkpoint) throw notIndexedYet('No checkpoint has been indexed yet');
-	const first = data.serviceConfig.availableRange.first;
+	const first = data.serviceConfig?.availableRange.first;
 	return {
 		chain: data.chainIdentifier,
 		tip: BigInt(data.checkpoint.sequenceNumber),

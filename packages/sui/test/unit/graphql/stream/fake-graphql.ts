@@ -4,8 +4,9 @@
 /**
  * A scripted GraphQL server for ledger stream tests.
  *
- * `ledgerStreamState` and every scan page report `server.tip` and the retention for their
- * filters. Every other operation is answered from its script, in order,
+ * `ledgerStreamState` and every scan page report `server.tip`. Checkpoint reads also report the
+ * retention `server.first`; transaction and event reads report none, as on servers with
+ * subscriptions. Every other operation is answered from its script, in order,
  * repeating the last answer:
  *
  *   server.on('scanEvents', page('events', [event(1)]), page('events', []));
@@ -37,13 +38,8 @@ export interface FakeServer {
 	client: SuiGraphQLClient;
 	/** Newest indexed checkpoint; null reports that nothing is indexed yet. */
 	tip: number | null;
-	/** Oldest retained checkpoint. */
+	/** Oldest retained checkpoint of the checkpoint index. */
 	first: number;
-	/**
-	 * Oldest retained checkpoint of the index behind each filter field, where it differs from
-	 * `first`.
-	 */
-	retention: Record<string, number>;
 	requests: SentRequest[];
 	on(operation: string, ...answers: Answer[]): FakeServer;
 	/** Variables of every request for `operation`, in order. */
@@ -56,7 +52,6 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		client: undefined as never,
 		tip: options.tip ?? 10,
 		first: options.first ?? 0,
-		retention: {},
 		requests: [],
 		on(operation, ...answers) {
 			scripts.set(operation, answers);
@@ -72,7 +67,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		const operation = /(?:query|subscription)\s+(\w+)/.exec(body.query)![1];
 		const request = { operation, variables: body.variables ?? {}, signal: init!.signal!, server };
 		server.requests.push(request);
-		if (operation === 'ledgerStreamState') return stateResponse(server, request.variables.filters);
+		if (operation === 'ledgerStreamState') return stateResponse(server, request.variables);
 		const script = scripts.get(operation);
 		if (!script?.length) throw new Error(`Unexpected ${operation}`);
 		const answer = script.length > 1 ? script.shift()! : script[0];
@@ -86,23 +81,16 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 	return server;
 }
 
-function stateResponse(server: FakeServer, filters: string[]) {
+function stateResponse(server: FakeServer, variables: Variables) {
 	return Response.json({
 		data: {
 			chainIdentifier: 'chain',
 			checkpoint: server.tip === null ? null : { sequenceNumber: server.tip },
-			serviceConfig: { availableRange: availableRange(server, filters, server.tip) },
+			...(variables.checkpointRetention && {
+				serviceConfig: { availableRange: { first: { sequenceNumber: server.first } } },
+			}),
 		},
 	});
-}
-
-/** What `availableRange` answers for the filters a page was read with, at `viewedAt`. */
-function availableRange(server: FakeServer, filters: string[], viewedAt: number | null) {
-	const floors = filters.map((filter) => server.retention[filter] ?? server.first);
-	return {
-		first: { sequenceNumber: Math.max(server.first, ...floors) },
-		last: viewedAt === null ? null : { sequenceNumber: viewedAt },
-	};
 }
 
 // Answers
@@ -160,12 +148,21 @@ export function page(
 	options: { more?: boolean; cursor?: string; viewedAt?: number } = {},
 ): Answer {
 	const more = options.more ?? false;
-	return ({ server, variables }) =>
-		Response.json({
+	return ({ server }) => {
+		const viewedAt = options.viewedAt ?? server.tip;
+		const at = viewedAt === null ? null : { sequenceNumber: viewedAt };
+		// Checkpoint scans read their index's retention; transaction and event scans only the tip.
+		const readAt =
+			family === 'checkpoints'
+				? {
+						serviceConfig: {
+							availableRange: { first: { sequenceNumber: server.first }, last: at },
+						},
+					}
+				: { checkpoint: at };
+		return Response.json({
 			data: {
-				serviceConfig: {
-					availableRange: availableRange(server, variables.filters, options.viewedAt ?? server.tip),
-				},
+				...readAt,
 				[family]: {
 					edges,
 					pageInfo: {
@@ -177,6 +174,7 @@ export function page(
 				},
 			},
 		});
+	};
 }
 
 /**

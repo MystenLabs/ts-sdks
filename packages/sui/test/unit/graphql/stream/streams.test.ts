@@ -258,42 +258,25 @@ describe('historical scan', () => {
 		expect(server.sent('scanCheckpoints')[0].filter.afterCheckpoint).toBeUndefined();
 	});
 
-	it('checks retention against the indexes its own filter reads', async () => {
-		const server = fakeGraphQL({ tip: 20 });
-		// Only the affected-address index has pruned anything.
-		server.retention = { affectedAddress: 15 };
-		server.on('scanTransactions', page('transactions', [transaction(10)]));
-		const frames = await collect(
-			stream(server.client, 'transactions', {
-				start: { checkpoint: 10 },
-				end: { checkpoint: 11 },
-				retry: { ...noDelay, maxAttempts: 0 },
-			}),
+	it('reads transactions and events from far back whatever availableRange reports', async () => {
+		// Servers with subscriptions answer transactions and events from the fullnode; the
+		// retention availableRange reports is their Postgres index's, so the stream never asks.
+		const server = fakeGraphQL({ tip: 1_000, first: 900 });
+		server.on('scanEvents', page('events', [event(10)]));
+		server.on('subscribeEvents', live('events', [event(20)]));
+		const finite = await collect(
+			stream(server.client, 'events', { start: { checkpoint: 10 }, end: { checkpoint: 11 } }),
 		);
-		expect(frames.map(label)).toEqual(['tx10']);
-		expect(server.sent('scanTransactions').at(-1)?.filters).toEqual([]);
+		expect(finite.map(label)).toEqual(['10:0']);
 
-		const sender = `0x${'5'.padStart(64, '0')}`;
-		await collect(
-			stream(server.client, 'transactions', {
-				start: { checkpoint: 10 },
-				end: { checkpoint: 11 },
-				filter: { sender },
-			}),
+		const [followed] = await take(
+			stream(server.client, 'events', { start: { checkpoint: 10 } }),
+			1,
 		);
-		expect(server.sent('scanTransactions').at(-1)?.filters).toEqual(['sentAddress']);
-
-		const affected = `0x${'6'.padStart(64, '0')}`;
-		const error = await rejection(
-			collect(
-				stream(server.client, 'transactions', {
-					start: { checkpoint: 10 },
-					end: { checkpoint: 11 },
-					filter: { affectedAddress: affected },
-				}),
-			),
+		expect(label(followed)).toBe('20:0');
+		expect(server.sent('ledgerStreamState').every((v) => v.checkpointRetention === false)).toBe(
+			true,
 		);
-		expect(error).toMatchObject({ code: 'HistoryUnavailable' });
 	});
 
 	it('waits for a future exclusive end even when nothing matches', async () => {
@@ -991,32 +974,62 @@ describe('subscription progress', () => {
 		expect(server.sent('scanEvents')).toHaveLength(0);
 	});
 
-	it('polls after a live progress token without moving behind it on a lagging replica', async () => {
+	/** A progress token minted by a live edge after the feed passed checkpoint 10. */
+	async function liveProgressToken() {
 		const seed = fakeGraphQL({ tip: 10 });
 		seed.on('subscribeEvents', live('events', [progressEdge('a')] as unknown as Edge[]));
 		const [, progress] = await take(
 			stream(seed.client, 'events', { frames: { progress: true } }),
 			2,
 		);
+		return token(progress);
+	}
 
-		// The replica is behind the checkpoint the progress cursor was minted at.
+	it('polls after a live progress token without moving behind it on a lagging replica', async () => {
+		const resumeToken = await liveProgressToken();
+		// The replica has not reached the checkpoint the feed had passed, then catches up.
 		const server = fakeGraphQL({ tip: 4 });
-		server.on('scanEvents', page('events', []), page('events', [event(12)]));
+		server.on(
+			'scanEvents',
+			after(() => (server.tip = 12), page('events', [])),
+			page('events', [event(12)]),
+		);
 		const [frame] = await take(
 			stream(server.client, 'events', {
-				start: { resumeToken: token(progress) },
+				start: { resumeToken },
 				delivery: 'poll',
 				pollInterval: 1,
 				frames: { progress: true },
 			}),
 			1,
 		);
-		// No boundary from the replica's tip was committed: the next poll still resumes after the cursor.
+		// Nothing was committed from the lagging replica: the next poll still resumes after the cursor.
 		expect(label(frame)).toBe('12:0');
 		expect(server.sent('scanEvents').map((variables) => variables.after)).toEqual([
 			'live:progress:a',
 			'live:progress:a',
 		]);
+	});
+
+	it('advances a quiet poll resumed from a live progress token', async () => {
+		const resumeToken = await liveProgressToken();
+		const server = fakeGraphQL({ tip: 12 });
+		server.on('scanEvents', page('events', []), page('events', [event(14)]));
+		const frames = await take(
+			stream(server.client, 'events', {
+				start: { resumeToken },
+				delivery: 'poll',
+				pollInterval: 1,
+				frames: { progress: true },
+			}),
+			2,
+		);
+		expect(frames.map(label)).toEqual(['Progress', '14:0']);
+		// The second tick resumes from the boundary after the server's tip, not the same cursor.
+		const [first, second] = server.sent('scanEvents');
+		expect(first.after).toBe('live:progress:a');
+		expect(second.after).toBeUndefined();
+		expect(second.filter.afterCheckpoint).toBe(12);
 	});
 });
 
