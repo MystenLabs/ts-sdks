@@ -335,6 +335,9 @@ console.log(dynamicField.value.type);
 console.log(dynamicField.value.bcs); // BCS-encoded value
 ```
 
+For a dynamic object field, pass the name type wrapped in `0x2::dynamic_object_field::Wrapper<...>`.
+`value` then holds the child object's type and BCS-encoded content, as in `listDynamicFields`.
+
 ### `getDynamicObjectField`
 
 Fetch a dynamic _object_ field and return the referenced object itself, with the same

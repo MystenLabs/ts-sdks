@@ -103,22 +103,16 @@ describe('Core API - Dynamic Fields', () => {
 		dynamicFields: [...result.dynamicFields].sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
 	});
 
+	// Dynamic object fields are looked up by their `Wrapper` name type
+	const lookupNameType = (field: SuiClientTypes.DynamicFieldEntry<any>) =>
+		field.$kind === 'DynamicObject'
+			? `0x2::dynamic_object_field::Wrapper<${field.name.type}>`
+			: field.name.type;
+
 	const decodeName = (field: SuiClientTypes.DynamicFieldEntry<any>) =>
 		new TextDecoder().decode(new Uint8Array(bcs.vector(bcs.u8()).parse(field.name.bcs)));
 
 	describe('getDynamicFields', () => {
-		it('all clients return same data: getDynamicFields', async () => {
-			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.listDynamicFields({ parentId: objectWithDynamicFieldsId }),
-				// Normalize: ignore cursor and sort by id (order may vary across APIs)
-				(result) => ({
-					...result,
-					cursor: null,
-					dynamicFields: result.dynamicFields.sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
-				}),
-			);
-		});
-
 		testWithAllClients('should get all dynamic fields for an object', async (client) => {
 			const result = await client.core.listDynamicFields({
 				parentId: objectWithDynamicFieldsId,
@@ -226,17 +220,6 @@ describe('Core API - Dynamic Fields', () => {
 				expect(objectField!.childId.length).toBeGreaterThan(0);
 			},
 		);
-
-		it('all clients return same data for mixed dynamic fields', async () => {
-			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.listDynamicFields({ parentId: objectWithMixedFieldsId }),
-				(result) => ({
-					...result,
-					cursor: null,
-					dynamicFields: result.dynamicFields.sort((a, b) => a.fieldId.localeCompare(b.fieldId)),
-				}),
-			);
-		});
 	});
 
 	describe('listDynamicFields with include: { value: true }', () => {
@@ -279,12 +262,48 @@ describe('Core API - Dynamic Fields', () => {
 					expect(field.type).toBe(fieldObject.type);
 					expect(field.value.type).toBe(field.valueType);
 
-					const nameType =
-						field.$kind === 'DynamicObject'
-							? `0x2::dynamic_object_field::Wrapper<${field.name.type}>`
-							: field.name.type;
-					expect(field.fieldId).toBe(deriveDynamicFieldID(parentId, nameType, field.name.bcs));
+					expect(field.fieldId).toBe(
+						deriveDynamicFieldID(parentId, lookupNameType(field), field.name.bcs),
+					);
 				});
+			});
+
+			testWithAllClients(
+				`getDynamicField agrees with listDynamicFields: ${label}`,
+				async (client) => {
+					const parentId = getParentId();
+					const { dynamicFields } = await client.core.listDynamicFields({
+						parentId,
+						include: { value: true },
+					});
+
+					for (const field of dynamicFields) {
+						const { dynamicField } = await client.core.getDynamicField({
+							parentId,
+							name: { type: lookupNameType(field), bcs: field.name.bcs },
+						});
+						const { version, digest, previousTransaction, ...entry } = dynamicField;
+						expect(version).toBeTypeOf('string');
+						expect(digest).toBeTypeOf('string');
+						expect(previousTransaction).toBeTypeOf('string');
+						expect(entry).toEqual(field);
+					}
+				},
+			);
+
+			it(`all clients return same data: getDynamicField for ${label}`, async () => {
+				const { dynamicFields } = await toolbox.grpcClient.core.listDynamicFields({
+					parentId: getParentId(),
+				});
+
+				for (const field of dynamicFields) {
+					await toolbox.expectAllClientsReturnSameData((client) =>
+						client.core.getDynamicField({
+							parentId: getParentId(),
+							name: { type: lookupNameType(field), bcs: field.name.bcs },
+						}),
+					);
+				}
 			});
 		}
 
@@ -346,21 +365,6 @@ describe('Core API - Dynamic Fields', () => {
 	});
 
 	describe('getDynamicField', () => {
-		it('all clients return same data: getDynamicField', async () => {
-			const textBytes = new TextEncoder().encode('field_u64');
-			const bcsBytes = bcs.vector(bcs.u8()).serialize(Array.from(textBytes)).toBytes();
-
-			await toolbox.expectAllClientsReturnSameData((client) =>
-				client.core.getDynamicField({
-					parentId: objectWithDynamicFieldsId,
-					name: {
-						type: 'vector<u8>',
-						bcs: bcsBytes,
-					},
-				}),
-			);
-		});
-
 		testWithAllClients('should get a specific dynamic field by name', async (client) => {
 			// Encode the field name as BCS bytes (vector<u8> includes length prefix)
 			const textBytes = new TextEncoder().encode('field_u64');
@@ -384,6 +388,31 @@ describe('Core API - Dynamic Fields', () => {
 			const decodedName = new TextDecoder().decode(new Uint8Array(decodedArray));
 			expect(decodedName).toBe('field_u64');
 		});
+
+		testWithAllClients(
+			'should return the child object for dynamic object fields',
+			async (client) => {
+				const { dynamicFields } = await client.core.listDynamicFields({
+					parentId: objectWithMixedFieldsId,
+				});
+				const objectField = dynamicFields.find((f) => f.$kind === 'DynamicObject')!;
+
+				const { dynamicField } = await client.core.getDynamicField({
+					parentId: objectWithMixedFieldsId,
+					name: { type: lookupNameType(objectField), bcs: objectField.name.bcs },
+				});
+				const { object: child } = await client.core.getDynamicObjectField({
+					parentId: objectWithMixedFieldsId,
+					name: objectField.name,
+					include: { content: true },
+				});
+
+				expect(dynamicField.$kind).toBe('DynamicObject');
+				expect(dynamicField.childId).toBe(child.objectId);
+				expect(dynamicField.valueType).toBe(child.type);
+				expect(dynamicField.value).toEqual({ type: child.type, bcs: child.content });
+			},
+		);
 
 		testWithAllClients('should throw error for non-existent field name', async (client) => {
 			const textBytes = new TextEncoder().encode('nonexistent_field');
