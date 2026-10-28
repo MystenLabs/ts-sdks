@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
-import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
+import { GrpcStatusCode, readGrpcWebResponseHeader } from '@protobuf-ts/grpcweb-transport';
 import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import type {
 	MethodInfo,
@@ -17,7 +17,7 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
-import { toNetworkRpcError } from './network-error.js';
+import { markHttpStatus, toNetworkRpcError } from './network-error.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -141,6 +141,15 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 			response = await fetch(input, init);
 		} catch (error) {
 			throw toNetworkRpcError(error, init?.signal, 'request');
+		}
+		if (!response.ok) {
+			// Code it as upstream would, but keep the HTTP status: a proxy's 502 and 408 both map to
+			// UNKNOWN.
+			const [code, detail, meta] = readGrpcWebResponseHeader(response);
+			if (code !== undefined && code !== GrpcStatusCode.OK) {
+				const name = GrpcStatusCode[code];
+				throw markHttpStatus(new RpcError(detail ?? name, name, meta), response.status);
+			}
 		}
 		const chunks = bodyChunks(response.body);
 		if (!chunks) return response;
