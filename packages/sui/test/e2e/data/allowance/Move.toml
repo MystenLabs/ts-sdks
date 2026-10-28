@@ -4,7 +4,7 @@ edition = "2024.beta"
 
 [dependencies]
 # Match the sui-tools image used by the allowance tests.
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "987123842623d6cb0e772dc665789cfd69bdec9f" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "16d2dc1e05edcf600320a82e17b9392edb0983a5" }
 
 [addresses]
 allowance_test = "0x0"
