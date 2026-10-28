@@ -512,6 +512,7 @@ export type SubscribeCheckpointsWithTransactionsSubscription = { checkpoints: { 
 export type CheckpointTransactionsQueryVariables = Exact<{
   atCheckpoint: number;
   previousCheckpoint?: number | null | undefined;
+  withTotals: boolean;
   hasPrevious: boolean;
   after?: string | null | undefined;
   includeTransaction?: boolean | null | undefined;
@@ -524,7 +525,7 @@ export type CheckpointTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type CheckpointTransactionsQuery = { checkpoint: { sequenceNumber: number } | null, total: { networkTotalTransactions: number | null } | null, previousTotal?: { networkTotalTransactions: number | null } | null, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null };
+export type CheckpointTransactionsQuery = { checkpoint: { sequenceNumber: number } | null, total?: { networkTotalTransactions: number | null } | null, previousTotal?: { networkTotalTransactions: number | null } | null, transactions: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null };
 
 export type SimulateTransactionQueryVariables = Exact<{
   transaction: unknown;
@@ -1976,11 +1977,11 @@ fragment TRANSACTION_FIELDS on Transaction {
   }
 }`) as unknown as TypedDocumentString<SubscribeCheckpointsWithTransactionsSubscription, SubscribeCheckpointsWithTransactionsSubscriptionVariables>;
 export const CheckpointTransactionsDocument = new TypedDocumentString(`
-    query checkpointTransactions($atCheckpoint: UInt53!, $previousCheckpoint: UInt53 = 0, $hasPrevious: Boolean!, $after: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+    query checkpointTransactions($atCheckpoint: UInt53!, $previousCheckpoint: UInt53 = 0, $withTotals: Boolean!, $hasPrevious: Boolean!, $after: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
   checkpoint {
     sequenceNumber
   }
-  total: checkpoint(sequenceNumber: $atCheckpoint) {
+  total: checkpoint(sequenceNumber: $atCheckpoint) @include(if: $withTotals) {
     networkTotalTransactions
   }
   previousTotal: checkpoint(sequenceNumber: $previousCheckpoint) @include(if: $hasPrevious) {
