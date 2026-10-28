@@ -13,7 +13,11 @@ import {
 	SubscribeCheckpointsResponse,
 	SubscriptionService,
 } from '../../../src/grpc/proto/sui/rpc/v2/subscription_service.js';
-import { httpStatusOf, isRequestFailed } from '../../../src/grpc/network-error.js';
+import {
+	httpStatusOf,
+	isConnectionLost,
+	isRequestFailed,
+} from '../../../src/grpc/network-error.js';
 import { isNonRetryable, pullServerStreaming } from '../../../src/grpc/pull-call.js';
 
 function dataFrame(payload: Uint8Array): Uint8Array {
@@ -563,7 +567,7 @@ describe('error paths', () => {
 		expect(error).toMatchObject({ code: 'OUT_OF_RANGE', message: 'pruned' });
 	});
 
-	it('truncated frame is DATA_LOSS', async () => {
+	it('truncated frame is a lost connection', async () => {
 		const frame = dataFrame(message(1));
 		const b = body([frame.subarray(0, frame.length - 1)]);
 		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
@@ -572,11 +576,12 @@ describe('error paths', () => {
 			{},
 		);
 		const error = await rejection(call.responses.next());
-		expect(error.code).toBe('DATA_LOSS');
+		expect(error.code).toBe('UNAVAILABLE');
 		expect(error.message).toBe('premature EOF');
+		expect(isConnectionLost(error)).toBe(true);
 	});
 
-	it('messages without trailers is DATA_LOSS', async () => {
+	it('messages without trailers is a lost connection', async () => {
 		const b = body(frames(1));
 		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
 			countingMethod().method,
@@ -584,7 +589,9 @@ describe('error paths', () => {
 			{},
 		);
 		await call.responses.next();
-		expect((await rejection(call.responses.next())).message).toBe('missing trailers');
+		const error = await rejection(call.responses.next());
+		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing trailers' });
+		expect(isConnectionLost(error)).toBe(true);
 	});
 
 	it('malformed protobuf is INTERNAL and cancels the body', async () => {
