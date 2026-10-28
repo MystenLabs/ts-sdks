@@ -143,8 +143,10 @@ export namespace SuiClientTypes {
 		  }
 		/**
 		 * `attempt` counts consecutive failures without progress, from 1. A failure after progress
-		 * reconnects with `delay` 0. A disconnect after progress (a live feed ended or overflowed,
-		 * or the connection broke) is free: `attempt` is 0 and it spends no retry budget.
+		 * reconnects at once, or after a pause of up to 250 ms if the attempt delivered no item. A
+		 * disconnect after progress is free: `attempt` is 0 and it spends no retry budget. That
+		 * covers a live feed that ended or overflowed, and a broken connection the transport reports
+		 * as lost; transports that don't, such as grpc-js's own connection drops, count as failures.
 		 */
 		| {
 				$kind: 'Retrying';

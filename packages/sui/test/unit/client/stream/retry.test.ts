@@ -109,13 +109,33 @@ describe('retries in a stream', () => {
 				}),
 			),
 		).rejects.toThrow('unavailable');
-		// Only the first connection advanced (it committed the watermark).
+		// Only the first connection advanced (it committed the watermark). With no item delivered,
+		// even that reconnect waits `initialDelay`.
 		expect(log.filter((status) => status.startsWith('Retrying'))).toEqual([
-			'Retrying(1,0)',
+			'Retrying(1,1)',
 			'Retrying(2,2)',
 			'Retrying(3,4)',
 			'Retrying(4,8)',
 			'Retrying(5,16)',
+		]);
+	});
+
+	it('waits initialDelay after an attempt that advanced only by progress, not after an item', async () => {
+		const ledger = new Ledger(Array(10).fill(1), 6);
+		const { log, onStatus } = statusLog();
+		const adapter = fakeAdapter(ledger, {
+			anchorsAtLiveTip: true,
+			afterRead: () => (ledger.indexedTip = 9n),
+			live: [
+				{ events: [ledger.progress(6)], end: new LostConnection() },
+				{ events: [ledger.item(7)], end: new LostConnection() },
+				{ events: [ledger.item(8)], end: 'hang' },
+			],
+		});
+		await take(stream(adapter, { onStatus, retry: { initialDelay: 7, jitter: 0 } }), 2);
+		expect(log.filter((status) => status.startsWith('Retrying'))).toEqual([
+			'Retrying(0,7)',
+			'Retrying(0,0)',
 		]);
 	});
 

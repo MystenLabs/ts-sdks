@@ -10,6 +10,9 @@ import { SuiStreamError } from './errors.js';
  * resets the count, and a disconnect after progress reconnects at once without counting, so
  * long-lived feeds keep working even with `maxAttempts: 0`.
  */
+/** The pause after an attempt that advanced only by progress (at most `initialDelay`). */
+const PROGRESS_ONLY_DELAY = 250;
+
 export class RetryBudget {
 	readonly #initialDelay: number;
 	readonly #maxDelay: number;
@@ -33,17 +36,24 @@ export class RetryBudget {
 
 	/**
 	 * Returns the delay before reconnecting, or throws when the failure ends the stream. A broken
-	 * connection after progress is free, like a live feed that ended.
+	 * connection after progress is free, like a live feed that ended. After progress the stream
+	 * reconnects at once, or after a short pause when the attempt delivered no item
+	 * (`progressOnly`), so a server that sends one progress edge and then fails is not hit in a
+	 * tight loop.
 	 */
 	onFailure(
 		error: unknown,
 		errorClass: ErrorClass,
 		advanced: boolean,
 		reason?: SuiClientTypes.StreamRetryReason,
+		progressOnly = false,
 	): number {
 		if (errorClass === 'fatal') throw error;
+		const afterProgress = progressOnly ? Math.min(this.#initialDelay, PROGRESS_ONLY_DELAY) : 0;
 		if (advanced) this.#attempt = 0;
-		if (advanced && (errorClass === 'disconnect' || reason === 'Disconnected')) return 0;
+		if (advanced && (errorClass === 'disconnect' || reason === 'Disconnected')) {
+			return afterProgress;
+		}
 
 		this.#attempt += 1;
 		if (this.#attempt > this.#maxAttempts) {
@@ -53,7 +63,7 @@ export class RetryBudget {
 					})
 				: error;
 		}
-		if (advanced) return 0;
+		if (advanced) return afterProgress;
 		const exponential = this.#initialDelay * 2 ** Math.min(this.#attempt - 1, 52);
 		return Math.min(this.#maxDelay, exponential) + this.#random() * this.#jitter;
 	}
