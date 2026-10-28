@@ -26,7 +26,7 @@ import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { Deferred, RpcError } from '@protobuf-ts/runtime-rpc';
 import type { MethodInfo, RpcMetadata, RpcStatus } from '@protobuf-ts/runtime-rpc';
 
-import { isAbortError, toNetworkRpcError } from './network-error.js';
+import { isAbortError, markHttpStatus, toNetworkRpcError } from './network-error.js';
 import { markNonRetryable } from './pull-call.js';
 import type { ServerStreamingIterableCall } from './pull-call.js';
 
@@ -439,7 +439,7 @@ export class GrpcWebPullCall<
 				signal: this.#controller.signal,
 			});
 		} catch (error) {
-			throw toNetworkRpcError(error, this.#controller.signal);
+			throw toNetworkRpcError(error, this.#controller.signal, 'request');
 		}
 
 		const rawBody = response.body as ReadableStream<Uint8Array> | AsyncIterable<Uint8Array> | null;
@@ -452,7 +452,9 @@ export class GrpcWebPullCall<
 			const [statusCode, detail, meta] = readGrpcWebResponseHeader(response);
 			this.#headers.resolvePending(meta);
 			if (statusCode !== undefined && statusCode !== GrpcStatusCode.OK) {
-				throw new RpcError(detail ?? code(statusCode), code(statusCode), meta);
+				const error = new RpcError(detail ?? code(statusCode), code(statusCode), meta);
+				// A proxy's HTTP error maps to a coarse code (502 and 408 become UNKNOWN); keep the status.
+				throw response.ok ? error : markHttpStatus(error, response.status);
 			}
 			if (statusCode !== undefined) {
 				this.#headerStatus = { code: code(statusCode), detail: detail ?? 'OK' };
@@ -520,7 +522,7 @@ export class GrpcWebPullCall<
 		try {
 			return await reader.read();
 		} catch (error) {
-			throw toNetworkRpcError(error, this.#controller.signal);
+			throw toNetworkRpcError(error, this.#controller.signal, 'response');
 		}
 	}
 

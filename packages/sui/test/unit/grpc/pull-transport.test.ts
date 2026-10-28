@@ -13,6 +13,7 @@ import {
 	SubscribeCheckpointsResponse,
 	SubscriptionService,
 } from '../../../src/grpc/proto/sui/rpc/v2/subscription_service.js';
+import { httpStatusOf, isRequestFailed } from '../../../src/grpc/network-error.js';
 import { isNonRetryable, pullServerStreaming } from '../../../src/grpc/pull-call.js';
 
 function dataFrame(payload: Uint8Array): Uint8Array {
@@ -726,7 +727,17 @@ describe('error paths', () => {
 
 		const http = server(() => new Response('nope', { status: 503 }));
 		const c = transport(http).serverStreamingIterable(countingMethod().method, {}, {});
-		expect((await rejection(c.responses.next())).code).toBe('UNAVAILABLE');
+		const unavailable = await rejection(c.responses.next());
+		expect(unavailable.code).toBe('UNAVAILABLE');
+		expect(httpStatusOf(unavailable)).toBe(503);
+		expect(isRequestFailed(await rejection(a.responses.next()))).toBe(true);
+
+		// A proxy 502 maps to UNKNOWN, so the status is kept for the stream's retry reason.
+		const proxy = server(() => new Response('bad gateway', { status: 502 }));
+		const d = transport(proxy).serverStreamingIterable(countingMethod().method, {}, {});
+		const unknown = await rejection(d.responses.next());
+		expect(unknown.code).toBe('UNKNOWN');
+		expect(httpStatusOf(unknown)).toBe(502);
 	});
 
 	it('expired deadline fails without a request', async () => {
