@@ -153,7 +153,9 @@ follows. `start` is still inclusive and `end` exclusive, so `start: { checkpoint
 On a server that has pruned old history, a descending read without an `end` stops at the oldest
 checkpoint the server keeps and completes with `reason: 'retentionLimit'`, while a `start` or `end`
 below that checkpoint fails with `SuiStreamError` code `HistoryUnavailable`. On GraphQL this applies
-to checkpoint streams; transaction and event streams read whatever history the server serves.
+to checkpoint streams only. A transaction or event stream that starts before the server's history
+retries the server's errors as `ServerError` instead, and a descending one without an `end`
+completes with `reason: 'genesis'`.
 
 ```typescript
 client.streamTransactions({
@@ -238,10 +240,10 @@ throwing from it ends the stream. Store tokens from frames, never from statuses.
 | `Error`      | The stream is about to throw `error`.                                                   |
 
 GraphQL subscriptions resume on the server, which replays history without `Page` or `Recovering`
-statuses. A GraphQL follow that starts at the tip, or reconnects there, reports `Live` when its
-subscription opens; one that replays history reports it with its first item at or past the chain tip
-when the stream started, so a quiet filter catching up stays `Connected` until its first match. gRPC
-resumes on the client by reading history pages first.
+statuses. A GraphQL follow that starts at the tip, or reconnects after it was live, reports `Live`
+with the first item or progress edge on its feed; one that replays history reports it with its first
+item at or past the chain tip when the stream started, so a quiet filter catching up stays
+`Connected` until its first match. gRPC resumes on the client by reading history pages first.
 
 ## Measure lag
 
@@ -280,13 +282,17 @@ client.streamEvents({
 
 Transient failures retry with exponential backoff and jitter. `maxAttempts` bounds consecutive
 failures without progress, and `maxAttempts: 0` disables retries. If the connection breaks after
-progress, the stream reconnects at once without spending the budget and resumes from the last frame.
+progress, the stream resumes from the last frame without spending the budget, provided the transport
+reports the lost connection; grpc-js's own connection drops, and other transports that don't report
+it, count as ordinary failures. A GraphQL `RESOURCE_EXHAUSTED` error gets at most three retries,
+since it can recur for one item on every attempt.
 
 `reason` says why. `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
 streams, and `NotIndexed` is expected briefly near the tip and on new networks; alert on those only
 if they persist. `Network`, `RateLimited`, `Timeout`, `Unavailable`, `SlowConsumer` and
 `ServerError` can point at a problem. GraphQL reports a lagging subscriber or a server-side
-interruption as `ServerError`, where gRPC reports `SlowConsumer` or `Disconnected`.
+interruption as `ServerError`, where gRPC reports `SlowConsumer` or `Disconnected`. A server's
+`RESOURCE_EXHAUSTED` is `RateLimited` on gRPC and `ServerError` on GraphQL.
 
 Retries don't bound waiting: a stream waiting for the index or for a sparse filter to match can stay
 quiet indefinitely. Use a signal to bound the total time:

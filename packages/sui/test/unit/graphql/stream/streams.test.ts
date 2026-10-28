@@ -849,6 +849,52 @@ describe('live handoff', () => {
 		]);
 	});
 
+	it('reports Live again after a quiet drop and a failed reconnect', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		const quietEdge = (label: string) =>
+			[{ cursor: `live:progress:${label}`, node: null }] as unknown as Edge[];
+		server.on(
+			'subscribeEvents',
+			live('events', quietEdge('a'), 'eof'),
+			// Opens and drops before any edge, then fails outright, then recovers.
+			live('events', [], 'eof'),
+			httpStatus(503),
+			live('events', quietEdge('b')),
+		);
+		const log = statusLog();
+		await take(
+			stream(server.client, 'events', {
+				frames: { progress: true },
+				retry: noDelay,
+				onStatus: log.onStatus,
+			}),
+			3,
+		);
+		const attempts = log.log.join(' ').split(/(?=Connecting)/);
+		expect(attempts[0]).toContain('Live');
+		expect(attempts.at(-1)).toContain('Live');
+	});
+
+	it('reports Live when a fresh follow subscribes after its first subscribe failed', async () => {
+		const server = fakeGraphQL({ tip: 10 });
+		server.on(
+			'subscribeEvents',
+			httpStatus(503),
+			live('events', [{ cursor: 'live:progress:a', node: null }] as unknown as Edge[]),
+		);
+		const log = statusLog();
+		await take(
+			stream(server.client, 'events', {
+				frames: { progress: true },
+				retry: noDelay,
+				onStatus: log.onStatus,
+			}),
+			2,
+		);
+		expect(log.log.at(-1)).toBe('Live');
+		expect(log.log.filter((status) => status.startsWith('Connecting'))).toHaveLength(2);
+	});
+
 	it('reports Live for checkpoint subscriptions at the tip checkpoint', async () => {
 		const server = fakeGraphQL({ tip: 7 });
 		server.on('subscribeCheckpoints', live('checkpoints', [checkpoint(6), checkpoint(7)]));
@@ -1315,6 +1361,22 @@ describe('errors', () => {
 		expect(frames.map(label)).toEqual(['1']);
 		expect(server.sent('scanCheckpoints')).toHaveLength(2);
 		expect(reasons).toEqual([reason]);
+	});
+
+	it('gives RESOURCE_EXHAUSTED only a few attempts, since a per-item limit recurs', async () => {
+		const server = fakeGraphQL().on('scanCheckpoints', responseError('RESOURCE_EXHAUSTED'));
+		const error = await rejection(
+			collect(
+				stream(server.client, 'checkpoints', {
+					start: { checkpoint: 1 },
+					end: { checkpoint: 2 },
+					retry: noDelay,
+				}),
+			),
+		);
+		expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+		// The first attempt and three retries, although the stream's own budget is unbounded.
+		expect(server.sent('scanCheckpoints')).toHaveLength(4);
 	});
 
 	it('retries an index that has nothing yet as NotIndexed', async () => {

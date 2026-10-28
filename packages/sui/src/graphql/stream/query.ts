@@ -49,6 +49,18 @@ export function notIndexedYet(message: string) {
 	return error;
 }
 
+/**
+ * RESOURCE_EXHAUSTED also covers per-item limits (such as rendering a large Move value), which fail
+ * the same way on every attempt, so it gets a few attempts rather than the stream's budget.
+ */
+const RESOURCE_EXHAUSTED_ATTEMPTS = 3;
+
+export function graphQLAttemptLimit(error: unknown): number | undefined {
+	if (!(error instanceof SuiGraphQLRequestError) || !Array.isArray(error.cause)) return undefined;
+	const codes = (error.cause as ResponseErrors).map((cause) => cause.extensions?.code);
+	return codes.includes('RESOURCE_EXHAUSTED') ? RESOURCE_EXHAUSTED_ATTEMPTS : undefined;
+}
+
 export function graphQLRetryReason(error: unknown): SuiClientTypes.StreamRetryReason {
 	if (!(error instanceof SuiGraphQLRequestError)) return 'ServerError';
 	if (isConnectionLost(error)) return 'Disconnected';
