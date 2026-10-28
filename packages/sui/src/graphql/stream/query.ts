@@ -50,10 +50,11 @@ export function notIndexedYet(message: string) {
 }
 
 /**
- * RESOURCE_EXHAUSTED also covers per-item limits (such as rendering a large Move value), which fail
- * the same way on every attempt, so it gets a few attempts rather than the stream's budget.
+ * RESOURCE_EXHAUSTED covers a full server ("no subscription slots, retry later") and per-item limits
+ * (such as rendering a large Move value), which fail the same way on every attempt. A streak of
+ * them at one resume point gets several minutes of backoff to clear, then ends the stream.
  */
-const RESOURCE_EXHAUSTED_ATTEMPTS = 3;
+const RESOURCE_EXHAUSTED_ATTEMPTS = 10;
 
 export function graphQLAttemptLimit(error: unknown): number | undefined {
 	if (!(error instanceof SuiGraphQLRequestError) || !Array.isArray(error.cause)) return undefined;

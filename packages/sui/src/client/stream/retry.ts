@@ -20,6 +20,8 @@ export class RetryBudget {
 	readonly #maxAttempts: number;
 	readonly #random: () => number;
 	#attempt = 0;
+	/** Consecutive failures without progress of an error kind the adapter caps on its own. */
+	#cappedStreak = 0;
 
 	constructor(options: SuiClientTypes.StreamRetryOptions = {}, random = Math.random) {
 		this.#initialDelay = nonNegative(options.initialDelay ?? 250, 'retry.initialDelay');
@@ -40,6 +42,10 @@ export class RetryBudget {
 	 * reconnects at once, or after a short pause when the attempt delivered no item
 	 * (`progressOnly`), so a server that sends one progress edge and then fails is not hit in a
 	 * tight loop.
+	 *
+	 * `cap` limits a streak of consecutive failures of one capped kind without progress, apart from
+	 * `maxAttempts`: progress or any other failure resets the streak, and it never spends or extends
+	 * the general budget.
 	 */
 	onFailure(
 		error: unknown,
@@ -47,17 +53,22 @@ export class RetryBudget {
 		advanced: boolean,
 		reason?: SuiClientTypes.StreamRetryReason,
 		progressOnly = false,
-		attemptLimit = Infinity,
+		cap?: number,
 	): number {
 		if (errorClass === 'fatal') throw error;
 		const afterProgress = progressOnly ? Math.min(this.#initialDelay, PROGRESS_ONLY_DELAY) : 0;
-		if (advanced) this.#attempt = 0;
+		if (advanced) {
+			this.#attempt = 0;
+			this.#cappedStreak = 0;
+		}
+		this.#cappedStreak = cap === undefined ? 0 : this.#cappedStreak + 1;
+		if (cap !== undefined && this.#cappedStreak > cap) throw error;
 		if (advanced && (errorClass === 'disconnect' || reason === 'Disconnected')) {
 			return afterProgress;
 		}
 
 		this.#attempt += 1;
-		if (this.#attempt > Math.min(this.#maxAttempts, attemptLimit)) {
+		if (this.#attempt > this.#maxAttempts) {
 			throw errorClass === 'disconnect'
 				? new SuiStreamError('Disconnected', 'Live feed kept disconnecting without progress', {
 						cause: error,

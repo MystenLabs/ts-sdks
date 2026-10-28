@@ -171,8 +171,9 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 */
 	retryReason(error: unknown): SuiClientTypes.StreamRetryReason;
 	/**
-	 * A lower cap on consecutive failures without progress for errors that may recur on every
-	 * attempt, or `undefined` for the stream's own `maxAttempts`.
+	 * A cap on consecutive failures of this kind without progress, for errors that may recur on
+	 * every attempt, or `undefined` for none. It is counted apart from `maxAttempts`: another
+	 * failure or progress resets it.
 	 */
 	attemptLimit?(error: unknown): number | undefined;
 }
