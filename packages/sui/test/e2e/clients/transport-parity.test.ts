@@ -240,11 +240,20 @@ describe('transport parity of transaction mappings', () => {
 				),
 			);
 			for (const digest of Object.values(digests)) expect(delivered).toContain(digest);
-			// Other test files run alongside this one; compare only this file's transactions.
+			// Every checkpoint opens with a system transaction, sent by 0x0 on both transports.
+			for (const checkpoint of checkpoints) {
+				const system = unwrap(checkpoint.transactions[0]);
+				expect(system.transaction.kind.$kind).not.toBe('ProgrammableTransaction');
+				expect(system.sender).toBe(normalizeSuiAddress('0x0'));
+			}
+			// Other test files run alongside this one; compare only this file's transactions and each
+			// checkpoint's system transaction.
 			const ours = new Set(Object.values(digests));
 			return checkpoints.map((checkpoint) => ({
 				...checkpoint,
-				transactions: checkpoint.transactions.filter((result) => ours.has(unwrap(result).digest)),
+				transactions: checkpoint.transactions.filter(
+					(result, index) => index === 0 || ours.has(unwrap(result).digest),
+				),
 			}));
 		}, withoutErrorMessages);
 	});

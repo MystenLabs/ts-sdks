@@ -30,9 +30,16 @@ const LIVE: [ClientKind, Delivery][] = [
 const KINDS: ClientKind[] = ['grpc', 'graphql'];
 const NAMES: Record<ClientKind, string> = { grpc: 'gRPC', graphql: 'GraphQL' };
 
-/** A GraphQL subscription reports `Live` with its first match past the starting tip; until then it is `Connected`. */
-function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
-	return kind === 'graphql' && delivery === 'subscribe' ? 'Connected' : 'Live';
+/**
+ * The status that shows a live feed is open. A GraphQL subscription replaying history reports
+ * `Live` only with its first match past the starting tip; until then it is `Connected`.
+ */
+function listening(
+	kind: ClientKind,
+	delivery: Delivery,
+	{ fromHistory = false } = {},
+): Status['$kind'] {
+	return fromHistory && kind === 'graphql' && delivery === 'subscribe' ? 'Connected' : 'Live';
 }
 
 /** GraphQL `subscribe` delivery needs a service that serves subscriptions. */
@@ -1053,7 +1060,7 @@ describe('ledger streams', () => {
 		);
 
 		it.skipIf(skip)(
-			'stays connected while a sparse filter is quiet, and reports Live by its first match',
+			'reports Live for a sparse filter before its first match, and stays connected while quiet',
 			async () => {
 				const from = await newSigner();
 				type Frame = SuiClientTypes.StreamEventResult<{ progress: true }>;
@@ -1082,9 +1089,8 @@ describe('ledger streams', () => {
 				expect(quiet.filter((k) => k === 'Connecting')).toHaveLength(1);
 				expect(quiet).not.toContain('Retrying');
 				expect(quiet).not.toContain('Error');
-				// A GraphQL subscription is Live only once it delivers a match past the starting tip.
-				if (kind === 'graphql' && delivery === 'subscribe') expect(quiet).not.toContain('Live');
-				else expect(quiet).toContain('Live');
+				// A fresh follow starts at the tip, so it is Live before its first match.
+				expect(quiet).toContain('Live');
 				const baseline = reader.frames.findLast((frame) => frame.$kind === 'Progress');
 				expect(baseline).toBeDefined();
 				expect(events(reader.frames)).toEqual([]);
@@ -1139,7 +1145,9 @@ describe('ledger streams', () => {
 						(value) => ({ value }),
 						(error: unknown) => ({ error }),
 					);
-					await waitFor(() => log.kinds().includes(listening(kind, delivery)));
+					await waitFor(() =>
+						log.kinds().includes(listening(kind, delivery, { fromHistory: true })),
+					);
 					const live = await emitEvents(signer, 1);
 					let next = await pending;
 					if ('error' in next) throw next.error;
@@ -1699,7 +1707,12 @@ describe('ledger streams', () => {
 			const third = await emitEvents(from, 1);
 			expect(await nextDigest()).toBe(third.digest);
 			// The test config sends live progress after two quiet checkpoints.
-			const progress = await next();
+			const progress = await Promise.race([
+				next(),
+				sleep(15_000).then(() => {
+					throw new Error('No progress edge within 15 s; is the progress config applied?');
+				}),
+			]);
 			expect(progress.node).toBeNull();
 			expect(progress.cursor).toEqual(expect.any(String));
 			await subscription.return(undefined);

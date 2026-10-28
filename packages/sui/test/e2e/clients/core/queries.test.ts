@@ -18,25 +18,30 @@ const EXCLUDE: ClientKind[] = [];
 
 /**
  * Asserts that a page reaching the end of a window ends the read. gRPC reports no next page.
- * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must then be
- * empty and report no next page.
+ * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must be empty.
+ * Until the localnet image has sui#28426, a transaction or event window can take one more empty
+ * page to end; `strict` allows only one (checkpoint windows).
  */
 async function expectWindowEnd(
 	kind: ClientKind,
 	page: { hasNextPage: boolean; endCursor: string | null },
-	fetchNext: (cursor: string | null) => Promise<{ items: unknown[]; hasNextPage: boolean }>,
+	fetchNext: (
+		cursor: string | null,
+	) => Promise<{ items: unknown[]; hasNextPage: boolean; endCursor: string | null }>,
+	{ strict = false } = {},
 ) {
 	if (kind === 'grpc') {
 		expect(page.hasNextPage).toBe(false);
 		return;
 	}
-	if (page.hasNextPage) {
-		const next = await fetchNext(page.endCursor);
-		expect(next.items).toEqual([]);
-		// Skipped until the localnet image has sui#28426: without it, an empty page that reaches a
-		// window bound still reports a next page.
-		// expect(next.hasNextPage).toBe(false);
-	}
+	if (!page.hasNextPage) return;
+	let next = await fetchNext(page.endCursor);
+	expect(next.items).toEqual([]);
+	if (next.hasNextPage && !strict) next = await fetchNext(next.endCursor);
+	expect({ items: next.items, hasNextPage: next.hasNextPage }).toEqual({
+		items: [],
+		hasNextPage: false,
+	});
 }
 
 describe('Core API - Queries', () => {
@@ -1287,7 +1292,11 @@ describe('Core API - Queries', () => {
 							after: cursor,
 							before: cursors[3],
 						});
-						return { items: next.transactions, hasNextPage: next.hasNextPage };
+						return {
+							items: next.transactions,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						};
 					});
 
 					const reversed = await client.core.listTransactions({
@@ -1374,7 +1383,7 @@ describe('Core API - Queries', () => {
 			);
 
 			testWithAllClients(
-				'should end exhausted windows with at most one empty page',
+				'should end exhausted windows',
 				async (client, kind) => {
 					const cursors = await actorCursors(client);
 					const filter = { sender: actorAddress };
@@ -1385,7 +1394,11 @@ describe('Core API - Queries', () => {
 					expect(digestsOf(ascending)).toEqual(actorDigests.slice(1, 3));
 					await expectWindowEnd(kind, ascending, async (cursor) => {
 						const next = await client.core.listTransactions({ filter, after: cursor, before });
-						return { items: next.transactions, hasNextPage: next.hasNextPage };
+						return {
+							items: next.transactions,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						};
 					});
 
 					const descending = await client.core.listTransactions({
@@ -1402,7 +1415,11 @@ describe('Core API - Queries', () => {
 							before: cursor,
 							order: 'descending',
 						});
-						return { items: next.transactions, hasNextPage: next.hasNextPage };
+						return {
+							items: next.transactions,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						};
 					});
 
 					const first = await client.core.listEvents({ filter, limit: 1 });
@@ -1422,7 +1439,11 @@ describe('Core API - Queries', () => {
 								before: order === 'ascending' ? last.endCursor : cursor,
 								order,
 							});
-							return { items: next.events, hasNextPage: next.hasNextPage };
+							return {
+								items: next.events,
+								hasNextPage: next.hasNextPage,
+								endCursor: next.endCursor,
+							};
 						});
 					}
 				},
@@ -1495,10 +1516,16 @@ describe('Core API - Queries', () => {
 				if (!page.hasNextPage) return pages;
 				const next = await read(page.endCursor);
 				if (!next.checkpoints.length) {
-					await expectWindowEnd(kind, page, async () => ({
-						items: next.checkpoints,
-						hasNextPage: next.hasNextPage,
-					}));
+					await expectWindowEnd(
+						kind,
+						page,
+						async () => ({
+							items: next.checkpoints,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						}),
+						{ strict: true },
+					);
 					return pages;
 				}
 				page = next;
