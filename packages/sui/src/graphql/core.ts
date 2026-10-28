@@ -685,16 +685,9 @@ export class GraphQLCoreClient extends CoreClient {
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...transactions.nodes].reverse() : transactions.nodes;
 
-		const { pageInfo } = transactions;
-		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
-
 		return {
 			transactions: nodes.map((transaction) => parseTransaction(transaction, options.include)),
-			// A page without a cursor to continue from cannot have a next page
-			hasNextPage:
-				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
-			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
-			endCursor,
+			...listPageCursors(transactions, { descending, after, before }),
 		};
 	}
 
@@ -725,8 +718,6 @@ export class GraphQLCoreClient extends CoreClient {
 
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
-		const { pageInfo } = events;
-		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
 
 		return {
 			events: nodes.map((event): SuiClientTypes.EventEntry => {
@@ -760,11 +751,7 @@ export class GraphQLCoreClient extends CoreClient {
 					eventIndex: event.sequenceNumber,
 				};
 			}),
-			// A page without a cursor to continue from cannot have a next page
-			hasNextPage:
-				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
-			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
-			endCursor,
+			...listPageCursors(events, { descending, after, before }),
 		};
 	}
 
@@ -1330,4 +1317,39 @@ function parseNormalizedSuiMoveTypeBody(
 	}
 
 	throw new Error(`Unknown type: ${JSON.stringify(type)}`);
+}
+
+/**
+ * Page cursors for listTransactions and listEvents, matching the gRPC client: a page that can
+ * continue resumes from the server's cursor (which may be a scan position past the last item),
+ * a final page ends at its last item, and an empty final page has no cursors.
+ */
+function listPageCursors(
+	connection: {
+		pageInfo: {
+			hasNextPage: boolean;
+			hasPreviousPage: boolean;
+			startCursor?: string | null;
+			endCursor?: string | null;
+		};
+		edges: { cursor: string }[];
+	},
+	{ descending, after, before }: { descending: boolean; after?: string; before?: string },
+) {
+	const { pageInfo } = connection;
+	const edges = descending ? [...connection.edges].reverse() : connection.edges;
+	const resumeFrom = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
+	// Some servers answer an exhausted window with an empty page that returns the cursor it was
+	// sent and still reports more pages; following it would loop forever.
+	const stalled = edges.length === 0 && resumeFrom === (descending ? before : after);
+	const hasNextPage =
+		resumeFrom !== null &&
+		!stalled &&
+		(descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage);
+
+	return {
+		hasNextPage,
+		startCursor: edges[0]?.cursor ?? null,
+		endCursor: hasNextPage ? resumeFrom : (edges.at(-1)?.cursor ?? null),
+	};
 }
