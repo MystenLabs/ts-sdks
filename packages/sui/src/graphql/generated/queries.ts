@@ -268,7 +268,7 @@ export type GetDynamicFieldsQueryVariables = Exact<{
 }>;
 
 
-export type GetDynamicFieldsQuery = { address: { dynamicFields: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ name: { bcs: string | null, type: { repr: string } | null } | null, value:
+export type GetDynamicFieldsQuery = { address: { dynamicFields: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ address: string, name: { bcs: string | null, type: { repr: string } | null } | null, value:
           | { __typename: 'MoveObject', address: string, contents: { bcs?: string | null, type: { repr: string } | null } | null }
           | { __typename: 'MoveValue', bcs?: string | null, type: { repr: string } | null }
          | null }> } | null } | null };
@@ -1117,6 +1117,7 @@ export const GetDynamicFieldsDocument = new TypedDocumentString(`
         endCursor
       }
       nodes {
+        address
         name {
           bcs
           type {

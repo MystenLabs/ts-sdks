@@ -55,6 +55,7 @@ import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { isMockedGasObjectId, transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
 	SimulateTransactionRequest_TransactionChecks,
@@ -668,10 +669,64 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
-	async listDynamicFields(
-		options: SuiClientTypes.ListDynamicFieldsOptions,
-	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
-		return this.#client.listDynamicFields(options);
+	async listDynamicFields<Include extends SuiClientTypes.DynamicFieldInclude = {}>(
+		options: SuiClientTypes.ListDynamicFieldsOptions<Include>,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse<Include>> {
+		const includeValue = options.include?.value ?? false;
+		const paths = ['field_id', 'name', 'value_type', 'kind', 'child_id'];
+		if (includeValue) {
+			// `value` of a dynamic object field is only the child's ID, so read the child's contents too
+			paths.push('value', 'child_object.contents');
+		}
+
+		const response = await this.#client.stateService.listDynamicFields(
+			{
+				parent: options.parentId,
+				pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+				pageSize: options.limit,
+				readMask: {
+					paths,
+				},
+			},
+			{ abort: options.signal },
+		);
+
+		return {
+			dynamicFields: response.response.dynamicFields.map((field) => {
+				const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
+				const nameType = field.name?.name!;
+				const valueType = field.valueType!;
+				const fieldType = isDynamicObject
+					? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${nameType}>,0x2::object::ID>`
+					: `0x2::dynamic_field::Field<${nameType},${valueType}>`;
+
+				let value: SuiClientTypes.DynamicFieldValue | undefined;
+				if (includeValue) {
+					const valueBcs = isDynamicObject
+						? field.childObject?.contents?.value
+						: field.value?.value;
+					if (valueBcs == null) {
+						throw new Error(`Missing value for dynamic field ${field.fieldId}`);
+					}
+					value = { type: valueType, bcs: valueBcs };
+				}
+
+				return {
+					$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
+					fieldId: field.fieldId!,
+					type: normalizeStructTag(fieldType),
+					name: {
+						type: nameType,
+						bcs: field.name?.value!,
+					},
+					valueType,
+					childId: isDynamicObject ? field.childId : undefined,
+					value,
+				} as SuiClientTypes.DynamicFieldEntry<Include>;
+			}),
+			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
+			hasNextPage: response.response.nextPageToken !== undefined,
+		};
 	}
 
 	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
