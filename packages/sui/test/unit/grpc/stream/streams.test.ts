@@ -6,9 +6,11 @@ import { describe, expect, expectTypeOf, it, onTestFinished } from 'vitest';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
+import { markConnectionLost } from '../../../../src/grpc/network-error.js';
 import { markNonRetryable } from '../../../../src/grpc/pull-call.js';
 import { estimateBytes, liveBuffer } from '../../../../src/grpc/stream/call.js';
 import { GrpcLedgerStreamAdapter } from '../../../../src/grpc/stream/index.js';
+import { readIndexedTip } from '../../../../src/grpc/stream/page.js';
 import { collect, noDelay, statusLog, take } from '../../client/stream/fake-ledger.js';
 import {
 	at,
@@ -1523,6 +1525,29 @@ describe('gRPC ledger stream error classes', () => {
 		['INVALID_ARGUMENT', 'fatal'],
 	])('treats %s as %s', (code, expected) => {
 		expect(adapter.classify(new RpcError('failed', code))).toBe(expected);
+	});
+
+	it.each([
+		['RESOURCE_EXHAUSTED', 'RateLimited'],
+		['DEADLINE_EXCEEDED', 'Timeout'],
+		['UNAVAILABLE', 'Unavailable'],
+		['UNKNOWN', 'ServerError'],
+		['ABORTED', 'ServerError'],
+		['CANCELLED', 'ServerError'],
+	])('reports %s as %s', (code, reason) => {
+		expect(adapter.retryReason(new RpcError('failed', code))).toBe(reason);
+	});
+
+	it('reports a lost connection, an unindexed network and other errors by their marker', async () => {
+		expect(adapter.retryReason(markConnectionLost(new RpcError('reset', 'UNAVAILABLE')))).toBe(
+			'Network',
+		);
+		const empty = new FakeLedger().tip(null);
+		const notIndexed = await readIndexedTip(empty, new AbortController().signal).catch(
+			(error: unknown) => error,
+		);
+		expect(adapter.retryReason(notIndexed)).toBe('NotIndexed');
+		expect(adapter.retryReason(new TypeError('bug'))).toBe('ServerError');
 	});
 
 	it('never retries an oversized message or a non-gRPC error', () => {

@@ -120,12 +120,12 @@ export class FakeLedger implements RpcTransport {
 		return this;
 	}
 
-	/** Answers every indexed-tip read (a descending ListCheckpoints with limit 1). */
-	tip(checkpoint: number | (() => number)) {
-		this.#tip = typeof checkpoint === 'number' ? () => checkpoint : checkpoint;
+	/** Answers every indexed-tip read (a descending ListCheckpoints with limit 1); null: none yet. */
+	tip(checkpoint: number | null | (() => number | null)) {
+		this.#tip = typeof checkpoint === 'function' ? checkpoint : () => checkpoint;
 		return this;
 	}
-	#tip: () => number = () => 0;
+	#tip: () => number | null = () => 0;
 	tipReads = 0;
 
 	/** Answers every retention-floor read (an ascending ListCheckpoints with limit 1). */
@@ -156,7 +156,11 @@ export class FakeLedger implements RpcTransport {
 			this.calls.push(edge);
 			if (edge === 'tip') this.tipReads++;
 			else this.floorReads++;
-			const checkpoint = BigInt(edge === 'tip' ? this.#tip() : this.#floor);
+			const edgeCheckpoint = edge === 'tip' ? this.#tip() : this.#floor;
+			if (edgeCheckpoint === null) {
+				return { frames: [{ end: { reason: GrpcTypes.QueryEndReason.LEDGER_TIP } }] };
+			}
+			const checkpoint = BigInt(edgeCheckpoint);
 			return {
 				frames: [
 					{

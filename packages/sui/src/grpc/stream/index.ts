@@ -17,6 +17,7 @@ import type {
 import { SuiStreamError } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from '../filters.js';
+import { isConnectionLost } from '../network-error.js';
 import { isNonRetryable } from '../pull-call.js';
 import { isBufferOverflow, openLedgerCall, type LedgerCall } from './call.js';
 import {
@@ -29,7 +30,13 @@ import {
 	type NativeFilter,
 } from './families.js';
 import { liveSubscription } from './live.js';
-import { fetchListPage, readIndexedTip, readRetainedFrom, type ListQuery } from './page.js';
+import {
+	fetchListPage,
+	isNotIndexed,
+	readIndexedTip,
+	readRetainedFrom,
+	type ListQuery,
+} from './page.js';
 
 /** What the adapter needs from `GrpcCoreClient`. */
 export interface GrpcStreamContext {
@@ -110,6 +117,24 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		if (isBufferOverflow(error)) return 'disconnect';
 		if (!(error instanceof RpcError) || isNonRetryable(error)) return 'fatal';
 		return RETRYABLE_CODES.has(error.code) ? 'retry' : 'fatal';
+	}
+
+	retryReason(error: unknown): SuiClientTypes.StreamRetryReason {
+		if (isBufferOverflow(error)) return 'SlowConsumer';
+		if (isConnectionLost(error)) return 'Network';
+		if (isNotIndexed(error)) return 'NotIndexed';
+		if (!(error instanceof RpcError)) return 'ServerError';
+		// HTTP 429, 504 and 503 from a proxy arrive with these codes too.
+		switch (error.code) {
+			case 'RESOURCE_EXHAUSTED':
+				return 'RateLimited';
+			case 'DEADLINE_EXCEEDED':
+				return 'Timeout';
+			case 'UNAVAILABLE':
+				return 'Unavailable';
+			default:
+				return 'ServerError';
+		}
 	}
 
 	async #sharedFilter(signal: AbortSignal): Promise<NativeFilter | undefined> {

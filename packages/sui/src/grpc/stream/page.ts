@@ -118,7 +118,19 @@ async function readEdge(transport: RpcTransport, ordering: Ordering, signal: Abo
 		await call.return();
 	}
 	// A new network has nothing indexed for a moment; retry.
-	throw new RpcError('No checkpoint is indexed yet', 'UNAVAILABLE');
+	throw markNotIndexed(new RpcError('No checkpoint is indexed yet', 'UNAVAILABLE'));
+}
+
+const notIndexed = new WeakSet<object>();
+
+function markNotIndexed<E extends object>(error: E): E {
+	notIndexed.add(error);
+	return error;
+}
+
+/** Whether `error` reports that the server has not indexed what the stream needs yet. */
+export function isNotIndexed(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && notIndexed.has(error);
 }
 
 function listQuery({ range, after, before, order }: PageRequest): ListQuery {
