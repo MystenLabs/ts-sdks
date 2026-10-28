@@ -4730,6 +4730,34 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
+        "name": "EventSubscriptionEdge",
+        "fields": [
+          {
+            "name": "cursor",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "node",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Event"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "ExecutionError",
         "fields": [
           {
@@ -13269,7 +13297,7 @@ const introspection = {
               "kind": "NON_NULL",
               "ofType": {
                 "kind": "OBJECT",
-                "name": "EventEdge"
+                "name": "EventSubscriptionEdge"
               }
             },
             "args": [
@@ -13286,6 +13314,17 @@ const introspection = {
                   "kind": "INPUT_OBJECT",
                   "name": "EventFilter"
                 }
+              },
+              {
+                "name": "progress",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Boolean"
+                  }
+                },
+                "defaultValue": "false"
               }
             ],
             "isDeprecated": false
@@ -13296,7 +13335,7 @@ const introspection = {
               "kind": "NON_NULL",
               "ofType": {
                 "kind": "OBJECT",
-                "name": "TransactionEdge"
+                "name": "TransactionSubscriptionEdge"
               }
             },
             "args": [
@@ -13313,6 +13352,17 @@ const introspection = {
                   "kind": "INPUT_OBJECT",
                   "name": "TransactionFilter"
                 }
+              },
+              {
+                "name": "progress",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Boolean"
+                  }
+                },
+                "defaultValue": "false"
               }
             ],
             "isDeprecated": false
@@ -14129,6 +14179,34 @@ const introspection = {
             "name": "ObjectChange"
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "TransactionSubscriptionEdge",
+        "fields": [
+          {
+            "name": "cursor",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String"
+              }
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "node",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Transaction"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
       },
       {
         "kind": "OBJECT",
