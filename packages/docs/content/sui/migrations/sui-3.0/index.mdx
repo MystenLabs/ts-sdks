@@ -75,6 +75,8 @@ together with `@mysten/sui`.
 - **Use `parseTransactionDataBcs` to decode transaction bytes into
   `SuiClientTypes.TransactionData`.** `parseTransactionBcs` now returns the builder's snapshot
   (top-level `inputs` and `commands`), which no longer satisfies `SuiClientTypes.TransactionData`.
+- **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.** Build the mask
+  with `transactionReadMaskPaths(include)` from `@mysten/sui/grpc`.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
