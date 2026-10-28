@@ -392,10 +392,13 @@ export type Object_Owner_FieldsFragment =
   | Object_Owner_Fields_Shared_Fragment
 ;
 
-export type LedgerStreamStateQueryVariables = Exact<{ [key: string]: never; }>;
+export type LedgerStreamStateQueryVariables = Exact<{
+  field: string;
+  filters: Array<string> | string;
+}>;
 
 
-export type LedgerStreamStateQuery = { chainIdentifier: string, checkpoint: { sequenceNumber: number } | null };
+export type LedgerStreamStateQuery = { chainIdentifier: string, checkpoint: { sequenceNumber: number } | null, serviceConfig: { availableRange: { first: { sequenceNumber: number } | null } } };
 
 export type Stream_Page_InfoFragment = { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null };
 
@@ -1368,10 +1371,17 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const LedgerStreamStateDocument = new TypedDocumentString(`
-    query ledgerStreamState {
+    query ledgerStreamState($field: String!, $filters: [String!]!) {
   chainIdentifier
   checkpoint {
     sequenceNumber
+  }
+  serviceConfig {
+    availableRange(type: "Query", field: $field, filters: $filters) {
+      first {
+        sequenceNumber
+      }
+    }
   }
 }
     `) as unknown as TypedDocumentString<LedgerStreamStateQuery, LedgerStreamStateQueryVariables>;

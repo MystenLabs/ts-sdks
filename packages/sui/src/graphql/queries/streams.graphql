@@ -3,10 +3,19 @@
 
 # Ledger streams use the list methods' fragments so streamed items match list results.
 
-query ledgerStreamState {
+# The oldest checkpoint the stream's indexes retain is read with the tip, so a follow that subscribes
+# without reading pages still fails on pruned history.
+query ledgerStreamState($field: String!, $filters: [String!]!) {
 	chainIdentifier
 	checkpoint {
 		sequenceNumber
+	}
+	serviceConfig {
+		availableRange(type: "Query", field: $field, filters: $filters) {
+			first {
+				sequenceNumber
+			}
+		}
 	}
 }
 

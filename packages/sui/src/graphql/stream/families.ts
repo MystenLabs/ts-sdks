@@ -106,6 +106,8 @@ export interface LedgerFamily<Node> {
 	readonly pageSize?: number;
 	resolveFilter(signal: AbortSignal): Promise<unknown>;
 	page(request: PageRequest): Promise<Page<Node>>;
+	/** The `availableRange` field and filters that decide this family's retention. */
+	retention(): { field: string; filters: string[] };
 	/** Backfills from the resume point, then continues live. */
 	subscribe(
 		signal: AbortSignal,
@@ -142,6 +144,7 @@ function checkpointsFamily(client: SuiGraphQLClient): LedgerFamily<Checkpoint_Fi
 	return {
 		name: 'checkpoints',
 		resolveFilter: async () => undefined,
+		retention: () => ({ field: 'checkpoints', filters: [] }),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'checkpoints',
@@ -233,6 +236,7 @@ function checkpointsWithTransactionsFamily(
 		name: 'checkpoints',
 		pageSize: CHECKPOINT_TRANSACTIONS_PAGE_SIZE,
 		resolveFilter: async () => undefined,
+		retention: () => ({ field: 'checkpoints', filters: [] }),
 		page: async ({ range, signal, ...cursors }) => {
 			const page = scanPage<ScanCheckpointsWithTransactionsQuery, CheckpointWithTransactions>(
 				'checkpoints',
@@ -314,6 +318,10 @@ function transactionsFamily(
 			filter = options.filter && (await resolveTransactionFilter(mvr, options.filter, signal));
 			return filter;
 		},
+		retention: () => ({
+			field: 'transactions',
+			filters: setFields(toGraphQLTransactionFilter(filter, {})),
+		}),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'transactions',
@@ -364,6 +372,7 @@ function eventsFamily(
 			filter = options.filter && (await resolveEventFilter(mvr, options.filter, signal));
 			return filter;
 		},
+		retention: () => ({ field: 'events', filters: setFields(toGraphQLEventFilter(filter, {})) }),
 		page: async ({ range, signal, ...cursors }) =>
 			scanPage(
 				'events',
