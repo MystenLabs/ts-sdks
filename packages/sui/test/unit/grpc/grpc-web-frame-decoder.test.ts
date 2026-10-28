@@ -219,9 +219,9 @@ describe('GrpcWebFrameDecoder', () => {
 	});
 
 	it.each([
-		['a truncated frame', [data(1, 2).subarray(0, 6)], 'DATA_LOSS', 'premature EOF'],
-		['a truncated prefix', [data(1).subarray(0, 3)], 'DATA_LOSS', 'premature EOF'],
-		['messages without a trailer', [data(1)], 'DATA_LOSS', 'missing trailers'],
+		['a truncated frame', [data(1, 2).subarray(0, 6)], 'UNAVAILABLE', 'premature EOF'],
+		['a truncated prefix', [data(1).subarray(0, 3)], 'UNAVAILABLE', 'premature EOF'],
+		['messages without a trailer', [data(1)], 'UNAVAILABLE', 'missing trailers'],
 		[
 			'a compressed frame',
 			[frame(1, new Uint8Array([1]))],

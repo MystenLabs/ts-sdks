@@ -26,7 +26,12 @@ import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { Deferred, RpcError } from '@protobuf-ts/runtime-rpc';
 import type { MethodInfo, RpcMetadata, RpcStatus } from '@protobuf-ts/runtime-rpc';
 
-import { isAbortError, markHttpStatus, toNetworkRpcError } from './network-error.js';
+import {
+	isAbortError,
+	markConnectionLost,
+	markHttpStatus,
+	toNetworkRpcError,
+} from './network-error.js';
 import { markNonRetryable } from './pull-call.js';
 import type { ServerStreamingIterableCall } from './pull-call.js';
 
@@ -236,13 +241,17 @@ export class GrpcWebFrameDecoder {
 		};
 	}
 
-	/** Throws unless the body ended on a frame boundary, with a trailer after any messages. */
+	/**
+	 * Throws unless the body ended on a frame boundary, with a trailer after any messages. A body
+	 * cut short is a connection lost mid-stream (a proxy can end it cleanly), so it is retryable.
+	 */
 	end(): void {
 		if (this.#bytes.length > 0 || this.#base64.length > 0) {
-			throw new RpcError('premature EOF', code(GrpcStatusCode.DATA_LOSS));
+			throw markConnectionLost(new RpcError('premature EOF', code(GrpcStatusCode.UNAVAILABLE)));
 		}
-		if (this.#sawData && !this.#sawTrailer)
-			throw new RpcError('missing trailers', code(GrpcStatusCode.DATA_LOSS));
+		if (this.#sawData && !this.#sawTrailer) {
+			throw markConnectionLost(new RpcError('missing trailers', code(GrpcStatusCode.UNAVAILABLE)));
+		}
 	}
 }
 
