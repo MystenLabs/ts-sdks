@@ -1122,7 +1122,11 @@ function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): Quer
 	};
 }
 
-function transactionReadMaskPaths(
+/**
+ * The read mask paths `parseGrpcTransactionResponse` needs for `include`. `prefix` places them
+ * under a field, such as `'transaction.'` for a simulation response.
+ */
+export function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
 ): string[] {
@@ -1650,7 +1654,11 @@ export function parseGrpcTransactionResponse<
 			};
 
 	const sender = transaction.transaction?.sender;
-	if (!sender) throw new Error('Transaction sender is missing from gRPC response');
+	if (!sender) {
+		throw new Error(
+			'Transaction sender is missing from gRPC response; include `transaction.sender` in the read mask',
+		);
+	}
 
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
