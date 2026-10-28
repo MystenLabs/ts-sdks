@@ -5,6 +5,7 @@ import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it, vi } from 'vitest';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
 import {
+	httpStatusOf,
 	isConnectionLost,
 	isRequestFailed,
 	toNetworkRpcError,
@@ -63,6 +64,25 @@ it('marks a failed fetch and a broken body apart from a server UNAVAILABLE', asy
 
 	const server = new RpcError('overloaded', 'UNAVAILABLE');
 	expect(isConnectionLost(server) || isRequestFailed(server)).toBe(false);
+});
+
+it('keeps the HTTP status of a proxy error on unary and streaming calls', async () => {
+	const client = new SuiGrpcClient({
+		network: 'testnet',
+		baseUrl: 'http://localhost',
+		fetch: async () => new Response('bad gateway', { status: 502, statusText: 'Bad Gateway' }),
+	});
+	const unary = await client.ledgerService
+		.getServiceInfo({})
+		.response.catch((error: unknown) => error);
+	expect(unary).toMatchObject({ code: 'UNKNOWN' });
+	expect(httpStatusOf(unary)).toBe(502);
+
+	const stream = await read(async () => new Response('slow down', { status: 429 })).catch(
+		(error: unknown) => error,
+	);
+	expect(stream).toMatchObject({ code: 'RESOURCE_EXHAUSTED' });
+	expect(httpStatusOf(stream)).toBe(429);
 });
 
 it('codes a failed response body read as UNAVAILABLE', async () => {

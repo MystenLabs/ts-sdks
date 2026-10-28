@@ -58,3 +58,16 @@ function isAbortError(error: unknown): boolean {
 		(error as { name?: unknown }).name === 'AbortError'
 	);
 }
+
+const httpStatuses = new WeakMap<object, number>();
+
+/** Records the HTTP status of a non-2xx response an error was coded from. Returns the error. */
+export function markHttpStatus<E extends object>(error: E, status: number): E {
+	httpStatuses.set(error, status);
+	return error;
+}
+
+/** The HTTP status recorded with `markHttpStatus`, if any. */
+export function httpStatusOf(error: unknown): number | undefined {
+	return typeof error === 'object' && error !== null ? httpStatuses.get(error) : undefined;
+}
