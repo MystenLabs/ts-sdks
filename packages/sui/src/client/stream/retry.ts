@@ -5,14 +5,14 @@ import type { SuiClientTypes } from '../types.js';
 import type { ErrorClass } from './adapter.js';
 import { SuiStreamError } from './errors.js';
 
-/**
- * Counts consecutive failures without progress (a change in the committed position). Progress
- * resets the count, and a disconnect after progress reconnects at once without counting, so
- * long-lived feeds keep working even with `maxAttempts: 0`.
- */
 /** The pause after an attempt that advanced only by progress (at most `initialDelay`). */
 const PROGRESS_ONLY_DELAY = 250;
 
+/**
+ * Counts consecutive failures without progress (a change in the committed position). Progress
+ * resets the count, and a disconnect after progress reconnects without counting, so long-lived
+ * feeds keep working even with `maxAttempts: 0`.
+ */
 export class RetryBudget {
 	readonly #initialDelay: number;
 	readonly #maxDelay: number;
