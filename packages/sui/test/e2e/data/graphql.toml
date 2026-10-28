@@ -1,0 +1,4 @@
+# Settings `sui start --with-graphql` applies to its GraphQL service.
+
+[zklogin]
+env = "Test"

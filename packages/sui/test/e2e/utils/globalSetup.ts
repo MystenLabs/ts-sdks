@@ -105,6 +105,7 @@ export default async function setup(project: TestProject) {
 				`--checkpoint-stream-url=http://127.0.0.1:${localnetPort}`,
 				`--rpc-listen-address=127.0.0.1:${graphqlPort}`,
 				'--metrics-address=127.0.0.1:0',
+				`--config=${resolve(__dirname, '../data/graphql.toml')}`,
 				`--indexer-config=${resolve(__dirname, '../data/graphql-indexer.toml')}`,
 			],
 			{ stdio: 'inherit' },
@@ -154,10 +155,12 @@ export default async function setup(project: TestProject) {
 				`--consistent-store-url=http://${localnet.getIpAddress(network.getName())}:9124`,
 				`--checkpoint-stream-url=${fullnodeUrl}`,
 				'--rpc-listen-address=0.0.0.0:9125',
+				'--config=/graphql.toml',
 				'--indexer-config=/graphql-indexer.toml',
 			])
 			.withNetwork(network)
 			.withCopyFilesToContainer([
+				{ source: resolve(__dirname, '../data/graphql.toml'), target: '/graphql.toml' },
 				{
 					source: resolve(__dirname, '../data/graphql-indexer.toml'),
 					target: '/graphql-indexer.toml',
