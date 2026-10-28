@@ -31,11 +31,19 @@ export class RetryBudget {
 		return this.#attempt;
 	}
 
-	/** Returns the delay before reconnecting, or throws when the failure ends the stream. */
-	onFailure(error: unknown, errorClass: ErrorClass, advanced: boolean): number {
+	/**
+	 * Returns the delay before reconnecting, or throws when the failure ends the stream. A broken
+	 * connection after progress is free, like a live feed that ended.
+	 */
+	onFailure(
+		error: unknown,
+		errorClass: ErrorClass,
+		advanced: boolean,
+		reason?: SuiClientTypes.StreamRetryReason,
+	): number {
 		if (errorClass === 'fatal') throw error;
 		if (advanced) this.#attempt = 0;
-		if (errorClass === 'disconnect' && advanced) return 0;
+		if (advanced && (errorClass === 'disconnect' || reason === 'Disconnected')) return 0;
 
 		this.#attempt += 1;
 		if (this.#attempt > this.#maxAttempts) {
