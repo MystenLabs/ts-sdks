@@ -4,7 +4,7 @@
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it, vi } from 'vitest';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
-import { toNetworkRpcError } from '../../../src/grpc/network-error.js';
+import { isConnectionLost, toNetworkRpcError } from '../../../src/grpc/network-error.js';
 
 async function read(fetch: typeof globalThis.fetch) {
 	const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost', fetch });
@@ -34,6 +34,14 @@ it('codes a failed unary fetch as UNAVAILABLE', async () => {
 		code: 'UNAVAILABLE',
 		message: 'fetch failed',
 	});
+});
+
+it('marks network failures as a lost connection, unlike a server UNAVAILABLE', async () => {
+	const error = await read(async () => {
+		throw new TypeError('fetch failed');
+	}).catch((error: unknown) => error);
+	expect(isConnectionLost(error)).toBe(true);
+	expect(isConnectionLost(new RpcError('overloaded', 'UNAVAILABLE'))).toBe(false);
 });
 
 it('codes a failed response body read as UNAVAILABLE', async () => {
