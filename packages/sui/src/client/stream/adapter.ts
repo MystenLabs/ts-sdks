@@ -170,6 +170,11 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 * end as `Disconnected` itself.
 	 */
 	retryReason(error: unknown): SuiClientTypes.StreamRetryReason;
+	/**
+	 * A lower cap on consecutive failures without progress for errors that may recur on every
+	 * attempt, or `undefined` for the stream's own `maxAttempts`.
+	 */
+	attemptLimit?(error: unknown): number | undefined;
 }
 
 /** An adapter whose item type is known only to itself. */

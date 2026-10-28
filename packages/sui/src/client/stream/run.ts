@@ -53,7 +53,8 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 		if (signal.aborted || status.callbackFailed) throw error;
 		const errorClass = classify(error, adapter);
 		const reason = errorClass === 'fatal' ? undefined : retryReason(error, adapter);
-		const delay = retry.onFailure(error, errorClass, advanced, reason, progressOnly);
+		const limit = errorClass === 'fatal' ? undefined : adapter.attemptLimit?.(error);
+		const delay = retry.onFailure(error, errorClass, advanced, reason, progressOnly, limit);
 		status.retrying(retry.attempt, delay, reason!, error);
 		await sleep(delay, signal);
 	}

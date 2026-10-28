@@ -47,6 +47,7 @@ export class RetryBudget {
 		advanced: boolean,
 		reason?: SuiClientTypes.StreamRetryReason,
 		progressOnly = false,
+		attemptLimit = Infinity,
 	): number {
 		if (errorClass === 'fatal') throw error;
 		const afterProgress = progressOnly ? Math.min(this.#initialDelay, PROGRESS_ONLY_DELAY) : 0;
@@ -56,7 +57,7 @@ export class RetryBudget {
 		}
 
 		this.#attempt += 1;
-		if (this.#attempt > this.#maxAttempts) {
+		if (this.#attempt > Math.min(this.#maxAttempts, attemptLimit)) {
 			throw errorClass === 'disconnect'
 				? new SuiStreamError('Disconnected', 'Live feed kept disconnecting without progress', {
 						cause: error,

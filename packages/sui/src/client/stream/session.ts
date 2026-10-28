@@ -200,16 +200,15 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	}
 
 	/**
-	 * Reports `Live`, then delivers the feed: drops events at or before committed state. With
-	 * `liveFrom`, `Live` waits for the first item at or past it, unless the feed starts at the tip:
-	 * a fresh follow, or a reconnect near the tip after the stream was live.
+	 * Reports `Live`, then delivers the feed: drops events at or before committed state. Called
+	 * with the feed's first event read. With `liveFrom`, `Live` waits for the first item at or past
+	 * it, unless the feed is known to be at the tip: a fresh follow that has delivered no item yet,
+	 * or any reconnect after the stream was live, however the earlier attempts failed.
 	 */
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#delivering = true;
 		const liveFrom = this.#liveFrom;
-		const atTip =
-			this.#nearLiveTip &&
-			(this.#reportedLive || (this.#plan.anchored && this.#lastItem === undefined));
+		const atTip = this.#reportedLive || (this.#plan.anchored && this.#lastItem === undefined);
 		if (liveFrom === undefined || atTip) this.#reportLive();
 		for await (const event of feed) {
 			if (this.#isStale(event)) continue;
