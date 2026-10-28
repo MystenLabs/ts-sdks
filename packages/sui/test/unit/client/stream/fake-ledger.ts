@@ -288,6 +288,7 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 			if (error instanceof Overflow) return 'disconnect';
 			return 'fatal';
 		},
+		retryReason: (error) => (error instanceof Overflow ? 'SlowConsumer' : 'Network'),
 	};
 }
 

@@ -62,8 +62,18 @@ export class StatusReporter {
 		});
 	}
 
-	retrying(attempt: number, delay: number, error: unknown) {
-		this.#emit({ $kind: 'Retrying', attempt, delay, error });
+	/** Whether the server answered during the current attempt. */
+	get connectedThisAttempt() {
+		return this.#connected;
+	}
+
+	retrying(
+		attempt: number,
+		delay: number,
+		reason: SuiClientTypes.StreamRetryReason,
+		error: unknown,
+	) {
+		this.#emit({ $kind: 'Retrying', attempt, delay, reason, error });
 	}
 
 	error(error: unknown) {

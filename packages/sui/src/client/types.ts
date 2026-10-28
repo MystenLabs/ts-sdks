@@ -101,6 +101,28 @@ export namespace SuiClientTypes {
 	/** Why a historical page ended. */
 	export type StreamPageEnd = 'limit' | 'bound' | 'indexedTip';
 
+	/**
+	 * Why a stream is reconnecting. `Disconnected` is routine; the others can point at an unhealthy
+	 * server or network.
+	 * - `Disconnected`: an established connection broke, or a live feed ended.
+	 * - `Network`: a request failed before the server answered.
+	 * - `RateLimited`: the server or a proxy is limiting requests.
+	 * - `Timeout`: the server or a proxy timed the request out.
+	 * - `Unavailable`: the server reported itself unavailable or overloaded.
+	 * - `NotIndexed`: the server has not indexed what the stream needs yet.
+	 * - `SlowConsumer`: the consumer fell too far behind a live feed.
+	 * - `ServerError`: any other retryable server error.
+	 */
+	export type StreamRetryReason =
+		| 'Disconnected'
+		| 'Network'
+		| 'RateLimited'
+		| 'Timeout'
+		| 'Unavailable'
+		| 'NotIndexed'
+		| 'SlowConsumer'
+		| 'ServerError';
+
 	/** Connection state reported to `onStatus`, for diagnostics only. Use frame tokens to resume. */
 	export type StreamStatus =
 		| { $kind: 'Connecting'; attempt: number }
@@ -118,8 +140,17 @@ export namespace SuiClientTypes {
 				/** Last checkpoint fully covered by this page (ascending), if known. */
 				coveredCheckpoint?: string;
 		  }
-		/** `attempt` 0 is an immediate reconnect after progress. */
-		| { $kind: 'Retrying'; attempt: number; delay: number; error: unknown }
+		/**
+		 * `attempt` counts consecutive failures without progress, from 1. A failure after progress
+		 * reconnects with `delay` 0, and `attempt` is 0 when a live feed ended after progress.
+		 */
+		| {
+				$kind: 'Retrying';
+				attempt: number;
+				delay: number;
+				reason: StreamRetryReason;
+				error: unknown;
+		  }
 		| { $kind: 'Error'; error: unknown };
 
 	/** Control frames to emit in addition to items. */
