@@ -1249,6 +1249,7 @@ describe('ledger streams', () => {
 				expect(resets.count).toBeGreaterThanOrEqual(retries.length);
 				for (const retry of retries) {
 					expect(causedByReset(retry.error), String(retry.error)).toBe(true);
+					expect(retry.reason).toBe('Disconnected');
 				}
 				expect(statuses.filter((s) => s.$kind === 'Error')).toEqual([]);
 				const [, ...reconnects] = attempts(statuses);
