@@ -137,8 +137,9 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	mapItem(item: Item): Omit<Frame, 'resumeToken'>;
 	classify(error: unknown): ErrorClass;
 	/**
-	 * Why a retryable failure happened. The core reports a live feed's end as `Disconnected`, and
-	 * upgrades `Network` to `Disconnected` once the attempt's server had answered.
+	 * Why a retryable failure happened: `Disconnected` for a connection that broke after the
+	 * server answered, `Network` for a request that got no answer. The core reports a live feed's
+	 * end as `Disconnected` itself.
 	 */
 	retryReason(error: unknown): SuiClientTypes.StreamRetryReason;
 }

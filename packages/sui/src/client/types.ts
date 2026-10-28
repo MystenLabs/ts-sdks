@@ -102,9 +102,10 @@ export namespace SuiClientTypes {
 	export type StreamPageEnd = 'limit' | 'bound' | 'indexedTip';
 
 	/**
-	 * Why a stream is reconnecting. `Disconnected` is routine; the others can point at an unhealthy
-	 * server or network.
-	 * - `Disconnected`: an established connection broke, or a live feed ended.
+	 * Why a stream is reconnecting. `Disconnected` is routine, and `NotIndexed` is expected briefly
+	 * near the tip and on new networks; alert on those only if they persist. The others can point at
+	 * an unhealthy server or network.
+	 * - `Disconnected`: a connection broke after the server answered, or a live feed ended.
 	 * - `Network`: a request failed before the server answered.
 	 * - `RateLimited`: the server or a proxy is limiting requests.
 	 * - `Timeout`: the server or a proxy timed the request out.
@@ -142,7 +143,8 @@ export namespace SuiClientTypes {
 		  }
 		/**
 		 * `attempt` counts consecutive failures without progress, from 1. A failure after progress
-		 * reconnects with `delay` 0, and `attempt` is 0 when a live feed ended after progress.
+		 * reconnects with `delay` 0. A disconnect after progress (a live feed ended or overflowed,
+		 * or the connection broke) is free: `attempt` is 0 and it spends no retry budget.
 		 */
 		| {
 				$kind: 'Retrying';

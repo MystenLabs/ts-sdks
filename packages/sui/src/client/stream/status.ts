@@ -62,11 +62,6 @@ export class StatusReporter {
 		});
 	}
 
-	/** Whether the server answered during the current attempt. */
-	get connectedThisAttempt() {
-		return this.#connected;
-	}
-
 	retrying(
 		attempt: number,
 		delay: number,

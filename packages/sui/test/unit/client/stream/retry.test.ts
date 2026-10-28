@@ -11,6 +11,7 @@ import {
 	fakeAdapter,
 	ids,
 	Ledger,
+	LostConnection,
 	NetworkError,
 	Overflow,
 	statusLog,
@@ -118,7 +119,7 @@ describe('retries in a stream', () => {
 		]);
 	});
 
-	it('reports why it retries, upgrading a network failure after the server answered', async () => {
+	it('reports why it retries, as the adapter and the core classify it', async () => {
 		const ledger = new Ledger(Array(10).fill(1), 6);
 		const reasons: string[] = [];
 		const adapter = fakeAdapter(ledger, {
@@ -128,7 +129,7 @@ describe('retries in a stream', () => {
 			live: [
 				{ events: [ledger.item(6)], end: new Overflow() },
 				{ events: [ledger.item(7)], end: 'eof' },
-				{ events: [ledger.item(8)], end: new NetworkError() },
+				{ events: [ledger.item(8)], end: new LostConnection() },
 				{ events: [ledger.item(9)], end: 'hang' },
 			],
 		});
@@ -142,8 +143,31 @@ describe('retries in a stream', () => {
 			4,
 		);
 		expect(ids(frames)).toEqual(['6:0', '7:0', '8:0', '9:0']);
-		// Before any attempt, a failure is a network failure; within one, the connection was lost.
 		expect(reasons).toEqual(['Network', 'SlowConsumer', 'Disconnected', 'Disconnected']);
+	});
+
+	it('reconnects for free after a lost connection that followed progress, and counts it otherwise', async () => {
+		const ledger = new Ledger(Array(10).fill(1), 6);
+		const { log, onStatus } = statusLog();
+		const adapter = fakeAdapter(ledger, {
+			anchorsAtLiveTip: true,
+			afterRead: () => (ledger.indexedTip = 9n),
+			live: [
+				{ events: [ledger.item(6)], end: new LostConnection() },
+				{ events: [], end: new LostConnection() },
+				{ events: [ledger.item(7)], end: 'hang' },
+			],
+		});
+		const frames = await take(
+			stream(adapter, { onStatus, retry: { initialDelay: 0, jitter: 0, maxAttempts: 1 } }),
+			2,
+		);
+		expect(ids(frames)).toEqual(['6:0', '7:0']);
+		// Free after progress; the next one without progress counts against the budget.
+		expect(log.filter((status) => status.startsWith('Retrying'))).toEqual([
+			'Retrying(0,0)',
+			'Retrying(1,0)',
+		]);
 	});
 
 	it('reconnects for free after a disconnect that followed progress, even with maxAttempts 0', async () => {

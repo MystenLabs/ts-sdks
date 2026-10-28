@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { progressPosition } from '../../../../src/client/stream/position.js';
+import { decodeToken } from '../../../../src/client/stream/token.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
@@ -139,6 +140,10 @@ describe('deduplication', () => {
 		expect(frames[0]).toMatchObject({ coveredCheckpoint: '7' });
 		expect(frames[2]).not.toHaveProperty('coveredCheckpoint');
 		expect(frames[3]).not.toHaveProperty('coveredCheckpoint');
+		// They record the newest checkpoint the feed passed, which a resuming server must have indexed.
+		const position = (frame: (typeof frames)[number]) => decodeToken(tokenOf(frame)).position;
+		expect(position(frames[2])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 8n });
+		expect(position(frames[3])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 8n });
 	});
 });
 

@@ -13,6 +13,7 @@ import { compareBounds } from './plan.js';
 import {
 	boundaryPosition,
 	CoverageTracker,
+	indexedThrough,
 	positionCoverage,
 	type StreamPosition,
 } from './position.js';
@@ -78,6 +79,9 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
  * Live events with coverage carried on from `committed` (contiguous once any gap is replayed), so
  * every position records what it covers. Progress on a feed that never reports coverage keeps
  * none: its cursor may be far past the last item, so a carried coverage would understate it.
+ * It records the newest checkpoint the feed has passed as `indexedCheckpoint` instead: no match
+ * lies between that checkpoint and the cursor, so a server indexed that far can resume it, and a
+ * boundary from such a server never re-delivers or skips a match.
  */
 async function* withCoverage<Item>(
 	events: AsyncIterable<LiveEvent<Item>>,
@@ -89,14 +93,27 @@ async function* withCoverage<Item>(
 		family,
 		committed ? positionCoverage(committed, family) : { $kind: 'Unknown' },
 	);
+	const placed = committed && indexedThrough(committed);
+	let passed = placed === null || placed === undefined ? undefined : max(placed, 0n);
 	for await (const event of events) {
-		if (event.$kind === 'Connected') yield event;
-		else if (event.$kind === 'Progress' && !reports(event.position) && !tracker.reported) {
+		if (event.$kind === 'Connected') {
 			yield event;
-		} else yield { ...event, position: tracker.apply(event.position) };
+		} else if (event.$kind === 'Progress' && !reports(event.position) && !tracker.reported) {
+			yield { ...event, position: { ...event.position, indexedCheckpoint: passed ?? null } };
+		} else {
+			const position = tracker.apply(event.position);
+			if (event.$kind === 'Item' && position.checkpoint !== null) {
+				passed = passed === undefined ? position.checkpoint : max(passed, position.checkpoint);
+			}
+			yield { ...event, position };
+		}
 	}
 }
 
 function reports(position: StreamPosition): boolean {
 	return position.coverage.$kind !== 'Unknown' || position.checkpoint !== null;
+}
+
+function max(a: bigint, b: bigint): bigint {
+	return a > b ? a : b;
 }

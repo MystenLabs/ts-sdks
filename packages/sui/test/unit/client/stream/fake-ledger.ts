@@ -47,6 +47,10 @@ export type FakeOutput =
 export class NetworkError extends Error {
 	override name = 'NetworkError';
 }
+/** A connection that broke after the server answered: retried, free after progress. */
+export class LostConnection extends Error {
+	override name = 'LostConnection';
+}
 /** A live buffer overflow: a disconnect, free only after progress. */
 export class Overflow extends Error {
 	override name = 'Overflow';
@@ -284,11 +288,16 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 			subscribe(signal, options.handoff === 'resume' ? toPosition(from) : undefined),
 		mapItem: (item) => ({ $kind: 'Item', id: itemId(item) }),
 		classify(error): ErrorClass {
-			if (error instanceof NetworkError) return 'retry';
+			if (error instanceof NetworkError || error instanceof LostConnection) return 'retry';
 			if (error instanceof Overflow) return 'disconnect';
 			return 'fatal';
 		},
-		retryReason: (error) => (error instanceof Overflow ? 'SlowConsumer' : 'Network'),
+		retryReason: (error) =>
+			error instanceof Overflow
+				? 'SlowConsumer'
+				: error instanceof LostConnection
+					? 'Disconnected'
+					: 'Network',
 	};
 }
 
