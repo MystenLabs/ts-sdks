@@ -140,7 +140,7 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 		try {
 			response = await fetch(input, init);
 		} catch (error) {
-			throw toNetworkRpcError(error, init?.signal);
+			throw toNetworkRpcError(error, init?.signal, 'request');
 		}
 		const chunks = bodyChunks(response.body);
 		if (!chunks) return response;
@@ -178,7 +178,7 @@ async function* networkBody(
 		try {
 			next = await chunks.next();
 		} catch (error) {
-			throw toNetworkRpcError(error, signal);
+			throw toNetworkRpcError(error, signal, 'response');
 		}
 		if (next.done) return;
 		yield next.value;
