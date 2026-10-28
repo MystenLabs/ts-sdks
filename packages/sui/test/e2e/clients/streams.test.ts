@@ -1004,9 +1004,9 @@ describe('ledger streams', () => {
 			await reader.close();
 			const delivered = reader.frames.find((frame) => frame.sequenceNumber === checkpoint)!;
 			const fetched = await client(kind).core.getTransaction({ digest, include });
-			expect(delivered.transactions.find((tx) => tx.digest === digest)).toEqual(
-				fetched.Transaction,
-			);
+			expect(
+				delivered.transactions.find((result) => result.Transaction?.digest === digest),
+			).toEqual(fetched);
 			// Every transaction of the live checkpoint, as a bounded read of it returns them.
 			const [read] = await collect(
 				client(kind).core.streamCheckpoints({
