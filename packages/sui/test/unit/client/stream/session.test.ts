@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { progressPosition } from '../../../../src/client/stream/position.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
@@ -107,6 +108,37 @@ describe('deduplication', () => {
 			{ $kind: 'Progress', coveredCheckpoint: '7' },
 			{ $kind: 'Item', id: '8:0' },
 		]);
+	});
+
+	it('claims no coverage for live progress cursors on a feed that reports none', async () => {
+		const ledger = ledgerOf(9, 7);
+		const cursor = (label: string) => new TextEncoder().encode(label);
+		const adapter = fakeAdapter(ledger, {
+			handoff: 'resume',
+			live: [
+				{
+					events: [
+						ledger.item(8),
+						{ $kind: 'Progress', position: progressPosition(cursor('p1')) },
+						{ $kind: 'Progress', position: progressPosition(cursor('p2')) },
+					],
+					end: 'hang',
+				},
+			],
+		});
+		const frames = await take(
+			stream(adapter, { start: { checkpoint: 8 }, frames: { progress: true } }),
+			4,
+		);
+		expect(frames.map((frame) => frame.$kind)).toEqual([
+			'Progress',
+			'Item',
+			'Progress',
+			'Progress',
+		]);
+		expect(frames[0]).toMatchObject({ coveredCheckpoint: '7' });
+		expect(frames[2]).not.toHaveProperty('coveredCheckpoint');
+		expect(frames[3]).not.toHaveProperty('coveredCheckpoint');
 	});
 });
 

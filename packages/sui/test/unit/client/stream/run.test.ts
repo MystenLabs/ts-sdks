@@ -77,6 +77,28 @@ describe('frames', () => {
 		expect(adapter.calls.pages).toHaveLength(1);
 	});
 
+	it('fails a follow that subscribes from below the retained history, before subscribing', async () => {
+		const adapter = fakeAdapter(ledgerOf(5), {
+			retainedFrom: 3n,
+			handoff: 'resume',
+			initializeReadsRetention: true,
+		});
+		await expect(stream(adapter, { start: { checkpoint: 1 } }).next()).rejects.toMatchObject({
+			code: 'HistoryUnavailable',
+		});
+		expect(adapter.calls).toMatchObject({ pages: [], subscriptions: 0 });
+
+		const retained = fakeAdapter(ledgerOf(5), {
+			retainedFrom: 3n,
+			handoff: 'resume',
+			initializeReadsRetention: true,
+			live: [{ events: [], end: 'hang' }],
+		});
+		const frames = stream(retained, { start: { checkpoint: 3 }, frames: { progress: true } });
+		expect(await frames.next()).toMatchObject({ value: { $kind: 'Progress' } });
+		await frames.return(undefined);
+	});
+
 	it('advances tokens only through the item the consumer received', async () => {
 		const ledger = ledgerOf(5);
 		const adapter = fakeAdapter(ledger);

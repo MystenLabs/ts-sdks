@@ -7,6 +7,7 @@ import type { CoreFrame, ErrorClass, LedgerStreamAdapter } from './adapter.js';
 import { StreamDisconnected, SuiStreamError } from './errors.js';
 import { followLive } from './follow.js';
 import {
+	assertStartRetained,
 	assertTokensCompatible,
 	decodeStreamTokens,
 	planStream,
@@ -84,6 +85,7 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 		yield* session.complete();
 		return;
 	}
+	assertStartRetained(plan, adapter.family, identity.retainedFrom);
 
 	while (true) {
 		session.beginAttempt(retry.attempt);

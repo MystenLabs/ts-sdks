@@ -269,6 +269,11 @@ export class CoverageTracker {
 		this.#floor = order === 'ascending' ? floor : { $kind: 'Unknown' };
 	}
 
+	/** Whether any position on this pass or feed reported its coverage. */
+	get reported(): boolean {
+		return this.#reported !== undefined;
+	}
+
 	apply(raw: StreamPosition): StreamPosition {
 		const reported = raw.coverage.$kind === 'Through' ? raw.coverage.checkpoint : undefined;
 		if (reported !== undefined && this.#reported !== undefined) {

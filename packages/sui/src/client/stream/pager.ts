@@ -23,7 +23,8 @@
  * 3. Deliver items until one reaches the end. While more pages remain, an empty page's cursor is
  *    progress, and the cursor must advance.
  * 4. After the last page, the pass commits the boundary after what it covered, so a quiet range
- *    still moves its resume point. It is complete once the index has reached the end.
+ *    still moves its resume point, unless it resumed from a progress cursor it cannot place. It is
+ *    complete once the index has reached the end.
  */
 
 import type { SuiClientTypes } from '../types.js';
@@ -174,8 +175,9 @@ export async function* readPages<Item>(
 		// Commit the boundary after what was covered, so a quiet range moves its resume point and a
 		// finished range resumes as empty. A descending pass has covered down to a checkpoint end.
 		let boundary: bigint | undefined;
-		if (ascending && !request.before) boundary = boundaryAfter(reached, request, endCut);
-		else if (!ascending && endCut?.kind === 'Boundary') boundary = endCut.checkpoint!;
+		if (ascending && !request.before && !unplaced(resumesFrom)) {
+			boundary = boundaryAfter(reached, request, endCut);
+		} else if (!ascending && endCut?.kind === 'Boundary') boundary = endCut.checkpoint!;
 		if (boundary !== undefined) {
 			// Kept where it fits, so a regressing watermark is still caught.
 			const covered = pageEnd.covered !== undefined && pageEnd.covered < boundary;
@@ -227,6 +229,18 @@ function cutAt(
 ): StreamPosition {
 	if (family !== 'checkpoints' || position.kind !== 'Item') return position;
 	return boundaryPosition(side === 'after' ? position.checkpoint! + 1n : position.checkpoint!);
+}
+
+/**
+ * A progress cursor with nothing known about where it is: a boundary from the page's tip could sit
+ * behind it, so the pass keeps the cursor instead.
+ */
+function unplaced(position: StreamPosition | undefined): boolean {
+	return (
+		position?.kind === 'Progress' &&
+		position.indexedCheckpoint === null &&
+		position.coverage.$kind === 'Unknown'
+	);
 }
 
 /**

@@ -76,7 +76,8 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
 
 /**
  * Live events with coverage carried on from `committed` (contiguous once any gap is replayed), so
- * every position records what it covers.
+ * every position records what it covers. Progress on a feed that never reports coverage keeps
+ * none: its cursor may be far past the last item, so a carried coverage would understate it.
  */
 async function* withCoverage<Item>(
 	events: AsyncIterable<LiveEvent<Item>>,
@@ -89,8 +90,13 @@ async function* withCoverage<Item>(
 		committed ? positionCoverage(committed, family) : { $kind: 'Unknown' },
 	);
 	for await (const event of events) {
-		yield event.$kind === 'Connected'
-			? event
-			: { ...event, position: tracker.apply(event.position) };
+		if (event.$kind === 'Connected') yield event;
+		else if (event.$kind === 'Progress' && !reports(event.position) && !tracker.reported) {
+			yield event;
+		} else yield { ...event, position: tracker.apply(event.position) };
 	}
+}
+
+function reports(position: StreamPosition): boolean {
+	return position.coverage.$kind !== 'Unknown' || position.checkpoint !== null;
 }

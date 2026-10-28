@@ -323,6 +323,25 @@ describe('readPages', () => {
 		expect(result).toEqual({ complete: true, retentionLimit: true });
 	});
 
+	it('keeps a progress cursor it cannot place when the page after it is empty', async () => {
+		const unplaced = progressPosition(bytes('live'));
+		const { adapter, requests } = scripted([page([], { more: false }, { viewedAt: 5n })]);
+		const { events, result } = await read(adapter, {
+			order: 'ascending',
+			start: { position: unplaced },
+		});
+		expect(requests[0]).toMatchObject({ after: bytes('live'), range: {} });
+		expect(delivered(events)).toEqual([]);
+		expect(result.complete).toBe(true);
+
+		const placed = scripted([page([], { more: false }, { viewedAt: 5n })]);
+		const known = await read(placed.adapter, {
+			order: 'ascending',
+			start: { position: progressPosition(bytes('p'), { indexedCheckpoint: 4n }) },
+		});
+		expect(delivered(known.events)).toEqual(['Boundary@6']);
+	});
+
 	it('commits the boundary after a quiet range, within it, and judges completeness', async () => {
 		const quiet = (fields: PageFields) => scripted([page([], { more: false }, fields)]);
 		const pass = {
