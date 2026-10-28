@@ -45,12 +45,21 @@ function transactionsPage(
 	cp: number,
 	from: number,
 	to: number,
-	options: { more?: boolean; indexedThrough?: number } = {},
+	options: { more?: boolean; indexedThrough?: number; count?: number } = {},
 ): Answer {
+	// Running totals before and through the checkpoint, when the test gives its count.
+	const totals =
+		options.count === undefined
+			? {}
+			: {
+					total: { networkTotalTransactions: 1_000 + options.count },
+					previousTotal: { networkTotalTransactions: 1_000 },
+				};
 	return ({ server }) =>
 		Response.json({
 			data: {
 				checkpoint: { sequenceNumber: options.indexedThrough ?? server.tip },
+				...totals,
 				transactions: {
 					pageInfo: { hasNextPage: options.more ?? false, endCursor: `tx:${cp}:${to}` },
 					nodes: nodes(cp, from, to),
@@ -167,6 +176,26 @@ describe('GraphQL checkpoint streams with transactions', () => {
 			{ atCheckpoint: 1, after: 'tx:1:50' },
 			{ atCheckpoint: 1, after: 'tx:1:100' },
 		]);
+	});
+
+	it('checks the transactions read against the checkpoint’s transaction count', async () => {
+		const complete = fakeGraphQL()
+			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 60)]))
+			.on('checkpointTransactions', transactionsPage(1, 50, 60, { count: 60 }));
+		const frames = await collect(complete.client.core.streamCheckpoints({ ...range, include }));
+		expect(transactionDigests(frames)).toEqual([digests(1, 0, 60)]);
+		expect(complete.sent('checkpointTransactions')[0]).toMatchObject({
+			previousCheckpoint: 0,
+			hasPrevious: true,
+		});
+
+		// A server that no longer has some of them ends the pages early.
+		const pruned = fakeGraphQL()
+			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 120)]))
+			.on('checkpointTransactions', transactionsPage(1, 50, 50, { count: 120 }));
+		await expect(
+			collect(pruned.client.core.streamCheckpoints({ ...range, include })),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 	});
 
 	it('reads the empty page after a checkpoint of exactly 50 transactions once', async () => {

@@ -199,10 +199,18 @@ function checkpointsWithTransactionsFamily(
 			throw new SuiStreamError('Protocol', `Checkpoint ${node.sequenceNumber} has no transactions`);
 		const nodes = [...first.nodes];
 		let { hasNextPage, endCursor } = first.pageInfo;
+		let expected: number | undefined;
+		const hasPrevious = node.sequenceNumber > 0;
 		while (hasNextPage) {
 			const data = await queryData(client, {
 				query: CheckpointTransactionsDocument,
-				variables: { atCheckpoint: node.sequenceNumber, after: endCursor, ...selection },
+				variables: {
+					atCheckpoint: node.sequenceNumber,
+					previousCheckpoint: hasPrevious ? node.sequenceNumber - 1 : undefined,
+					hasPrevious,
+					after: endCursor,
+					...selection,
+				},
 				signal,
 			});
 			// A live checkpoint can arrive before this replica indexed its transactions, which would
@@ -212,12 +220,23 @@ function checkpointsWithTransactionsFamily(
 					`Transactions of checkpoint ${node.sequenceNumber} are not indexed yet`,
 				);
 			}
+			expected ??= transactionCount(
+				data.total,
+				hasPrevious ? data.previousTotal : { networkTotalTransactions: 0 },
+			);
 			const page = data.transactions;
 			if (!page) throw new SuiStreamError('Protocol', 'GraphQL transactions page is missing');
 			nodes.push(...page.nodes);
 			// A checkpoint of exactly 50 transactions reports one more, empty, page.
 			hasNextPage = page.pageInfo.hasNextPage && page.nodes.length > 0;
 			endCursor = page.pageInfo.endCursor;
+		}
+		// Pages from a server that no longer has some of the checkpoint's transactions end early.
+		if (expected !== undefined && nodes.length !== expected) {
+			throw new SuiStreamError(
+				'HistoryUnavailable',
+				`Read ${nodes.length} of the ${expected} transactions of checkpoint ${node.sequenceNumber}`,
+			);
 		}
 		return { ...node, transactions: { ...first, nodes } };
 	}
@@ -483,4 +502,14 @@ async function* edges<Result, Node>(
 		}
 		yield { cursor: value.cursor, node: value.node ?? null };
 	}
+}
+
+/** A checkpoint's transaction count from running totals, when the server reports both. */
+function transactionCount(
+	total: { networkTotalTransactions?: number | null } | null | undefined,
+	previous: { networkTotalTransactions?: number | null } | null | undefined,
+): number | undefined {
+	const at = total?.networkTotalTransactions;
+	const before = previous?.networkTotalTransactions;
+	return at == null || before == null ? undefined : at - before;
 }

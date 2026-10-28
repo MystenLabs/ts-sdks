@@ -225,6 +225,8 @@ subscription subscribeCheckpointsWithTransactions(
 
 query checkpointTransactions(
 	$atCheckpoint: UInt53!
+	$previousCheckpoint: UInt53 = 0
+	$hasPrevious: Boolean!
 	$after: String
 	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
@@ -237,6 +239,13 @@ query checkpointTransactions(
 	# The checkpoint this replica has indexed through.
 	checkpoint {
 		sequenceNumber
+	}
+	# Running transaction totals, whose difference is the checkpoint's transaction count.
+	total: checkpoint(sequenceNumber: $atCheckpoint) {
+		networkTotalTransactions
+	}
+	previousTotal: checkpoint(sequenceNumber: $previousCheckpoint) @include(if: $hasPrevious) {
+		networkTotalTransactions
 	}
 	transactions(filter: { atCheckpoint: $atCheckpoint }, first: 50, after: $after) {
 		...CHECKPOINT_TRANSACTIONS_PAGE
