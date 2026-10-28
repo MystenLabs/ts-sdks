@@ -4,7 +4,11 @@
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it, vi } from 'vitest';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
-import { isConnectionLost, toNetworkRpcError } from '../../../src/grpc/network-error.js';
+import {
+	isConnectionLost,
+	isRequestFailed,
+	toNetworkRpcError,
+} from '../../../src/grpc/network-error.js';
 
 async function read(fetch: typeof globalThis.fetch) {
 	const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost', fetch });
@@ -36,12 +40,29 @@ it('codes a failed unary fetch as UNAVAILABLE', async () => {
 	});
 });
 
-it('marks network failures as a lost connection, unlike a server UNAVAILABLE', async () => {
-	const error = await read(async () => {
+it('marks a failed fetch and a broken body apart from a server UNAVAILABLE', async () => {
+	const failedFetch = await read(async () => {
 		throw new TypeError('fetch failed');
 	}).catch((error: unknown) => error);
-	expect(isConnectionLost(error)).toBe(true);
-	expect(isConnectionLost(new RpcError('overloaded', 'UNAVAILABLE'))).toBe(false);
+	expect(isRequestFailed(failedFetch)).toBe(true);
+	expect(isConnectionLost(failedFetch)).toBe(false);
+
+	const brokenBody = await read(
+		async () =>
+			new Response(
+				new ReadableStream({
+					pull(controller) {
+						controller.error(new TypeError('socket closed'));
+					},
+				}),
+				{ headers: { 'content-type': 'application/grpc-web+proto' } },
+			),
+	).catch((error: unknown) => error);
+	expect(isConnectionLost(brokenBody)).toBe(true);
+	expect(isRequestFailed(brokenBody)).toBe(false);
+
+	const server = new RpcError('overloaded', 'UNAVAILABLE');
+	expect(isConnectionLost(server) || isRequestFailed(server)).toBe(false);
 });
 
 it('codes a failed response body read as UNAVAILABLE', async () => {
@@ -171,11 +192,11 @@ it('codes protobuf decode errors as INTERNAL', async () => {
 
 describe('toNetworkRpcError', () => {
 	it('codes fetch and body-read failures as UNAVAILABLE', () => {
-		expect(toNetworkRpcError(new TypeError('fetch failed'), undefined)).toMatchObject({
+		expect(toNetworkRpcError(new TypeError('fetch failed'), undefined, 'request')).toMatchObject({
 			code: 'UNAVAILABLE',
 			message: 'fetch failed',
 		});
-		expect(toNetworkRpcError('reset', undefined)).toMatchObject({
+		expect(toNetworkRpcError('reset', undefined, 'request')).toMatchObject({
 			code: 'UNAVAILABLE',
 			message: 'Network stream failed',
 		});
@@ -183,15 +204,15 @@ describe('toNetworkRpcError', () => {
 
 	it('leaves RpcErrors and failures after an abort unchanged', () => {
 		const status = new RpcError('server failure', 'INTERNAL');
-		expect(toNetworkRpcError(status, undefined)).toBe(status);
+		expect(toNetworkRpcError(status, undefined, 'request')).toBe(status);
 
 		const controller = new AbortController();
 		controller.abort();
 		const aborted = new TypeError('aborted');
-		expect(toNetworkRpcError(aborted, controller.signal)).toBe(aborted);
+		expect(toNetworkRpcError(aborted, controller.signal, 'request')).toBe(aborted);
 
 		const independentAbort = new DOMException('shutdown', 'AbortError');
-		expect(toNetworkRpcError(independentAbort, new AbortController().signal)).toBe(
+		expect(toNetworkRpcError(independentAbort, new AbortController().signal, 'request')).toBe(
 			independentAbort,
 		);
 	});

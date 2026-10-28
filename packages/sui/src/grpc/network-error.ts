@@ -6,20 +6,40 @@ import { RpcError } from '@protobuf-ts/runtime-rpc';
 /**
  * Codes a failed gRPC-web fetch or body read as `UNAVAILABLE`, which resumable streams retry,
  * instead of upstream's `INTERNAL`. `RpcError`s, errors after `signal` aborts, and `AbortError`s
- * (a custom fetch may combine the call signal with its own) are returned unchanged.
+ * (a custom fetch may combine the call signal with its own) are returned unchanged. `stage` says
+ * whether the request failed before a response (`request`) or the response body broke
+ * (`response`), which streams report differently.
  */
-export function toNetworkRpcError(error: unknown, signal: AbortSignal | null | undefined): unknown {
+export function toNetworkRpcError(
+	error: unknown,
+	signal: AbortSignal | null | undefined,
+	stage: 'request' | 'response',
+): unknown {
 	if (signal?.aborted || error instanceof RpcError || isAbortError(error)) return error;
-	return markConnectionLost(
-		new RpcError(error instanceof Error ? error.message : 'Network stream failed', 'UNAVAILABLE'),
+	const rpcError = new RpcError(
+		error instanceof Error ? error.message : 'Network stream failed',
+		'UNAVAILABLE',
 	);
+	return stage === 'request' ? markRequestFailed(rpcError) : markConnectionLost(rpcError);
 }
 
+const requestFailures = new WeakSet<object>();
 const connectionLost = new WeakSet<object>();
 
+function markRequestFailed<E extends object>(error: E): E {
+	requestFailures.add(error);
+	return error;
+}
+
+/** Whether a request failed before the server answered (from `toNetworkRpcError`). */
+export function isRequestFailed(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && requestFailures.has(error);
+}
+
 /**
- * Marks an error as a lost connection rather than a server answer, so a stream can tell a network
- * failure from a server that reported itself `UNAVAILABLE`. Returns the error.
+ * Marks an error as a connection that broke after the server answered, such as a reset stream or
+ * a failed body read, so a stream can tell it from a server that reported itself `UNAVAILABLE`.
+ * Returns the error.
  */
 export function markConnectionLost<E extends object>(error: E): E {
 	connectionLost.add(error);
