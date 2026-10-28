@@ -32,6 +32,7 @@ describe('GraphQL listEvents sender', () => {
 						startCursor: 'a',
 						endCursor: 'b',
 					},
+					edges: [{ cursor: 'a' }, { cursor: 'b' }],
 					nodes: [event(null, 0), event({ address: '0xa' }, 1)],
 				},
 			},
