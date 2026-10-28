@@ -66,6 +66,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	#retentionLimit = false;
 	/** Where set, live delivery reports `Live` at the first item at or past this checkpoint. */
 	readonly #liveFrom: bigint | undefined;
+	#reportedLive = false;
 
 	constructor(options: {
 		plan: StreamPlan;
@@ -144,6 +145,11 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 
 	/** Poll delivery reached the indexed tip. */
 	markLive() {
+		this.#reportLive();
+	}
+
+	#reportLive() {
+		this.#reportedLive = true;
 		this.#status.live();
 	}
 
@@ -177,13 +183,17 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	}
 
 	/**
-	 * Reports `Live` (at once, or at the first item at or past `liveFrom`), then delivers the feed:
-	 * drops events at or before committed state.
+	 * Reports `Live`, then delivers the feed: drops events at or before committed state. With
+	 * `liveFrom`, `Live` waits for the first item at or past it, unless the feed starts at the tip:
+	 * a fresh follow, or a reconnect near the tip after the stream was live.
 	 */
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#delivering = true;
 		const liveFrom = this.#liveFrom;
-		if (liveFrom === undefined) this.#status.live();
+		const atTip =
+			this.#nearLiveTip &&
+			(this.#reportedLive || (this.#plan.anchored && this.#lastItem === undefined));
+		if (liveFrom === undefined || atTip) this.#reportLive();
 		for await (const event of feed) {
 			if (this.#isStale(event)) continue;
 			if (
@@ -191,7 +201,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 				event.$kind === 'Item' &&
 				event.position.checkpoint! >= liveFrom
 			) {
-				this.#status.live();
+				this.#reportLive();
 			}
 			yield* this.#commit(event);
 		}
