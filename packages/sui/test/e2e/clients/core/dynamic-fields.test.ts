@@ -222,7 +222,7 @@ describe('Core API - Dynamic Fields', () => {
 		);
 	});
 
-	describe('listDynamicFields with include: { value: true }', () => {
+	describe('cross-client parity', () => {
 		for (const [label, getParentId] of [
 			['dynamic fields', () => objectWithDynamicFieldsId],
 			['mixed dynamic and dynamic object fields', () => objectWithMixedFieldsId],
@@ -306,7 +306,9 @@ describe('Core API - Dynamic Fields', () => {
 				}
 			});
 		}
+	});
 
+	describe('listDynamicFields with include: { value: true }', () => {
 		testWithAllClients('should return field values', async (client) => {
 			const result = await client.core.listDynamicFields({
 				parentId: objectWithDynamicFieldsId,
