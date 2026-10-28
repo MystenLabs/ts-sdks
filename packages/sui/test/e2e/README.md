@@ -15,8 +15,8 @@ answers transaction and event queries from the fullnode's ledger APIs and serves
 Setup fails if that service doesn't serve subscriptions.
 
 That image is amd64 only and stalls under emulation, so on ARM Docker hosts the harness uses the
-localnet GraphQL service instead and skips the subscription tests. To run them there, use a native
-build:
+localnet GraphQL service instead and skips the subscription tests. Under `CI`, setup fails there
+instead, unless `SUI_GRAPHQL=localnet` is set. To run them there, use a native build:
 
 ```sh
 (cd ../sui && cargo build --locked --release -p sui-indexer-alt-graphql)
