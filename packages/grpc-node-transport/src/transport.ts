@@ -12,6 +12,7 @@ import type {
 import { GrpcStatusCode, RpcError } from '@mysten/sui/grpc';
 import {
 	grpcStatusFromAbortReason,
+	markConnectionLost,
 	markNonRetryable,
 	PULL_SERVER_STREAMING,
 } from '@mysten/sui/grpc/pull-transport';
@@ -213,6 +214,7 @@ function toRpcError(
 			statusName(reset ? GrpcStatusCode.UNAVAILABLE : code),
 			fromGrpcMetadata(metadata),
 		);
+		if (reset) markConnectionLost(rpcError);
 		// The same message would arrive again on retry, so it is not retryable.
 		if (
 			code === (GrpcStatusCode.RESOURCE_EXHAUSTED as number) &&
