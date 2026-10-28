@@ -14,8 +14,6 @@ import {
 } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
-import { requestSuiFromFaucetV2 } from '../../../src/faucet/index.js';
-import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import type { PrePublishedPackage } from './prePublish.js';
 import { prePublishPackages } from './prePublish.js';
 
@@ -24,8 +22,6 @@ declare module 'vitest' {
 		localnetPort: number;
 		graphqlPort: number;
 		graphqlSubscriptions: boolean;
-		graphqlStreamFixes: boolean;
-		grpcStreamFixes: boolean;
 		faucetPort: number;
 		suiToolsContainerId: string;
 		prePublishedPackages: Record<string, PrePublishedPackage>;
@@ -39,8 +35,14 @@ const SUI_TOOLS_TAG =
 		: '16d2dc1e05edcf600320a82e17b9392edb0983a5');
 
 // `sui start --with-graphql` does not configure the checkpoint stream that GraphQL subscriptions
-// require. Either variable starts a separate GraphQL service with subscriptions enabled.
-const GRAPHQL_IMAGE = process.env.SUI_GRAPHQL_IMAGE;
+// require, so a separate GraphQL service from the same release runs instead. The published image is
+// amd64 only and stalls under emulation, so ARM machines need SUI_GRAPHQL_BINARY or
+// SUI_GRAPHQL_IMAGE for the subscription tests.
+const GRAPHQL_IMAGE =
+	process.env.SUI_GRAPHQL_IMAGE ||
+	(process.arch === 'arm64'
+		? undefined
+		: `mysten/sui-indexer-alt-graphql:${SUI_TOOLS_TAG.replace(/-arm64$/, '')}`);
 const GRAPHQL_BINARY = process.env.SUI_GRAPHQL_BINARY;
 const SEPARATE_GRAPHQL = !!(GRAPHQL_IMAGE || GRAPHQL_BINARY);
 
@@ -141,7 +143,6 @@ export default async function setup(project: TestProject) {
 		}
 	} else if (GRAPHQL_IMAGE) {
 		const graphql = await new GenericContainer(GRAPHQL_IMAGE)
-			// The published preview image is amd64, including on ARM developer machines.
 			.withPlatform(process.env.SUI_GRAPHQL_PLATFORM || 'linux/amd64')
 			.withCommand([
 				'sui-indexer-alt-graphql',
@@ -235,25 +236,6 @@ async function finishSetup(
 		containerId,
 	});
 	project.provide('prePublishedPackages', prePublished);
-
-	const graphqlStreamFixes = await probe('GraphQL checkpoint resume', () =>
-		resumesCheckpointsBelowBound(graphqlPort),
-	);
-	if (!graphqlStreamFixes) {
-		console.warn(
-			'GraphQL checkpoint resume tests will be skipped: the GraphQL service lacks the stream fixes (see test/e2e/README.md).',
-		);
-	}
-	const grpcStreamFixes = await probe('gRPC subscription object types', () =>
-		subscriptionsHaveObjectTypes(localnetPort, faucetPort),
-	);
-	if (!grpcStreamFixes) {
-		console.warn(
-			'gRPC transaction subscription parity tests will be skipped: the fullnode lacks the stream fixes (see test/e2e/README.md).',
-		);
-	}
-	project.provide('graphqlStreamFixes', graphqlStreamFixes);
-	project.provide('grpcStreamFixes', grpcStreamFixes);
 }
 
 /**
@@ -286,67 +268,6 @@ async function unusedPort(): Promise<number> {
 		server.close((error) => (error ? reject(error) : resolve())),
 	);
 	return address.port;
-}
-
-/** Whether GraphQL pages checkpoints after a cursor that lies below the `afterCheckpoint` bound. */
-async function resumesCheckpointsBelowBound(port: number): Promise<boolean> {
-	const query = async (query: string, variables = {}) => {
-		const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ query, variables }),
-			signal: AbortSignal.timeout(10_000),
-		});
-		if (!response.ok) throw new Error(`GraphQL responded with HTTP ${response.status}`);
-		const body = await response.json();
-		if (body.errors?.length || !body.data) {
-			throw new Error(`GraphQL responded with errors: ${JSON.stringify(body.errors)}`);
-		}
-		return body.data;
-	};
-	const first = await query('{ checkpoints(first: 1) { edges { cursor } } }');
-	const after = first.checkpoints?.edges?.[0]?.cursor;
-	if (!after) throw new Error('GraphQL returned no checkpoint to probe with');
-	const next = await query(
-		'query ($after: String) { checkpoints(first: 1, after: $after, filter: { afterCheckpoint: 1 }) { nodes { sequenceNumber } } }',
-		{ after },
-	);
-	if (!Array.isArray(next.checkpoints?.nodes))
-		throw new Error('GraphQL returned no checkpoint page');
-	return next.checkpoints.nodes[0]?.sequenceNumber === 2;
-}
-
-/**
- * Whether gRPC checkpoint subscriptions fill the object types of changed objects. A faucet request
- * makes sure a live checkpoint with changed objects arrives.
- */
-async function subscriptionsHaveObjectTypes(port: number, faucetPort: number): Promise<boolean> {
-	const client = new SuiGrpcClient({ baseUrl: `http://127.0.0.1:${port}`, network: 'localnet' });
-	const controller = new AbortController();
-	try {
-		const call = client.subscriptionService.subscribeCheckpoints(
-			{ readMask: { paths: ['transactions.effects.changed_objects'] } },
-			{ abort: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]) },
-		);
-		const frames = call.responses[Symbol.asyncIterator]();
-		const first = frames.next();
-		// Observed below; this only keeps an early failure from being reported as unhandled.
-		first.catch(() => {});
-		await requestSuiFromFaucetV2({
-			host: `http://127.0.0.1:${faucetPort}`,
-			recipient: `0x${'5'.repeat(64)}`,
-		});
-		for (let next = await first; !next.done; next = await frames.next()) {
-			const frame = next.value as GrpcTypes.SubscribeCheckpointsResponse;
-			const changed = (frame.checkpoint?.transactions ?? []).flatMap(
-				(transaction) => transaction.effects?.changedObjects ?? [],
-			);
-			if (changed.length > 0) return changed.some((object) => !!object.objectType);
-		}
-		throw new Error('The checkpoint subscription ended before a checkpoint with changes arrived');
-	} finally {
-		controller.abort();
-	}
 }
 
 async function supportsGraphQLSubscriptions(port: number): Promise<boolean> {

@@ -20,8 +20,6 @@ type Status = SuiClientTypes.StreamStatus;
 type Signer = { keypair: Ed25519Keypair; address: string };
 
 const graphqlSubscriptions = inject('graphqlSubscriptions');
-const graphqlStreamFixes = inject('graphqlStreamFixes');
-const grpcStreamFixes = inject('grpcStreamFixes');
 
 const LIVE: [ClientKind, Delivery][] = [
 	['grpc', 'subscribe'],
@@ -40,18 +38,6 @@ function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
 /** GraphQL `subscribe` delivery needs a service that serves subscriptions. */
 function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
 	return kind === 'graphql' && delivery === 'subscribe' && !graphqlSubscriptions;
-}
-
-const MISSING_SERVER_FIXES = 'needs a server with the stream fixes for this transport';
-
-/**
- * Cases that rely on GraphQL paging checkpoints after a cursor below the `afterCheckpoint` bound,
- * or on gRPC subscriptions filling object types and event JSON. Each transport is gated by its own
- * server.
- */
-function missingServerFixes(kind: ClientKind, family: string, delivery: Delivery = 'poll') {
-	if (kind === 'graphql') return !graphqlStreamFixes && family === 'checkpoints';
-	return !grpcStreamFixes && delivery === 'subscribe' && family === 'transactions';
 }
 
 /** More events than GraphQL returns for a transaction's nested event list (50). */
@@ -725,8 +711,7 @@ describe('ledger streams', () => {
 				}
 			});
 
-			it('resumes from checkpoint tokens to exactly the remaining checkpoints', async (context) => {
-				context.skip(missingServerFixes(kind, 'checkpoints'), MISSING_SERVER_FIXES);
+			it('resumes from checkpoint tokens to exactly the remaining checkpoints', async () => {
 				// A fixed range: localnet keeps adding checkpoints while other files run.
 				const checkpoints = await collect(
 					client(kind).core.streamCheckpoints({
@@ -963,7 +948,6 @@ describe('ledger streams', () => {
 			'delivers %s exactly once from history into live while transactions are submitted, across a resume',
 			async (family, context) => {
 				if (missingSubscriptions(kind, delivery)) context.skip();
-				context.skip(missingServerFixes(kind, family, delivery), MISSING_SERVER_FIXES);
 				const { statuses } = await followWhileSubmitting({
 					client: client(kind),
 					kind,
@@ -997,11 +981,6 @@ describe('ledger streams', () => {
 
 		it('delivers live checkpoints with all of their transactions, as getTransaction returns them', async (context) => {
 			if (skip) context.skip();
-			context.skip(
-				missingServerFixes(kind, 'checkpoints', delivery) ||
-					missingServerFixes(kind, 'transactions', delivery),
-				MISSING_SERVER_FIXES,
-			);
 			const include = { effects: true, events: true, objectTypes: true } as const;
 			const log = statusLog();
 			const reader = new Reader<
@@ -1191,8 +1170,7 @@ describe('ledger streams', () => {
 
 	describe.each(KINDS)('live items match the list methods (%s)', (kind) => {
 		for (const family of ['transactions', 'events'] as const) {
-			it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async (context) => {
-				context.skip(missingServerFixes(kind, family, 'subscribe'), MISSING_SERVER_FIXES);
+			it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async () => {
 				const from = await newSigner();
 				const filter = { sender: from.address };
 				const include = {
@@ -1689,12 +1667,13 @@ describe('ledger streams', () => {
 				EdgeResult<'transactions', { digest: string } | null>
 			>({
 				query: `subscription ($filter: TransactionFilter, $after: String) {
-					transactions(filter: $filter, after: $after) { cursor node { digest } }
+					transactions(filter: $filter, after: $after, progress: true) { cursor node { digest } }
 				}`,
 				variables: { filter: { sentAddress: from.address }, after: firstEdge.cursor },
 				signal: signal(),
 			});
-			// A backfilling filtered subscription also sends progress edges, whose node is null.
+			// With `progress: true`, a filtered subscription also sends progress edges: a cursor with a
+			// null node and no errors.
 			const nextDigest = async () => {
 				while (true) {
 					const { value, done } = await subscription.next();
