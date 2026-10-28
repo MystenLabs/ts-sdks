@@ -336,6 +336,8 @@ export namespace SuiClientTypes {
 
 	export interface Transaction<out Include extends TransactionInclude = {}> {
 		digest: string;
+		/** The address that sent the transaction: `0x0` for system transactions. */
+		sender: string;
 		signatures: string[];
 		epoch: string | null;
 		/**
