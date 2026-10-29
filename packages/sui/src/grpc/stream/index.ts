@@ -98,7 +98,7 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		const filter =
 			this.#request.options.grpcFilter ??
 			(await this.#sharedFilter(signal).catch((error: unknown) => {
-				// A request that never reached MVR is worth retrying. Unknown names, invalid filters
+				// A request that failed in transit is worth retrying. Unknown names, invalid filters
 				// and bad MVR responses stay fatal.
 				if (isMvrRequestFailure(error)) throw toNetworkRpcError(error, signal, 'request');
 				// MVR rate limiting or an outage is worth retrying; other HTTP errors stay fatal.
