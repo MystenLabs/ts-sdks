@@ -380,7 +380,8 @@ export class GrpcWebFetchTransport
 			options: merged,
 			url: this.makeUrl(method, merged),
 			maxResponseMessageBytes: this.#maxResponseMessageBytes,
-			normalizeError: normalizeGrpcError,
+			// The pull reader attaches the HTTP status itself.
+			normalizeError: (error, signal) => normalizeGrpcError(error, signal, {}),
 		});
 	}
 
