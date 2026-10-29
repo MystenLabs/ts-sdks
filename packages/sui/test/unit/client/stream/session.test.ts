@@ -3,12 +3,15 @@
 
 import { describe, expect, it } from 'vitest';
 
+import type { LiveEvent } from '../../../../src/client/stream/adapter.js';
 import { progressPosition } from '../../../../src/client/stream/position.js';
 import { decodeToken } from '../../../../src/client/stream/token.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
 	fakeAdapter,
+	type FakeAdapter,
+	type FakeItem,
 	ids,
 	Ledger,
 	NetworkError,
@@ -153,7 +156,7 @@ describe('deduplication', () => {
 		expect(position(frames[4])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 30n });
 	});
 
-	it('places live progress before a replayed gap only by checkpoints the feed passed', async () => {
+	it('places live progress only after the first live item closes the gap', async () => {
 		// History reaches checkpoint 8, then a subscription at the live tip reports progress at a
 		// cursor past checkpoint 100 before the gap up to it is replayed.
 		const ledger = ledgerOf(120, 8);
@@ -190,8 +193,44 @@ describe('deduplication', () => {
 			expect.objectContaining({ cursor: cursor('after'), indexedCheckpoint: 101n }),
 		]);
 	});
+});
 
-	it('does not end gap recovery at a live progress cursor it cannot place', async () => {
+describe('gap recovery', () => {
+	const unplaced = (label: string): LiveEvent<FakeItem> => ({
+		$kind: 'Progress',
+		position: progressPosition(new TextEncoder().encode(label)),
+	});
+
+	/** Reads frames until the `lives`-th Live status, then aborts the stream. */
+	async function untilLive(
+		adapter: FakeAdapter,
+		options: SuiClientTypes.StreamOptions<SuiClientTypes.StreamFrameOptions>,
+		lives = 1,
+	) {
+		const controller = new AbortController();
+		const { log, onStatus } = statusLog();
+		const frames = [];
+		try {
+			for await (const frame of stream(adapter, {
+				...options,
+				signal: controller.signal,
+				onStatus: (status) => {
+					onStatus(status);
+					if (status.$kind === 'Live' && --lives === 0) controller.abort();
+				},
+			})) {
+				frames.push(frame);
+			}
+		} catch (error) {
+			if (!controller.signal.aborted) throw error;
+		}
+		return { frames, log };
+	}
+
+	it.each([
+		['a cursor it cannot place', unplaced('past 100')],
+		['a cursor placed past the gap', ledgerOf(100).progress(100)],
+	])('replays the gap to the first live item, not to progress at %s', async (_, progress) => {
 		// The index stays at 8 while a subscription at the live tip reports progress past 100.
 		const ledger = ledgerOf(120, 8);
 		let reads = 0;
@@ -200,22 +239,49 @@ describe('deduplication', () => {
 			afterRead: () => {
 				if (++reads === 3) ledger.indexedTip = 120n;
 			},
-			live: [
-				{
-					events: [
-						{
-							$kind: 'Progress',
-							position: progressPosition(cursorOf({ checkpoint: 101n, index: 0 })),
-						},
-						ledger.item(101),
-					],
-					end: 'hang',
-				},
-			],
+			live: [{ events: [progress, ledger.item(101)], end: 'hang' }],
 		});
-		const frames = await take(stream(adapter, { start: { checkpoint: 0 } }), 10);
-		expect(ids(frames)).toEqual(Array.from({ length: 10 }, (_, i) => `${i}:0`));
+		const frames = await take(stream(adapter, { start: { checkpoint: 0 } }), 102);
+		expect(ids(frames)).toEqual(Array.from({ length: 102 }, (_, i) => `${i}:0`));
 	});
+
+	it('ends at the indexed tip on a feed that only sends progress', { timeout: 2000 }, async () => {
+		const ledger = ledgerOf(120, 8);
+		const adapter = fakeAdapter(ledger, {
+			pageSize: 200,
+			live: [{ events: [unplaced('a'), unplaced('b')], end: 'hang' }],
+		});
+		const { frames, log } = await untilLive(adapter, {
+			start: { checkpoint: 0 },
+			frames: { progress: true },
+		});
+		expect(ids(frames)).toEqual(Array.from({ length: 9 }, (_, i) => `${i}:0`));
+		// Progress before the first live item is never committed.
+		const last = decodeToken(tokenOf(frames.at(-1))).position;
+		expect(last).toMatchObject({ kind: 'Boundary', checkpoint: 9n });
+		expect(log.at(-1)).toBe('Live');
+	});
+
+	it(
+		'pages to the indexed tip after a reconnect near the live tip to a feed that only sends progress',
+		{ timeout: 2000 },
+		async () => {
+			const ledger = ledgerOf(120, 6);
+			const adapter = fakeAdapter(ledger, {
+				pageSize: 200,
+				anchorsAtLiveTip: true,
+				live: (connection) => {
+					if (connection === 0) return { events: [ledger.item(6)], end: 'eof' };
+					// The index catches up while the stream reconnects.
+					ledger.indexedTip = 100n;
+					return { events: [unplaced('a'), unplaced('b')], end: 'hang' };
+				},
+			});
+			const { frames, log } = await untilLive(adapter, {}, 2);
+			expect(ids(frames)).toEqual(Array.from({ length: 95 }, (_, i) => `${i + 6}:0`));
+			expect(log.slice(-4)).toEqual(['Connected', 'Recovering', 'Page(gap,indexedTip)', 'Live']);
+		},
+	);
 });
 
 describe('history replay', () => {

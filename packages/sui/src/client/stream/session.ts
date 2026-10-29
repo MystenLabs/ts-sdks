@@ -38,6 +38,8 @@ const COMPLETION_REASON = {
 export interface LiveFeed<Item> extends AsyncIterable<PositionEvent<Item>> {
 	/** Reads the first Item or Progress. `deliver()` sees it again as the feed's first event. */
 	first(): Promise<PositionEvent<Item>>;
+	/** Drops Progress up to the first Item, which `deliver()` then sees as the feed's first event. */
+	firstItem(): Promise<PositionEvent<Item>>;
 	close(): Promise<void>;
 }
 
@@ -138,7 +140,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 			: !sameBytes(before, after);
 	}
 
-	/** Poll delivery reached the indexed tip. */
+	/** Delivery reached the indexed tip: a poll pass, or gap recovery before the first live item. */
 	markLive() {
 		this.#status.live();
 	}
@@ -366,6 +368,11 @@ class FeedReader<Item> implements LiveFeed<Item> {
 		this.#pending ??= await this.#read();
 		if (!this.#pending) throw new StreamDisconnected('Live feed ended before its first event');
 		return this.#pending;
+	}
+
+	async firstItem(): Promise<PositionEvent<Item>> {
+		while ((await this.first()).$kind !== 'Item') this.#pending = undefined;
+		return this.#pending!;
 	}
 
 	async *[Symbol.asyncIterator](): AsyncGenerator<PositionEvent<Item>> {
