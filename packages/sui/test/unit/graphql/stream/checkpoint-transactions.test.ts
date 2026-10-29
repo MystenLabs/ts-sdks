@@ -238,32 +238,43 @@ describe('GraphQL checkpoint streams with transactions', () => {
 				transactionsPage(13, 50, 60, { indexedThrough: 13 }),
 			);
 		const [frame] = await take(
-			server.client.core.streamCheckpoints({ start: { checkpoint: 13 }, include, retry: noDelay }),
+			server.client.core.streamCheckpoints({
+				start: { checkpoint: 13 },
+				include,
+				pollInterval: 1,
+				retry: noDelay,
+			}),
 			1,
 		);
 		expect(transactionDigests([frame])).toEqual([digests(13, 0, 60)]);
 		expect(server.sent('checkpointTransactions')).toHaveLength(2);
 	});
 
-	it('waits for a lagging replica under the retry policy, not forever', async () => {
+	it('waits for a lagging replica without spending the retry budget', async () => {
 		const server = fakeGraphQL({ tip: 12 })
 			.on(
 				'subscribeCheckpointsWithTransactions',
 				live('checkpoints', [withTransactions(13, 60, 'live')]),
 			)
-			.on('checkpointTransactions', transactionsPage(13, 50, 50, { indexedThrough: 12 }));
+			.on(
+				'checkpointTransactions',
+				transactionsPage(13, 50, 50, { indexedThrough: 12 }),
+				transactionsPage(13, 50, 50, { indexedThrough: 12 }),
+				transactionsPage(13, 50, 60, { indexedThrough: 13 }),
+			);
 		const statuses: string[] = [];
-		await expect(
-			collect(
-				server.client.core.streamCheckpoints({
-					start: { checkpoint: 13 },
-					include,
-					retry: { ...noDelay, maxAttempts: 2 },
-					onStatus: (status) => statuses.push(status.$kind),
-				}),
-			),
-		).rejects.toMatchObject({ name: 'SuiGraphQLRequestError', retryable: true });
-		expect(statuses.filter((kind) => kind === 'Retrying')).toHaveLength(2);
+		const [frame] = await take(
+			server.client.core.streamCheckpoints({
+				start: { checkpoint: 13 },
+				include,
+				pollInterval: 1,
+				retry: { ...noDelay, maxAttempts: 0 },
+				onStatus: (status) => statuses.push(status.$kind),
+			}),
+			1,
+		);
+		expect(transactionDigests([frame])).toEqual([digests(13, 0, 60)]);
+		expect(statuses).not.toContain('Retrying');
 		expect(server.sent('checkpointTransactions')).toHaveLength(3);
 	});
 
