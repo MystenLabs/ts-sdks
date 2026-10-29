@@ -30,6 +30,13 @@ export interface MvrClientOptions {
 	};
 }
 
+const requestFailures = new WeakSet<object>();
+
+/** Whether `error` is an MVR request that failed before MVR answered, such as a network failure. */
+export function isMvrRequestFailure(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && requestFailures.has(error);
+}
+
 export class MvrClient implements SuiClientTypes.MvrMethods {
 	#cache: ClientCache;
 	#url?: string;
@@ -166,14 +173,23 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 			throw new Error('MVR Api URL is not set for the current client');
 		}
 
-		const response = await fetch(`${this.#url}${url}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...MVR_API_HEADER,
-			},
-			body: JSON.stringify(body),
-		});
+		// Parsed first, so a malformed URL is not mistaken for a failed request.
+		const target = new URL(`${this.#url}${url}`, globalThis.location?.href);
+		let response: Response;
+		try {
+			response = await fetch(target, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...MVR_API_HEADER,
+				},
+				body: JSON.stringify(body),
+			});
+		} catch (error) {
+			// Lets callers retry a request that never reached MVR, unlike a bad response or a bug.
+			if (typeof error === 'object' && error !== null) requestFailures.add(error);
+			throw error;
+		}
 
 		if (!response.ok) {
 			const errorBody = await response.json().catch(() => ({}));

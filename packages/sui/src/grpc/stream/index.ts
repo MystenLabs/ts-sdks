@@ -5,6 +5,7 @@ import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 
 import type { LedgerStreamRequest } from '../../client/core.js';
+import { isMvrRequestFailure } from '../../client/mvr.js';
 import { resolveEventFilter, resolveTransactionFilter } from '../../client/query-filters.js';
 import type {
 	Bound,
@@ -97,10 +98,9 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		const filter =
 			this.#request.options.grpcFilter ??
 			(await this.#sharedFilter(signal).catch((error: unknown) => {
-				// A failed MVR fetch rejects with a TypeError, which is worth retrying. An unresolvable
-				// name or invalid filter throws a plain Error and stays fatal. A TypeError from a bug in
-				// filter resolution would also be retried.
-				if (error instanceof TypeError) throw toNetworkRpcError(error, signal, 'request');
+				// A request that never reached MVR is worth retrying. Unknown names, invalid filters
+				// and bad MVR responses stay fatal.
+				if (isMvrRequestFailure(error)) throw toNetworkRpcError(error, signal, 'request');
 				// MVR rate limiting or an outage is worth retrying; other HTTP errors stay fatal.
 				const status = error instanceof Error && 'status' in error ? error.status : undefined;
 				if (typeof status === 'number' && (status === 408 || status === 429 || status >= 500)) {
