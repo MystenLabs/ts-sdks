@@ -284,9 +284,9 @@ Transient failures retry with exponential backoff and jitter. `maxAttempts` boun
 failures without progress, and `maxAttempts: 0` disables retries. If the connection breaks after
 progress, the stream resumes from the last frame without spending the budget, provided the transport
 reports the lost connection; grpc-js's own connection drops, and other transports that don't report
-it, count as ordinary failures. On GraphQL, ten `RESOURCE_EXHAUSTED` errors without progress end the
-stream, even with other failures between them: the code covers a full server, which clears, and a
-per-item limit, which recurs on every attempt.
+it, count as ordinary failures. On GraphQL, ten `RESOURCE_EXHAUSTED` errors without progress are
+retried and the eleventh ends the stream, even with other failures between them: the code covers a
+full server, which clears, and a per-item limit, which recurs on every attempt.
 
 `reason` says why. `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
 streams, and `NotIndexed` is expected briefly near the tip and on new networks; alert on those only
@@ -338,6 +338,9 @@ try {
 
 ## Known limitations
 
+- A GraphQL follow with an `affectedAddress` filter can deliver live a transaction that matches only
+  because the address sent it or paid its gas. Resuming from a token or re-reading that range won't
+  return it.
 - On GraphQL, a transaction's `events` and `objectTypes` hold at most its first 50 entries, as with
   `listTransactions`.
 - Resume tokens don't work across gRPC and GraphQL; to switch, start the new stream at the
