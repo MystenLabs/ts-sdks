@@ -902,6 +902,14 @@ describe('ledger streams', () => {
 			});
 		}
 		await submitting;
+		if (options.resume) {
+			// The submissions can all land before the resumed reader connects; a match after it
+			// connects is what lets it report Live.
+			const resumedConnected = () =>
+				attempts(log.statuses())[1]?.some((s) => s.$kind === 'Connected' || s.$kind === 'Live');
+			await waitFor(() => !!resumedConnected(), 30_000);
+			submitted.push(await emitEvents(from, 1, { fast: true }));
+		}
 		if (options.afterReconnect) {
 			const reconnects = () => log.kinds().filter((k) => k === 'Connecting').length - 1;
 			const before = reconnects();
