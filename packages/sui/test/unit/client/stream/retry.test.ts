@@ -30,6 +30,29 @@ describe('retry budget', () => {
 		return retry;
 	}
 
+	it('ends a capped kind at whichever limit comes first', () => {
+		const retry = new RetryBudget({ ...policy, maxAttempts: 2 });
+		const error = new Error('exhausted');
+		retry.onFailure(error, 'retry', false, undefined, false, 10);
+		retry.onFailure(error, 'retry', false, undefined, false, 10);
+		expect(() => retry.onFailure(error, 'retry', false, undefined, false, 10)).toThrow(error);
+	});
+
+	it('counts a capped kind since the last progress, across other failures', () => {
+		const retry = new RetryBudget(policy);
+		const capped = new Error('exhausted');
+		retry.onFailure(capped, 'retry', false, undefined, false, 2);
+		retry.onFailure(new Error('unavailable'), 'retry', false);
+		retry.onFailure(capped, 'retry', false, undefined, false, 2);
+		expect(() => retry.onFailure(capped, 'retry', false, undefined, false, 2)).toThrow(capped);
+
+		// Progress resets the count.
+		const progressed = new RetryBudget(policy);
+		progressed.onFailure(capped, 'retry', false, undefined, false, 2);
+		progressed.onFailure(capped, 'retry', false, undefined, false, 2);
+		expect(progressed.onFailure(capped, 'retry', true, undefined, false, 2)).toBe(0);
+	});
+
 	it.each<[ErrorClass, boolean, number, number, number, number]>([
 		// class, advanced, prior failures, maxAttempts → delay, attempt afterwards
 		['retry', false, 0, Infinity, 100, 1],

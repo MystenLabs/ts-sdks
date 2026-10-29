@@ -207,7 +207,7 @@ function checkpointsWithTransactionsFamily(
 				variables: {
 					atCheckpoint: node.sequenceNumber,
 					previousCheckpoint: hasPrevious ? node.sequenceNumber - 1 : undefined,
-					// Read once; the count doesn't change between pages.
+					// Read until known; the count doesn't change between pages.
 					withTotals: expected === undefined,
 					hasPrevious: hasPrevious && expected === undefined,
 					after: endCursor,
