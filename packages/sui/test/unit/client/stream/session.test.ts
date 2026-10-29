@@ -153,34 +153,68 @@ describe('deduplication', () => {
 		expect(position(frames[4])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 30n });
 	});
 
-	it('places a live progress cursor only by checkpoints this feed passed', async () => {
+	it('places live progress before a replayed gap only by checkpoints the feed passed', async () => {
 		// History reaches checkpoint 8, then a subscription at the live tip reports progress at a
 		// cursor past checkpoint 100 before the gap up to it is replayed.
 		const ledger = ledgerOf(120, 8);
-		const live = cursorOf({ checkpoint: 101n, index: 0 });
+		const cursor = (label: string) => new TextEncoder().encode(label);
 		const adapter = fakeAdapter(ledger, {
 			pageSize: 200,
 			afterRead: () => (ledger.indexedTip = 120n),
-			live: [{ events: [{ $kind: 'Progress', position: progressPosition(live) }], end: 'hang' }],
+			live: [
+				{
+					events: [
+						{ $kind: 'Progress', position: progressPosition(cursor('before')) },
+						ledger.item(101),
+						{ $kind: 'Progress', position: progressPosition(cursor('after')) },
+					],
+					end: 'hang',
+				},
+			],
 		});
-		const frames = await take(
-			stream(adapter, { start: { checkpoint: 0 }, frames: { progress: true } }),
-			103,
-		);
-		const progress = frames.at(-1);
-		expect(ids(frames).at(-1)).toBe('100:0');
-		expect(decodeToken(tokenOf(progress)).position).toMatchObject({ cursor: live });
+		const frames = [];
+		for await (const frame of stream(adapter, {
+			start: { checkpoint: 0 },
+			frames: { progress: true },
+		})) {
+			frames.push(frame);
+			if (frame.$kind === 'Progress' && ids(frames).at(-1) === '101:0') break;
+		}
+		expect(ids(frames)).toEqual(Array.from({ length: 102 }, (_, i) => `${i}:0`));
+		const cursors = frames
+			.filter((frame) => frame.$kind === 'Progress')
+			.map((frame) => decodeToken(tokenOf(frame)).position)
+			.filter((position) => position.kind === 'Progress');
+		// The cursor before the gap was replayed is never committed; the one after item 101 is placed.
+		expect(cursors).toEqual([
+			expect.objectContaining({ cursor: cursor('after'), indexedCheckpoint: 101n }),
+		]);
+	});
 
-		// Resuming on a server indexed through 50 must not move the resume point behind the cursor.
-		const resumed = await collect(
-			stream(fakeAdapter(ledgerOf(120, 50), { pageSize: 200 }), {
-				start: { resumeToken: tokenOf(progress) },
-				follow: false,
-				frames: { progress: true },
-			}),
-		);
-		// A boundary from that server would sit behind the cursor and re-deliver 51..100.
-		expect(resumed).toEqual([]);
+	it('does not end gap recovery at a live progress cursor it cannot place', async () => {
+		// The index stays at 8 while a subscription at the live tip reports progress past 100.
+		const ledger = ledgerOf(120, 8);
+		let reads = 0;
+		const adapter = fakeAdapter(ledger, {
+			pageSize: 200,
+			afterRead: () => {
+				if (++reads === 3) ledger.indexedTip = 120n;
+			},
+			live: [
+				{
+					events: [
+						{
+							$kind: 'Progress',
+							position: progressPosition(cursorOf({ checkpoint: 101n, index: 0 })),
+						},
+						ledger.item(101),
+					],
+					end: 'hang',
+				},
+			],
+		});
+		const frames = await take(stream(adapter, { start: { checkpoint: 0 } }), 10);
+		expect(ids(frames)).toEqual(Array.from({ length: 10 }, (_, i) => `${i}:0`));
 	});
 });
 
