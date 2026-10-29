@@ -154,11 +154,18 @@ function callOptions(options: RpcOptions): CallOptions {
 // <limit>` for a compressed message (`build/src/compression-filter.js`).
 const RECEIVE_LIMIT =
 	/^Received message (?:larger than max \(|that decompresses to a size larger than \d)/;
+// A request over `grpc.max_send_message_length` fails with this text
+// (`build/src/compression-filter.js`).
+const SEND_LIMIT = /^Attempted to send message with a size larger than \d+$/;
 // grpc-js reports a dropped connection as UNAVAILABLE itself, but a stream the server or a proxy
 // resets with NO_ERROR before its status, or with INTERNAL_ERROR, as INTERNAL with one of these
 // texts (`build/src/subchannel-call.js`). Anchored, so status text a server sent never matches.
 const STREAM_RESET =
 	/^Received RST_STREAM with code [02] \((?:Call ended without gRPC status|Internal server error)\)$/;
+// grpc-js codes a connection that drops mid-call UNAVAILABLE with this text and empty metadata
+// (`build/src/subchannel-call.js`). No code or field tells it from a server's UNAVAILABLE, so the
+// exact text is matched, and only with empty metadata.
+const CONNECTION_DROPPED = 'Connection dropped';
 
 function reasonMessage(reason: unknown): string {
 	if (typeof reason === 'string') return reason;
@@ -209,16 +216,21 @@ function toRpcError(
 			kind === 'stream' &&
 			code === (GrpcStatusCode.INTERNAL as number) &&
 			STREAM_RESET.test(details ?? '');
+		const dropped =
+			kind === 'stream' &&
+			code === (GrpcStatusCode.UNAVAILABLE as number) &&
+			details === CONNECTION_DROPPED &&
+			Object.keys(metadata?.getMap() ?? {}).length === 0;
 		rpcError = new RpcError(
 			details || statusName(code),
 			statusName(reset ? GrpcStatusCode.UNAVAILABLE : code),
 			fromGrpcMetadata(metadata),
 		);
-		if (reset) markConnectionLost(rpcError);
-		// The same message would arrive again on retry, so it is not retryable.
+		if (reset || dropped) markConnectionLost(rpcError);
+		// The same message would be sent or arrive again on retry, so it is not retryable.
 		if (
 			code === (GrpcStatusCode.RESOURCE_EXHAUSTED as number) &&
-			RECEIVE_LIMIT.test(details ?? '')
+			(RECEIVE_LIMIT.test(details ?? '') || SEND_LIMIT.test(details ?? ''))
 		) {
 			markNonRetryable(rpcError);
 		}
