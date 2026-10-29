@@ -121,15 +121,17 @@ describe('GrpcWebFrameDecoder', () => {
 	});
 
 	it('queues decoded text without retaining buffers larger than their bytes', () => {
-		const padded = concat([base64(data(1)), base64(data(2, 3))]);
+		// The first frame's padding is inside the input, so the decoded buffer is sized for more
+		// bytes than it holds.
+		const padded = concat([base64(data(2, 3)), base64(data(1))]);
 		const spaced = concat([padded, new TextEncoder().encode(' '.repeat(4096))]);
 		const decoder = new GrpcWebFrameDecoder(TEXT, 1024);
 		decoder.push(spaced);
-		for (const expected of [[1], [2, 3]]) {
+		for (const expected of [[2, 3], [1]]) {
 			const next = decoder.next();
 			expect(next).toEqual({ type: 'data', data: new Uint8Array(expected) });
 			if (next?.type !== 'data') throw new Error('expected a data frame');
-			// Both frames came in one chunk of 6 + 7 bytes.
+			// Both frames came in one chunk of 7 + 6 bytes.
 			expect(next.data.buffer.byteLength).toBe(13);
 		}
 	});

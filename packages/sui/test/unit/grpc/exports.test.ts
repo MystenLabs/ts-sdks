@@ -21,13 +21,10 @@ describe('on-demand stream reader', () => {
 		expect(new grpc.GrpcWebFetchTransport(options)).toBeInstanceOf(grpc.GrpcWebFetchTransport);
 
 		for (const name of [
-			'grpcStatusFromAbortReason',
 			'hasDecodedStatusMessage',
-			'markGrpcStatusMessageDecoded',
 			'normalizeGrpcError',
 			'isNonRetryable',
 			'markNonRetryable',
-			'supportsServerStreamingIterable',
 			'pullServerStreaming',
 			'PULL_SERVER_STREAMING',
 			'GrpcWebPullCall',
