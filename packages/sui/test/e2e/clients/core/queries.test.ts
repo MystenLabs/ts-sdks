@@ -807,13 +807,13 @@ describe('Core API - Queries', () => {
 				{ skip: EXCLUDE },
 			);
 
-			it('all clients return same data: affectedAddress for the sender and sponsor of a sponsored transaction', async () => {
+			it('all clients return same data: affectedAddress for the sponsor, not the signer, of a sponsored transaction', async () => {
 				const sponsor = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const sender = new Ed25519Keypair();
 				const senderAddress = sender.toSuiAddress();
 
-				// The sender owns nothing the transaction touches, so it matches only as the sender.
-				// The sponsor has no sponsor-specific match: it matches because its gas coin changed.
+				// The sender owns nothing the transaction touches, so `affectedAddress` doesn't match it;
+				// `sender` does. The sponsor matches because its gas coin changed.
 				const tx = new Transaction();
 				tx.moveCall({ target: '0x2::tx_context::sender' });
 				const bytes = await buildWithoutSimulation(tx, senderAddress, sponsor);
@@ -830,8 +830,10 @@ describe('Core API - Queries', () => {
 				const digest = result.Transaction.digest;
 				await toolbox.waitForTransaction({ digest });
 
-				const sentBy = (client: ClientWithCore) =>
+				const affectingSender = (client: ClientWithCore) =>
 					client.core.listTransactions({ filter: { affectedAddress: senderAddress } });
+				const sentBy = (client: ClientWithCore) =>
+					client.core.listTransactions({ filter: { sender: senderAddress } });
 				const sponsoredBy = (client: ClientWithCore) =>
 					client.core.listTransactions({
 						filter: { affectedAddress: sponsor.address },
@@ -839,8 +841,15 @@ describe('Core API - Queries', () => {
 						limit: 1,
 					});
 
-				expect(digestsOf(await sentBy(toolbox.grpcClient))).toEqual([digest]);
+				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					expect(digestsOf(await affectingSender(client))).toEqual([]);
+					expect(digestsOf(await sentBy(client))).toEqual([digest]);
+				}
 				expect(digestsOf(await sponsoredBy(toolbox.grpcClient))).toEqual([digest]);
+				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
+					exclude: EXCLUDE,
+					attempts: 3,
+				});
 				await toolbox.expectAllClientsReturnSameData(sentBy, stripCursors, {
 					exclude: EXCLUDE,
 					attempts: 3,
