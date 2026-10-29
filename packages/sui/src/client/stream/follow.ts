@@ -84,7 +84,8 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
  * It records the newest checkpoint the feed has passed as `indexedCheckpoint` instead: no match
  * lies between that checkpoint and the cursor, so a server indexed that far can resume it, and a
  * boundary from such a server never re-delivers or skips a match. `committed` counts as passed only
- * on a feed that `resumes` after it: otherwise a gap before the feed is still to be replayed.
+ * on a feed that `resumes` after it: otherwise a gap before the feed is still to be replayed, and
+ * progress the feed cannot place yet is dropped rather than committed.
  */
 async function* withCoverage<Item>(
 	events: AsyncIterable<LiveEvent<Item>>,
@@ -106,6 +107,8 @@ async function* withCoverage<Item>(
 			const own = event.position.indexedCheckpoint;
 			const indexedCheckpoint =
 				passed === undefined || (own !== null && own > passed) ? own : passed;
+			// Nothing says how far a replay must reach before this cursor, so it cannot end the gap.
+			if (indexedCheckpoint === null && !resumes && committed) continue;
 			yield { ...event, position: { ...event.position, indexedCheckpoint } };
 		} else {
 			const position = tracker.apply(event.position);
