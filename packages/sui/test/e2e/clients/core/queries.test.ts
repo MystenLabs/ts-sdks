@@ -842,10 +842,11 @@ describe('Core API - Queries', () => {
 					});
 
 				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					// The sponsor's match shows this client's index has the transaction.
+					expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
 					expect(digestsOf(await affectingSender(client))).toEqual([]);
 					expect(digestsOf(await sentBy(client))).toEqual([digest]);
 				}
-				expect(digestsOf(await sponsoredBy(toolbox.grpcClient))).toEqual([digest]);
 				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
 					exclude: EXCLUDE,
 					attempts: 3,

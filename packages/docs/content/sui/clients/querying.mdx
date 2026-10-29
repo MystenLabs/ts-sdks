@@ -391,12 +391,12 @@ Transaction filters combine their predicates with AND, and an empty filter match
 transaction. A filter takes at most one of `affectedAddress`, `affectedObject`, or `function`, and
 `sender` can be combined with any of them:
 
-| Predicate         | Description                                                                                                                             |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `sender`          | Transactions sent by an address                                                                                                         |
-| `affectedAddress` | Transactions that changed objects an address owned before or owns after, or its address balance; not ones it only signed (use `sender`) |
-| `affectedObject`  | Transactions whose effects include a change to an object                                                                                |
-| `function`        | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`), including aborts                                           |
+| Predicate         | Description                                                                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sender`          | Transactions sent by an address                                                                                                                                  |
+| `affectedAddress` | Transactions that changed objects an address owned before or owns after (including its gas coin), or its address balance; not ones it only signed (use `sender`) |
+| `affectedObject`  | Transactions whose effects include a change to an object                                                                                                         |
+| `function`        | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`), including aborts                                                                    |
 
 ```typescript
 // Calls into a package by one sender
