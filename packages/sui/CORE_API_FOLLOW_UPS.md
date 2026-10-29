@@ -25,7 +25,6 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - **GraphQL event checkpoints** — `listEvents` reports `checkpoint: null` for an event whose
   checkpoint the server doesn't return. Seen once in e2e runs (an unfiltered read of the first
   events on a fresh localnet); retrying the page returned it.
-
 - **GraphQL's live `affectedAddress` matcher includes the sender and gas owner** — unlike gRPC and
   GraphQL catch-up (pages and subscription backfill), which match only addresses whose objects or
   balance changed. A GraphQL follow can deliver a transaction live that a re-read from history
@@ -50,10 +49,10 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
 
 - **Replay handoff waits for the first live frame** — a following gRPC stream with a `start` opens
   the subscription first and only begins the historical read once the subscription reports a
-  position (`src/grpc/stream/follow.ts`). Time to first frame is 1–3 s unfiltered and up to 17 s for
-  sparse filters such as `affectedAddress`, so restarts of a filtered indexer sit idle that long.
-  Reading history up to the indexed tip while the subscription connects would remove the wait; the
-  later handoff must then dedupe the overlap the same way the recovery scan does.
+  position (`src/client/stream/follow.ts`). Time to first frame is 1–3 s unfiltered and up to 17 s
+  for sparse filters such as `affectedAddress`, so restarts of a filtered indexer sit idle that
+  long. Reading history up to the indexed tip while the subscription connects would remove the wait;
+  the later handoff must then dedupe the overlap the same way the recovery scan does.
 - **GraphQL subscriptions skip or repeat items at the server's backfill-to-live handoff** — about
   one in four resubscribes with an `after` cursor or `afterCheckpoint` either repeats the cursor's
   item or skips a checkpoint (server side; reproducible with raw SSE). The SDK drops the repeated
