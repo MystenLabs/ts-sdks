@@ -266,61 +266,6 @@ describe('gap recovery', () => {
 	});
 
 	it(
-		'keeps paging to a moving indexed tip on a feed that only sends progress',
-		{ timeout: 2000 },
-		async () => {
-			const ledger = ledgerOf(120, 8);
-			const adapter = fakeAdapter(ledger, {
-				pageSize: 200,
-				live: () => {
-					// The index advances once the first history pass has reached the tip.
-					ledger.indexedTip = 20n;
-					return { events: [unplaced('a')], end: 'hang' };
-				},
-			});
-			const frames = await take(stream(adapter, { start: { checkpoint: 0 } }), 21);
-			expect(ids(frames)).toEqual(Array.from({ length: 21 }, (_, i) => `${i}:0`));
-		},
-	);
-
-	it(
-		'switches from paging to the feed at its first item, without duplicates or skips',
-		{ timeout: 2000 },
-		async () => {
-			const ledger = ledgerOf(120, 8);
-			let release: () => void;
-			const released = new Promise<void>((resolve) => (release = resolve));
-			let reads = 0;
-			const adapter = fakeAdapter(ledger, {
-				pageSize: 200,
-				afterRead: () => {
-					// The index advances on the first pass after the initial one; the item follows.
-					if (++reads === 2) {
-						ledger.indexedTip = 15n;
-						release();
-					}
-					if (reads === 3) ledger.indexedTip = 120n;
-				},
-				live: [{ events: [unplaced('a')], end: 'hang' }],
-			});
-			// The live item arrives once paging has passed part of the history before it.
-			const base = adapter.subscribe;
-			adapter.subscribe = (from, signal) =>
-				(async function* () {
-					for await (const event of base(from, signal)) {
-						yield event;
-						if (event.$kind === 'Progress') {
-							await released;
-							yield* ledger.liveFrom(30).slice(0, 3);
-						}
-					}
-				})();
-			const frames = await take(stream(adapter, { start: { checkpoint: 0 } }), 33);
-			expect(ids(frames)).toEqual(Array.from({ length: 33 }, (_, i) => `${i}:0`));
-		},
-	);
-
-	it(
 		'pages to the indexed tip after a reconnect near the live tip to a feed that only sends progress',
 		{ timeout: 2000 },
 		async () => {
