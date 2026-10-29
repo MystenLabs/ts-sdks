@@ -1,9 +1,0 @@
-# Config for the separate GraphQL service, matching the settings `sui start --with-graphql` gives
-# its own GraphQL service.
-
-[zklogin]
-env = "Test"
-
-# Send live progress after two quiet checkpoints, so tests see it without waiting minutes.
-[subscription]
-unmatched-checkpoints-before-progress = 2
