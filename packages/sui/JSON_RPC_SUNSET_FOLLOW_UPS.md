@@ -1,12 +1,12 @@
 # Core API follow-ups gated on the JSON-RPC sunset
 
-The core APIs, notably the query APIs (`listTransactions`, `listEvents`), are intentionally
-restricted to what all three transports (gRPC, GraphQL, JSON-RPC) can support with identical
-behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. Several
-capabilities were left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC
-is fully deprecated and removed, they can be promoted into the core API.
+The core query APIs (`listTransactions`, `listEvents`) were restricted to what gRPC, GraphQL and
+JSON-RPC could all support with identical behavior. With JSON-RPC removed, this branch promotes the
+`affectedAddress`/`affectedObject` filters, combined `sender` predicates, checkpoint ranges, windows
+and `listCheckpoints`, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. The
+items below remain.
 
-Until then, advanced filtering is available through the raw gRPC ledger service
+Advanced filtering beyond the core types is available through the raw gRPC ledger service
 (`client.ledgerService.listTransactions` and friends take full DNF filters), and through raw GraphQL
 queries where the schema supports it. Promoting a capability means extending the core filter types
 in `src/client/types.ts` and the shared resolution helpers in `src/client/query-filters.ts`,
