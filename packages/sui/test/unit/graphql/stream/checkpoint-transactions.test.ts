@@ -9,6 +9,7 @@ import {
 	event,
 	fakeGraphQL,
 	live,
+	networkFailure,
 	page,
 	transaction,
 	type Answer,
@@ -217,6 +218,36 @@ describe('GraphQL checkpoint streams with transactions', () => {
 		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 	});
 
+	it('cancels the rest of a page’s checkpoints when one fails, before retrying it', async () => {
+		let hung: AbortSignal | undefined;
+		let hungArrived!: () => void;
+		const arrived = new Promise<void>((resolve) => (hungArrived = resolve));
+		let failures = 0;
+		const scanPage = page('checkpoints', [withTransactions(1, 60), withTransactions(2, 60)]);
+		const abortedAtScan: (boolean | undefined)[] = [];
+		const server = fakeGraphQL()
+			.on('scanCheckpointsWithTransactions', (request) => {
+				abortedAtScan.push(hung?.aborted);
+				return scanPage(request);
+			})
+			.on('checkpointTransactions', async (request) => {
+				const cp = request.variables.atCheckpoint;
+				if (cp === 1 && failures++ === 0) {
+					await arrived;
+					return networkFailure(request);
+				}
+				if (cp === 2 && !hung) {
+					hung = request.signal;
+					hungArrived();
+					return new Promise<Response>(() => {});
+				}
+				return transactionsPage(cp, 50, 60)(request);
+			});
+		const frames = await collect(server.client.core.streamCheckpoints({ ...range, include }));
+		expect(transactionDigests(frames)).toEqual([digests(1, 0, 60), digests(2, 0, 60)]);
+		expect(abortedAtScan).toEqual([undefined, true]);
+	});
+
 	it('reads the empty page after a checkpoint of exactly 50 transactions once', async () => {
 		const server = fakeGraphQL()
 			.on('scanCheckpointsWithTransactions', page('checkpoints', [withTransactions(1, 50)]))
@@ -224,30 +255,6 @@ describe('GraphQL checkpoint streams with transactions', () => {
 		const frames = await collect(server.client.core.streamCheckpoints({ ...range, include }));
 		expect(transactionDigests(frames)).toEqual([digests(1, 0, 50)]);
 		expect(server.sent('checkpointTransactions')).toHaveLength(1);
-	});
-
-	it('waits for a replica that has not indexed the checkpoint instead of truncating it', async () => {
-		const server = fakeGraphQL({ tip: 12 })
-			.on(
-				'subscribeCheckpointsWithTransactions',
-				live('checkpoints', [withTransactions(13, 60, 'live')]),
-			)
-			.on(
-				'checkpointTransactions',
-				transactionsPage(13, 50, 50, { indexedThrough: 12 }),
-				transactionsPage(13, 50, 60, { indexedThrough: 13 }),
-			);
-		const [frame] = await take(
-			server.client.core.streamCheckpoints({
-				start: { checkpoint: 13 },
-				include,
-				pollInterval: 1,
-				retry: noDelay,
-			}),
-			1,
-		);
-		expect(transactionDigests([frame])).toEqual([digests(13, 0, 60)]);
-		expect(server.sent('checkpointTransactions')).toHaveLength(2);
 	});
 
 	it('waits for a lagging replica without spending the retry budget', async () => {
