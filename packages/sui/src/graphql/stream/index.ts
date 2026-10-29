@@ -9,7 +9,7 @@ import type {
 } from '../../client/stream/adapter.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { SuiGraphQLClient } from '../client.js';
-import { markNetworkFailure, SuiGraphQLRequestError } from '../errors.js';
+import { isRetryableStatus, markNetworkFailure, SuiGraphQLRequestError } from '../errors.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
 import { canResumeSubscription, liveSubscription } from './live.js';
 import { fetchGraphQLPage } from './page.js';
@@ -44,8 +44,17 @@ function adapterFor<Node>(
 		async initialize(signal) {
 			const filter = await family.resolveFilter(signal).catch((cause: unknown) => {
 				// MVR names resolve over plain `fetch`, whose network failures are a `TypeError`, as
-				// in the GraphQL client. Unknown names and invalid filters stay fatal.
+				// in the GraphQL client. MVR rate limiting and outages carry a retryable HTTP status.
+				// Unknown names and invalid filters stay fatal.
 				signal.throwIfAborted();
+				const status = cause instanceof Error && 'status' in cause ? cause.status : undefined;
+				if (typeof status === 'number' && isRetryableStatus(status)) {
+					throw new SuiGraphQLRequestError('MVR name resolution failed', {
+						status,
+						retryable: true,
+						cause,
+					});
+				}
 				if (!(cause instanceof TypeError)) throw cause;
 				throw markNetworkFailure(
 					new SuiGraphQLRequestError('MVR name resolution failed', { retryable: true, cause }),
