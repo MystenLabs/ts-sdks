@@ -289,7 +289,10 @@ function bodyReader(body: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>
 	const iterator = body[Symbol.asyncIterator]();
 	// A Node stream's iterator `return()` does not destroy it before the first read, and waits
 	// behind a pending one, so the connection would stay open.
-	const stream = body as { destroy?: () => void };
+	const stream = body as { destroy?: () => void; on?: (event: 'error', fn: () => void) => void };
+	// The iterator listens for errors only once read, so an unread body's error would be uncaught.
+	// It still reports an earlier error on the first read.
+	stream.on?.('error', () => {});
 	return {
 		read: () => iterator.next(),
 		cancel: () => (typeof stream.destroy === 'function' ? stream.destroy() : iterator.return?.()),

@@ -787,6 +787,38 @@ describe('Node stream bodies', () => {
 		await expect(pending).resolves.toEqual({ done: true, value: undefined });
 		expect(stream.destroyed).toBe(true);
 	});
+
+	it('reports an error from a body that was not read yet on the next pull', async () => {
+		const stream = new PassThrough();
+		const call = transport(server(() => nodeResponse(stream))).pull(
+			countingMethod().method,
+			{},
+			{},
+		);
+		await call.headers;
+		stream.destroy(new Error('socket reset'));
+		await settle();
+		const error = await rejection(call.responses.next());
+		expect(error.message).toContain('socket reset');
+		expect(isConnectionLost(error)).toBe(true);
+	});
+
+	it('ignores an error from destroying a body that was never read', async () => {
+		const stream = new PassThrough({
+			destroy: (_error, callback) => callback(new Error('close failed')),
+		});
+		const call = transport(server(() => nodeResponse(stream))).pull(
+			countingMethod().method,
+			{},
+			{},
+		);
+		await call.headers;
+		await call.responses.return!();
+		await settle();
+		expect(stream.destroyed).toBe(true);
+		expect(stream.errored?.message).toBe('close failed');
+		expect(stream.listenerCount('error')).toBeGreaterThan(0);
+	});
 });
 
 describe('pullServerStreaming', () => {
