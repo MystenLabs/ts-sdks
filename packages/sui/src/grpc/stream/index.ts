@@ -96,8 +96,9 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		const filter =
 			this.#request.options.grpcFilter ??
 			(await this.#sharedFilter(signal).catch((error: unknown) => {
-				// fetch rejects with a TypeError only when the MVR request itself fails, which is worth
-				// retrying; an unresolvable name or invalid filter throws a plain Error and stays fatal.
+				// A failed MVR fetch rejects with a TypeError, which is worth retrying. An unresolvable
+				// name or invalid filter throws a plain Error and stays fatal. A TypeError from a bug in
+				// filter resolution would also be retried.
 				throw error instanceof TypeError ? toNetworkRpcError(error, signal, 'request') : error;
 			}));
 		const chain = await this.#context.chainIdentifier(signal);
