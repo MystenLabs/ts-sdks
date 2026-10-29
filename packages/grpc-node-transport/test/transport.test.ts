@@ -9,7 +9,12 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { GrpcNodeTransport } from '../src/index.js';
-import { startCompressedServer, startResettingServer, startServer } from './server.js';
+import {
+	startCompressedServer,
+	startHttpErrorServer,
+	startResettingServer,
+	startServer,
+} from './server.js';
 
 const server = await startServer();
 
@@ -575,6 +580,40 @@ describe('GrpcNodeTransport', () => {
 				expect(pulls).toEqual(['ListCheckpoints']);
 			} finally {
 				small.close();
+			}
+		});
+
+		it.each([
+			[405, 'fatal', []],
+			[413, 'fatal', []],
+			[429, 'retry', ['RateLimited', 'RateLimited', 'RateLimited']],
+			[503, 'retry', ['Unavailable', 'Unavailable', 'Unavailable']],
+		])('treats a proxy HTTP %i as %s', async (status, _, expected) => {
+			const proxy = await startHttpErrorServer(status);
+			const rejecting = new GrpcNodeTransport({ baseUrl: proxy.baseUrl });
+			const reasons: string[] = [];
+			try {
+				const streams = new SuiGrpcClient({
+					network: 'localnet',
+					transport: splitTransport(transport, rejecting, []),
+				});
+				const error = await drain(
+					streams.streamCheckpoints({
+						start: { checkpoint: '10' },
+						end: { checkpoint: '15' },
+						retry: { initialDelay: 0, maxDelay: 0, jitter: 0, maxAttempts: 3 },
+						onStatus: (s) => s.$kind === 'Retrying' && reasons.push(s.reason),
+					}),
+				).catch((reason: unknown) => reason);
+
+				expect(error).toMatchObject({
+					message: expect.stringContaining(`Received HTTP status code ${status}`),
+				});
+				expect(reasons).toEqual(expected);
+				expect(proxy.stats.requests).toBe(expected.length + 1);
+			} finally {
+				rejecting.close();
+				await proxy.stop();
 			}
 		});
 	});

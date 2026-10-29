@@ -275,3 +275,27 @@ export async function startResettingServer(code: number | 'drop') {
 		stop: () => new Promise<void>((resolve) => server.close(() => resolve())),
 	};
 }
+
+// `startHttpErrorServer` answers every call with a plain HTTP `status` and no gRPC status, like a
+// proxy rejecting the request.
+export async function startHttpErrorServer(status: number) {
+	const stats = { requests: 0 };
+	const server = createServer();
+	server.on('stream', (stream: ServerHttp2Stream) => {
+		stats.requests++;
+		stream.resume();
+		stream.on('error', () => {});
+		stream.on('end', () => {
+			stream.respond({ ':status': status, 'content-type': 'text/html' });
+			stream.end('<html>rejected</html>');
+		});
+	});
+	await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+	const { port } = server.address() as AddressInfo;
+
+	return {
+		baseUrl: `http://127.0.0.1:${port}`,
+		stats,
+		stop: () => new Promise<void>((resolve) => server.close(() => resolve())),
+	};
+}

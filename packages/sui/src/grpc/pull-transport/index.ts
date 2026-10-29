@@ -4,7 +4,7 @@
 // The interface for gRPC transports that ledger streams read on demand. Intended for transport
 // implementations; applications configure a transport through `@mysten/sui/grpc`.
 
-export { isConnectionLost, markConnectionLost } from '../network-error.js';
+export { isConnectionLost, markConnectionLost, markHttpStatus } from '../network-error.js';
 export { markNonRetryable, PULL_SERVER_STREAMING } from '../pull-call.js';
 export type {
 	PullServerStreaming,
