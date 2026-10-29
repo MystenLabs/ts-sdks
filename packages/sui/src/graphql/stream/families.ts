@@ -40,6 +40,7 @@ import {
 	type Event_FieldsFragment,
 	type Transaction_FieldsFragment,
 } from '../generated/queries.js';
+import { sleep } from '../../utils/abort.js';
 import { notIndexedYet, queryData, transientLive, unwrap } from './query.js';
 
 export interface Edge<Node> {
@@ -129,7 +130,11 @@ export function ledgerFamily(
 	switch (request.family) {
 		case 'checkpoints':
 			return request.options.include?.transactions
-				? checkpointsWithTransactionsFamily(client, request.options.include.transactions)
+				? checkpointsWithTransactionsFamily(
+						client,
+						request.options.include.transactions,
+						request.options.pollInterval ?? 1000,
+					)
 				: checkpointsFamily(client);
 		case 'transactions':
 			return transactionsFamily(client, mvr, request);
@@ -190,6 +195,7 @@ const CHECKPOINT_TRANSACTIONS_PAGE_SIZE = 20;
 function checkpointsWithTransactionsFamily(
 	client: SuiGraphQLClient,
 	include: SuiClientTypes.TransactionInclude,
+	pollInterval: number,
 ): LedgerFamily<CheckpointWithTransactions> {
 	const selection = transactionIncludeVariables(include);
 
@@ -216,11 +222,11 @@ function checkpointsWithTransactionsFamily(
 				signal,
 			});
 			// A live checkpoint can arrive before this replica indexed its transactions, which would
-			// read as an empty last page. Retry later instead of truncating.
+			// read as an empty last page. Wait for the index, as the pager does, without spending
+			// the retry budget, then read the same page again.
 			if ((data.checkpoint?.sequenceNumber ?? -1) < node.sequenceNumber) {
-				throw notIndexedYet(
-					`Transactions of checkpoint ${node.sequenceNumber} are not indexed yet`,
-				);
+				await sleep(pollInterval, signal);
+				continue;
 			}
 			expected ??= transactionCount(
 				data.total,
@@ -262,9 +268,10 @@ function checkpointsWithTransactionsFamily(
 				}),
 				(data) => data.checkpoints,
 			);
-			const edges = [];
-			for (const edge of page.edges)
-				edges.push({ ...edge, node: await complete(edge.node, signal) });
+			// Checkpoints are independent; complete them concurrently (at most one page of them).
+			const edges = await Promise.all(
+				page.edges.map(async (edge) => ({ ...edge, node: await complete(edge.node, signal) })),
+			);
 			return { ...page, edges };
 		},
 		subscribe: (signal, { after, start }, onOpen) =>

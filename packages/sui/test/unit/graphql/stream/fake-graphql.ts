@@ -148,7 +148,7 @@ export function page(
 	options: { more?: boolean; cursor?: string; viewedAt?: number } = {},
 ): Answer {
 	const more = options.more ?? false;
-	return ({ server }) => {
+	return ({ server, variables }) => {
 		const viewedAt = options.viewedAt ?? server.tip;
 		const at = viewedAt === null ? null : { sequenceNumber: viewedAt };
 		// Checkpoint scans read their index's retention; transaction and event scans only the tip.
@@ -160,14 +160,15 @@ export function page(
 						},
 					}
 				: { checkpoint: at };
+		const backward = variables.last != null;
 		return Response.json({
 			data: {
 				...readAt,
 				[family]: {
 					edges,
 					pageInfo: {
-						hasNextPage: more,
-						hasPreviousPage: more,
+						hasNextPage: more && !backward,
+						hasPreviousPage: more && backward,
 						startCursor: options.cursor ?? edges[0]?.cursor ?? null,
 						endCursor: options.cursor ?? edges.at(-1)?.cursor ?? null,
 					},
