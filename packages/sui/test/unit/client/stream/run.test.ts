@@ -8,9 +8,11 @@ import { SuiStreamError } from '../../../../src/client/stream/errors.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
+	cursorOf,
 	fakeAdapter,
 	ids,
 	Ledger,
+	LostConnection,
 	NetworkError,
 	statusLog,
 	stream,
@@ -131,6 +133,17 @@ describe('frames', () => {
 			stream(fakeAdapter(ledger), { start: { resumeToken: tokenOf(first) }, follow: false }),
 		);
 		expect(ids(rest)).toEqual(['1:0', '2:0', '3:0', '4:0', '5:0']);
+	});
+
+	it('retries a page that failed after delivering one of its items, delivering each once', async () => {
+		const adapter = fakeAdapter(ledgerOf(5), {
+			pageSize: 3,
+			pageFaults: [{ error: new LostConnection(), afterItems: 1 }],
+		});
+		const frames = await collect(stream(adapter, { start: { checkpoint: 0 }, follow: false }));
+		expect(ids(frames)).toEqual(['0:0', '1:0', '2:0', '3:0', '4:0', '5:0']);
+		// The retry resumes after the item the failed page delivered.
+		expect(adapter.calls.pages[1].after).toEqual(cursorOf({ checkpoint: 0n, index: 0 }));
 	});
 
 	it('builds frames that survive spreading and JSON', async () => {

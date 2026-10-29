@@ -115,8 +115,6 @@ export async function* readPages<Item>(
 
 	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
-		// Retention reported at the page end applies to everything the page read.
-		const pageUnread = unread;
 		const page = await adapter.fetchPage({ ...request, range: { ...request.range } });
 		let empty = true;
 		let pageEnd: PageEnd;
@@ -146,10 +144,13 @@ export async function* readPages<Item>(
 		} finally {
 			await page.items.return?.();
 		}
-		// Retention reported at the end of a page is checked once the page is read.
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
-			assertRetained(pageEnd.retainedFrom, order, request, pageUnread, first, resumed);
+			// Only a read with no low end may report retention last: no item it delivered is pruned.
+			if (ascending || request.range.start !== undefined) {
+				throw protocol('Retention reported after the items it applies to');
+			}
+			assertRetained(pageEnd.retainedFrom, order, request, unread, first, resumed);
 		}
 
 		const { more, cursor } = pageEnd.next;
