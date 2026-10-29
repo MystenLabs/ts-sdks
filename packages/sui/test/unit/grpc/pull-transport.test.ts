@@ -581,6 +581,17 @@ describe('error paths', () => {
 		expect(isConnectionLost(error)).toBe(true);
 	});
 
+	it('an empty body without a status is a lost connection', async () => {
+		const call = transport(server(() => grpcWeb(body([])))).serverStreamingIterable(
+			countingMethod().method,
+			{},
+			{},
+		);
+		const error = await rejection(call.responses.next());
+		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing status' });
+		expect(isConnectionLost(error)).toBe(true);
+	});
+
 	it('messages without trailers is a lost connection', async () => {
 		const b = body(frames(1));
 		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(

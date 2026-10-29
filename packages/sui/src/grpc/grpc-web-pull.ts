@@ -509,7 +509,11 @@ export class GrpcWebPullCall<
 				if (this.#eof) {
 					this.#decoder?.end();
 					if (!this.#headerStatus) {
-						throw new RpcError('missing status', code(GrpcStatusCode.INTERNAL));
+						// No frame and no status: the connection closed before the response began, as
+						// when a proxy closes an idle stream.
+						throw markConnectionLost(
+							new RpcError('missing status', code(GrpcStatusCode.UNAVAILABLE)),
+						);
 					}
 					return this.#finish(this.#headerStatus, {});
 				}
