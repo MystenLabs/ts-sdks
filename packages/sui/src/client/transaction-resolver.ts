@@ -154,8 +154,12 @@ function grpcWithdrawFromToTs(
 				$kind: 'SenderAllowance',
 				SenderAllowance: { funder: withdrawal.funder, allowance: withdrawal.allowance },
 			};
-		default:
+		case undefined:
+		case FundsWithdrawal_Source.SOURCE_UNKNOWN:
+		case FundsWithdrawal_Source.SENDER:
 			return { $kind: 'Sender', Sender: true };
+		default:
+			throw new Error(`Unknown withdrawal source: ${withdrawal?.source}`);
 	}
 }
 

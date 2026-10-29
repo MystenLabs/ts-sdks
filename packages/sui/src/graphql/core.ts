@@ -58,7 +58,7 @@ import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
 import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
-import type { Input_Mutability } from '../grpc/proto/sui/rpc/v2/input.js';
+import type { FundsWithdrawal_Source, Input_Mutability } from '../grpc/proto/sui/rpc/v2/input.js';
 import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { BuildTransactionOptions } from '../transactions/index.js';
@@ -1193,7 +1193,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
 			{ ignoreUnknownFields: true },
 		);
-		markUnrecognizedMutability(transaction.transactionJson, grpcTransaction);
+		markUnrecognizedEnums(transaction.transactionJson, grpcTransaction);
 		transactionData = grpcTransactionToLedgerTransactionData(grpcTransaction);
 	}
 
@@ -1441,11 +1441,11 @@ function listPageCursors(
 }
 
 /**
- * An absent shared-object `mutability` is valid (older data only sets `mutable`), so dropping an
- * unrecognized `mutability` name would read as a legacy input. Give such inputs a value outside
- * the enum instead, so the kind maps to `Unknown` as an unrecognized number does over gRPC.
+ * An absent shared-object `mutability` or withdrawal `source` is valid (older data), so dropping an
+ * unrecognized name would read as a legacy input. Give such inputs a value outside the enum
+ * instead, so the kind maps to `Unknown` as an unrecognized number does over gRPC.
  */
-function markUnrecognizedMutability(json: unknown, grpcTransaction: GrpcTransactionType) {
+function markUnrecognizedEnums(json: unknown, grpcTransaction: GrpcTransactionType) {
 	const kind = grpcTransaction.kind?.data;
 	if (kind?.oneofKind !== 'programmableTransaction') {
 		return;
@@ -1454,11 +1454,17 @@ function markUnrecognizedMutability(json: unknown, grpcTransaction: GrpcTransact
 	const jsonInputs = (jsonKind?.programmableTransaction ?? jsonKind?.programmable_transaction)
 		?.inputs;
 	kind.programmableTransaction.inputs.forEach((input, i) => {
-		const jsonMutability = (jsonInputs?.[i] as { mutability?: unknown } | undefined)?.mutability;
-		if (input.mutability === undefined && jsonMutability != null) {
-			input.mutability = UNRECOGNIZED_MUTABILITY;
+		const jsonInput = jsonInputs?.[i] as
+			{ mutability?: unknown; fundsWithdrawal?: { source?: unknown } } | undefined;
+		if (input.mutability === undefined && jsonInput?.mutability != null) {
+			input.mutability = -1 as Input_Mutability;
+		}
+		if (
+			input.fundsWithdrawal &&
+			input.fundsWithdrawal.source === undefined &&
+			jsonInput?.fundsWithdrawal?.source != null
+		) {
+			input.fundsWithdrawal.source = -1 as FundsWithdrawal_Source;
 		}
 	});
 }
-
-const UNRECOGNIZED_MUTABILITY = -1 as Input_Mutability;

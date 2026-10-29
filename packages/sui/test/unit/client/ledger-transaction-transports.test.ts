@@ -4,7 +4,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
-import { Input_InputKind, Input_Mutability } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
+import {
+	FundsWithdrawal_Source,
+	Input_InputKind,
+	Input_Mutability,
+} from '../../../src/grpc/proto/sui/rpc/v2/input.js';
 import {
 	EndOfEpochTransactionKind_Kind as EndOfEpochKind,
 	Transaction as GrpcTransaction,
@@ -283,6 +287,38 @@ describe('ledger transaction data across transports', () => {
 		expect(fromGrpc.kind).toEqual({ $kind: 'Unknown', Unknown: true });
 		expect(fromGrpc.inputs).toEqual([]);
 		expect(fromGrpc.sender).toBe(address);
+	});
+
+	it('returns Unknown for a newer withdrawal source on both transports', async () => {
+		const withdrawal = (source: FundsWithdrawal_Source) =>
+			transaction({
+				kind: Kind.PROGRAMMABLE_TRANSACTION,
+				data: {
+					oneofKind: 'programmableTransaction',
+					programmableTransaction: {
+						inputs: [
+							{
+								kind: Input_InputKind.FUNDS_WITHDRAWAL,
+								fundsWithdrawal: { amount: 5n, coinType: '0x2::sui::SUI', source },
+							},
+						],
+						commands: [],
+					},
+				},
+			});
+		const json = GrpcTransaction.toJson(withdrawal(FundsWithdrawal_Source.SPONSOR)) as {
+			kind: { programmableTransaction: { inputs: { fundsWithdrawal: { source: string } }[] } };
+		};
+		json.kind.programmableTransaction.inputs[0].fundsWithdrawal.source = 'SOME_NEWER_SOURCE';
+		const [fromGrpc, fromGraphQL] = await readBoth(withdrawal(99 as FundsWithdrawal_Source), json);
+		expect(fromGraphQL).toEqual(fromGrpc);
+		expect(fromGrpc.kind).toEqual({ $kind: 'Unknown', Unknown: true });
+
+		// An absent source is older data and still reads as the sender.
+		const [legacy] = await readBoth(withdrawal(undefined as never));
+		expect(legacy.inputs[0]).toMatchObject({
+			FundsWithdrawal: { withdrawFrom: { $kind: 'Sender', Sender: true } },
+		});
 	});
 
 	it('returns null for a newer expiration kind on both transports', async () => {

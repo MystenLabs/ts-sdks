@@ -52,8 +52,8 @@ async function freshTransaction() {
 	tx.transferObjects([coin], RECIPIENT);
 
 	const bytes = await tx.build();
-	// With its inputs and commands moved under `kind`, `getData()` after a build
-	// is the shape the core client parses an executed transaction into.
+	// With a programmable `kind` added, `getData()` after a build is the shape
+	// the core client parses an executed transaction into.
 	return { bytes, data: programmableTransactionData(tx.getData()) };
 }
 
