@@ -12513,6 +12513,13 @@ const introspection = {
                 }
               },
               {
+                "name": "checkAddressAliases",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean"
+                }
+              },
+              {
                 "name": "intentScope",
                 "type": {
                   "kind": "NON_NULL",

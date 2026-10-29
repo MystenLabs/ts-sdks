@@ -41,6 +41,8 @@ import {
 	ResolveNameServiceAddressDocument,
 	ResolveTransactionDocument,
 	SimulateTransactionDocument,
+	IntentScope,
+	VerifySignatureDocument,
 	VerifyZkLoginSignatureDocument,
 	ZkLoginIntentScope,
 } from './generated/queries.js';
@@ -48,11 +50,15 @@ import { ObjectError, SimulationError, TransactionError } from '../client/errors
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import {
+	decodeSignature,
 	formatMoveAbortMessage,
 	isMockedGasObjectId,
+	MALFORMED_SIGNATURE,
 	parseTransactionEffectsBcs,
+	resolveVerifySignatureOptions,
 	transactionBytesHaveEmptyGasPayment,
 } from '../client/utils.js';
+import { signerAddressFromSignature } from '../client/signer-address.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import {
 	transactionDataToGrpcTransaction,
@@ -824,6 +830,60 @@ export class GraphQLCoreClient extends CoreClient {
 			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
 			endCursor,
 		};
+	}
+
+	async verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		const { intentScope, message, address, checkAddressAliases } =
+			resolveVerifySignatureOptions(options);
+		const signature = decodeSignature(options.signature);
+		if (!signature) {
+			return { valid: false, reason: MALFORMED_SIGNATURE };
+		}
+
+		// GraphQL requires an author; without `address`, any valid signature passes, so check it
+		// against its own signer.
+		let author = address;
+		if (!author) {
+			try {
+				author = signerAddressFromSignature(options.signature);
+			} catch {
+				return { valid: false, reason: MALFORMED_SIGNATURE };
+			}
+		}
+
+		const { data, errors } = await this.#graphqlClient.query({
+			query: VerifySignatureDocument,
+			signal: options.signal,
+			variables: {
+				message: toBase64(message),
+				signature: toBase64(signature),
+				intentScope:
+					intentScope === 'TransactionData'
+						? IntentScope.TransactionData
+						: IntentScope.PersonalMessage,
+				author,
+				checkAddressAliases,
+			},
+		});
+
+		// An invalid or unparseable signature (including a signer outside the alias set) is reported
+		// as an error on the field; anything else is a request or server failure.
+		const failure = errors?.find(
+			(error) =>
+				error.path?.[0] === 'verifySignature' &&
+				(error.message.startsWith('Verification failed') ||
+					error.message === 'Cannot parse signature'),
+		);
+		if (failure) {
+			return { valid: false, reason: failure.message };
+		}
+		handleGraphQLErrors(errors);
+
+		return data?.verifySignature?.success
+			? { valid: true }
+			: { valid: false, reason: 'Signature is not valid' };
 	}
 
 	async verifyZkLoginSignature(

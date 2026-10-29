@@ -578,6 +578,12 @@ export class MockSuiClient extends CoreClient {
 		}
 	}
 
+	async verifySignature(
+		_options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		throw new Error('verifySignature not implemented in MockSuiClient');
+	}
+
 	async verifyZkLoginSignature(
 		_options: SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {

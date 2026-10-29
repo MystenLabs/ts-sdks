@@ -53,8 +53,16 @@ import {
 } from '../client/transaction-resolver.js';
 import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
-import { isMockedGasObjectId, transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
+import {
+	ADDRESS_ALIAS_CHECK_NOT_APPLIED,
+	decodeSignature,
+	isMockedGasObjectId,
+	MALFORMED_SIGNATURE,
+	resolveVerifySignatureOptions,
+	transactionBytesHaveEmptyGasPayment,
+} from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import type { VerifySignatureResponse } from './proto/sui/rpc/v2/signature_verification_service.js';
 import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
@@ -99,6 +107,28 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (message === 'name has expired') return true;
 
 	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
+}
+
+// The node rejects a signature it can't parse as INVALID_ARGUMENT with a `signature` field
+// violation, whose description becomes the status text.
+function unparseableSignatureReason(error: unknown): string | null {
+	if (typeof error !== 'object' || error === null) return null;
+
+	const { code, message } = error as { code?: unknown; message?: unknown };
+	if (code !== GrpcStatusCode[GrpcStatusCode.INVALID_ARGUMENT] || typeof message !== 'string') {
+		return null;
+	}
+
+	const text = hasDecodedStatusMessage(error) ? message : safeDecodeURIComponent(message);
+	return text.startsWith('invalid signature:') ? text : null;
+}
+
+function safeDecodeURIComponent(value: string) {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
 }
 
 /** Ledger streams call the transport directly to read responses on demand. Internal. */
@@ -816,6 +846,56 @@ export class GrpcCoreClient extends CoreClient {
 		);
 
 		return { checkpoints: items, ...page };
+	}
+
+	async verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		const { intentScope, message, address, checkAddressAliases } =
+			resolveVerifySignatureOptions(options);
+		const signature = decodeSignature(options.signature);
+		if (!signature) {
+			return { valid: false, reason: MALFORMED_SIGNATURE };
+		}
+
+		let response: VerifySignatureResponse;
+		try {
+			({ response } = await this.#client.signatureVerificationService.verifySignature(
+				{
+					message: {
+						name: intentScope,
+						// A personal message is sent as a BCS `vector<u8>`, transaction data as-is.
+						value:
+							intentScope === 'PersonalMessage'
+								? bcs.byteVector().serialize(message).toBytes()
+								: message,
+					},
+					signature: {
+						bcs: { value: signature },
+						signature: { oneofKind: undefined },
+					},
+					address,
+					checkAddressAliases,
+					jwks: [],
+				},
+				{ abort: options.signal },
+			));
+		} catch (error) {
+			const reason = unparseableSignatureReason(error);
+			if (reason) {
+				return { valid: false, reason };
+			}
+			throw error;
+		}
+
+		// Nodes that predate `check_address_aliases` ignore it and check `address` alone.
+		if (checkAddressAliases && response.addressAliasesChecked !== true) {
+			throw new Error(ADDRESS_ALIAS_CHECK_NOT_APPLIED);
+		}
+
+		return response.isValid
+			? { valid: true }
+			: { valid: false, reason: response.reason ?? 'Signature is not valid' };
 	}
 
 	async verifyZkLoginSignature(
