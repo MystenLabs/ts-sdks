@@ -471,7 +471,7 @@ Common transaction filter mappings:
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FromAddress`                     | `sender`                                                                                                                                            |
 | `MoveFunction`                    | `function`                                                                                                                                          |
-| `ToAddress`, `FromOrToAddress`    | `affectedAddress` (3.0+): transactions sent by the address, or that changed its objects or balance                                                  |
+| `ToAddress`, `FromOrToAddress`    | `affectedAddress` (3.0+): transactions that changed the address's objects or balance; use `sender` for ones it signed                               |
 | `ChangedObject`, `AffectedObject` | `affectedObject` (3.0+)                                                                                                                             |
 | `Checkpoint`                      | `startCheckpoint` / `endCheckpoint` (3.0+). `endCheckpoint` is exclusive, so `{ Checkpoint: n }` becomes `startCheckpoint: n, endCheckpoint: n + 1` |
 
