@@ -13,6 +13,7 @@ import { GrpcStatusCode, RpcError } from '@mysten/sui/grpc';
 import {
 	grpcStatusFromAbortReason,
 	markConnectionLost,
+	markHttpStatus,
 	markNonRetryable,
 	PULL_SERVER_STREAMING,
 } from '@mysten/sui/grpc/pull-transport';
@@ -166,6 +167,9 @@ const STREAM_RESET =
 // (`build/src/subchannel-call.js`). No code or field tells it from a server's UNAVAILABLE, so the
 // exact text is matched, and only with empty metadata.
 const CONNECTION_DROPPED = 'Connection dropped';
+// grpc-js reports a non-200 HTTP response without a gRPC status (a proxy's rejection) only in this
+// text (`build/src/subchannel-call.js`), so the status is read from it for the shared HTTP rules.
+const HTTP_STATUS = /^Received HTTP status code (\d{3})$/;
 
 function reasonMessage(reason: unknown): string {
 	if (typeof reason === 'string') return reason;
@@ -227,6 +231,8 @@ function toRpcError(
 			fromGrpcMetadata(metadata),
 		);
 		if (reset || dropped) markConnectionLost(rpcError);
+		const httpStatus = HTTP_STATUS.exec(details ?? '')?.[1];
+		if (httpStatus) markHttpStatus(rpcError, Number(httpStatus));
 		// The same message would be sent or arrive again on retry, so it is not retryable.
 		if (
 			code === (GrpcStatusCode.RESOURCE_EXHAUSTED as number) &&

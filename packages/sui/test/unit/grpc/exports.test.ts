@@ -43,6 +43,7 @@ describe('@mysten/sui/grpc/pull-transport', () => {
 			'grpcStatusFromAbortReason',
 			'isConnectionLost',
 			'markConnectionLost',
+			'markHttpStatus',
 			'markNonRetryable',
 		]);
 	});
