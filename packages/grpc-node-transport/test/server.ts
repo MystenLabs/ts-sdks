@@ -7,7 +7,8 @@
 //   `grpc-message` trailer.
 // - ListCheckpoints: streams `x-count` checkpoints (default: up to `endCheckpoint`, else 50) of
 //   `x-payload` digest bytes, honouring write backpressure; `x-fail-at` fails at that sequence
-//   number; `x-fail-internal` fails at once with INTERNAL and that text; `x-hang` never finishes.
+//   number; `x-fail-internal` and `x-fail-unavailable` fail at once with INTERNAL or UNAVAILABLE
+//   and that text; `x-hang` never finishes.
 //   A stream with `endCheckpoint` ends with a CHECKPOINT_BOUND frame.
 //
 // `startCompressedServer` is a bare HTTP/2 server, since grpc-js servers do not compress responses.
@@ -23,7 +24,7 @@ import type {
 import { GrpcTypes } from '@mysten/sui/grpc';
 import { createServer } from 'node:http2';
 import type { ServerHttp2Stream } from 'node:http2';
-import type { AddressInfo } from 'node:net';
+import type { AddressInfo, Socket } from 'node:net';
 import { gzipSync } from 'node:zlib';
 
 const {
@@ -143,6 +144,11 @@ export async function startServer() {
 				call.emit('error', { code: status.INTERNAL, details: String(internal) });
 				return;
 			}
+			const unavailable = call.metadata.get('x-fail-unavailable')[0];
+			if (unavailable !== undefined) {
+				call.emit('error', { code: status.UNAVAILABLE, details: String(unavailable) });
+				return;
+			}
 			const digest = 'x'.repeat(value('x-payload') ?? 8);
 
 			for (let i = start; i < start + count && !cancelled; i++) {
@@ -236,8 +242,9 @@ export async function startCompressedServer(bytes: number) {
 }
 
 // `startResettingServer` answers each call with one message, then resets the HTTP/2 stream with
-// `code` before any gRPC status, like a front end ending a long-lived stream.
-export async function startResettingServer(code: number) {
+// `code` before any gRPC status, like a front end ending a long-lived stream. With `'drop'`, it
+// destroys the whole connection instead, like a network failure.
+export async function startResettingServer(code: number | 'drop') {
 	const message = ListCheckpointsResponse.toBinary(
 		ListCheckpointsResponse.create({ checkpoint: { sequenceNumber: 1n } }),
 	);
@@ -247,12 +254,17 @@ export async function startResettingServer(code: number) {
 	Buffer.from(message).copy(frame, 5);
 
 	const server = createServer();
+	const sockets = new Set<Socket>();
+	server.on('connection', (socket: Socket) => sockets.add(socket));
 	server.on('stream', (stream: ServerHttp2Stream) => {
 		stream.resume();
 		stream.on('error', () => {});
 		stream.on('end', () => {
 			stream.respond({ ':status': 200, 'content-type': 'application/grpc' });
-			stream.write(frame, () => stream.close(code));
+			stream.write(frame, () => {
+				if (code !== 'drop') return stream.close(code);
+				for (const socket of sockets) socket.destroy();
+			});
 		});
 	});
 	await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

@@ -23,6 +23,32 @@ async function drain<T>(responses: AsyncIterable<T>): Promise<T[]> {
 	return out;
 }
 
+// A transport that sends unary calls through `unary` and pull calls through `pull`, recording each
+// pulled method, so a ledger stream gets past its unary setup to the pull path under test.
+function splitTransport(
+	unary: GrpcNodeTransport,
+	pull: GrpcNodeTransport,
+	pulls: string[],
+	meta: Record<string, string> = {},
+): PullServerStreamingTransport {
+	return {
+		mergeOptions: (options) => pull.mergeOptions(options),
+		unary: (method, input, options) => unary.unary(method, input, options),
+		serverStreaming: () => {
+			throw new Error('unexpected push-based call');
+		},
+		clientStreaming: (method) => pull.clientStreaming(method),
+		duplex: (method) => pull.duplex(method),
+		[PULL_SERVER_STREAMING]: (method, input, options) => {
+			pulls.push(method.name);
+			return pull[PULL_SERVER_STREAMING](method, input, {
+				...options,
+				meta: { ...options?.meta, ...meta },
+			});
+		},
+	};
+}
+
 describe('GrpcNodeTransport', () => {
 	let transport: GrpcNodeTransport;
 	let client: SuiGrpcClient;
@@ -194,6 +220,35 @@ describe('GrpcNodeTransport', () => {
 				lossy.close();
 				await resetting.stop();
 			}
+		});
+
+		it('reports a dropped connection as a lost connection', async () => {
+			const dropping = await startResettingServer('drop');
+			const lossy = new GrpcNodeTransport({ baseUrl: dropping.baseUrl });
+			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
+			try {
+				const call = lossy[PULL_SERVER_STREAMING](listCheckpoints(client), {});
+				const first = await call.responses.next();
+				expect(first.value).toMatchObject({ checkpoint: { sequenceNumber: 1n } });
+				const error = await call.responses.next().catch((error: unknown) => error);
+				expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'Connection dropped' });
+				expect(isConnectionLost(error)).toBe(true);
+			} finally {
+				lossy.close();
+				await dropping.stop();
+			}
+		});
+
+		it('keeps a server UNAVAILABLE status unmarked', async () => {
+			const call = transport[PULL_SERVER_STREAMING](
+				listCheckpoints(client),
+				{},
+				{ meta: { 'x-fail-unavailable': 'overloaded' } },
+			);
+			const error = await drain(call.responses).catch((error: unknown) => error);
+
+			expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'overloaded' });
+			expect(isConnectionLost(error)).toBe(false);
 		});
 
 		it('keeps a unary call reset before its status INTERNAL', async () => {
@@ -476,13 +531,18 @@ describe('GrpcNodeTransport', () => {
 				baseUrl: compressed.baseUrl,
 				maxResponseMessageBytes: 1024,
 			});
+			const pulls: string[] = [];
 			try {
-				const streams = new SuiGrpcClient({ network: 'localnet', transport: small });
+				const streams = new SuiGrpcClient({
+					network: 'localnet',
+					transport: splitTransport(transport, small, pulls),
+				});
 				const error = await drain(
 					streams.streamCheckpoints({ start: { checkpoint: '10' }, end: { checkpoint: '15' } }),
 				).catch((reason: unknown) => reason);
 
 				expect(error).toMatchObject({ code: 'RESOURCE_EXHAUSTED' });
+				expect(pulls).toEqual(['ListCheckpoints']);
 				expect(compressed.stats.requests).toBe(1);
 			} finally {
 				small.close();
@@ -496,29 +556,43 @@ describe('GrpcNodeTransport', () => {
 			const timers = () =>
 				process.getActiveResourcesInfo().filter((resource) => resource === 'Timeout').length;
 			const before = timers();
-			const calls: string[] = [];
-			const spy: PullServerStreamingTransport = {
-				mergeOptions: (options) => closed.mergeOptions(options),
-				unary: (method, input, options) => {
-					calls.push(method.name);
-					return closed.unary(method, input, options);
-				},
-				serverStreaming: () => {
-					throw new Error('unexpected push-based call');
-				},
-				clientStreaming: (method) => closed.clientStreaming(method),
-				duplex: (method) => closed.duplex(method),
-				[PULL_SERVER_STREAMING]: (method, input, options) => {
-					calls.push(method.name);
-					return closed[PULL_SERVER_STREAMING](method, input, options);
-				},
-			};
-			const streams = new SuiGrpcClient({ network: 'localnet', transport: spy });
-			const error = await drain(streams.streamCheckpoints({})).catch((reason: unknown) => reason);
+			const pulls: string[] = [];
+			const streams = new SuiGrpcClient({
+				network: 'localnet',
+				transport: splitTransport(transport, closed, pulls),
+			});
+			const error = await drain(
+				streams.streamCheckpoints({ start: { checkpoint: '10' }, end: { checkpoint: '15' } }),
+			).catch((reason: unknown) => reason);
 
 			expect(error).toMatchObject({ code: 'UNAVAILABLE' });
-			expect(calls).toHaveLength(1);
+			expect(pulls).toEqual(['ListCheckpoints']);
 			expect(timers()).toBeLessThanOrEqual(before);
+		});
+
+		it('surfaces a request over grpc.max_send_message_length without retrying', async () => {
+			const small = new GrpcNodeTransport({
+				baseUrl: server.baseUrl,
+				clientOptions: { 'grpc.max_send_message_length': 1 },
+			});
+			const pulls: string[] = [];
+			try {
+				const streams = new SuiGrpcClient({
+					network: 'localnet',
+					transport: splitTransport(transport, small, pulls),
+				});
+				const error = await drain(
+					streams.streamCheckpoints({ start: { checkpoint: '10' }, end: { checkpoint: '15' } }),
+				).catch((reason: unknown) => reason);
+
+				expect(error).toMatchObject({
+					code: 'RESOURCE_EXHAUSTED',
+					message: expect.stringContaining('Attempted to send message'),
+				});
+				expect(pulls).toEqual(['ListCheckpoints']);
+			} finally {
+				small.close();
+			}
 		});
 	});
 });
