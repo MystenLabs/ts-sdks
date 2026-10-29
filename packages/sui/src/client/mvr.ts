@@ -177,7 +177,10 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 
 		if (!response.ok) {
 			const errorBody = await response.json().catch(() => ({}));
-			throw new Error(`Failed to resolve types: ${errorBody?.message}`);
+			// The status lets callers retry rate limiting and outages.
+			throw Object.assign(new Error(`Failed to resolve types: ${errorBody?.message}`), {
+				status: response.status,
+			});
 		}
 
 		return response.json();

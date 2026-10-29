@@ -21,6 +21,7 @@ import {
 	httpStatusOf,
 	isConnectionLost,
 	isRequestFailed,
+	markHttpStatus,
 	toNetworkRpcError,
 } from '../network-error.js';
 import { isNonRetryable } from '../pull-call.js';
@@ -99,7 +100,13 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 				// A failed MVR fetch rejects with a TypeError, which is worth retrying. An unresolvable
 				// name or invalid filter throws a plain Error and stays fatal. A TypeError from a bug in
 				// filter resolution would also be retried.
-				throw error instanceof TypeError ? toNetworkRpcError(error, signal, 'request') : error;
+				if (error instanceof TypeError) throw toNetworkRpcError(error, signal, 'request');
+				// MVR rate limiting or an outage is worth retrying; other HTTP errors stay fatal.
+				const status = error instanceof Error && 'status' in error ? error.status : undefined;
+				if (typeof status === 'number' && (status === 408 || status === 429 || status >= 500)) {
+					throw markHttpStatus(new RpcError((error as Error).message, 'UNKNOWN'), status);
+				}
+				throw error;
 			}));
 		const chain = await this.#context.chainIdentifier(signal);
 		this.#calls = this.#streamCalls(filter);
