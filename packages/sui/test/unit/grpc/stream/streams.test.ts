@@ -1622,6 +1622,23 @@ describe('gRPC ledger stream error classes', () => {
 		expect(adapter.classify(unresolved)).toBe('fatal');
 	});
 
+	it('retries an MVR response whose body fails to arrive', async () => {
+		stubMvrFetch(
+			() =>
+				new Response(
+					new ReadableStream({
+						start(controller) {
+							controller.error(new TypeError('terminated'));
+						},
+					}),
+				),
+		);
+		const error = await initializeWithMvr(
+			new MvrClient({ cache: new ClientCache(), url: 'https://mvr.example' }),
+		);
+		expect(adapter.classify(error)).toBe('retry');
+	});
+
 	it.each([
 		['a local TypeError', 'https://mvr.example', null],
 		['a malformed MVR response', 'https://mvr.example', 123],

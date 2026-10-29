@@ -32,7 +32,7 @@ export interface MvrClientOptions {
 
 const requestFailures = new WeakSet<object>();
 
-/** Whether `error` is an MVR request that failed before MVR answered, such as a network failure. */
+/** Whether `error` is an MVR request that failed in transit, such as a network failure. */
 export function isMvrRequestFailure(error: unknown): boolean {
 	return typeof error === 'object' && error !== null && requestFailures.has(error);
 }
@@ -187,7 +187,7 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 				body: JSON.stringify(body),
 			});
 		} catch (error) {
-			// Lets callers retry a request that never reached MVR, unlike a bad response or a bug.
+			// Lets callers retry a request that failed in transit, unlike a bad response or a bug.
 			if (typeof error === 'object' && error !== null) requestFailures.add(error);
 			throw error;
 		}
@@ -200,7 +200,15 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 			});
 		}
 
-		return response.json();
+		let text: string;
+		try {
+			text = await response.text();
+		} catch (error) {
+			// A body cut off mid-read is a failed request; a malformed one (from `JSON.parse`) is not.
+			if (typeof error === 'object' && error !== null) requestFailures.add(error);
+			throw error;
+		}
+		return JSON.parse(text);
 	}
 
 	async resolvePackage({
