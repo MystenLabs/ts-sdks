@@ -39,7 +39,9 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 	// Closing must not wait for a quiet subscription's pending read: abort it first.
 	const attempt = linkedAbortController(session.signal);
 	const subscription = adapter.subscribe(session.start, attempt.controller.signal);
-	const feed = session.openFeed(withCoverage(subscription, adapter.family, session.committed));
+	const feed = session.openFeed(
+		withCoverage(subscription, adapter.family, session.committed, !replaysGap),
+	);
 	try {
 		const first = await feed.first();
 		if (!start) {
@@ -81,25 +83,30 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
  * none: its cursor may be far past the last item, so a carried coverage would understate it.
  * It records the newest checkpoint the feed has passed as `indexedCheckpoint` instead: no match
  * lies between that checkpoint and the cursor, so a server indexed that far can resume it, and a
- * boundary from such a server never re-delivers or skips a match.
+ * boundary from such a server never re-delivers or skips a match. `committed` counts as passed only
+ * on a feed that `resumes` after it: otherwise a gap before the feed is still to be replayed.
  */
 async function* withCoverage<Item>(
 	events: AsyncIterable<LiveEvent<Item>>,
 	family: StreamFamily,
 	committed: StreamPosition | undefined,
+	resumes: boolean,
 ): AsyncGenerator<LiveEvent<Item>> {
 	const tracker = new CoverageTracker(
 		'ascending',
 		family,
 		committed ? positionCoverage(committed, family) : { $kind: 'Unknown' },
 	);
-	const placed = committed && indexedThrough(committed);
-	let passed = placed === null || placed === undefined ? undefined : max(placed, 0n);
+	const placed = resumes && committed ? indexedThrough(committed) : null;
+	let passed = placed === null ? undefined : max(placed, 0n);
 	for await (const event of events) {
 		if (event.$kind === 'Connected') {
 			yield event;
 		} else if (event.$kind === 'Progress' && !reports(event.position) && !tracker.reported) {
-			yield { ...event, position: { ...event.position, indexedCheckpoint: passed ?? null } };
+			const own = event.position.indexedCheckpoint;
+			const indexedCheckpoint =
+				passed === undefined || (own !== null && own > passed) ? own : passed;
+			yield { ...event, position: { ...event.position, indexedCheckpoint } };
 		} else {
 			const position = tracker.apply(event.position);
 			if (event.$kind === 'Item' && position.checkpoint !== null) {
