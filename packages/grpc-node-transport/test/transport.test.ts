@@ -198,59 +198,6 @@ describe('GrpcNodeTransport', () => {
 			await expect(call.responses.next()).rejects.toMatchObject({ code: 'UNAVAILABLE' });
 		});
 
-		it.each([
-			['NO_ERROR', constants.NGHTTP2_NO_ERROR],
-			['INTERNAL_ERROR', constants.NGHTTP2_INTERNAL_ERROR],
-		])('reports a stream reset with %s before its status as UNAVAILABLE', async (_, code) => {
-			const resetting = await startResettingServer(code);
-			const lossy = new GrpcNodeTransport({ baseUrl: resetting.baseUrl });
-			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
-			try {
-				const call = lossy[PULL_SERVER_STREAMING](listCheckpoints(client), {});
-				const first = await call.responses.next();
-				expect(first.value).toMatchObject({ checkpoint: { sequenceNumber: 1n } });
-				const error = await call.responses.next().catch((error: unknown) => error);
-				expect(error).toMatchObject({
-					code: 'UNAVAILABLE',
-					message: expect.stringContaining('RST_STREAM'),
-				});
-				// Streams report a marked reset as Disconnected, not as an unavailable server.
-				expect(isConnectionLost(error)).toBe(true);
-			} finally {
-				lossy.close();
-				await resetting.stop();
-			}
-		});
-
-		it('reports a dropped connection as a lost connection', async () => {
-			const dropping = await startResettingServer('drop');
-			const lossy = new GrpcNodeTransport({ baseUrl: dropping.baseUrl });
-			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
-			try {
-				const call = lossy[PULL_SERVER_STREAMING](listCheckpoints(client), {});
-				const first = await call.responses.next();
-				expect(first.value).toMatchObject({ checkpoint: { sequenceNumber: 1n } });
-				const error = await call.responses.next().catch((error: unknown) => error);
-				expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'Connection dropped' });
-				expect(isConnectionLost(error)).toBe(true);
-			} finally {
-				lossy.close();
-				await dropping.stop();
-			}
-		});
-
-		it('keeps a server UNAVAILABLE status unmarked', async () => {
-			const call = transport[PULL_SERVER_STREAMING](
-				listCheckpoints(client),
-				{},
-				{ meta: { 'x-fail-unavailable': 'overloaded' } },
-			);
-			const error = await drain(call.responses).catch((error: unknown) => error);
-
-			expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'overloaded' });
-			expect(isConnectionLost(error)).toBe(false);
-		});
-
 		it('keeps a unary call reset before its status INTERNAL', async () => {
 			const resetting = await startResettingServer(constants.NGHTTP2_INTERNAL_ERROR);
 			const lossy = new GrpcNodeTransport({ baseUrl: resetting.baseUrl });
@@ -268,16 +215,6 @@ describe('GrpcNodeTransport', () => {
 				lossy.close();
 				await resetting.stop();
 			}
-		});
-
-		it('keeps a server INTERNAL status INTERNAL whatever its text', async () => {
-			const call = transport[PULL_SERVER_STREAMING](
-				listCheckpoints(client),
-				{},
-				{ meta: { 'x-fail-internal': 'upstream: socket hang up (ECONNRESET)' } },
-			);
-
-			await expect(drain(call.responses)).rejects.toMatchObject({ code: 'INTERNAL' });
 		});
 
 		it('reports an unreachable node as UNAVAILABLE', async () => {
@@ -425,6 +362,75 @@ describe('GrpcNodeTransport', () => {
 				small.close();
 			}
 		});
+
+		it.each([
+			['NO_ERROR', constants.NGHTTP2_NO_ERROR],
+			['INTERNAL_ERROR', constants.NGHTTP2_INTERNAL_ERROR],
+		])('reports a stream reset with %s before its status as UNAVAILABLE', async (_, code) => {
+			const resetting = await startResettingServer(code);
+			const lossy = new GrpcNodeTransport({ baseUrl: resetting.baseUrl });
+			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
+			try {
+				const call = lossy[PULL_SERVER_STREAMING](listCheckpoints(client), {});
+				const first = await call.responses.next();
+				expect(first.value).toMatchObject({ checkpoint: { sequenceNumber: 1n } });
+				const error = await call.responses.next().catch((error: unknown) => error);
+				expect(error).toMatchObject({
+					code: 'UNAVAILABLE',
+					message: expect.stringContaining('RST_STREAM'),
+				});
+				// Streams report a marked reset as Disconnected, not as an unavailable server.
+				expect(isConnectionLost(error)).toBe(true);
+			} finally {
+				lossy.close();
+				await resetting.stop();
+			}
+		});
+
+		it('reports a dropped connection as a lost connection', async () => {
+			const dropping = await startResettingServer('drop');
+			const lossy = new GrpcNodeTransport({ baseUrl: dropping.baseUrl });
+			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
+			try {
+				const call = lossy[PULL_SERVER_STREAMING](listCheckpoints(client), {});
+				const first = await call.responses.next();
+				expect(first.value).toMatchObject({ checkpoint: { sequenceNumber: 1n } });
+				const error = await call.responses.next().catch((error: unknown) => error);
+				expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'Connection dropped' });
+				expect(isConnectionLost(error)).toBe(true);
+			} finally {
+				lossy.close();
+				await dropping.stop();
+			}
+		});
+
+		it('keeps a server UNAVAILABLE status unmarked', async () => {
+			const call = transport[PULL_SERVER_STREAMING](
+				listCheckpoints(client),
+				{},
+				{ meta: { 'x-fail-unavailable': 'overloaded' } },
+			);
+			const error = await drain(call.responses).catch((error: unknown) => error);
+
+			expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'overloaded' });
+			expect(isConnectionLost(error)).toBe(false);
+		});
+
+		it('keeps a server INTERNAL status INTERNAL whatever its text', async () => {
+			const call = transport[PULL_SERVER_STREAMING](
+				listCheckpoints(client),
+				{},
+				{
+					meta: {
+						'x-fail-internal': 'upstream: Received RST_STREAM with code 2 (Internal server error)',
+					},
+				},
+			);
+			const error = await drain(call.responses).catch((error: unknown) => error);
+
+			expect(error).toMatchObject({ code: 'INTERNAL' });
+			expect(isConnectionLost(error)).toBe(false);
+		});
 	});
 
 	describe('generated clients', () => {
@@ -451,20 +457,10 @@ describe('GrpcNodeTransport', () => {
 	describe('ledger streams', () => {
 		it('reads streamCheckpoints on demand', async () => {
 			const pulls: string[] = [];
-			const spy: PullServerStreamingTransport = {
-				mergeOptions: (options) => transport.mergeOptions(options),
-				unary: (method, input, options) => transport.unary(method, input, options),
-				serverStreaming: () => {
-					throw new Error('unexpected push-based call');
-				},
-				clientStreaming: (method) => transport.clientStreaming(method),
-				duplex: (method) => transport.duplex(method),
-				[PULL_SERVER_STREAMING]: (method, input, options) => {
-					pulls.push(method.name);
-					return transport[PULL_SERVER_STREAMING](method, input, options);
-				},
-			};
-			const streams = new SuiGrpcClient({ network: 'localnet', transport: spy });
+			const streams = new SuiGrpcClient({
+				network: 'localnet',
+				transport: splitTransport(transport, transport, pulls),
+			});
 			const frames = await drain(
 				streams.streamCheckpoints({
 					start: { checkpoint: '10' },
@@ -495,31 +491,18 @@ describe('GrpcNodeTransport', () => {
 				baseUrl: server.baseUrl,
 				maxResponseMessageBytes: 1024,
 			});
-			let pulls = 0;
-			const spy: PullServerStreamingTransport = {
-				mergeOptions: (options) => small.mergeOptions(options),
-				unary: (method, input, options) => small.unary(method, input, options),
-				serverStreaming: () => {
-					throw new Error('unexpected push-based call');
-				},
-				clientStreaming: (method) => small.clientStreaming(method),
-				duplex: (method) => small.duplex(method),
-				[PULL_SERVER_STREAMING]: (method, input, options) => {
-					pulls++;
-					return small[PULL_SERVER_STREAMING](method, input, {
-						...options,
-						meta: { ...options?.meta, 'x-payload': '4096' },
-					});
-				},
-			};
+			const pulls: string[] = [];
 			try {
-				const streams = new SuiGrpcClient({ network: 'localnet', transport: spy });
+				const streams = new SuiGrpcClient({
+					network: 'localnet',
+					transport: splitTransport(small, small, pulls, { 'x-payload': '4096' }),
+				});
 				const error = await drain(
 					streams.streamCheckpoints({ start: { checkpoint: '10' }, end: { checkpoint: '15' } }),
 				).catch((reason: unknown) => reason);
 
 				expect(error).toMatchObject({ code: 'RESOURCE_EXHAUSTED' });
-				expect(pulls).toBe(1);
+				expect(pulls).toEqual(['ListCheckpoints']);
 			} finally {
 				small.close();
 			}

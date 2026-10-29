@@ -266,8 +266,9 @@ function setReadAhead(stream: object, prefetch: number): void {
 /**
  * A native gRPC (HTTP/2) transport for `SuiGrpcClient` on `@grpc/grpc-js`, for Node.js.
  *
- * Server streams are read with the stream paused, so `@grpc/grpc-js` stops reading the HTTP/2
- * stream once `prefetch` messages are waiting, and HTTP/2 flow control then stops the server.
+ * Without interceptors, ledger streams are read with the stream paused, so `@grpc/grpc-js` stops
+ * reading the HTTP/2 stream once `prefetch` messages are waiting, and HTTP/2 flow control then
+ * stops the server. With interceptors, messages are read as they arrive.
  * Leaving a stream sends `RST_STREAM`, which cancels the call on the server.
  *
  * Errors are `RpcError`s coded and worded like `GrpcWebFetchTransport`'s. Client-streaming and
