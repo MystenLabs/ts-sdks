@@ -22,14 +22,18 @@ function event(n: number) {
 	};
 }
 
-function eventsClient(pageInfo: PageInfo, cursors: string[]) {
+function eventsClient(
+	pageInfo: PageInfo,
+	cursors: string[],
+	node: (index: number) => ReturnType<typeof event> | object = event,
+) {
 	const fetch = vi.fn(async () => {
 		return Response.json({
 			data: {
 				events: {
 					pageInfo,
 					edges: cursors.map((cursor) => ({ cursor })),
-					nodes: cursors.map((_, index) => event(index)),
+					nodes: cursors.map((_, index) => node(index)),
 				},
 			},
 		});
@@ -68,6 +72,15 @@ describe('GraphQL list page cursors', () => {
 		const { client } = eventsClient(page({ startCursor: 'a', endCursor: 'scan' }), ['a', 'b']);
 		const result = await client.core.listEvents({});
 		expect(result).toMatchObject({ hasNextPage: false, startCursor: 'a', endCursor: 'b' });
+	});
+
+	it('reports an event without a checkpoint as null', async () => {
+		const { client } = eventsClient(page({ startCursor: 'a', endCursor: 'a' }), ['a'], (n) => ({
+			...event(n),
+			transaction: { digest: `digest-${n}`, effects: { checkpoint: null } },
+		}));
+		const { events } = await client.core.listEvents({});
+		expect(events[0].checkpoint).toBeNull();
 	});
 
 	it('continues a page that stopped early from the scan position', async () => {

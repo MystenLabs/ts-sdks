@@ -769,7 +769,6 @@ export class GrpcCoreClient extends CoreClient {
 						!event.module ||
 						!event.sender ||
 						!event.eventType ||
-						event.checkpoint == null ||
 						!event.transactionDigest ||
 						event.eventIndex == null
 					) {
@@ -782,7 +781,7 @@ export class GrpcCoreClient extends CoreClient {
 						eventType: normalizeStructTag(event.eventType),
 						bcs: event.contents?.value ?? new Uint8Array(),
 						json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
-						checkpoint: event.checkpoint.toString(),
+						checkpoint: event.checkpoint?.toString() ?? null,
 						transactionDigest: event.transactionDigest,
 						eventIndex: event.eventIndex,
 					});

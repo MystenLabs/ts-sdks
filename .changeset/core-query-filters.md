@@ -16,4 +16,3 @@ Expand the Core API query options that were previously limited by the JSON-RPC t
 - Package- and module-level `function` filters can be paginated.
 - `emitModule` and `eventType` accept a package-only prefix (`0x…`), and a generic `eventType`
   without type arguments matches every instantiation.
-- `EventEntry.checkpoint` is now always a `string` instead of `string | null`.
