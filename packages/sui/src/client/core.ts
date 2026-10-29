@@ -3,8 +3,14 @@
 
 import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { deriveObjectID } from '../utils/derived-objects.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
-import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
+import {
+	normalizeStructTag,
+	normalizeSuiAddress,
+	parseStructTag,
+	SUI_ADDRESS_LENGTH,
+} from '../utils/sui-types.js';
 import { BaseClient } from './client.js';
 import type { ClientWithExtensions, SuiClientTypes } from './types.js';
 import { MvrClient } from './mvr.js';
@@ -12,6 +18,18 @@ import { bcs } from '../bcs/index.js';
 import type { AnyLedgerStreamAdapter } from './stream/adapter.js';
 import { SuiStreamError } from './stream/errors.js';
 import { createLedgerStream } from './stream/run.js';
+import { ObjectError } from './errors.js';
+
+/** The shared `0x2::address_alias::AddressAliasState`, the parent of every alias set. */
+const ADDRESS_ALIAS_STATE_ID = '0xa';
+const ADDRESS_ALIAS_KEY_TYPE = '0x2::address_alias::AliasKey';
+const ADDRESS_ALIASES_TYPE = normalizeStructTag('0x2::address_alias::AddressAliases');
+
+/** `0x2::address_alias::AddressAliases`: its ID and a `VecSet<address>`. */
+const AddressAliasesBcs = bcs.struct('AddressAliases', {
+	id: bcs.Address,
+	aliases: bcs.struct('VecSet<address>', { contents: bcs.vector(bcs.Address) }),
+});
 
 /** What `CoreClient.createLedgerStreamAdapter` is asked to stream. */
 export type LedgerStreamRequest =
@@ -148,6 +166,17 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
+	/**
+	 * Verifies a personal message or transaction signature on the node; see the top-level
+	 * `client.verifySignature`. `valid: false` means invalid, malformed or not authorized for
+	 * `address`; network and protocol errors and a node that didn't apply a requested alias check
+	 * throw.
+	 */
+	abstract verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse>;
+
+	/** @deprecated Use `verifySignature`, which supports every scheme and address aliases. */
 	abstract verifyZkLoginSignature(
 		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<SuiClientTypes.ZkLoginVerifyResponse>;
@@ -251,6 +280,50 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 				childId,
 				valueType: child.type,
 				value: { type: child.type, bcs: child.content },
+			},
+		};
+	}
+
+	/**
+	 * The current alias set of `address`: the addresses whose signatures are accepted for it. An
+	 * address that never enabled aliases has none on chain and is only its own alias.
+	 */
+	async getAddressAliases(
+		options: SuiClientTypes.GetAddressAliasesOptions,
+	): Promise<SuiClientTypes.GetAddressAliasesResponse> {
+		const address = normalizeSuiAddress(options.address);
+		const objectId = deriveObjectID(
+			ADDRESS_ALIAS_STATE_ID,
+			ADDRESS_ALIAS_KEY_TYPE,
+			bcs.Address.serialize(address).toBytes(),
+		);
+		const {
+			objects: [object],
+		} = await this.getObjects({
+			objectIds: [objectId],
+			signal: options.signal,
+			include: { content: true },
+		});
+
+		if (object instanceof ObjectError && object.reason === 'notFound') {
+			return {
+				addressAliases: { address, enabled: false, aliases: [address], objectId, version: null },
+			};
+		}
+		if (object instanceof Error) {
+			throw object;
+		}
+		if (normalizeStructTag(object.type) !== ADDRESS_ALIASES_TYPE) {
+			throw new Error(`Object ${objectId} is a ${object.type}, not an address alias set`);
+		}
+
+		return {
+			addressAliases: {
+				address,
+				enabled: true,
+				aliases: AddressAliasesBcs.parse(object.content).aliases.contents,
+				objectId,
+				version: object.version,
 			},
 		};
 	}
