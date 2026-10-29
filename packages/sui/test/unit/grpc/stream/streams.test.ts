@@ -756,11 +756,11 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			const retry = { initialDelay: 60_000, jitter: 0 };
 			const frames = await take(l.client().streamEvents({ retry, onStatus }), 2);
 			expect(eventIds(frames)).toEqual(['3:0', '4:0']);
-			// The live progress reports the index through checkpoint 3, so one gap read covers it.
-			const [gap, ...more] = l.requestsTo('ListEvents');
+			// Gap recovery pages from the committed progress to the indexed tip, not to the live
+			// progress cursor; the first live item then replays up to its own position.
+			const [gap] = l.requestsTo('ListEvents');
 			expect(gap.options?.after).toEqual(mark('a'));
-			expect(gap.options?.before).toEqual(mark('b'));
-			expect(more).toEqual([]);
+			expect(gap.options?.before).toBeUndefined();
 			// Progress was committed, so the reconnect only pauses briefly despite the long backoff.
 			expect(log).toContain('Retrying(1,250)');
 		});
@@ -1585,29 +1585,60 @@ describe('gRPC ledger stream error classes', () => {
 		expect(adapter.classify(markHttpStatus(new RpcError('proxy', code), status))).toBe(expected);
 	});
 
-	it('retries a failed MVR request but not a name MVR cannot resolve', async () => {
-		const initialize = (resolvePackage: () => Promise<never>) =>
-			new GrpcLedgerStreamAdapter(
-				{
-					transport: new FakeLedger(),
-					mvr: { resolvePackage } as never,
-					chainIdentifier: async () => 'chain',
-				},
-				{ family: 'events', options: { filter: { emitModule: '@mysten/test::module' } } },
-			)
-				.initialize(new AbortController().signal)
-				.catch((error: unknown) => error);
+	const initializeWithMvr = (mvr: SuiClientTypes.MvrMethods) =>
+		new GrpcLedgerStreamAdapter(
+			{ transport: new FakeLedger(), mvr, chainIdentifier: async () => 'chain' },
+			{ family: 'events', options: { filter: { emitModule: '@mysten/test::module' } } },
+		)
+			.initialize(new AbortController().signal)
+			.catch((error: unknown) => error);
 
-		const failedFetch = await initialize(async () => {
+	/** Answers every MVR request, after rejecting a URL as `fetch` does. */
+	const stubMvrFetch = (answer: () => Response) => {
+		vi.stubGlobal('fetch', async (url: URL | string) => {
+			void new Request(url);
+			return answer();
+		});
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+	};
+
+	it('retries a failed MVR request but not a name MVR cannot resolve', async () => {
+		stubMvrFetch(() => {
 			throw new TypeError('fetch failed');
 		});
+		const failedFetch = await initializeWithMvr(
+			new MvrClient({ cache: new ClientCache(), url: 'https://mvr.example' }),
+		);
 		expect(adapter.classify(failedFetch)).toBe('retry');
 		expect(adapter.retryReason(failedFetch)).toBe('Network');
 
-		const unresolved = await initialize(async () => {
-			throw new Error('Failed to resolve package: @mysten/test');
-		});
+		const unresolved = await initializeWithMvr({
+			resolvePackage: async () => {
+				throw new Error('Failed to resolve package: @mysten/test');
+			},
+		} as never);
 		expect(adapter.classify(unresolved)).toBe('fatal');
+	});
+
+	it.each([
+		['a local TypeError', 'https://mvr.example', null],
+		['a malformed MVR response', 'https://mvr.example', 123],
+		['an MVR URL fetch cannot parse', 'mvr.example', '0x1'],
+	])('does not retry %s during filter resolution', async (_, url, packageId) => {
+		stubMvrFetch(() =>
+			Response.json({ resolution: { '@mysten/test': { package_id: packageId } } }),
+		);
+		const mvr =
+			packageId === null
+				? ({
+						resolvePackage: async () => {
+							throw new TypeError('local bug');
+						},
+					} as never)
+				: new MvrClient({ cache: new ClientCache(), url });
+		expect(adapter.classify(await initializeWithMvr(mvr))).toBe('fatal');
 	});
 
 	it.each([
