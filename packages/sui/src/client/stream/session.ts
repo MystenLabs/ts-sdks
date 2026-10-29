@@ -102,6 +102,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		return this.#committed !== undefined ? { position: this.#committed } : this.#plan.start;
 	}
 
+	get pollInterval(): number {
+		return this.#plan.pollInterval;
+	}
+
 	get committed(): StreamPosition | undefined {
 		return this.#committed;
 	}
