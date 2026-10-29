@@ -137,8 +137,9 @@ It also accepts a `digest` instead of a result, along with `timeout` and a `poll
 backoff delays.
 
 After `waitForTransaction` resolves, reads of current state (objects, dynamic fields, balances)
-observe the transaction. On `SuiGrpcClient`, history queries such as `listEvents` and
-`listTransactions` can still lag on a node that is backfilling its history index.
+observe the transaction. On `SuiGrpcClient` this holds for the node that served the wait, and
+history queries such as `listEvents` and `listTransactions` can still lag on a node that is
+backfilling its history index.
 
 ## `simulateTransaction`
 
