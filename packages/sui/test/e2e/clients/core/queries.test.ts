@@ -871,6 +871,7 @@ describe('Core API - Queries', () => {
 					return digests;
 				};
 				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					expect(await streamed(client, { affectedAddress: sponsor.address })).toEqual([digest]);
 					expect(await streamed(client, { affectedAddress: senderAddress })).toEqual([]);
 					expect(await streamed(client, { sender: senderAddress })).toEqual([digest]);
 				}
