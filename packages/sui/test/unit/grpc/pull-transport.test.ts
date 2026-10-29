@@ -161,7 +161,7 @@ function transport(s: FakeServer, extra: Partial<GrpcWebFetchTransportOptions> =
 		...extra,
 	});
 	return {
-		serverStreamingIterable: pullServerStreaming(t)!,
+		pull: pullServerStreaming(t)!,
 		serverStreaming: ((m, i, o) =>
 			t.serverStreaming(m, i, t.mergeOptions(o))) as RpcTransport['serverStreaming'],
 	};
@@ -215,7 +215,7 @@ describe('demand', () => {
 			const b = body(parts);
 			const s = server(() => grpcWeb(b));
 			const { method, counter } = countingMethod();
-			const call = transport(s).serverStreamingIterable(method, {}, {});
+			const call = transport(s).pull(method, {}, {});
 			await call.headers;
 			await settle();
 			const idle = { pulls: b.pulls, decodes: counter.decodes };
@@ -286,7 +286,7 @@ describe('slow consumer', () => {
 		const b = body(group(frames(1000), 7).concat(trailerFrame()));
 		const s = server(() => grpcWeb(b));
 		const { method, counter } = countingMethod();
-		const call = transport(s).serverStreamingIterable(method, {}, {});
+		const call = transport(s).pull(method, {}, {});
 		const seen: bigint[] = [];
 		const pauses: {
 			at: number;
@@ -322,7 +322,7 @@ describe('slow consumer', () => {
 describe('cancellation', () => {
 	it('return() before headers aborts the fetch', async () => {
 		const s = server(() => 'hang', { abortErrorsFetch: false });
-		const call = transport(s).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport(s).pull(countingMethod().method, {}, {});
 		await settle();
 		await call.responses.return!();
 		expect(s.signal?.aborted).toBe(true);
@@ -334,7 +334,7 @@ describe('cancellation', () => {
 	it('caller abort before headers rejects with the abort reason', async () => {
 		const s = server(() => 'hang', { abortErrorsFetch: false });
 		const abort = new AbortController();
-		const call = transport(s).serverStreamingIterable(
+		const call = transport(s).pull(
 			countingMethod().method,
 			{},
 			{
@@ -353,7 +353,7 @@ describe('cancellation', () => {
 	it('return() during a pending read settles the read and cancels the body', async () => {
 		const b = body([...frames(1)], { hangAfter: 1 });
 		const s = server(() => grpcWeb(b));
-		const call = transport(s).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport(s).pull(countingMethod().method, {}, {});
 		expect((await call.responses.next()).value?.cursor).toBe(0n);
 		const pending = call.responses.next();
 		await settle();
@@ -369,11 +369,7 @@ describe('cancellation', () => {
 		const s = server(() => 'hang', { abortErrorsFetch: false });
 		const abort = new AbortController();
 		abort.abort(new DOMException('took too long', 'TimeoutError'));
-		const call = transport(s).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{ abort: abort.signal },
-		);
+		const call = transport(s).pull(countingMethod().method, {}, { abort: abort.signal });
 		const pending = call.responses.next();
 		const queued = call.responses.next();
 		expect((await rejection(pending)).code).toBe('DEADLINE_EXCEEDED');
@@ -385,7 +381,7 @@ describe('cancellation', () => {
 		const b = body([...frames(1)], { hangAfter: 1 });
 		const s = server(() => grpcWeb(b));
 		const abort = new AbortController();
-		const call = transport(s).serverStreamingIterable(
+		const call = transport(s).pull(
 			countingMethod().method,
 			{},
 			{
@@ -406,11 +402,7 @@ describe('cancellation', () => {
 		async (viaAbort) => {
 			const s = server(() => 'hang', { abortErrorsFetch: false });
 			const abort = new AbortController();
-			const call = transport(s).serverStreamingIterable(
-				countingMethod().method,
-				{},
-				{ abort: abort.signal },
-			);
+			const call = transport(s).pull(countingMethod().method, {}, { abort: abort.signal });
 			const pending = call.responses.next();
 			const queued = call.responses.next();
 			await settle();
@@ -435,7 +427,7 @@ describe('cancellation', () => {
 			const s = server(() => new Promise<Response>((resolve) => (respond = resolve)), {
 				abortErrorsFetch: false,
 			});
-			const call = transport(s).serverStreamingIterable(countingMethod().method, {}, {});
+			const call = transport(s).pull(countingMethod().method, {}, {});
 			const pending = call.responses.next();
 			await settle();
 			await call.responses.return!();
@@ -460,7 +452,7 @@ describe('cancellation', () => {
 			async (ticks) => {
 				const b = body([concat(parts())]);
 				const abort = new AbortController();
-				const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
+				const call = transport(server(() => grpcWeb(b))).pull(
 					countingMethod().method,
 					{},
 					{ abort: abort.signal },
@@ -496,7 +488,7 @@ describe('cancellation', () => {
 		const b = body([...frames(1000), trailerFrame()]);
 		const s = server(() => grpcWeb(b));
 		const { method, counter } = countingMethod();
-		const call = transport(s).serverStreamingIterable(method, {}, {});
+		const call = transport(s).pull(method, {}, {});
 		let n = 0;
 		for await (const _ of call.responses) if (++n === 3) break;
 		await settle();
@@ -514,7 +506,7 @@ describe('error paths', () => {
 		const s = server(() =>
 			grpcWeb(null, { 'grpc-status': '5', 'grpc-message': 'checkpoint%20not%20found' }),
 		);
-		const call = transport(s).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport(s).pull(countingMethod().method, {}, {});
 		const error = await rejection(call.responses.next());
 		expect(error).toBeInstanceOf(RpcError);
 		expect(error.code).toBe('NOT_FOUND');
@@ -525,18 +517,14 @@ describe('error paths', () => {
 
 	it('trailer-only OK with no body ends the stream', async () => {
 		const s = server(() => grpcWeb(null, { 'grpc-status': '0' }));
-		const call = transport(s).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport(s).pull(countingMethod().method, {}, {});
 		await expect(call.responses.next()).resolves.toEqual({ done: true, value: undefined });
 		await expect(call.status).resolves.toEqual({ code: 'OK', detail: 'OK' });
 	});
 
 	it('non-zero terminal status after messages, with trailers on the error', async () => {
 		const b = body([...frames(2), trailerFrame(14, 'try%20again', { 'x-retry': '1' })]);
-		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{},
-		);
+		const call = transport(server(() => grpcWeb(b))).pull(countingMethod().method, {}, {});
 		expect((await call.responses.next()).value?.cursor).toBe(0n);
 		expect((await call.responses.next()).value?.cursor).toBe(1n);
 		const error = await rejection(call.responses.next());
@@ -553,11 +541,7 @@ describe('error paths', () => {
 			() => grpcWeb(null, { 'grpc-status': '11', 'grpc-message': 'pruned' }),
 		],
 	])('keeps OUT_OF_RANGE from a %s, never a network code', async (_, respond) => {
-		const call = transport(server(respond)).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{},
-		);
+		const call = transport(server(respond)).pull(countingMethod().method, {}, {});
 		let error: RpcError | undefined;
 		try {
 			for await (const _message of call.responses);
@@ -570,11 +554,7 @@ describe('error paths', () => {
 	it('truncated frame is a lost connection', async () => {
 		const frame = dataFrame(message(1));
 		const b = body([frame.subarray(0, frame.length - 1)]);
-		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{},
-		);
+		const call = transport(server(() => grpcWeb(b))).pull(countingMethod().method, {}, {});
 		const error = await rejection(call.responses.next());
 		expect(error.code).toBe('UNAVAILABLE');
 		expect(error.message).toBe('premature EOF');
@@ -582,11 +562,7 @@ describe('error paths', () => {
 	});
 
 	it('an empty body without a status is a lost connection', async () => {
-		const call = transport(server(() => grpcWeb(body([])))).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{},
-		);
+		const call = transport(server(() => grpcWeb(body([])))).pull(countingMethod().method, {}, {});
 		const error = await rejection(call.responses.next());
 		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing status' });
 		expect(isConnectionLost(error)).toBe(true);
@@ -594,11 +570,7 @@ describe('error paths', () => {
 
 	it('messages without trailers is a lost connection', async () => {
 		const b = body(frames(1));
-		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{},
-		);
+		const call = transport(server(() => grpcWeb(b))).pull(countingMethod().method, {}, {});
 		await call.responses.next();
 		const error = await rejection(call.responses.next());
 		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing trailers' });
@@ -608,7 +580,7 @@ describe('error paths', () => {
 	it('malformed protobuf is INTERNAL and cancels the body', async () => {
 		const b = body([dataFrame(new Uint8Array([0x0a, 0xff, 0xff, 0xff, 0xff])), trailerFrame()]);
 		const s = server(() => grpcWeb(b));
-		const call = transport(s).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport(s).pull(countingMethod().method, {}, {});
 		const error = await rejection(call.responses.next());
 		expect(error.code).toBe('INTERNAL');
 		expect(s.signal?.aborted).toBe(true);
@@ -624,7 +596,7 @@ describe('error paths', () => {
 			{
 				maxResponseMessageBytes: 64 * 1024,
 			},
-		).serverStreamingIterable(countingMethod().method, {}, {});
+		).pull(countingMethod().method, {}, {});
 		const error = await rejection(call.responses.next());
 		expect(error.code).toBe('RESOURCE_EXHAUSTED');
 		expect(isNonRetryable(error)).toBe(true);
@@ -639,7 +611,7 @@ describe('error paths', () => {
 			{
 				maxResponseMessageBytes: 8,
 			},
-		).serverStreamingIterable(countingMethod().method, {}, {});
+		).pull(countingMethod().method, {}, {});
 		const seen = [];
 		for await (const m of call.responses) seen.push(m.cursor);
 		expect(seen).toEqual([7n]);
@@ -653,7 +625,7 @@ describe('error paths', () => {
 			const signal = AbortSignal.any([init.signal!, own.signal]);
 			return s.fetch(url, { ...init, signal });
 		}) as typeof globalThis.fetch;
-		const call = transport({ fetch }).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport({ fetch }).pull(countingMethod().method, {}, {});
 		const pending = rejection(call.responses.next());
 		await settle();
 		own.abort();
@@ -672,9 +644,11 @@ describe('error paths', () => {
 				own.signal.addEventListener('abort', () => controller.error(own.signal.reason));
 			},
 		});
-		const call = transport(
-			server(() => grpcWeb({ stream, pulls: 0, cancelled: [] })),
-		).serverStreamingIterable(countingMethod().method, {}, {});
+		const call = transport(server(() => grpcWeb({ stream, pulls: 0, cancelled: [] }))).pull(
+			countingMethod().method,
+			{},
+			{},
+		);
 		expect((await call.responses.next()).value?.cursor).toBe(0n);
 		const pending = rejection(call.responses.next());
 		await settle();
@@ -685,7 +659,7 @@ describe('error paths', () => {
 	it('invalid request metadata is INTERNAL and sends no request', async () => {
 		const s = server(() => grpcWeb(body([trailerFrame()])));
 		const { method } = countingMethod();
-		const call = transport(s).serverStreamingIterable(
+		const call = transport(s).pull(
 			method,
 			{},
 			{
@@ -706,7 +680,7 @@ describe('error paths', () => {
 		I.toBinary = () => {
 			throw new Error('invalid uint 32: -1');
 		};
-		const call = transport(s).serverStreamingIterable({ ...method, I }, {}, {});
+		const call = transport(s).pull({ ...method, I }, {}, {});
 		const error = await rejection(call.responses.next());
 		expect(error.code).toBe('INTERNAL');
 		expect(error.message).toBe('failed to serialize request: invalid uint 32: -1');
@@ -717,7 +691,7 @@ describe('error paths', () => {
 	it('compressed frame flag is INTERNAL', async () => {
 		const frame = dataFrame(message(0));
 		frame[0] = 1;
-		const call = transport(server(() => grpcWeb(body([frame])))).serverStreamingIterable(
+		const call = transport(server(() => grpcWeb(body([frame])))).pull(
 			countingMethod().method,
 			{},
 			{},
@@ -727,11 +701,7 @@ describe('error paths', () => {
 
 	it('network failure while reading the body is UNAVAILABLE (retryable)', async () => {
 		const b = body(frames(3), { errorAt: 1 });
-		const call = transport(server(() => grpcWeb(b))).serverStreamingIterable(
-			countingMethod().method,
-			{},
-			{},
-		);
+		const call = transport(server(() => grpcWeb(b))).pull(countingMethod().method, {}, {});
 		await call.responses.next();
 		const error = await rejection(call.responses.next());
 		expect(error.code).toBe('UNAVAILABLE');
@@ -740,11 +710,11 @@ describe('error paths', () => {
 
 	it('fetch rejection is UNAVAILABLE; HTTP status maps like upstream', async () => {
 		const failing = server(() => Promise.reject(new TypeError('fetch failed')));
-		const a = transport(failing).serverStreamingIterable(countingMethod().method, {}, {});
+		const a = transport(failing).pull(countingMethod().method, {}, {});
 		expect((await rejection(a.responses.next())).code).toBe('UNAVAILABLE');
 
 		const http = server(() => new Response('nope', { status: 503 }));
-		const c = transport(http).serverStreamingIterable(countingMethod().method, {}, {});
+		const c = transport(http).pull(countingMethod().method, {}, {});
 		const unavailable = await rejection(c.responses.next());
 		expect(unavailable.code).toBe('UNAVAILABLE');
 		expect(httpStatusOf(unavailable)).toBe(503);
@@ -752,7 +722,7 @@ describe('error paths', () => {
 
 		// A proxy 502 maps to UNKNOWN, so the status is kept for the stream's retry reason.
 		const proxy = server(() => new Response('bad gateway', { status: 502 }));
-		const d = transport(proxy).serverStreamingIterable(countingMethod().method, {}, {});
+		const d = transport(proxy).pull(countingMethod().method, {}, {});
 		const unknown = await rejection(d.responses.next());
 		expect(unknown.code).toBe('UNKNOWN');
 		expect(httpStatusOf(unknown)).toBe(502);
@@ -760,7 +730,7 @@ describe('error paths', () => {
 
 	it('expired deadline fails without a request', async () => {
 		const s = server(() => grpcWeb(body([trailerFrame()])));
-		const call = transport(s).serverStreamingIterable(
+		const call = transport(s).pull(
 			countingMethod().method,
 			{},
 			{
@@ -856,7 +826,7 @@ describe('pullServerStreaming', () => {
 		const over = body([declared(64 * 1024 * 1024 + 1)]);
 		const error = await rejection(
 			transport(server(() => grpcWeb(over)))
-				.serverStreamingIterable(countingMethod().method, {})
+				.pull(countingMethod().method, {})
 				.responses.next(),
 		);
 		expect(error.code).toBe('RESOURCE_EXHAUSTED');
