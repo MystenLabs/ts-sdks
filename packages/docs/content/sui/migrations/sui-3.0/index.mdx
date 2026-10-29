@@ -60,8 +60,6 @@ together with `@mysten/sui`.
   `SuiClientTypes.SimulateTransactionOptions`, which now includes `doGasSelection`.
 - **`SuiClientTypes.ChangedObject` has a new required `objectType: string | null` field.** Set it
   wherever you construct `ChangedObject` values yourself, such as test mocks.
-- **`EventEntry.checkpoint` is now `string`** instead of `string | null`. Drop any `null` handling
-  your types flag.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
