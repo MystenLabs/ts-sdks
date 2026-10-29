@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { SuiStreamError, type SuiClientTypes } from '../../../../src/client/index.js';
 import { SuiGraphQLRequestError, type SuiGraphQLClient } from '../../../../src/graphql/index.js';
@@ -1367,12 +1367,30 @@ describe('errors', () => {
 		const filter = { eventType: '@test/pkg::module::Event' };
 		const resolved = `${'0x'.padEnd(66, '1')}::module::Event`;
 
+		/** Answers MVR requests (sent to the global `fetch`) in order; the last answer repeats. */
+		function mvrServer(...answers: (() => Response)[]) {
+			const mvrFetch = vi.fn(async (url: string) => {
+				// Rejects a URL as `fetch` does, with a `TypeError`.
+				void new Request(url);
+				return (answers.length > 1 ? answers.shift()! : answers[0])();
+			});
+			vi.stubGlobal('fetch', mvrFetch);
+			onTestFinished(() => {
+				vi.unstubAllGlobals();
+			});
+			return mvrFetch;
+		}
+		const typeResolution = (typeTag: unknown) => () =>
+			Response.json({ resolution: { [filter.eventType]: { type_tag: typeTag } } });
+
 		it('retries a network failure as Network', async () => {
-			const server = fakeGraphQL().on('scanEvents', page('events', [event(1)]));
-			const resolveType = vi
-				.spyOn(server.client.core.mvr, 'resolveType')
-				.mockRejectedValueOnce(new TypeError('fetch failed'))
-				.mockResolvedValue({ type: resolved });
+			const server = fakeGraphQL({ mvrUrl: 'https://mvr.example' }).on(
+				'scanEvents',
+				page('events', [event(1)]),
+			);
+			const mvrFetch = mvrServer(() => {
+				throw new TypeError('fetch failed');
+			}, typeResolution(resolved));
 			const reasons: string[] = [];
 			const frames = await collect(
 				server.client.streamEvents({
@@ -1382,8 +1400,57 @@ describe('errors', () => {
 				}),
 			);
 			expect(frames.map(label)).toEqual(['1:0']);
-			expect(resolveType).toHaveBeenCalledTimes(2);
+			expect(mvrFetch).toHaveBeenCalledTimes(2);
 			expect(reasons).toEqual(['Network']);
+		});
+
+		it('retries an MVR 503 from the MVR server', async () => {
+			const server = fakeGraphQL({ mvrUrl: 'https://mvr.example' }).on(
+				'scanEvents',
+				page('events', [event(1)]),
+			);
+			const mvrFetch = mvrServer(
+				() => Response.json({ message: 'down' }, { status: 503 }),
+				typeResolution(resolved),
+			);
+			const frames = await collect(server.client.streamEvents({ ...finiteCheckpoints, filter }));
+			expect(frames.map(label)).toEqual(['1:0']);
+			expect(mvrFetch).toHaveBeenCalledTimes(2);
+		});
+
+		it.each([
+			[
+				'an MVR 404',
+				'https://mvr.example',
+				() => Response.json({ message: 'nope' }, { status: 404 }),
+			],
+			['a malformed MVR response', 'https://mvr.example', typeResolution(123)],
+			['an MVR URL fetch cannot parse', 'mvr.example', typeResolution(resolved)],
+		])('does not retry %s', async (_, mvrUrl, answer) => {
+			const server = fakeGraphQL({ mvrUrl });
+			mvrServer(answer);
+			const reasons: string[] = [];
+			await expect(
+				collect(
+					server.client.streamEvents({
+						...finiteCheckpoints,
+						filter,
+						onStatus: (status) => status.$kind === 'Retrying' && reasons.push(status.reason),
+					}),
+				),
+			).rejects.toThrow();
+			expect(reasons).toEqual([]);
+		});
+
+		it('does not retry a TypeError from local filter resolution', async () => {
+			const server = fakeGraphQL();
+			const resolveType = vi
+				.spyOn(server.client.core.mvr, 'resolveType')
+				.mockRejectedValue(new TypeError('local bug'));
+			await expect(
+				collect(server.client.streamEvents({ ...finiteCheckpoints, filter })),
+			).rejects.toThrow('local bug');
+			expect(resolveType).toHaveBeenCalledTimes(1);
 		});
 
 		it('does not retry a name that does not resolve', async () => {

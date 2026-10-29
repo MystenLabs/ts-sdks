@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LedgerStreamRequest } from '../../client/core.js';
+import { isMvrRequestFailure } from '../../client/mvr.js';
 import type {
 	AnyLedgerStreamAdapter,
 	ItemFrame,
@@ -43,9 +44,8 @@ function adapterFor<Node>(
 
 		async initialize(signal) {
 			const filter = await family.resolveFilter(signal).catch((cause: unknown) => {
-				// MVR names resolve over plain `fetch`, whose network failures are a `TypeError`, as
-				// in the GraphQL client. MVR rate limiting and outages carry a retryable HTTP status.
-				// Unknown names and invalid filters stay fatal.
+				// Only a request that never reached MVR, or MVR rate limiting or an outage, is worth
+				// retrying. Unknown names, invalid filters and bad MVR responses stay fatal.
 				signal.throwIfAborted();
 				const status = cause instanceof Error && 'status' in cause ? cause.status : undefined;
 				if (typeof status === 'number' && isRetryableStatus(status)) {
@@ -55,7 +55,7 @@ function adapterFor<Node>(
 						cause,
 					});
 				}
-				if (!(cause instanceof TypeError)) throw cause;
+				if (!isMvrRequestFailure(cause)) throw cause;
 				throw markNetworkFailure(
 					new SuiGraphQLRequestError('MVR name resolution failed', { retryable: true, cause }),
 				);

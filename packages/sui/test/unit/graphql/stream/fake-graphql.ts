@@ -46,7 +46,9 @@ export interface FakeServer {
 	sent(operation: string): Variables[];
 }
 
-export function fakeGraphQL(options: { tip?: number; first?: number } = {}): FakeServer {
+export function fakeGraphQL(
+	options: { tip?: number; first?: number; mvrUrl?: string } = {},
+): FakeServer {
 	const scripts = new Map<string, Answer[]>();
 	const server: FakeServer = {
 		client: undefined as never,
@@ -77,6 +79,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 		url: 'https://example.com/graphql',
 		network: 'unknown',
 		fetch,
+		mvr: options.mvrUrl ? { url: options.mvrUrl } : undefined,
 	});
 	return server;
 }
