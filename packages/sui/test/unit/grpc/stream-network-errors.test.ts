@@ -200,9 +200,9 @@ describe('a response body cut short', () => {
 		});
 		const call = client.ledgerService.listEvents({}, { abort: controller.signal });
 		const error = await (async () => {
-			for await (const _ of call.responses) controller.abort();
+			for await (const _ of call.responses) controller.abort(new Error('stopped by caller'));
 		})().catch((error: unknown) => error);
-		expect(error).toMatchObject({ code: 'CANCELLED' });
+		expect(error).toMatchObject({ code: 'CANCELLED', message: 'stopped by caller' });
 		expect(isConnectionLost(error)).toBe(false);
 	});
 });
