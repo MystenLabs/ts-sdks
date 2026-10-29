@@ -17,11 +17,13 @@ export interface DeepbookPackageIds {
 }
 
 export const testnetPackageIds = {
-	DEEPBOOK_PACKAGE_ID: '0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24',
+	// deepbook core v21, kept in step with MARGIN_PACKAGE_ID (see the mainnet ids below).
+	DEEPBOOK_PACKAGE_ID: '0x4b1c2a827983d8fa73f6dc366cfab23636ae52e81e499d8724b71408fe6a00a4',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
-	// deepbook_margin v16 — the first testnet package carrying the upgraded-Pyth modules.
-	MARGIN_PACKAGE_ID: '0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f',
+	// deepbook_margin v17, linked to core v21 — the same source as mainnet margin v8
+	// (`MARGIN_VERSION = 8`, legacy-Pyth entrypoints retired).
+	MARGIN_PACKAGE_ID: '0x0ad965f35189c7eca57d4718c8f5bf1b7f9f7eb4ced6d5b7aa6496a16d71e8d2',
 	MARGIN_V1: '0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b',
 	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
 	// margin_liquidation v4 — carries liquidate_base_upgraded / liquidate_quote_upgraded.
