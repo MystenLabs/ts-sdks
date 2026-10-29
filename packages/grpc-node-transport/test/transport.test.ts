@@ -4,9 +4,10 @@
 import { RpcError, SuiGrpcClient } from '@mysten/sui/grpc';
 import { isConnectionLost, PULL_SERVER_STREAMING } from '@mysten/sui/grpc/pull-transport';
 import type { PullServerStreamingTransport } from '@mysten/sui/grpc/pull-transport';
-import { constants } from 'node:http2';
+import http2, { constants } from 'node:http2';
+import type { ClientHttp2Session } from 'node:http2';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { GrpcNodeTransport } from '../src/index.js';
 import {
@@ -406,6 +407,45 @@ describe('GrpcNodeTransport', () => {
 			} finally {
 				lossy.close();
 				await dropping.stop();
+			}
+		});
+
+		it('reports a write EPIPE on the connection as a lost connection', async () => {
+			const connect = http2.connect;
+			const sessions: ClientHttp2Session[] = [];
+			const spy = vi.spyOn(http2, 'connect').mockImplementation(((
+				...args: Parameters<typeof connect>
+			) => {
+				const session = connect(...args);
+				sessions.push(session);
+				return session;
+			}) as typeof connect);
+			// A connection of its own, not one shared with the suite's transport.
+			const lossy = new GrpcNodeTransport({
+				baseUrl: server.baseUrl,
+				clientOptions: { 'grpc.use_local_subchannel_pool': 1 },
+			});
+			const client = new SuiGrpcClient({ network: 'localnet', transport: lossy });
+			try {
+				const call = lossy[PULL_SERVER_STREAMING](
+					listCheckpoints(client),
+					{},
+					{ meta: { 'x-count': '1', 'x-hang': '1' } },
+				);
+				await call.responses.next();
+				// How Node fails the session when writing to a socket the peer has closed.
+				const epipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE', syscall: 'write' });
+				for (const session of sessions) session.destroy(epipe);
+				const error = await call.responses.next().catch((error: unknown) => error);
+				expect(error).toMatchObject({
+					code: 'UNAVAILABLE',
+					message:
+						'Received RST_STREAM with code 2 triggered by internal client error: write EPIPE',
+				});
+				expect(isConnectionLost(error)).toBe(true);
+			} finally {
+				spy.mockRestore();
+				lossy.close();
 			}
 		});
 

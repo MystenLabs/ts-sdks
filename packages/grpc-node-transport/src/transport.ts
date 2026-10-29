@@ -160,9 +160,10 @@ const RECEIVE_LIMIT =
 const SEND_LIMIT = /^Attempted to send message with a size larger than \d+$/;
 // grpc-js reports a dropped connection as UNAVAILABLE itself, but a stream the server or a proxy
 // resets with NO_ERROR before its status, or with INTERNAL_ERROR, as INTERNAL with one of these
-// texts (`build/src/subchannel-call.js`). Anchored, so status text a server sent never matches.
+// texts (`build/src/subchannel-call.js`). A socket write to a closed peer (`write EPIPE`) also ends
+// the stream with INTERNAL_ERROR. Anchored, so status text a server sent never matches.
 const STREAM_RESET =
-	/^Received RST_STREAM with code [02] \((?:Call ended without gRPC status|Internal server error)\)$/;
+	/^Received RST_STREAM with code (?:[02] \((?:Call ended without gRPC status|Internal server error)\)|2 triggered by internal client error: write EPIPE)$/;
 // grpc-js codes a connection that drops mid-call UNAVAILABLE with this text and empty metadata
 // (`build/src/subchannel-call.js`). No code or field tells it from a server's UNAVAILABLE, so the
 // exact text is matched, and only with empty metadata.
