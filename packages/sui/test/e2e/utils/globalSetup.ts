@@ -28,7 +28,7 @@ declare module 'vitest' {
 	}
 }
 
-const DEFAULT_SUI_TOOLS_TAG = '16d2dc1e05edcf600320a82e17b9392edb0983a5';
+const DEFAULT_SUI_TOOLS_TAG = 'd16b6a12e734629d1dc523d758a4f2a73c30b8c8';
 
 type GraphQLService =
 	| { kind: 'binary'; path: string }

@@ -14,7 +14,7 @@ declare module 'vitest' {
 	}
 }
 
-const DEFAULT_SUI_TOOLS_TAG = '16d2dc1e05edcf600320a82e17b9392edb0983a5';
+const DEFAULT_SUI_TOOLS_TAG = 'd16b6a12e734629d1dc523d758a4f2a73c30b8c8';
 
 export default async function setup(project: TestProject) {
 	// The image must match the Docker host's architecture, which can differ from Node's.
