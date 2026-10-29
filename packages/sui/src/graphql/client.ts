@@ -87,15 +87,6 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 
 const DEFAULT_MAX_SSE_MESSAGE_SIZE = 16 * 1024 * 1024;
 
-function isAbsoluteHttpUrl(url: string): boolean {
-	try {
-		const { protocol } = new URL(url);
-		return protocol === 'http:' || protocol === 'https:';
-	} catch {
-		return false;
-	}
-}
-
 /** Serialize the request body before `fetch`, so serialization errors are never retryable. */
 function requestBody(options: {
 	query: GraphQLDocument<any, any>;
@@ -158,7 +149,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	constructor({
 		url,
 		subscriptionUrl,
-		fetch: customFetch,
+		fetch: fetchFn = fetch,
 		headers = {},
 		queries = {} as Queries,
 		network,
@@ -172,19 +163,6 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		const path = suffixIndex === -1 ? url : url.slice(0, suffixIndex);
 		const suffix = suffixIndex === -1 ? '' : url.slice(suffixIndex);
 		this.#subscriptionUrl = subscriptionUrl ?? `${path.replace(/\/$/, '')}/subscriptions${suffix}`;
-		// With no page to resolve against, the global `fetch` rejects these with the TypeError it
-		// uses for network failures, which streams retry forever, so they fail here instead.
-		if (!customFetch && !globalThis.location) {
-			for (const [name, value] of [
-				['url', url],
-				['subscriptionUrl', this.#subscriptionUrl],
-			]) {
-				if (!isAbsoluteHttpUrl(value)) {
-					throw new Error(`SuiGraphQLClient: \`${name}\` must be an absolute http(s) URL`);
-				}
-			}
-		}
-		const fetchFn = customFetch ?? fetch;
 		this.#queries = queries;
 		this.#headers = headers;
 		this.#fetch = (...args) => fetchFn(...args);
