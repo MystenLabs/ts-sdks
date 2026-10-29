@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { PassThrough } from 'node:stream';
+
 import type { MethodInfo, RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -568,6 +570,13 @@ describe('error paths', () => {
 		expect(isConnectionLost(error)).toBe(true);
 	});
 
+	it('a null body without a status is a lost connection', async () => {
+		const call = transport(server(() => grpcWeb(null))).pull(countingMethod().method, {}, {});
+		const error = await rejection(call.responses.next());
+		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing response body' });
+		expect(isConnectionLost(error)).toBe(true);
+	});
+
 	it('messages without trailers is a lost connection', async () => {
 		const b = body(frames(1));
 		const call = transport(server(() => grpcWeb(b))).pull(countingMethod().method, {}, {});
@@ -739,6 +748,44 @@ describe('error paths', () => {
 		);
 		expect((await rejection(call.responses.next())).code).toBe('DEADLINE_EXCEEDED');
 		expect(s.signal).toBeUndefined();
+	});
+});
+
+describe('Node stream bodies', () => {
+	// `node-fetch` returns a Response-like object whose body is a Node stream.
+	const nodeResponse = (stream: PassThrough, status = 200) =>
+		({
+			ok: status >= 200 && status < 300,
+			status,
+			headers: new Headers({ 'content-type': 'application/grpc-web+proto' }),
+			body: stream,
+		}) as unknown as Response;
+
+	it('destroys the body of a rejected response', async () => {
+		const stream = new PassThrough();
+		const call = transport(server(() => nodeResponse(stream, 503))).pull(
+			countingMethod().method,
+			{},
+			{},
+		);
+		expect((await rejection(call.responses.next())).code).toBe('UNAVAILABLE');
+		expect(stream.destroyed).toBe(true);
+	});
+
+	it('destroys the body when cancelled during a pending read', async () => {
+		const stream = new PassThrough();
+		stream.write(dataFrame(message(0)));
+		const call = transport(server(() => nodeResponse(stream))).pull(
+			countingMethod().method,
+			{},
+			{},
+		);
+		expect((await call.responses.next()).value?.cursor).toBe(0n);
+		const pending = call.responses.next();
+		await settle();
+		await call.responses.return!();
+		await expect(pending).resolves.toEqual({ done: true, value: undefined });
+		expect(stream.destroyed).toBe(true);
 	});
 });
 

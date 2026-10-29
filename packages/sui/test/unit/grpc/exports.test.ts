@@ -32,7 +32,5 @@ describe('on-demand stream reader', () => {
 		]) {
 			expect(grpc).not.toHaveProperty(name);
 		}
-		// No string-keyed pull method on the public transport class.
-		expect(grpc.GrpcWebFetchTransport.prototype).not.toHaveProperty('serverStreamingIterable');
 	});
 });

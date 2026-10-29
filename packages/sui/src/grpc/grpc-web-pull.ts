@@ -287,7 +287,13 @@ function bodyReader(body: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>
 		return { read: () => reader.read(), cancel: () => reader.cancel() };
 	}
 	const iterator = body[Symbol.asyncIterator]();
-	return { read: () => iterator.next(), cancel: () => iterator.return?.() };
+	// A Node stream's iterator `return()` does not destroy it before the first read, and waits
+	// behind a pending one, so the connection would stay open.
+	const stream = body as { destroy?: () => void };
+	return {
+		read: () => iterator.next(),
+		cancel: () => (typeof stream.destroy === 'function' ? stream.destroy() : iterator.return?.()),
+	};
 }
 
 function cancelQuietly(reader: BodyReader | undefined) {
@@ -470,7 +476,9 @@ export class GrpcWebPullCall<
 			}
 			if (!body) {
 				if (!this.#headerStatus) {
-					throw new RpcError('missing response body', code(GrpcStatusCode.INTERNAL));
+					throw markConnectionLost(
+						new RpcError('missing response body', code(GrpcStatusCode.UNAVAILABLE)),
+					);
 				}
 				this.#eof = true;
 				return;
