@@ -241,8 +241,11 @@ describe('gap recovery', () => {
 			},
 			live: [{ events: [progress, ledger.item(101)], end: 'hang' }],
 		});
-		const frames = await take(stream(adapter, { start: { checkpoint: 0 } }), 102);
+		const { log, onStatus } = statusLog();
+		const frames = await take(stream(adapter, { start: { checkpoint: 0 }, onStatus }), 102);
 		expect(ids(frames)).toEqual(Array.from({ length: 102 }, (_, i) => `${i}:0`));
+		// Live at the tip; the replay up to the first live item doesn't report Recovering after it.
+		expect(log.slice(log.indexOf('Live'))).not.toContain('Recovering');
 	});
 
 	it('ends at the indexed tip on a feed that only sends progress', { timeout: 2000 }, async () => {
