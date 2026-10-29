@@ -51,8 +51,9 @@ export function notIndexedYet(message: string) {
 
 /**
  * RESOURCE_EXHAUSTED covers a full server ("no subscription slots, retry later") and per-item limits
- * (such as rendering a large Move value), which fail the same way on every attempt. A streak of
- * them at one resume point gets several minutes of backoff to clear, then ends the stream.
+ * (such as rendering a large Move value), which fail the same way on every attempt. Ten of them
+ * at one resume point, about two minutes of backoff with the default retry options, end the
+ * stream.
  */
 const RESOURCE_EXHAUSTED_ATTEMPTS = 10;
 

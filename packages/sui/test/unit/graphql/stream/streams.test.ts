@@ -1390,7 +1390,19 @@ describe('errors', () => {
 			expect(server.sent('scanCheckpoints')).toHaveLength(11);
 		});
 
-		it('counts its streak apart from other failures', async () => {
+		it('keeps counting through other failures until progress', async () => {
+			// A per-item limit with an occasional 503 between attempts still ends the stream.
+			const server = fakeGraphQL().on(
+				'scanCheckpoints',
+				...Array.from({ length: 12 }, () => [exhausted, httpStatus(503)]).flat(),
+			);
+			const error = await rejection(collect(stream(server.client, 'checkpoints', finite)));
+			expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+			// Eleven RESOURCE_EXHAUSTED answers with a 503 after each of the first ten.
+			expect(server.sent('scanCheckpoints')).toHaveLength(21);
+		});
+
+		it('counts only its own kind against the cap', async () => {
 			const server = fakeGraphQL().on(
 				'scanCheckpoints',
 				...repeat(httpStatus(503), 5),

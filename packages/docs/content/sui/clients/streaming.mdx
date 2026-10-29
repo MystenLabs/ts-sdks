@@ -284,9 +284,9 @@ Transient failures retry with exponential backoff and jitter. `maxAttempts` boun
 failures without progress, and `maxAttempts: 0` disables retries. If the connection breaks after
 progress, the stream resumes from the last frame without spending the budget, provided the transport
 reports the lost connection; grpc-js's own connection drops, and other transports that don't report
-it, count as ordinary failures. On GraphQL, ten `RESOURCE_EXHAUSTED` errors in a row without
-progress end the stream: the code covers a full server, which clears, and a per-item limit, which
-recurs on every attempt.
+it, count as ordinary failures. On GraphQL, ten `RESOURCE_EXHAUSTED` errors without progress end the
+stream, even with other failures between them: the code covers a full server, which clears, and a
+per-item limit, which recurs on every attempt.
 
 `reason` says why. `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
 streams, and `NotIndexed` is expected briefly near the tip and on new networks; alert on those only
