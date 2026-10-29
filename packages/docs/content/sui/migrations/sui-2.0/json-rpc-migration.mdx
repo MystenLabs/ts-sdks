@@ -467,13 +467,13 @@ SDK code should call the same method through `client.core`.
 
 Common transaction filter mappings:
 
-| JSON-RPC Filter                   | gRPC/GraphQL Top-Level Filter                                                                                                                       |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FromAddress`                     | `sender`                                                                                                                                            |
-| `MoveFunction`                    | `function`                                                                                                                                          |
-| `ToAddress`, `FromOrToAddress`    | `affectedAddress` (3.0+): transactions that changed the address's objects or balance; use `sender` for ones it signed                               |
-| `ChangedObject`, `AffectedObject` | `affectedObject` (3.0+)                                                                                                                             |
-| `Checkpoint`                      | `startCheckpoint` / `endCheckpoint` (3.0+). `endCheckpoint` is exclusive, so `{ Checkpoint: n }` becomes `startCheckpoint: n, endCheckpoint: n + 1` |
+| JSON-RPC Filter                   | gRPC/GraphQL Top-Level Filter                                                                                                                                                                                    |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FromAddress`                     | `sender`                                                                                                                                                                                                         |
+| `MoveFunction`                    | `function`                                                                                                                                                                                                       |
+| `ToAddress`, `FromOrToAddress`    | `affectedAddress` (3.0+): transactions that changed the address's objects (including its gas coin) or balance. It doesn't match transactions the address only signed; for `FromOrToAddress` also query `sender`. |
+| `ChangedObject`, `AffectedObject` | `affectedObject` (3.0+)                                                                                                                                                                                          |
+| `Checkpoint`                      | `startCheckpoint` / `endCheckpoint` (3.0+). `endCheckpoint` is exclusive, so `{ Checkpoint: n }` becomes `startCheckpoint: n, endCheckpoint: n + 1`                                                              |
 
 The response contains normalized transaction results plus ledger-position cursors:
 
