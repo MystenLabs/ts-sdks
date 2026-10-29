@@ -153,6 +153,20 @@ describe('GraphQL subscribe', () => {
 		expect((fetch.mock.calls[0] as unknown[])[0]).toBe('/graphql/subscriptions?key=x');
 	});
 
+	it('rejects a URL fetch cannot resolve when there is no page to resolve it against', () => {
+		expect(() => new SuiGraphQLClient({ url: 'graphql.example.com', network: 'unknown' })).toThrow(
+			'`url` must be an absolute http(s) URL',
+		);
+		expect(
+			() =>
+				new SuiGraphQLClient({
+					url: 'https://example.com/graphql',
+					subscriptionUrl: 'example.com/graphql/subscriptions',
+					network: 'unknown',
+				}),
+		).toThrow('`subscriptionUrl` must be an absolute http(s) URL');
+	});
+
 	it('does no network work until iteration begins and aborts on early return', async () => {
 		const { response, cancel } = sse(['event: next\ndata: {"data":{"value":1}}\n\n'], false);
 		const { client, fetch } = clientFor(response);
