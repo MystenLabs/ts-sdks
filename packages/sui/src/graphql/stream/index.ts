@@ -9,6 +9,7 @@ import type {
 } from '../../client/stream/adapter.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { SuiGraphQLClient } from '../client.js';
+import { markNetworkFailure, SuiGraphQLRequestError } from '../errors.js';
 import { ledgerFamily, type LedgerFamily, type LedgerItem } from './families.js';
 import { canResumeSubscription, liveSubscription } from './live.js';
 import { fetchGraphQLPage } from './page.js';
@@ -41,7 +42,15 @@ function adapterFor<Node>(
 		canResume: canResumeSubscription,
 
 		async initialize(signal) {
-			const filter = await family.resolveFilter(signal);
+			const filter = await family.resolveFilter(signal).catch((cause: unknown) => {
+				// MVR names resolve over plain `fetch`, whose network failures are a `TypeError`, as
+				// in the GraphQL client. Unknown names and invalid filters stay fatal.
+				signal.throwIfAborted();
+				if (!(cause instanceof TypeError)) throw cause;
+				throw markNetworkFailure(
+					new SuiGraphQLRequestError('MVR name resolution failed', { retryable: true, cause }),
+				);
+			});
 			const { chain, tip, retainedFrom } = await readChainTip(
 				client,
 				family.name === 'checkpoints',

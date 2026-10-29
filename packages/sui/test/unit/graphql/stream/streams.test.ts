@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SuiStreamError, type SuiClientTypes } from '../../../../src/client/index.js';
 import { SuiGraphQLRequestError, type SuiGraphQLClient } from '../../../../src/graphql/index.js';
@@ -1361,6 +1361,41 @@ describe('errors', () => {
 		expect(frames.map(label)).toEqual(['1']);
 		expect(server.sent('scanCheckpoints')).toHaveLength(2);
 		expect(reasons).toEqual([reason]);
+	});
+
+	describe('MVR name resolution', () => {
+		const filter = { eventType: '@test/pkg::module::Event' };
+		const resolved = `${'0x'.padEnd(66, '1')}::module::Event`;
+
+		it('retries a network failure as Network', async () => {
+			const server = fakeGraphQL().on('scanEvents', page('events', [event(1)]));
+			const resolveType = vi
+				.spyOn(server.client.core.mvr, 'resolveType')
+				.mockRejectedValueOnce(new TypeError('fetch failed'))
+				.mockResolvedValue({ type: resolved });
+			const reasons: string[] = [];
+			const frames = await collect(
+				server.client.streamEvents({
+					...finiteCheckpoints,
+					filter,
+					onStatus: (status) => status.$kind === 'Retrying' && reasons.push(status.reason),
+				}),
+			);
+			expect(frames.map(label)).toEqual(['1:0']);
+			expect(resolveType).toHaveBeenCalledTimes(2);
+			expect(reasons).toEqual(['Network']);
+		});
+
+		it('does not retry a name that does not resolve', async () => {
+			const server = fakeGraphQL();
+			const resolveType = vi
+				.spyOn(server.client.core.mvr, 'resolveType')
+				.mockRejectedValue(new Error('Failed to resolve type: @test/pkg::module::Event'));
+			await expect(
+				collect(server.client.streamEvents({ ...finiteCheckpoints, filter })),
+			).rejects.toThrow('Failed to resolve type');
+			expect(resolveType).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	describe('RESOURCE_EXHAUSTED', () => {
