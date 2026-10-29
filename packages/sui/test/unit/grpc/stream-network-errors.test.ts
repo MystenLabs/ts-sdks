@@ -85,6 +85,28 @@ it('keeps the HTTP status of a proxy error on unary and streaming calls', async 
 	expect(httpStatusOf(stream)).toBe(429);
 });
 
+it('resolves the headers of a proxy error response, as upstream does', async () => {
+	const proxyError = async () =>
+		new Response('bad gateway', { status: 502, headers: { 'x-request-id': 'abc' } });
+	const client = new SuiGrpcClient({
+		network: 'testnet',
+		baseUrl: 'http://localhost',
+		fetch: proxyError,
+	});
+
+	const unary = client.ledgerService.getServiceInfo({});
+	await expect(unary.headers).resolves.toMatchObject({ 'x-request-id': 'abc' });
+	const unaryError = await unary.response.catch((error: unknown) => error);
+	expect(unaryError).toMatchObject({ code: 'UNKNOWN' });
+	expect(httpStatusOf(unaryError)).toBe(502);
+
+	const stream = client.ledgerService.listEvents({});
+	await expect(stream.headers).resolves.toMatchObject({ 'x-request-id': 'abc' });
+	const streamError = await stream.status.catch((error: unknown) => error);
+	expect(streamError).toMatchObject({ code: 'UNKNOWN' });
+	expect(httpStatusOf(streamError)).toBe(502);
+});
+
 /** A binary gRPC-web response whose body is `chunks`. */
 function grpcWebResponse(chunks: Uint8Array[]) {
 	return new Response(

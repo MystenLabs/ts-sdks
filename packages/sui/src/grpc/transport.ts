@@ -85,11 +85,7 @@ function abortStatus(reason: unknown): string {
 // that substitutes its own error (node-fetch) gives text of its own, which holds nothing to decode.
 // The reason is never coerced: a symbol or a throwing hook would throw here.
 function isAbortReasonText(message: string, reason: unknown): boolean {
-	if (typeof reason === 'string') return message === reason;
-
-	const reasonMessage = readProperty(reason, 'message');
-
-	return typeof reasonMessage === 'string' && message === reasonMessage;
+	return message === abortReasonMessage(reason);
 }
 
 /** The abort reason's own text, as upstream reports an abort. Never coerces the reason. */
@@ -99,10 +95,21 @@ function abortReasonMessage(reason: unknown): string | undefined {
 	return typeof message === 'string' ? message : undefined;
 }
 
+/** The HTTP status of a non-2xx response that carried a gRPC status, recorded by `networkFetch`. */
+interface HttpStatusRef {
+	status?: number;
+}
+
 // Rewritten in place, so every promise a call rejects surfaces the same error. Only the two codes
 // upstream uses for an abort are re-coded; a failure that raced the abort is relabelled with it.
-function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
+function normalizeGrpcError(
+	error: unknown,
+	signal: AbortSignal | undefined,
+	http: HttpStatusRef,
+): void {
 	try {
+		// Upstream fails the call from the response headers alone once they carry a non-OK status.
+		if (http.status !== undefined && error instanceof RpcError) markHttpStatus(error, http.status);
 		normalize(error, signal);
 	} catch {
 		// Never an unhandled rejection from a discarded handler: the call reports what it was going
@@ -132,16 +139,23 @@ function normalize(error: unknown, signal: AbortSignal | undefined): void {
 	decodeStatusMessageOnce(error);
 }
 
-function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal | undefined) {
+function normalizeRejections(
+	promises: Promise<unknown>[],
+	signal: AbortSignal | undefined,
+	http: HttpStatusRef,
+) {
 	for (const promise of promises) {
 		// Registered before the call is returned, so it runs before the consumer's own await.
-		promise.then(undefined, (error: unknown) => normalizeGrpcError(error, signal));
+		promise.then(undefined, (error: unknown) => normalizeGrpcError(error, signal, http));
 	}
 }
 
 // Upstream erases fetch and body-read failures into INTERNAL. Wrap the fetch so those failures
 // surface as UNAVAILABLE (see `toNetworkRpcError`).
-function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
+function networkFetch(
+	fetch: typeof globalThis.fetch,
+	http: HttpStatusRef,
+): typeof globalThis.fetch {
 	return async (input, init) => {
 		let response: Response;
 		try {
@@ -150,14 +164,14 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 			throw toNetworkRpcError(error, init?.signal, 'request');
 		}
 		if (!response.ok) {
-			// Code it as upstream would, but keep the HTTP status: a proxy's 502 and 408 both map to
-			// UNKNOWN.
-			const [code, detail, meta] = readGrpcWebResponseHeader(response);
+			// Upstream resolves the call's headers, then fails it from their status without reading
+			// the body. Keep the HTTP status for that error: a proxy's 502 and 408 both map to UNKNOWN.
+			const [code] = readGrpcWebResponseHeader(response);
 			if (code !== undefined && code !== GrpcStatusCode.OK) {
-				const name = GrpcStatusCode[code];
+				http.status = response.status;
 				// Release the connection the unread body holds.
 				cancelBody(response.body);
-				throw markHttpStatus(new RpcError(detail ?? name, name, meta), response.status);
+				return response;
 			}
 		}
 		const chunks = bodyChunks(response.body);
@@ -340,12 +354,17 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
+		const http: HttpStatusRef = {};
 		const call = super.unary(method, input, {
 			...options,
-			fetch: networkFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
+			fetch: networkFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch, http),
 		} as GrpcWebOptions);
 
-		normalizeRejections([call.headers, call.response, call.status, call.trailers], options.abort);
+		normalizeRejections(
+			[call.headers, call.response, call.status, call.trailers],
+			options.abort,
+			http,
+		);
 
 		return call;
 	}
@@ -355,14 +374,15 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
+		const http: HttpStatusRef = {};
 		const call = super.serverStreaming(method, input, {
 			...options,
-			fetch: networkFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
+			fetch: networkFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch, http),
 		} as GrpcWebOptions);
 
 		// A finite stream is often read through `responses` without awaiting `status`.
-		call.responses.onError((error) => normalizeGrpcError(error, options.abort));
-		normalizeRejections([call.headers, call.status, call.trailers], options.abort);
+		call.responses.onError((error) => normalizeGrpcError(error, options.abort, http));
+		normalizeRejections([call.headers, call.status, call.trailers], options.abort, http);
 
 		return call;
 	}
