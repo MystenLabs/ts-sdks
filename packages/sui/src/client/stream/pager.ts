@@ -100,13 +100,14 @@ export async function* readPages<Item>(
 	let previous: StreamPosition | undefined;
 	let coverage: Coverage = { $kind: 'Unknown' };
 	// Ascending: the oldest checkpoint the pass may still have to read.
-	let unread = request.range.start ?? nextUncovered(boundCoverage(start, family));
+	let oldestUnread = request.range.start ?? nextUncovered(boundCoverage(start, family));
 	const advance = (raw: StreamPosition) => {
 		const position = tracker.apply(raw);
 		resumesFrom = position;
 		coverage = position.coverage;
 		const next = nextUncovered(coverage);
-		if (next !== undefined && (unread === undefined || next > unread)) unread = next;
+		if (next !== undefined && (oldestUnread === undefined || next > oldestUnread))
+			oldestUnread = next;
 		return position;
 	};
 
@@ -125,7 +126,7 @@ export async function* readPages<Item>(
 		const page = await adapter.fetchPage({
 			...request,
 			range: { ...request.range },
-			unread: ascending ? unread : newest,
+			unread: ascending ? oldestUnread : newest,
 		});
 		let empty = true;
 		let pageEnd: PageEnd;
@@ -133,7 +134,7 @@ export async function* readPages<Item>(
 			// The first read waits for the server's first answer.
 			let read = await page.items.next();
 			if (first) yield { $kind: 'Connected' };
-			assertRetained(page.retainedFrom, order, request, unread, first, resumed);
+			assertRetained(page.retainedFrom, order, request, oldestUnread, first, resumed);
 			// A server behind the point this page resumes from would silently skip items.
 			const needed = resumesFrom && indexedThrough(resumesFrom);
 			if (needed != null && page.viewedAt !== undefined && page.viewedAt < needed) {
@@ -164,7 +165,7 @@ export async function* readPages<Item>(
 			if (ascending || request.range.start !== undefined) {
 				throw protocol('Retention reported after the items it applies to');
 			}
-			assertRetained(pageEnd.retainedFrom, order, request, unread, first, resumed);
+			assertRetained(pageEnd.retainedFrom, order, request, oldestUnread, first, resumed);
 		}
 
 		const { more, cursor } = pageEnd.next;
@@ -297,14 +298,14 @@ function assertRetained(
 	retainedFrom: bigint | undefined,
 	order: SuiClientTypes.Order,
 	{ range }: PageRequest,
-	unread: bigint | undefined,
+	oldestUnread: bigint | undefined,
 	first: boolean,
 	resumed: boolean,
 ) {
 	if (retainedFrom === undefined) return;
 	let pruned: bigint | undefined;
 	if (order === 'ascending') {
-		if (unread !== undefined && unread < retainedFrom) pruned = unread;
+		if (oldestUnread !== undefined && oldestUnread < retainedFrom) pruned = oldestUnread;
 	} else if (range.start !== undefined && range.start < retainedFrom) {
 		pruned = range.start;
 	} else if (

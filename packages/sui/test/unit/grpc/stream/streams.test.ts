@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
-import { describe, expect, expectTypeOf, it, onTestFinished } from 'vitest';
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest';
+
+import { ClientCache } from '../../../../src/client/cache.js';
+import { MvrClient } from '../../../../src/client/mvr.js';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
@@ -1605,6 +1608,32 @@ describe('gRPC ledger stream error classes', () => {
 			throw new Error('Failed to resolve package: @mysten/test');
 		});
 		expect(adapter.classify(unresolved)).toBe('fatal');
+	});
+
+	it.each([
+		[408, 'retry', 'Timeout'],
+		[429, 'retry', 'RateLimited'],
+		[500, 'retry', 'ServerError'],
+		[503, 'retry', 'Unavailable'],
+		[400, 'fatal', 'ServerError'],
+		[404, 'fatal', 'ServerError'],
+	])('treats an MVR HTTP %i as %s', async (status, expected, reason) => {
+		vi.stubGlobal('fetch', async () => Response.json({ message: 'nope' }, { status }));
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+		const error = await new GrpcLedgerStreamAdapter(
+			{
+				transport: new FakeLedger(),
+				mvr: new MvrClient({ cache: new ClientCache(), url: 'https://mvr.example' }),
+				chainIdentifier: async () => 'chain',
+			},
+			{ family: 'events', options: { filter: { emitModule: '@mysten/test::module' } } },
+		)
+			.initialize(new AbortController().signal)
+			.catch((error: unknown) => error);
+		expect(adapter.classify(error)).toBe(expected);
+		expect(adapter.retryReason(error)).toBe(reason);
 	});
 });
 
