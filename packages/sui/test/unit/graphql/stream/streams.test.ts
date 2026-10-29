@@ -1398,6 +1398,41 @@ describe('errors', () => {
 		});
 
 		it.each([
+			[408, 'Timeout'],
+			[429, 'RateLimited'],
+			[500, 'ServerError'],
+			[503, 'Unavailable'],
+		])('retries an MVR HTTP %i as %s', async (status, reason) => {
+			const server = fakeGraphQL().on('scanEvents', page('events', [event(1)]));
+			const resolveType = vi
+				.spyOn(server.client.core.mvr, 'resolveType')
+				.mockRejectedValueOnce(Object.assign(new Error('Failed to resolve types'), { status }))
+				.mockResolvedValue({ type: resolved });
+			const reasons: string[] = [];
+			const frames = await collect(
+				server.client.streamEvents({
+					...finiteCheckpoints,
+					filter,
+					onStatus: (status) => status.$kind === 'Retrying' && reasons.push(status.reason),
+				}),
+			);
+			expect(frames.map(label)).toEqual(['1:0']);
+			expect(resolveType).toHaveBeenCalledTimes(2);
+			expect(reasons).toEqual([reason]);
+		});
+
+		it.each([400, 404])('does not retry an MVR HTTP %i', async (status) => {
+			const server = fakeGraphQL();
+			const resolveType = vi
+				.spyOn(server.client.core.mvr, 'resolveType')
+				.mockRejectedValue(Object.assign(new Error('Failed to resolve types'), { status }));
+			await expect(
+				collect(server.client.streamEvents({ ...finiteCheckpoints, filter })),
+			).rejects.toThrow('Failed to resolve types');
+			expect(resolveType).toHaveBeenCalledTimes(1);
+		});
+
+		it.each([
 			['transactions', { sender: 123 }],
 			['transactions', { function: 123 }],
 			['events', { emitModule: 123 }],
