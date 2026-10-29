@@ -369,7 +369,7 @@ describe('gRPC filter conversion', () => {
 		]);
 	});
 
-	it('expands affectedAddress into a state-change term and a sender term', async () => {
+	it('passes affectedAddress through as one literal ANDed with the rest', async () => {
 		const affected = {
 			negated: false,
 			predicate: { oneofKind: 'affectedAddress', affectedAddress: { address: ADDR_1 } },
@@ -381,18 +381,13 @@ describe('gRPC filter conversion', () => {
 
 		expect(
 			toGrpcTransactionFilter(await resolveTransactionFilter(mvr, { affectedAddress: '0x1' })),
-		).toEqual({ terms: [{ literals: [affected] }, { literals: [sentBy(ADDR_1)] }] });
+		).toEqual({ terms: [{ literals: [affected] }] });
 
 		expect(
 			toGrpcTransactionFilter(
 				await resolveTransactionFilter(mvr, { sender: '0x2', affectedAddress: '0x1' }),
 			),
-		).toEqual({
-			terms: [
-				{ literals: [sentBy(ADDR_2), affected] },
-				{ literals: [sentBy(ADDR_2), sentBy(ADDR_1)] },
-			],
-		});
+		).toEqual({ terms: [{ literals: [sentBy(ADDR_2), affected] }] });
 	});
 
 	it('converts function filters at each specificity', async () => {

@@ -10,10 +10,8 @@ import type {
 } from './proto/sui/rpc/v2/filter.js';
 
 /**
- * Converts a resolved transaction filter into a gRPC DNF filter, or `undefined` when the filter
- * matches everything. Predicates are ANDed into one term, except that `affectedAddress` expands
- * into two terms (the address's state changed, or the address sent the transaction), each ANDed
- * with the remaining predicates.
+ * Converts a resolved transaction filter into a single-term gRPC DNF filter (every predicate
+ * ANDed), or `undefined` when the filter matches everything.
  */
 export function toGrpcTransactionFilter(
 	filter: ResolvedTransactionFilter | undefined,
@@ -22,6 +20,12 @@ export function toGrpcTransactionFilter(
 
 	if (filter?.sender != null) {
 		predicates.push({ oneofKind: 'sender', sender: { address: filter.sender } });
+	}
+	if (filter?.affectedAddress != null) {
+		predicates.push({
+			oneofKind: 'affectedAddress',
+			affectedAddress: { address: filter.affectedAddress },
+		});
 	}
 	if (filter?.affectedObject != null) {
 		predicates.push({
@@ -33,25 +37,9 @@ export function toGrpcTransactionFilter(
 		predicates.push({ oneofKind: 'moveCall', moveCall: { function: filter.function } });
 	}
 
-	const alternatives: TransactionLiteral['predicate'][][] =
-		filter?.affectedAddress != null
-			? [
-					[
-						{
-							oneofKind: 'affectedAddress',
-							affectedAddress: { address: filter.affectedAddress },
-						},
-					],
-					[{ oneofKind: 'sender', sender: { address: filter.affectedAddress } }],
-				]
-			: [[]];
-
-	const terms = alternatives
-		.map((alternative) => [...predicates, ...alternative])
-		.filter((term) => term.length > 0)
-		.map((term) => ({ literals: term.map((predicate) => ({ negated: false, predicate })) }));
-
-	return terms.length ? { terms } : undefined;
+	return predicates.length
+		? { terms: [{ literals: predicates.map((predicate) => ({ negated: false, predicate })) }] }
+		: undefined;
 }
 
 /**
