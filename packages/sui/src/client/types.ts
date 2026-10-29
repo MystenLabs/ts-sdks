@@ -516,8 +516,8 @@ export namespace SuiClientTypes {
 		| {
 				/**
 				 * Match transactions that changed objects this address owned before or owns after the
-				 * transaction, or its address balance. A transaction the address only signed does not
-				 * match; use `sender` for transactions it sent.
+				 * transaction (including its gas coin), or its address balance. A transaction the
+				 * address only signed does not match; use `sender` for transactions it sent.
 				 */
 				affectedAddress: string;
 				affectedObject?: never;
