@@ -13,96 +13,225 @@ import { Secp256r1PublicKey } from '../keypairs/secp256r1/publickey.js';
 import { MultiSigPublicKey } from '../multisig/publickey.js';
 import { ZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import type { ClientWithCoreApi } from '../client/core.js';
+import { normalizeSuiAddress } from '../utils/sui-types.js';
 
 /**
- * Whether `signature` is a valid signature over `bytes` (and, if `options.address`
- * is given, was produced by that address). Returns `false` for a malformed or
- * cryptographically invalid signature, or one that doesn't match the address;
- * only an *environmental* failure (e.g. a zkLogin JWK/epoch lookup) throws, so a
- * network blip is never reported as an invalid signature.
+ * How to verify a signature: on a Sui node through `client`, or locally with `offline: true`. To
+ * verify on a node without loading keypair code, use `client.verifySignature`; these helpers
+ * also return the signer's public key.
+ *
+ * With a client, the node checks the signature and, when `address` is given, that the signer is
+ * `address` or one of its current address aliases (`checkAddressAliases`, default `true`; ignored
+ * without `address`). Use a client for the network the account is on.
+ *
+ * Offline verification checks that the signer is `address` itself and can't verify zkLogin
+ * signatures. It also accepts `address`'s own key after the account removed it from its alias set,
+ * so use a client when that matters.
+ */
+export type VerifyOptions =
+	| { client: ClientWithCoreApi; offline?: false; address?: string; checkAddressAliases?: boolean }
+	| { offline: true; address?: string; checkAddressAliases?: false };
+
+/** Options for the raw-bytes helpers, which only verify locally. */
+export interface VerifyOfflineOptions {
+	offline: true;
+	address?: string;
+}
+
+type Scope = 'PersonalMessage' | 'TransactionData' | 'Raw';
+
+const SCOPE_LABEL: Record<Scope, string> = {
+	PersonalMessage: 'message',
+	TransactionData: 'Transaction',
+	Raw: 'data',
+};
+
+/**
+ * Whether `signature` is a valid signature over `bytes`, verified locally. It can't check address
+ * aliases or zkLogin signatures (it throws for zkLogin): for account checks, use
+ * `client.verifySignature`.
+ *
+ * Returns `false` for an invalid signature or one not from `address`.
+ *
+ * Pass `address` when checking a signature for an account; without it, any valid signature passes.
  */
 export async function isValidSignature(
 	bytes: Uint8Array,
 	signature: string,
-	options: { address?: string } = {},
+	options: VerifyOfflineOptions,
 ): Promise<boolean> {
-	const parsed = tryParseSignature(signature);
-	if (!parsed) return false;
-	if (!(await parsed.publicKey.verify(bytes, parsed.serializedSignature))) return false;
-	return options.address ? parsed.publicKey.verifyAddress(options.address) : true;
+	return 'publicKey' in (await checkSignature(bytes, signature, 'Raw', offlineOnly(options)));
 }
 
-/** Like {@link isValidSignature}, for a personal message. */
+/**
+ * Whether `signature` is a valid signature over the personal message `message`. Returns `false`
+ * for an invalid signature, or one from a signer not authorized for `address`. Throws for a network
+ * error, a node that did not apply the address alias check, or a zkLogin signature offline.
+ * `checkAddressAliases` is ignored without `address`.
+ *
+ * Pass `address` when checking a signature for an account; without it, any valid signature passes.
+ */
 export async function isValidPersonalMessageSignature(
 	message: Uint8Array,
 	signature: string,
-	options: { client?: ClientWithCoreApi; address?: string } = {},
+	options: VerifyOptions,
 ): Promise<boolean> {
-	const parsed = tryParseSignature(signature, { client: options.client });
-	if (!parsed) return false;
-	if (!(await parsed.publicKey.verifyPersonalMessage(message, parsed.serializedSignature))) {
-		return false;
-	}
-	return options.address ? parsed.publicKey.verifyAddress(options.address) : true;
+	return 'publicKey' in (await checkSignature(message, signature, 'PersonalMessage', options));
 }
 
-/** Like {@link isValidSignature}, for transaction bytes. */
+/**
+ * Whether `signature` is a valid signature over the transaction bytes. Returns `false` for an
+ * invalid signature, or one from a signer not authorized for `address`. Throws for a network error,
+ * a node that did not apply the address alias check, or a zkLogin signature offline.
+ * `checkAddressAliases` is ignored without `address`.
+ *
+ * Pass `address` when checking a signature for an account; without it, any valid signature passes.
+ */
 export async function isValidTransactionSignature(
 	transaction: Uint8Array,
 	signature: string,
-	options: { client?: ClientWithCoreApi; address?: string } = {},
+	options: VerifyOptions,
 ): Promise<boolean> {
-	const parsed = tryParseSignature(signature, { client: options.client });
-	if (!parsed) return false;
-	if (!(await parsed.publicKey.verifyTransaction(transaction, parsed.serializedSignature))) {
-		return false;
-	}
-	return options.address ? parsed.publicKey.verifyAddress(options.address) : true;
+	return 'publicKey' in (await checkSignature(transaction, signature, 'TransactionData', options));
 }
 
+/**
+ * Verifies `signature` over `bytes` locally and returns the signer's public key. It can't check
+ * address aliases or zkLogin signatures (it throws for zkLogin): for account checks, use
+ * `client.verifySignature`, or {@link verifyPersonalMessageSignature} or
+ * {@link verifyTransactionSignature} with a client.
+ *
+ * Pass `address` when checking a signature for an account; without it, any valid signature passes.
+ */
 export async function verifySignature(
 	bytes: Uint8Array,
 	signature: string,
-	options: { address?: string } = {},
+	options: VerifyOfflineOptions,
 ): Promise<PublicKey> {
-	const { publicKey } = parseSignature(signature);
-	if (!(await isValidSignature(bytes, signature))) {
-		throw new Error(`Signature is not valid for the provided data`);
-	}
-	if (options.address && !publicKey.verifyAddress(options.address)) {
-		throw new Error(`Signature is not valid for the provided address`);
-	}
-	return publicKey;
+	return expectValid(await checkSignature(bytes, signature, 'Raw', offlineOnly(options)));
 }
 
+/**
+ * Verifies a personal message signature and returns the signer's public key. Throws if the
+ * signature is invalid or its signer is not authorized for `address`, and for the errors listed on
+ * {@link isValidPersonalMessageSignature}. The returned key may belong to one of `address`'s
+ * aliases, so use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
+ *
+ * Pass `address` when checking a signature for an account; without it, any valid signature passes.
+ */
 export async function verifyPersonalMessageSignature(
 	message: Uint8Array,
 	signature: string,
-	options: { client?: ClientWithCoreApi; address?: string } = {},
+	options: VerifyOptions,
 ): Promise<PublicKey> {
-	const { publicKey } = parseSignature(signature, options);
-	if (!(await isValidPersonalMessageSignature(message, signature, { client: options.client }))) {
-		throw new Error(`Signature is not valid for the provided message`);
-	}
-	if (options.address && !publicKey.verifyAddress(options.address)) {
-		throw new Error(`Signature is not valid for the provided address`);
-	}
-	return publicKey;
+	return expectValid(await checkSignature(message, signature, 'PersonalMessage', options));
 }
 
+/**
+ * Verifies a transaction signature and returns the signer's public key. Throws if the signature is
+ * invalid or its signer is not authorized for `address`, and for the errors listed on
+ * {@link isValidTransactionSignature}. The returned key may belong to one of `address`'s aliases,
+ * so use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
+ *
+ * Pass `address` when checking a signature for an account; without it, any valid signature passes.
+ */
 export async function verifyTransactionSignature(
 	transaction: Uint8Array,
 	signature: string,
-	options: { client?: ClientWithCoreApi; address?: string } = {},
+	options: VerifyOptions,
 ): Promise<PublicKey> {
-	const { publicKey } = parseSignature(signature, options);
-	if (!(await isValidTransactionSignature(transaction, signature, { client: options.client }))) {
-		throw new Error(`Signature is not valid for the provided Transaction`);
+	return expectValid(await checkSignature(transaction, signature, 'TransactionData', options));
+}
+
+type CheckResult = { publicKey: PublicKey } | { error: string };
+
+function expectValid(result: CheckResult): PublicKey {
+	if ('error' in result) {
+		throw new Error(result.error);
 	}
-	if (options.address && !publicKey.verifyAddress(options.address)) {
-		throw new Error(`Signature is not valid for the provided address`);
+	return result.publicKey;
+}
+
+function offlineOnly(options: VerifyOfflineOptions): VerifyOptions {
+	if (options?.offline !== true) {
+		throw new Error(
+			'Raw-bytes signatures can only be verified offline: pass `offline: true`, or use ' +
+				'verifyPersonalMessageSignature or verifyTransactionSignature with a client.',
+		);
 	}
-	return publicKey;
+	return options;
+}
+
+async function checkSignature(
+	bytes: Uint8Array,
+	signature: string,
+	scope: Scope,
+	options: VerifyOptions,
+): Promise<CheckResult> {
+	if (options?.offline !== true && !options?.client) {
+		throw new Error(
+			'Pass a client to verify signatures, or `offline: true` to verify without network access.',
+		);
+	}
+
+	const invalid = { error: `Signature is not valid for the provided ${SCOPE_LABEL[scope]}` };
+	const parsed = tryParseSignature(signature, options.offline ? {} : { client: options.client });
+	if (!parsed) return invalid;
+	const address = options.address ? normalizeSuiAddress(options.address) : undefined;
+
+	if (options.offline) {
+		if (
+			parsed.signatureScheme === 'ZkLogin' ||
+			(parsed.signatureScheme === 'MultiSig' &&
+				parsed.multisig.sigs.some((sig) => 'ZkLogin' in sig))
+		) {
+			throw new Error(
+				"zkLogin signatures can't be verified offline. Pass a client to verify them on a Sui node.",
+			);
+		}
+
+		const { publicKey, serializedSignature } = parsed;
+		const valid =
+			scope === 'PersonalMessage'
+				? await publicKey.verifyPersonalMessage(bytes, serializedSignature)
+				: scope === 'TransactionData'
+					? await publicKey.verifyTransaction(bytes, serializedSignature)
+					: await publicKey.verify(bytes, serializedSignature);
+		if (!valid) return invalid;
+		if (address && !publicKey.verifyAddress(address)) {
+			return { error: 'Signature is not valid for the provided address' };
+		}
+		return { publicKey };
+	}
+
+	const { publicKey } = parsed;
+	const { client, checkAddressAliases } = options;
+	const result = await client.core.verifySignature(
+		scope === 'PersonalMessage'
+			? { personalMessage: bytes, signature, address, checkAddressAliases }
+			: { transaction: bytes, signature, address, checkAddressAliases },
+	);
+	if (!result.valid) {
+		return { error: `${invalid.error}${result.reason ? `: ${result.reason}` : ''}` };
+	}
+
+	// A zkLogin signature parses to the current address derivation; return the legacy one when
+	// that is the address being verified.
+	if (
+		address &&
+		publicKey instanceof ZkLoginPublicIdentifier &&
+		publicKey.toSuiAddress() !== address &&
+		publicKey.verifyAddress(address)
+	) {
+		return {
+			publicKey: ZkLoginPublicIdentifier.fromBytes(publicKey.toRawBytes(), {
+				client: options.client,
+				legacyAddress: true,
+			}),
+		};
+	}
+
+	return { publicKey };
 }
 
 function parseSignature(signature: string, options: { client?: ClientWithCoreApi } = {}) {
@@ -117,14 +246,13 @@ function parseSignature(signature: string, options: { client?: ClientWithCoreApi
 		};
 	}
 
-	const publicKey = publicKeyFromRawBytes(
-		parsedSignature.signatureScheme,
-		parsedSignature.publicKey,
-		options,
-	);
 	return {
 		...parsedSignature,
-		publicKey,
+		publicKey: publicKeyFromRawBytes(
+			parsedSignature.signatureScheme,
+			parsedSignature.publicKey,
+			options,
+		),
 	};
 }
 
@@ -137,11 +265,16 @@ function tryParseSignature(signature: string, options: { client?: ClientWithCore
 	}
 }
 
+/**
+ * Parses a public key. It doesn't verify a signature; `address` only asserts that the key derives
+ * that address, with no address alias check.
+ */
 export function publicKeyFromRawBytes(
 	signatureScheme: SignatureScheme,
 	bytes: Uint8Array,
-	options: { client?: ClientWithCoreApi; address?: string } = {},
+	{ client, address }: { client?: ClientWithCoreApi; address?: string } = {},
 ): PublicKey {
+	address = address ? normalizeSuiAddress(address) : undefined;
 	let publicKey: PublicKey;
 	switch (signatureScheme) {
 		case 'ED25519':
@@ -154,10 +287,10 @@ export function publicKeyFromRawBytes(
 			publicKey = new Secp256r1PublicKey(bytes);
 			break;
 		case 'MultiSig':
-			publicKey = new MultiSigPublicKey(bytes, { client: options.client });
+			publicKey = new MultiSigPublicKey(bytes, { client });
 			break;
 		case 'ZkLogin':
-			publicKey = ZkLoginPublicIdentifier.fromBytes(bytes, options);
+			publicKey = ZkLoginPublicIdentifier.fromBytes(bytes, { client, address });
 			break;
 		case 'Passkey':
 			publicKey = new PasskeyPublicKey(bytes);
@@ -169,13 +302,14 @@ export function publicKeyFromRawBytes(
 			throw new Error(`Unsupported signature scheme ${signatureScheme}`);
 	}
 
-	if (options.address && publicKey.toSuiAddress() !== options.address) {
+	if (address && publicKey.toSuiAddress() !== address) {
 		throw new Error(`Public key bytes do not match the provided address`);
 	}
 
 	return publicKey;
 }
 
+/** Parses a Sui-encoded (flag-prefixed) public key. See {@link publicKeyFromRawBytes}. */
 export function publicKeyFromSuiBytes(
 	publicKey: string | Uint8Array,
 	options: { client?: ClientWithCoreApi; address?: string } = {},
