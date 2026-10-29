@@ -1396,6 +1396,26 @@ describe('errors', () => {
 			).rejects.toThrow('Failed to resolve type');
 			expect(resolveType).toHaveBeenCalledTimes(1);
 		});
+
+		it.each([
+			['transactions', { sender: 123 }],
+			['transactions', { function: 123 }],
+			['events', { emitModule: 123 }],
+		] as const)('does not retry an invalid %s filter %o', async (family, invalid) => {
+			const server = fakeGraphQL();
+			const reasons: string[] = [];
+			const options = {
+				...finiteCheckpoints,
+				filter: invalid as never,
+				onStatus: (status: { $kind: string }) => status.$kind === 'Retrying' && reasons.push('x'),
+			};
+			const frames =
+				family === 'events'
+					? collect(server.client.streamEvents(options))
+					: collect(server.client.streamTransactions(options));
+			await expect(frames).rejects.toThrow('Invalid');
+			expect(reasons).toEqual([]);
+		});
 	});
 
 	describe('RESOURCE_EXHAUSTED', () => {
