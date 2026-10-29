@@ -342,6 +342,85 @@ describe('readPages', () => {
 		expect(delivered(known.events)).toEqual(['Boundary@6']);
 	});
 
+	it('checks retention reported at a page end against what the page started from', async () => {
+		const { adapter } = scripted([
+			{
+				items: pageItems([{ position: item(15n, 0n), item: '15:0' }], {
+					next: { more: false },
+					retainedFrom: 15n,
+				}),
+			},
+		]);
+		await expect(
+			read(adapter, { order: 'ascending', start: { checkpoint: 5n }, end: { checkpoint: 30n } }),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+	});
+
+	it('checks retention from the coverage of a progress start', async () => {
+		const start = progressPosition(bytes('p'), { coverage: { $kind: 'Through', checkpoint: 9n } });
+		const { adapter } = scripted([
+			page([item(25n, 0n)], { more: false }, { viewedAt: 30n, retainedFrom: 20n }),
+		]);
+		await expect(
+			read(adapter, { order: 'ascending', start: { position: start } }),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+	});
+
+	it('ends a descending pass incomplete when a later page comes from a server behind it', async () => {
+		const { adapter } = scripted([
+			page([item(95n, 0n)], { more: true, cursor: bytes('95:0') }, { viewedAt: 100n }),
+			page([], { more: true, cursor: bytes('p90') }, { viewedAt: 100n }),
+			page([item(80n, 0n)], { more: false }, { viewedAt: 80n }),
+		]);
+		const { events, result } = await read(adapter, {
+			order: 'descending',
+			start: { checkpoint: 99n },
+		});
+		expect(delivered(events)).toEqual(['95:0', 'Progress@null']);
+		expect(result.complete).toBe(false);
+	});
+
+	it('completes a range ending at a progress cursor once the index reaches its coverage', async () => {
+		const end = {
+			position: progressPosition(bytes('end'), { coverage: { $kind: 'Through', checkpoint: 9n } }),
+		};
+		const pass = { order: 'ascending', start: { checkpoint: 1n }, end } as const;
+		const caughtUp = scripted([page([item(5n, 0n)], { more: false }, { covered: 9n })]);
+		expect((await read(caughtUp.adapter, pass)).result.complete).toBe(true);
+		const lagging = scripted([page([item(5n, 0n)], { more: false }, { covered: 8n })]);
+		expect((await read(lagging.adapter, pass)).result.complete).toBe(false);
+	});
+
+	it.each([
+		['a page read fails', true],
+		['the consumer stops mid-page', false],
+	])('closes the page items when %s', async (_, fails) => {
+		let closed = 0;
+		const items: Page<string>['items'] = {
+			next: async () => {
+				if (fails) throw new Error('read failed');
+				return { done: false, value: { position: item(3n, 0n), item: '3:0' } };
+			},
+			return: async () => {
+				closed++;
+				return { done: true, value: { next: { more: false } } };
+			},
+		};
+		const { adapter } = scripted([{ items }]);
+		const pages = readPages(adapter, {
+			order: 'ascending',
+			start: { checkpoint: 1n },
+			signal: new AbortController().signal,
+		});
+		if (fails) {
+			await expect(pages.next()).rejects.toThrow('read failed');
+		} else {
+			expect((await pages.next()).value).toEqual({ $kind: 'Connected' });
+			await pages.return({ complete: false, retentionLimit: false });
+		}
+		expect(closed).toBe(1);
+	});
+
 	it('commits the boundary after a quiet range, within it, and judges completeness', async () => {
 		const quiet = (fields: PageFields) => scripted([page([], { more: false }, fields)]);
 		const pass = {

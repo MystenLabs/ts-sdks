@@ -69,6 +69,28 @@ describe('frames', () => {
 		expect(adapter.calls.pages).toHaveLength(2);
 	});
 
+	it.each(['events', 'checkpoints'] as const)(
+		'resumes the completion token of a %s read that stopped at the retention limit as empty',
+		async (family) => {
+			const options = { order: 'descending', frames: { completion: true } } as const;
+			const first = await collect(
+				stream(fakeAdapter(ledgerOf(5), { retainedFrom: 3n, family }), options),
+			);
+			const completion = first.at(-1);
+			if (completion?.$kind !== 'Complete') throw new Error('expected a completion frame');
+			const resumeToken = completion.completion.resumeToken!;
+			const resumed = await collect(
+				stream(fakeAdapter(ledgerOf(5), { retainedFrom: 3n, family }), {
+					...options,
+					start: { resumeToken },
+				}),
+			);
+			expect(resumed).toMatchObject([
+				{ $kind: 'Complete', completion: { reason: 'retentionLimit' } },
+			]);
+		},
+	);
+
 	it('fails an end below the retention limit with HistoryUnavailable, without retrying', async () => {
 		const adapter = fakeAdapter(ledgerOf(5), { retainedFrom: 3n });
 		await expect(
