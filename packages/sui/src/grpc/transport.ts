@@ -92,6 +92,13 @@ function isAbortReasonText(message: string, reason: unknown): boolean {
 	return typeof reasonMessage === 'string' && message === reasonMessage;
 }
 
+/** The abort reason's own text, as upstream reports an abort. Never coerces the reason. */
+function abortReasonMessage(reason: unknown): string | undefined {
+	if (typeof reason === 'string') return reason;
+	const message = readProperty(reason, 'message');
+	return typeof message === 'string' ? message : undefined;
+}
+
 // Rewritten in place, so every promise a call rejects surfaces the same error. Only the two codes
 // upstream uses for an abort are re-coded; a failure that raced the abort is relabelled with it.
 function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
@@ -201,7 +208,7 @@ async function* networkBody(
 			if (cut) {
 				// An abort can also end a body early; it is coded from the abort reason.
 				throw signal?.aborted
-					? new RpcError(cut, 'CANCELLED')
+					? new RpcError(abortReasonMessage(signal.reason) ?? cut, 'CANCELLED')
 					: markConnectionLost(new RpcError(cut, 'UNAVAILABLE'));
 			}
 			return;

@@ -107,6 +107,10 @@ That class extends the transport of the same name from
 
 Build custom gRPC-web transports from this class to retain these error-handling fixes.
 
+Browser clients need the endpoint to expose the `grpc-status` and `grpc-message` headers through
+CORS (`Access-Control-Expose-Headers`); otherwise a response that carries its status only in headers
+looks like a dropped connection and is retried.
+
 `SuiGrpcClient` adds an `x-sui-client-protocol-version` request header with the highest Sui protocol
 version whose types the SDK can decode. This applies to all transports, including native gRPC, and
 to unary and streaming requests. Explicit values in the transport's `meta` options or an individual
