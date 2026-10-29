@@ -40,6 +40,7 @@ import {
 	type Event_FieldsFragment,
 	type Transaction_FieldsFragment,
 } from '../generated/queries.js';
+import { DEFAULT_POLL_INTERVAL } from '../../client/stream/plan.js';
 import { sleep } from '../../utils/abort.js';
 import { notIndexedYet, queryData, transientLive, unwrap } from './query.js';
 
@@ -133,7 +134,8 @@ export function ledgerFamily(
 				? checkpointsWithTransactionsFamily(
 						client,
 						request.options.include.transactions,
-						request.options.pollInterval ?? 1000,
+						// The plan has already rejected an invalid value.
+						request.options.pollInterval ?? DEFAULT_POLL_INTERVAL,
 					)
 				: checkpointsFamily(client);
 		case 'transactions':
