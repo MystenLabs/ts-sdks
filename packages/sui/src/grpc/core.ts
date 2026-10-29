@@ -1124,7 +1124,9 @@ function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): Quer
 
 /**
  * The read mask paths `parseGrpcTransactionResponse` needs for `include`. `prefix` places them
- * under a field, such as `'transaction.'` for a simulation response.
+ * under a field, such as `'transaction.'` for a simulation response. A simulation also needs
+ * `command_outputs` for command results and `transaction.effects.gas_object.object_id` to tell
+ * whether its gas payment was mocked; add those yourself.
  */
 export function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
