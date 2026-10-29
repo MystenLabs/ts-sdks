@@ -173,8 +173,9 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 			throw new Error('MVR Api URL is not set for the current client');
 		}
 
-		// Parsed first, so a malformed URL is not mistaken for a failed request.
-		const target = new URL(`${this.#url}${url}`, globalThis.location?.href);
+		const target = `${this.#url}${url}`;
+		// Checked first, so a malformed URL is not mistaken for a failed request.
+		new URL(target, globalThis.location?.href);
 		let response: Response;
 		try {
 			response = await fetch(target, {
