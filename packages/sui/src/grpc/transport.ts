@@ -156,7 +156,9 @@ function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 		const chunks = bodyChunks(response.body);
 		if (!chunks) return response;
 		const signal = init?.signal;
-		const frames = isBinaryGrpcWeb(response.headers) ? new FrameTracker() : undefined;
+		const frames = isBinaryGrpcWeb(response.headers)
+			? new FrameTracker(readGrpcWebResponseHeader(response)[0] !== undefined)
+			: undefined;
 		// Upstream reads only this metadata and iterates the body, so this shape avoids needing a
 		// global `Response` or `ReadableStream`, which some runtimes lack. The getters stay lazy
 		// because Cloudflare Workers throw on `type`, which upstream catches.
@@ -196,7 +198,12 @@ async function* networkBody(
 		if (next.done) {
 			// Upstream codes a body cut short as DATA_LOSS; it is a connection lost mid-response.
 			const cut = frames?.cut();
-			if (cut) throw markConnectionLost(new RpcError(cut, 'UNAVAILABLE'));
+			if (cut) {
+				// An abort can also end a body early; it is coded from the abort reason.
+				throw signal?.aborted
+					? new RpcError(cut, 'CANCELLED')
+					: markConnectionLost(new RpcError(cut, 'UNAVAILABLE'));
+			}
 			return;
 		}
 		frames?.push(next.value);
@@ -216,8 +223,16 @@ class FrameTracker {
 	#remaining = 0;
 	#sawData = false;
 	#sawTrailer = false;
+	#sawBytes = false;
+	readonly #headerStatus: boolean;
+
+	/** `headerStatus`: the response headers carry a gRPC status, so an empty body is complete. */
+	constructor(headerStatus: boolean) {
+		this.#headerStatus = headerStatus;
+	}
 
 	push(chunk: Uint8Array) {
+		if (chunk.length > 0) this.#sawBytes = true;
 		let offset = 0;
 		while (offset < chunk.length) {
 			if (this.#remaining > 0) {
@@ -240,13 +255,34 @@ class FrameTracker {
 	cut(): string | undefined {
 		if (this.#headerLength > 0 || this.#remaining > 0) return 'premature EOF';
 		if (this.#sawData && !this.#sawTrailer) return 'missing trailers';
+		// No frame and no status in the headers: the connection closed before the response began.
+		if (!this.#sawBytes && !this.#headerStatus) return 'missing status';
 		return undefined;
 	}
 }
 
+/** Releases the connection an unread body holds; never throws. */
 function cancelBody(body: unknown) {
-	const cancel = (body as { cancel?: () => Promise<void> } | null)?.cancel;
-	if (typeof cancel === 'function') cancel.call(body).catch(() => {});
+	if (!body || typeof body !== 'object') return;
+	try {
+		const stream = body as {
+			cancel?: () => Promise<void>;
+			destroy?: () => void;
+			[Symbol.asyncIterator]?: () => AsyncIterator<unknown>;
+		};
+		if (typeof stream.cancel === 'function') {
+			stream.cancel().catch(() => {});
+		} else if (typeof stream.destroy === 'function') {
+			// A Node.js stream, as `node-fetch` returns.
+			stream.destroy();
+		} else {
+			stream[Symbol.asyncIterator]?.()
+				.return?.()
+				?.catch(() => {});
+		}
+	} catch {
+		// The coded error matters more than releasing the body.
+	}
 }
 
 interface BodyChunks {

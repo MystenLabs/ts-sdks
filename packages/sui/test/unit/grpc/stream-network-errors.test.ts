@@ -3,7 +3,7 @@
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it, vi } from 'vitest';
-import { SuiGrpcClient } from '../../../src/grpc/index.js';
+import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import {
 	httpStatusOf,
 	isConnectionLost,
@@ -107,21 +107,103 @@ function frame(flags: number, payload: Uint8Array) {
 }
 
 describe('a response body cut short', () => {
-	// An empty ListEventsResponse message, then the trailer.
-	const data = frame(0, new Uint8Array());
+	// A message with a payload, then the trailer.
+	const payload = GrpcTypes.ListEventsResponse.toBinary(
+		GrpcTypes.ListEventsResponse.create({ watermark: { cursor: new Uint8Array([1, 2, 3]) } }),
+	);
+	const data = frame(0, payload);
 	const trailer = frame(0x80, new TextEncoder().encode('grpc-status: 0\r\n'));
+	const lost = async (fetch: typeof globalThis.fetch) => {
+		const error = await read(fetch).catch((error: unknown) => error);
+		expect(isConnectionLost(error)).toBe(true);
+		return error;
+	};
 
 	it.each([
 		['before its trailers', [data], 'missing trailers'],
-		['inside a frame', [data, trailer.subarray(0, 3)], 'premature EOF'],
+		['inside a frame header', [data, trailer.subarray(0, 3)], 'premature EOF'],
+		['inside a message payload', [data.subarray(0, data.length - 1)], 'premature EOF'],
+		// Upstream would read a cut trailer as a status, by default OK.
+		[
+			'inside the trailer payload',
+			[data, trailer.subarray(0, trailer.length - 3)],
+			'premature EOF',
+		],
 	])('is a lost connection %s', async (_, chunks, message) => {
-		const error = await read(async () => grpcWebResponse(chunks)).catch((error: unknown) => error);
+		const error = await lost(async () => grpcWebResponse(chunks));
 		expect(error).toMatchObject({ code: 'UNAVAILABLE', message });
+	});
+
+	it('is a lost connection with no frame and no status in the headers', async () => {
+		const error = await lost(async () => grpcWebResponse([]));
+		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing status' });
+	});
+
+	it('reads a complete body however it is split', async () => {
+		await expect(read(async () => grpcWebResponse([data, trailer]))).resolves.toBeUndefined();
+		// A header split across chunks, then several frames in one chunk.
+		const body = new Uint8Array([...data, ...data, ...trailer]);
+		await expect(
+			read(async () => grpcWebResponse([body.subarray(0, 3), body.subarray(3)])),
+		).resolves.toBeUndefined();
+	});
+
+	it('leaves a trailers-only response alone', async () => {
+		const trailersOnly = (status: string) => async () =>
+			new Response(new Uint8Array(), {
+				headers: { 'content-type': 'application/grpc-web+proto', 'grpc-status': status },
+			});
+		await expect(read(trailersOnly('0'))).resolves.toBeUndefined();
+		const error = await read(trailersOnly('5')).catch((error: unknown) => error);
+		expect(error).toMatchObject({ code: 'NOT_FOUND' });
+		expect(isConnectionLost(error)).toBe(false);
+	});
+
+	it('is a lost connection on a unary call too', async () => {
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			baseUrl: 'http://localhost',
+			fetch: async () => grpcWebResponse([frame(0, new Uint8Array())]),
+		});
+		const error = await client.ledgerService
+			.getServiceInfo({})
+			.response.catch((error: unknown) => error);
+		expect(error).toMatchObject({ code: 'UNAVAILABLE', message: 'missing trailers' });
 		expect(isConnectionLost(error)).toBe(true);
 	});
 
-	it('reads a complete body', async () => {
-		await expect(read(async () => grpcWebResponse([data, trailer]))).resolves.toBeUndefined();
+	it('leaves the opt-in text format to upstream', async () => {
+		const text = new TextEncoder().encode(btoa(String.fromCharCode(...data)));
+		const error = await read(
+			async () => new Response(text, { headers: { 'content-type': 'application/grpc-web-text' } }),
+		).catch((error: unknown) => error);
+		expect(error).toMatchObject({ code: 'DATA_LOSS' });
+		expect(isConnectionLost(error)).toBe(false);
+	});
+
+	it('codes a body an abort ends early from the abort', async () => {
+		const controller = new AbortController();
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			baseUrl: 'http://localhost',
+			// A fetch that ends the body cleanly when the call aborts.
+			fetch: async () =>
+				new Response(
+					new ReadableStream({
+						start(stream) {
+							stream.enqueue(data);
+							controller.signal.addEventListener('abort', () => stream.close());
+						},
+					}),
+					{ headers: { 'content-type': 'application/grpc-web+proto' } },
+				),
+		});
+		const call = client.ledgerService.listEvents({}, { abort: controller.signal });
+		const error = await (async () => {
+			for await (const _ of call.responses) controller.abort();
+		})().catch((error: unknown) => error);
+		expect(error).toMatchObject({ code: 'CANCELLED' });
+		expect(isConnectionLost(error)).toBe(false);
 	});
 });
 
@@ -132,6 +214,21 @@ it('cancels the body of a non-2xx response', async () => {
 		return response;
 	}).catch(() => {});
 	expect(cancel).toHaveBeenCalled();
+
+	// A Node.js stream body is destroyed instead.
+	const destroy = vi.fn();
+	await read(
+		async () =>
+			({
+				ok: false,
+				status: 503,
+				statusText: 'Service Unavailable',
+				type: 'default',
+				headers: new Headers(),
+				body: { destroy, [Symbol.asyncIterator]: async function* () {} },
+			}) as unknown as Response,
+	).catch(() => {});
+	expect(destroy).toHaveBeenCalled();
 });
 
 it('codes a failed response body read as UNAVAILABLE', async () => {
@@ -237,7 +334,7 @@ it('keeps a server INTERNAL status as INTERNAL', async () => {
 	await expect(
 		read(
 			async () =>
-				new Response(null, {
+				new Response(new Uint8Array(), {
 					headers: {
 						'content-type': 'application/grpc-web+proto',
 						'grpc-status': '13',
