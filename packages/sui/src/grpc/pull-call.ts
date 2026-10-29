@@ -55,8 +55,8 @@ export const PULL_SERVER_STREAMING = Symbol('PullServerStreaming');
  * Mark a connection that broke after the server answered (such as a reset stream) with
  * `markConnectionLost`: streams then report it as `Disconnected` and reconnect without spending
  * their retry budget after progress. An unmarked `UNAVAILABLE` reads as a server that reported
- * itself unavailable. `@mysten/grpc-node-transport` marks reset streams; grpc-js's own
- * connection drops arrive as a plain `UNAVAILABLE` and still report `Unavailable`.
+ * itself unavailable. `@mysten/grpc-node-transport` marks reset streams and grpc-js's
+ * `Connection dropped` failures.
  */
 export interface PullServerStreamingTransport extends RpcTransport {
 	[PULL_SERVER_STREAMING]: PullServerStreaming;
