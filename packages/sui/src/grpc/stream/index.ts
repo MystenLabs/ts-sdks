@@ -17,7 +17,12 @@ import type {
 import { SuiStreamError } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from '../filters.js';
-import { httpStatusOf, isConnectionLost, isRequestFailed } from '../network-error.js';
+import {
+	httpStatusOf,
+	isConnectionLost,
+	isRequestFailed,
+	toNetworkRpcError,
+} from '../network-error.js';
 import { isNonRetryable } from '../pull-call.js';
 import { isBufferOverflow, openLedgerCall, type LedgerCall } from './call.js';
 import {
@@ -88,7 +93,13 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 	}
 
 	async initialize(signal: AbortSignal) {
-		const filter = this.#request.options.grpcFilter ?? (await this.#sharedFilter(signal));
+		const filter =
+			this.#request.options.grpcFilter ??
+			(await this.#sharedFilter(signal).catch((error: unknown) => {
+				// fetch rejects with a TypeError only when the MVR request itself fails, which is worth
+				// retrying; an unresolvable name or invalid filter throws a plain Error and stays fatal.
+				throw error instanceof TypeError ? toNetworkRpcError(error, signal, 'request') : error;
+			}));
 		const chain = await this.#context.chainIdentifier(signal);
 		this.#calls = this.#streamCalls(filter);
 		return { chain, filter: filter ?? null };
@@ -116,6 +127,11 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 	classify(error: unknown): ErrorClass {
 		if (isBufferOverflow(error)) return 'disconnect';
 		if (!(error instanceof RpcError) || isNonRetryable(error)) return 'fatal';
+		// A proxy codes 405 or 413 as UNKNOWN; resending the same request cannot fix a 4xx.
+		const status = httpStatusOf(error);
+		if (status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+			return 'fatal';
+		}
 		return RETRYABLE_CODES.has(error.code) ? 'retry' : 'fatal';
 	}
 
@@ -197,7 +213,7 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 	}
 }
 
-/** A proxy's HTTP error status, which gRPC-web codes coarsely, read as GraphQL reads it. */
+/** The retry reason for a proxy's HTTP error status, which gRPC-web codes coarsely. */
 function httpStatusReason(status: number): SuiClientTypes.StreamRetryReason {
 	if (status === 429) return 'RateLimited';
 	if (status === 408 || status === 504) return 'Timeout';

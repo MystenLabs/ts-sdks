@@ -1568,6 +1568,44 @@ describe('gRPC ledger stream error classes', () => {
 		);
 		expect(adapter.classify(new TypeError('bug'))).toBe('fatal');
 	});
+
+	it.each([
+		[400, 'INVALID_ARGUMENT', 'fatal'],
+		[405, 'UNKNOWN', 'fatal'],
+		[409, 'ABORTED', 'fatal'],
+		[413, 'UNKNOWN', 'fatal'],
+		[408, 'UNKNOWN', 'retry'],
+		[429, 'RESOURCE_EXHAUSTED', 'retry'],
+		[500, 'UNKNOWN', 'retry'],
+		[502, 'UNKNOWN', 'retry'],
+	])('treats an HTTP %i coded %s as %s', (status, code, expected) => {
+		expect(adapter.classify(markHttpStatus(new RpcError('proxy', code), status))).toBe(expected);
+	});
+
+	it('retries a failed MVR request but not a name MVR cannot resolve', async () => {
+		const initialize = (resolvePackage: () => Promise<never>) =>
+			new GrpcLedgerStreamAdapter(
+				{
+					transport: new FakeLedger(),
+					mvr: { resolvePackage } as never,
+					chainIdentifier: async () => 'chain',
+				},
+				{ family: 'events', options: { filter: { emitModule: '@mysten/test::module' } } },
+			)
+				.initialize(new AbortController().signal)
+				.catch((error: unknown) => error);
+
+		const failedFetch = await initialize(async () => {
+			throw new TypeError('fetch failed');
+		});
+		expect(adapter.classify(failedFetch)).toBe('retry');
+		expect(adapter.retryReason(failedFetch)).toBe('Network');
+
+		const unresolved = await initialize(async () => {
+			throw new Error('Failed to resolve package: @mysten/test');
+		});
+		expect(adapter.classify(unresolved)).toBe('fatal');
+	});
 });
 
 describe('SuiGrpcClient stream method types', () => {
