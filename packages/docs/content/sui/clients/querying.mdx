@@ -391,12 +391,12 @@ Transaction filters combine their predicates with AND, and an empty filter match
 transaction. A filter takes at most one of `affectedAddress`, `affectedObject`, or `function`, and
 `sender` can be combined with any of them:
 
-| Predicate         | Description                                                                                                                                                      |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sender`          | Transactions sent by an address                                                                                                                                  |
-| `affectedAddress` | Transactions that changed objects an address owned before or owns after (including its gas coin), or its address balance; not ones it only signed (use `sender`) |
-| `affectedObject`  | Transactions whose effects include a change to an object                                                                                                         |
-| `function`        | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`), including aborts                                                                    |
+| Predicate         | Description                                                                                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sender`          | Transactions sent by an address                                                                                                                                                                                                                    |
+| `affectedAddress` | Transactions that changed objects an address owned before or owns after (including its gas coin), or its address balance. On gRPC, not ones it only signed (use `sender`); GraphQL servers that answer from a Postgres index also match the sender |
+| `affectedObject`  | Transactions whose effects include a change to an object                                                                                                                                                                                           |
+| `function`        | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`), including aborts                                                                                                                                                      |
 
 ```typescript
 // Calls into a package by one sender
@@ -559,11 +559,11 @@ const page = await client.listEvents({
 ```
 
 <Callout type="info">
-	Drive pagination off `hasNextPage` rather than page length. On gRPC, a filtered query is bounded
-	in how much ledger it scans per request, so a page can come back shorter than `limit`, even empty,
-	while `hasNextPage` is still `true`; continuing from `endCursor` always makes progress. Servers
-	also cap page sizes (50 by default); over-large `limit` values are truncated on gRPC and rejected
-	on GraphQL.
+	Drive pagination off `hasNextPage` rather than page length. A filtered query is bounded in how
+	much ledger it scans per request, so on either transport a page can come back shorter than
+	`limit`, even empty, while `hasNextPage` is still `true`; continuing from `endCursor` always makes
+	progress. Servers also cap page sizes (50 by default); over-large `limit` values are truncated on
+	gRPC and rejected on GraphQL.
 </Callout>
 
 ## Move functions

@@ -516,8 +516,9 @@ export namespace SuiClientTypes {
 		| {
 				/**
 				 * Match transactions that changed objects this address owned before or owns after the
-				 * transaction (including its gas coin), or its address balance. A transaction the
-				 * address only signed does not match; use `sender` for transactions it sent.
+				 * transaction (including its gas coin), or its address balance. On gRPC, a transaction
+				 * the address only signed does not match; use `sender` for transactions it sent.
+				 * GraphQL servers that answer from a Postgres index also match the sender.
 				 */
 				affectedAddress: string;
 				affectedObject?: never;

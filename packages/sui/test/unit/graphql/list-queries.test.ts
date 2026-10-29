@@ -79,6 +79,15 @@ describe('GraphQL list page cursors', () => {
 		});
 	});
 
+	it('continues a descending page that stopped early from the scan position', async () => {
+		const { client } = eventsClient(page({ hasPreviousPage: true, startCursor: 'scan' }), []);
+		expect(await client.core.listEvents({ order: 'descending', before: 'y' })).toMatchObject({
+			hasNextPage: true,
+			startCursor: null,
+			endCursor: 'scan',
+		});
+	});
+
 	it('takes descending cursors from the start of the page', async () => {
 		const { client } = eventsClient(
 			page({ hasPreviousPage: true, startCursor: 'a', endCursor: 'scan' }),
