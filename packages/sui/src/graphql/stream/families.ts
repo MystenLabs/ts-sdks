@@ -41,7 +41,7 @@ import {
 	type Transaction_FieldsFragment,
 } from '../generated/queries.js';
 import { DEFAULT_POLL_INTERVAL } from '../../client/stream/plan.js';
-import { sleep } from '../../utils/abort.js';
+import { linkedAbortController, sleep } from '../../utils/abort.js';
 import { notIndexedYet, queryData, transientLive, unwrap } from './query.js';
 
 export interface Edge<Node> {
@@ -270,11 +270,21 @@ function checkpointsWithTransactionsFamily(
 				}),
 				(data) => data.checkpoints,
 			);
-			// Checkpoints are independent; complete them concurrently (at most one page of them).
-			const edges = await Promise.all(
-				page.edges.map(async (edge) => ({ ...edge, node: await complete(edge.node, signal) })),
-			);
-			return { ...page, edges };
+			// Checkpoints are independent; complete them concurrently (at most one page of them). A
+			// failure cancels the rest, so a retried page doesn't race their leftover reads.
+			const { controller, dispose } = linkedAbortController(signal);
+			try {
+				const edges = await Promise.all(
+					page.edges.map(async (edge) => ({
+						...edge,
+						node: await complete(edge.node, controller.signal),
+					})),
+				);
+				return { ...page, edges };
+			} finally {
+				controller.abort();
+				dispose();
+			}
 		},
 		subscribe: (signal, { after, start }, onOpen) =>
 			completeEdges(
