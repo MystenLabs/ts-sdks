@@ -11,3 +11,4 @@ export {
 	publicKeyFromRawBytes,
 	publicKeyFromSuiBytes,
 } from './verify.js';
+export type { VerifyOptions, VerifyOfflineOptions } from './verify.js';

@@ -14,6 +14,7 @@ import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
 import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
 import type { ClientWithCoreApi } from '../client/core.js';
+import type { SuiClientTypes } from '../client/types.js';
 
 /**
  * A zkLogin public identifier
@@ -169,14 +170,12 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 	verifyPersonalMessage(message: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		const parsedSignature = parseSerializedZkLoginSignature(signature);
 
-		return graphqlVerifyZkLoginSignature({
+		return verifyOnNode(this.#client, {
 			// Verify against this identifier's address, not one derived from the signature, so a
 			// signature from a different zkLogin identity is rejected (as the chain does for multisig).
 			address: this.toSuiAddress(),
-			bytes: toBase64(message),
+			personalMessage: message,
 			signature: parsedSignature.serializedSignature,
-			intentScope: 'PersonalMessage',
-			client: this.#client,
 		});
 	}
 
@@ -185,12 +184,10 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 	 */
 	verifyTransaction(transaction: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		const parsedSignature = parseSerializedZkLoginSignature(signature);
-		return graphqlVerifyZkLoginSignature({
+		return verifyOnNode(this.#client, {
 			address: this.toSuiAddress(),
-			bytes: toBase64(transaction),
+			transaction,
 			signature: parsedSignature.serializedSignature,
-			intentScope: 'TransactionData',
-			client: this.#client,
 		});
 	}
 
@@ -198,7 +195,8 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 	 * Verifies that the public key is associated with the provided address
 	 */
 	override verifyAddress(address: string): boolean {
-		return address === super.toSuiAddress() || address === this.#toLegacyAddress();
+		const normalized = normalizeSuiAddress(address);
+		return normalized === super.toSuiAddress() || normalized === this.#toLegacyAddress();
 	}
 }
 
@@ -236,30 +234,16 @@ function normalizeZkLoginPublicKeyBytes(bytes: Uint8Array, legacyAddress: boolea
 	return data;
 }
 
-async function graphqlVerifyZkLoginSignature({
-	address,
-	bytes,
-	signature,
-	intentScope,
-	client,
-}: {
-	address: string;
-	bytes: string;
-	signature: string;
-	intentScope: 'PersonalMessage' | 'TransactionData';
-	client?: ClientWithCoreApi;
-}) {
+async function verifyOnNode(
+	client: ClientWithCoreApi | undefined,
+	options: SuiClientTypes.VerifySignatureOptions,
+) {
 	if (!client) {
 		throw new Error('A Sui Client (gRPC or GraphQL) is required to verify zkLogin signatures');
 	}
-	const resp = await client.core.verifyZkLoginSignature({
-		bytes,
-		signature,
-		intentScope,
-		address: address,
-	});
-
-	return resp.success === true && resp.errors.length === 0;
+	// A public key checks its own signatures, not an account's alias set.
+	const { valid } = await client.core.verifySignature({ ...options, checkAddressAliases: false });
+	return valid;
 }
 
 export function parseSerializedZkLoginSignature(signature: Uint8Array | string) {

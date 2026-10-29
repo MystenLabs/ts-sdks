@@ -117,6 +117,7 @@ describe('mldsa65-keypair', () => {
 		expect(parsed.publicKey).toEqual(keypair.getPublicKey().toRawBytes());
 
 		const recovered = await verifyPersonalMessageSignature(message, signature, {
+			offline: true,
 			address: SUI_ADDRESS,
 		});
 		expect(recovered.toSuiAddress()).toEqual(SUI_ADDRESS);
@@ -136,7 +137,9 @@ describe('mldsa65-keypair', () => {
 		expect(await keypair.getPublicKey().verifyPersonalMessage(message, vector.signature)).toBe(
 			true,
 		);
-		const recovered = await verifyPersonalMessageSignature(message, vector.signature);
+		const recovered = await verifyPersonalMessageSignature(message, vector.signature, {
+			offline: true,
+		});
 		expect(recovered.toSuiAddress()).toEqual(vector.address);
 	});
 

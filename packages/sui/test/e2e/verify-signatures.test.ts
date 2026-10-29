@@ -24,28 +24,35 @@ describe('Verify Signatures', () => {
 
 				it('verifies valid signatures', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
-					const publicKey = await verifyPersonalMessageSignature(message, signature);
+					const publicKey = await verifyPersonalMessageSignature(message, signature, {
+						offline: true,
+					});
 					expect(publicKey.toSuiAddress()).toBe(address);
 				});
 
 				it('verifies signatures against provided address', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					await expect(
-						verifyPersonalMessageSignature(message, signature, { address }),
+						verifyPersonalMessageSignature(message, signature, { offline: true, address }),
 					).resolves.toBeDefined();
 				});
 
 				it('fails for invalid signatures', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					const invalidMessage = new TextEncoder().encode('wrong message');
-					await expect(verifyPersonalMessageSignature(invalidMessage, signature)).rejects.toThrow();
+					await expect(
+						verifyPersonalMessageSignature(invalidMessage, signature, { offline: true }),
+					).rejects.toThrow();
 				});
 
 				it('fails for wrong address', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					const wrongAddress = new Ed25519Keypair().getPublicKey().toSuiAddress();
 					await expect(
-						verifyPersonalMessageSignature(message, signature, { address: wrongAddress }),
+						verifyPersonalMessageSignature(message, signature, {
+							offline: true,
+							address: wrongAddress,
+						}),
 					).rejects.toThrow();
 				});
 			});
@@ -57,28 +64,35 @@ describe('Verify Signatures', () => {
 
 				it('verifies valid signatures', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
-					const publicKey = await verifyPersonalMessageSignature(message, signature);
+					const publicKey = await verifyPersonalMessageSignature(message, signature, {
+						offline: true,
+					});
 					expect(publicKey.toSuiAddress()).toBe(address);
 				});
 
 				it('verifies signatures against provided address', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					await expect(
-						verifyPersonalMessageSignature(message, signature, { address }),
+						verifyPersonalMessageSignature(message, signature, { offline: true, address }),
 					).resolves.toBeDefined();
 				});
 
 				it('fails for invalid signatures', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					const invalidMessage = new TextEncoder().encode('wrong message');
-					await expect(verifyPersonalMessageSignature(invalidMessage, signature)).rejects.toThrow();
+					await expect(
+						verifyPersonalMessageSignature(invalidMessage, signature, { offline: true }),
+					).rejects.toThrow();
 				});
 
 				it('fails for wrong address', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					const wrongAddress = new Secp256k1Keypair().getPublicKey().toSuiAddress();
 					await expect(
-						verifyPersonalMessageSignature(message, signature, { address: wrongAddress }),
+						verifyPersonalMessageSignature(message, signature, {
+							offline: true,
+							address: wrongAddress,
+						}),
 					).rejects.toThrow();
 				});
 			});
@@ -90,28 +104,35 @@ describe('Verify Signatures', () => {
 
 				it('verifies valid signatures', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
-					const publicKey = await verifyPersonalMessageSignature(message, signature);
+					const publicKey = await verifyPersonalMessageSignature(message, signature, {
+						offline: true,
+					});
 					expect(publicKey.toSuiAddress()).toBe(address);
 				});
 
 				it('verifies signatures against provided address', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					await expect(
-						verifyPersonalMessageSignature(message, signature, { address }),
+						verifyPersonalMessageSignature(message, signature, { offline: true, address }),
 					).resolves.toBeDefined();
 				});
 
 				it('fails for invalid signatures', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					const invalidMessage = new TextEncoder().encode('wrong message');
-					await expect(verifyPersonalMessageSignature(invalidMessage, signature)).rejects.toThrow();
+					await expect(
+						verifyPersonalMessageSignature(invalidMessage, signature, { offline: true }),
+					).rejects.toThrow();
 				});
 
 				it('fails for wrong address', async () => {
 					const { signature } = await keypair.signPersonalMessage(message);
 					const wrongAddress = new Secp256r1Keypair().getPublicKey().toSuiAddress();
 					await expect(
-						verifyPersonalMessageSignature(message, signature, { address: wrongAddress }),
+						verifyPersonalMessageSignature(message, signature, {
+							offline: true,
+							address: wrongAddress,
+						}),
 					).rejects.toThrow();
 				});
 			});
@@ -144,7 +165,9 @@ describe('Verify Signatures', () => {
 					sig2.signature,
 				]);
 
-				const publicKey = await verifyPersonalMessageSignature(message, multisig);
+				const publicKey = await verifyPersonalMessageSignature(message, multisig, {
+					offline: true,
+				});
 				expect(publicKey.toSuiAddress()).toBe(multiSigPublicKey.toSuiAddress());
 			});
 
@@ -168,7 +191,9 @@ describe('Verify Signatures', () => {
 					sig2.signature,
 				]);
 
-				await expect(verifyPersonalMessageSignature(wrongMessage, multisig)).rejects.toThrow();
+				await expect(
+					verifyPersonalMessageSignature(wrongMessage, multisig, { offline: true }),
+				).rejects.toThrow();
 			});
 		});
 

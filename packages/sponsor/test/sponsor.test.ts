@@ -5,7 +5,7 @@ import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction, TransactionDataBuilder } from '@mysten/sui/transactions';
 import { normalizeSuiAddress, toBase58, toBase64 } from '@mysten/sui/utils';
-import { verifyTransactionSignature } from '@mysten/sui/verify';
+import { isValidTransactionSignature, verifyTransactionSignature } from '@mysten/sui/verify';
 import { describe, expect, it } from 'vitest';
 
 import { analyze, createAnalyzer } from '../src/index.js';
@@ -72,6 +72,7 @@ describe('Sponsor.signTransaction', () => {
 		expect(result.digest).toBe(TransactionDataBuilder.getDigestFromBytes(result.bytes));
 
 		const pk = await verifyTransactionSignature(result.bytes, result.sponsorSignature, {
+			offline: true,
 			address: sponsor.address,
 		});
 		expect(normalizeSuiAddress(pk.toSuiAddress())).toBe(sponsor.address);
@@ -587,13 +588,29 @@ describe('offline-only validation (no client calls)', () => {
 });
 
 describe('userSignatureMatchesSender', () => {
+	// Stands in for the node: no address aliases, so the signer must be `address` itself.
+	const client = {
+		core: {
+			verifySignature: async (options: {
+				transaction: Uint8Array;
+				signature: string;
+				address: string;
+			}) => ({
+				valid: await isValidTransactionSignature(options.transaction, options.signature, {
+					offline: true,
+					address: options.address,
+				}),
+			}),
+		},
+	} as unknown as ClientWithCoreApi;
+
 	function withValidator() {
 		const sponsorKey = new Ed25519Keypair();
 		return {
 			sponsorKey,
 			sponsor: createSponsor({
 				signer: sponsorKey,
-				client: {} as ClientWithCoreApi,
+				client,
 				validate: [userSignatureMatchesSender()],
 			}),
 		};

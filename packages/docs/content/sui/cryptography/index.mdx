@@ -151,111 +151,105 @@ console.log('Digest:', result.Transaction.digest);
 
 ## Verifying signatures
 
-Verification confirms a signature is valid for a given message and that the expected key produced
-it. The `@mysten/sui/verify` module verifies a signature against a message and recovers the
-`PublicKey` that produced it, without needing the original signer.
-
-```typescript
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const keypair = new Ed25519Keypair();
-const message = new TextEncoder().encode('hello world');
-const { signature } = await keypair.signPersonalMessage(message);
-
-const publicKey = await verifyPersonalMessageSignature(message, signature);
-
-if (!publicKey.verifyAddress(keypair.toSuiAddress())) {
-	throw new Error('Signature was valid, but was signed by a different key pair');
-}
-```
-
-### Verifying that a signature is valid for a specific address
-
-`verifyPersonalMessageSignature` and `verifyTransactionSignature` accept an optional `address` and
-throw if the signature is not valid for it:
-
-```typescript
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const keypair = new Ed25519Keypair();
-const message = new TextEncoder().encode('hello world');
-const { signature } = await keypair.signPersonalMessage(message);
-
-await verifyPersonalMessageSignature(message, signature, {
-	address: keypair.toSuiAddress(),
-});
-```
-
-### Verifying transaction signatures
-
-Verifying transaction signatures works the same way, using `verifyTransactionSignature`:
+Verify a signature for an account with `client.verifySignature`. Pass the signed `personalMessage`
+(or `transaction` bytes), the `signature`, and the `address` of the account. The node you query
+checks the signature, and that the signer is `address` or one of its current
+[address aliases](#address-aliases). Use a client for the network the account is on.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { Transaction } from '@mysten/sui/transactions';
-import { verifyTransactionSignature } from '@mysten/sui/verify';
 
 const client = new SuiGrpcClient({
-	network: 'testnet',
-	baseUrl: 'https://fullnode.testnet.sui.io:443',
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 });
-const tx = new Transaction();
-// ... add some transactions...
-const bytes = await tx.build({ client });
 
-const keypair = new Ed25519Keypair();
+const { valid, reason } = await client.verifySignature({
+	personalMessage: message,
+	signature,
+	address,
+});
+```
+
+`valid` is `false` when the signature is invalid or malformed, or its signer isn't authorized for
+`address`, and `reason` says why. The call throws for network errors, or when the node didn't apply
+the address alias check.
+
+Without `address`, any valid signature passes, so always pass it when checking a signature for an
+account, and use `address` as the account's identity.
+
+### Verifying transaction signatures
+
+```typescript
+const bytes = await tx.build({ client });
 const { signature } = await keypair.signTransaction(bytes);
 
-await verifyTransactionSignature(bytes, signature, {
-	// optionally verify that the signature is valid for a specific address
+const { valid } = await client.verifySignature({
+	transaction: bytes,
+	signature,
 	address: keypair.toSuiAddress(),
 });
 ```
 
-### Verifying zkLogin signatures
+### Address aliases
 
-You can't verify zkLogin signatures purely on the client. When verifying a zkLogin signature, the
-SDK uses the GraphQL API. This works for Mainnet signatures without any additional configuration.
-For Testnet signatures, provide a Testnet GraphQL client:
+An address can authorize other addresses to sign for it by adding them to its alias set. A signature
+from any current alias verifies for the address, matching what the address can sign onchain. To
+accept only signatures from the address itself, pass `checkAddressAliases: false`:
 
 ```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
-	client: new SuiGraphQLClient({
-		url: 'https://graphql.testnet.sui.io/graphql',
-	}),
+await client.verifySignature({
+	personalMessage: message,
+	signature,
+	address,
+	checkAddressAliases: false,
 });
 ```
 
-For some zkLogin accounts, there are two valid addresses for a given set of inputs, so comparing the
-address from `publicKey.toSuiAddress()` directly against an expected address can fail. Instead, pass
-the expected address during verification, or use `publicKey.verifyAddress(address)`:
+`checkAddressAliases` is ignored without `address`. Results reflect the alias set when you verify,
+so a stored signature can verify today and fail later.
+
+### Sign-in with a personal message
+
+Put the account address and a server-issued, single-use nonce in the message, verify it with that
+`address`, then consume the nonce. An alias can belong to more than one account, so the address in
+the message is what ties the signature to one account.
+
+### zkLogin signatures
+
+zkLogin signatures are verified by the node, so use a client for the network the signature was
+created on. Pass the expected `address`: some zkLogin accounts have two valid addresses, and the
+node accepts both the standard and [legacy address](/sui/zklogin#legacy-addresses).
+
+### Verifying locally
+
+The `@mysten/sui/verify` helpers verify signatures offline, or return the signer's public key. Pass
+`offline: true` to verify locally, or a `client` to verify on the node as above:
 
 ```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
-const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
-	client: new SuiGraphQLClient({
-		url: 'https://graphql.testnet.sui.io/graphql',
-	}),
-	// Throws if the signature is not valid for the provided address
-	address: '0x...expectedAddress',
+// Throws if the signature is invalid or not from `address`
+const publicKey = await verifyPersonalMessageSignature(message, signature, {
+	offline: true,
+	address,
 });
-// or
-
-if (!publicKey.verifyAddress('0x...expectedAddress')) {
-	throw new Error('Signature was valid, but was signed by a different key pair');
-}
 ```
 
-Both methods check the signature against the standard and
-[legacy versions of the zkLogin address](https://sdk.mystenlabs.com/sui/zklogin#legacy-addresses).
+`verifyTransactionSignature` checks transaction signatures, and `isValidPersonalMessageSignature`
+and `isValidTransactionSignature` return `false` instead of throwing for an invalid signature. With
+a client, the returned `PublicKey` may belong to one of the address's aliases, so use `address`, not
+`publicKey.toSuiAddress()`, as the account's identity.
+
+Offline verification checks that the signer is `address` itself and can't check address aliases or
+verify zkLogin signatures. It also accepts an address's own key after the account removed it from
+its alias set, so verify on the node when that matters.
+
+The raw-bytes `verifySignature` export from `@mysten/sui/verify` and `isValidSignature` verify a
+signature over raw bytes. They only work offline.
+
+`PublicKey` methods such as `verifyPersonalMessage` and `verifyAddress` check a single key's own
+signature or address. They aren't account checks.
 
 ## Choosing an implementation
 

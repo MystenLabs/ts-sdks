@@ -9,7 +9,8 @@ import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 describe('Session key tests', () => {
 	const TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
-	it('import and export session key', async () => {
+	// Public nodes don't apply the address alias check yet.
+	it.skip('import and export session key', async () => {
 		const kp = Ed25519Keypair.generate();
 		const suiClient = new SuiGrpcClient({
 			network: 'testnet',
@@ -60,6 +61,7 @@ describe('Session key tests', () => {
 		const certificateSigner = await verifyPersonalMessageSignature(
 			sessionWithAliasSigner.getPersonalMessage(),
 			certificate.signature,
+			{ offline: true },
 		);
 		expect(certificateSigner.toSuiAddress()).toBe(kp2.getPublicKey().toSuiAddress());
 	});

@@ -78,6 +78,10 @@ export abstract class PublicKey {
 
 	/**
 	 * Verifies that the signature is valid for for the provided PersonalMessage
+	 *
+	 * This checks only this key's own signature. It doesn't check address aliases or zkLogin
+	 * state. To check a signature for an account, use `verifyPersonalMessageSignature` or
+	 * `verifyTransactionSignature` from `@mysten/sui/verify` with `{ client, address }`.
 	 */
 	verifyPersonalMessage(message: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		return this.verifyWithIntent(
@@ -89,6 +93,10 @@ export abstract class PublicKey {
 
 	/**
 	 * Verifies that the signature is valid for for the provided Transaction
+	 *
+	 * This checks only this key's own signature. It doesn't check address aliases or zkLogin
+	 * state. To check a signature for an account, use `verifyPersonalMessageSignature` or
+	 * `verifyTransactionSignature` from `@mysten/sui/verify` with `{ client, address }`.
 	 */
 	verifyTransaction(transaction: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		return this.verifyWithIntent(transaction, signature, 'TransactionData');
@@ -96,9 +104,12 @@ export abstract class PublicKey {
 
 	/**
 	 * Verifies that the public key is associated with the provided address
+	 *
+	 * This only compares the address derived from this key. It doesn't check address aliases, so
+	 * it isn't an account check: use `@mysten/sui/verify` with `{ client, address }` for that.
 	 */
 	verifyAddress(address: string): boolean {
-		return this.toSuiAddress() === address;
+		return this.toSuiAddress() === normalizeSuiAddress(address);
 	}
 
 	/**

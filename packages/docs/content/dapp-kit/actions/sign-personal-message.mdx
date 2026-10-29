@@ -96,4 +96,24 @@ await dAppKit.signPersonalMessage({ message: jsonMessage });
 - Always display the message content clearly to users before signing
 - Avoid signing opaque or encoded data that users cannot understand
 - Include human-readable prefixes for different message types
-- Consider adding timestamps to prevent replay attacks
+- Include a single-use nonce and an expiry to prevent replay attacks
+
+## Verifying on your server
+
+Verify the signature on your server with a client and the account's address:
+
+```typescript
+import { fromBase64 } from '@mysten/sui/utils';
+
+const { valid } = await client.verifySignature({
+	personalMessage: fromBase64(result.bytes),
+	signature: result.signature,
+	address: account.address,
+});
+```
+
+Include the account address and a server-issued nonce in the message. A signature from an address
+alias is valid for every account that lists that alias, so the address in the message ties it to one
+account. Use `address` as the user's identity. To verify offline or get the signer's public key, use
+the `@mysten/sui/verify` helpers. See
+[Verifying signatures](/sui/cryptography#verifying-signatures).
