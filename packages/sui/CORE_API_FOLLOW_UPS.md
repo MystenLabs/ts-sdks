@@ -45,6 +45,9 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 
 Findings from the 2026-10-14 indexer prototypes against public mainnet and testnet nodes.
 
+- **A quiet gRPC stream doesn't page forward during gap recovery** — on gRPC, a stream that stays
+  quiet during gap recovery while the index advances doesn't page forward until its first live item.
+  Resuming is unaffected.
 - **Replay handoff waits for the first live frame** — a following gRPC stream with a `start` opens
   the subscription first and only begins the historical read once the subscription reports a
   position (`src/client/stream/follow.ts`). Time to first frame is 1–3 s unfiltered and up to 17 s
