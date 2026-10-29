@@ -19,8 +19,8 @@ const EXCLUDE: ClientKind[] = [];
 /**
  * Asserts that a page reaching the end of a window ends the read. gRPC reports no next page.
  * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must be empty.
- * Until the localnet image has sui#28426, a transaction or event window can take one more empty
- * page to end; `strict` allows only one (checkpoint windows).
+ * A transaction or event window can take one more empty page to end; `strict` allows only one
+ * (checkpoint windows).
  */
 async function expectWindowEnd(
 	kind: ClientKind,
@@ -1278,8 +1278,8 @@ describe('Core API - Queries', () => {
 									return page;
 								}),
 							),
-							// Only the items: until the localnet image has sui#28426, GraphQL reports a next
-							// page for an empty window (see expectWindowEnd).
+							// Only the items: GraphQL can report a next page for an empty window (see
+							// expectWindowEnd).
 							empty: await Promise.all(
 								empty.map(
 									async (query) => (await client.core.listTransactions(query)).transactions,
@@ -1371,8 +1371,7 @@ describe('Core API - Queries', () => {
 					]) {
 						const page = await client.core.listTransactions({ filter, after, before });
 						expect(page.transactions).toEqual([]);
-						// Until the localnet image has sui#28426, GraphQL reports a next page here (see
-						// expectWindowEnd).
+						// GraphQL can report a next page here (see expectWindowEnd).
 						if (kind === 'grpc') {
 							expect(page).toMatchObject({
 								hasNextPage: false,
