@@ -876,7 +876,8 @@ describe('ledger streams', () => {
 							...f,
 							value: event,
 							key: `${event.transactionDigest}:${event.eventIndex}`,
-							checkpoint: event.checkpoint,
+							// Streams position every event by its checkpoint, so it is always set.
+							checkpoint: event.checkpoint!,
 						};
 					}
 				}
