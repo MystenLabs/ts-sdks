@@ -851,6 +851,29 @@ describe('Core API - Queries', () => {
 					exclude: EXCLUDE,
 					attempts: 3,
 				});
+
+				// Streams read history the same way.
+				const { Transaction: executed } = await toolbox.grpcClient.core.getTransaction({ digest });
+				const checkpoint = BigInt(executed!.checkpoint!);
+				const streamed = async (
+					client: ClientWithCore,
+					filter: SuiClientTypes.TransactionFilter,
+				) => {
+					const digests: string[] = [];
+					for await (const frame of client.core.streamTransactions({
+						filter,
+						start: { checkpoint: checkpoint.toString() },
+						end: { checkpoint: (checkpoint + 1n).toString() },
+					})) {
+						const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
+						digests.push(tx.digest);
+					}
+					return digests;
+				};
+				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					expect(await streamed(client, { affectedAddress: senderAddress })).toEqual([]);
+					expect(await streamed(client, { sender: senderAddress })).toEqual([digest]);
+				}
 			});
 
 			it('all clients return same data: affectedObject', async () => {
