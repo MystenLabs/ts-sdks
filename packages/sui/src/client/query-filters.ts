@@ -127,6 +127,7 @@ export async function resolveTransactionFilter(
 	filter: SuiClientTypes.TransactionFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedTransactionFilter> {
+	assertStrings(filter, ['sender', 'affectedAddress', 'affectedObject', 'function']);
 	assertAtMostOne(filter, ['affectedAddress', 'affectedObject', 'function'], 'A transaction');
 
 	const resolved: ResolvedTransactionFilter = {};
@@ -171,6 +172,7 @@ export async function resolveEventFilter(
 	filter: SuiClientTypes.EventFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedEventFilter> {
+	assertStrings(filter, ['sender', 'emitModule', 'eventType']);
 	assertAtMostOne(filter, ['emitModule', 'eventType'], 'An event');
 
 	const resolved: ResolvedEventFilter = {};
@@ -223,6 +225,17 @@ async function resolvePackage(
 	signal?: AbortSignal,
 ): Promise<string> {
 	return normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package);
+}
+
+// Checked before any MVR request: a non-string would otherwise fail later with a `TypeError`, which
+// streams cannot tell apart from an MVR network failure.
+function assertStrings(filter: Record<string, unknown>, fields: string[]) {
+	for (const field of fields) {
+		const value = filter[field];
+		if (value != null && typeof value !== 'string') {
+			throw new Error(`Invalid ${field} filter: expected a string, got ${typeof value}`);
+		}
+	}
 }
 
 function assertAtMostOne(filter: Record<string, unknown>, predicates: string[], subject: string) {
