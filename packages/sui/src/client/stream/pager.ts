@@ -84,9 +84,12 @@ export async function* readPages<Item>(
 	}
 	const endCut = end && cutAt(boundPosition(end, order), endSide, family);
 	if (endCut) narrow(request, endCut, endSide, false);
-	// The index must reach the end; an end without a checkpoint must at least pass its coverage.
+	// The index must reach the end; an end without a checkpoint must at least reach its coverage.
+	const endCovered = endCut && nextUncovered(endCut.coverage);
 	const target =
-		ascending && endCut ? (indexedThrough(endCut) ?? nextUncovered(endCut.coverage) ?? null) : null;
+		ascending && endCut
+			? (indexedThrough(endCut) ?? (endCovered === undefined ? null : endCovered - 1n))
+			: null;
 
 	const tracker = new CoverageTracker(order, family, boundCoverage(start, family));
 	// An ascending checkpoint start skips nothing on a lagging server; every other start can.
@@ -95,7 +98,7 @@ export async function* readPages<Item>(
 	let previous: StreamPosition | undefined;
 	let coverage: Coverage = { $kind: 'Unknown' };
 	// Ascending: the oldest checkpoint the pass may still have to read.
-	let unread = request.range.start;
+	let unread = request.range.start ?? nextUncovered(boundCoverage(start, family));
 	const advance = (raw: StreamPosition) => {
 		const position = tracker.apply(raw);
 		resumesFrom = position;
@@ -110,7 +113,10 @@ export async function* readPages<Item>(
 		return { complete: false, retentionLimit: false };
 	}
 
+	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
+		// Retention reported at the page end applies to everything the page read.
+		const pageUnread = unread;
 		const page = await adapter.fetchPage({ ...request, range: { ...request.range } });
 		let empty = true;
 		let pageEnd: PageEnd;
@@ -118,7 +124,7 @@ export async function* readPages<Item>(
 			// The first read waits for the server's first answer.
 			let read = await page.items.next();
 			if (first) yield { $kind: 'Connected' };
-			assertRetained(page.retainedFrom, order, request, unread, first);
+			assertRetained(page.retainedFrom, order, request, unread, first, resumed);
 			// A server behind the point this page resumes from would silently skip items.
 			const needed = resumesFrom && indexedThrough(resumesFrom);
 			if (needed != null && page.viewedAt !== undefined && page.viewedAt < needed) {
@@ -143,7 +149,7 @@ export async function* readPages<Item>(
 		// Retention reported at the end of a page is checked once the page is read.
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
-			assertRetained(pageEnd.retainedFrom, order, request, unread, first);
+			assertRetained(pageEnd.retainedFrom, order, request, pageUnread, first, resumed);
 		}
 
 		const { more, cursor } = pageEnd.next;
@@ -263,7 +269,8 @@ function boundaryAfter(
 /**
  * Fails when the server has pruned history the pass still has to read: ascending, anything from
  * the oldest unread checkpoint; descending, the low end of the range, or on the first page a start
- * that is already below retention. A descending read to genesis instead stops at retention.
+ * that is already below retention. A descending read to genesis instead stops at retention, and
+ * resuming one exactly at the oldest retained checkpoint has nothing left to read.
  */
 function assertRetained(
 	retainedFrom: bigint | undefined,
@@ -271,6 +278,7 @@ function assertRetained(
 	{ range }: PageRequest,
 	unread: bigint | undefined,
 	first: boolean,
+	resumed: boolean,
 ) {
 	if (retainedFrom === undefined) return;
 	let pruned: bigint | undefined;
@@ -278,7 +286,11 @@ function assertRetained(
 		if (unread !== undefined && unread < retainedFrom) pruned = unread;
 	} else if (range.start !== undefined && range.start < retainedFrom) {
 		pruned = range.start;
-	} else if (first && range.end !== undefined && range.end <= retainedFrom) {
+	} else if (
+		first &&
+		range.end !== undefined &&
+		(range.end < retainedFrom || (range.end === retainedFrom && !resumed))
+	) {
 		pruned = range.end - 1n;
 	}
 	if (pruned === undefined) return;
