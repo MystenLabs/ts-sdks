@@ -56,7 +56,10 @@ export interface PageEnd {
 export interface Page<Item> {
 	/** In traversal order, as they arrive. Returns the page end. */
 	items: AsyncIterator<PageItem<Item>, PageEnd, undefined>;
-	/** The indexed tip of the server that answered. */
+	/**
+	 * The indexed tip of the server that answered. An adapter reports it on every page or on none;
+	 * the pager's lag check relies on that.
+	 */
 	viewedAt?: bigint;
 	/** The oldest checkpoint the server retains for this read. */
 	retainedFrom?: bigint;

@@ -43,9 +43,7 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 
 ## Ledger streams
 
-Findings from the 2026-10-14 indexer prototypes against public mainnet and testnet nodes. The stream
-code they refer to arrives later in this stack (`src/client/stream/`, `src/grpc/stream/`,
-`src/graphql/stream/`).
+Findings from the 2026-10-14 indexer prototypes against public mainnet and testnet nodes.
 
 - **Replay handoff waits for the first live frame** — a following gRPC stream with a `start` opens
   the subscription first and only begins the historical read once the subscription reports a
