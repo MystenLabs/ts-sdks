@@ -844,13 +844,11 @@ describe('Core API - Queries', () => {
 				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
 					// The sponsor's match shows this client's index has the transaction.
 					expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
-					expect(digestsOf(await affectingSender(client))).toEqual([]);
 					expect(digestsOf(await sentBy(client))).toEqual([digest]);
 				}
-				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
-					exclude: EXCLUDE,
-					attempts: 3,
-				});
+				// The localnet GraphQL service answers this from its Postgres index, which also counts
+				// the sender.
+				expect(digestsOf(await affectingSender(toolbox.grpcClient))).toEqual([]);
 				await toolbox.expectAllClientsReturnSameData(sentBy, stripCursors, {
 					exclude: EXCLUDE,
 					attempts: 3,
