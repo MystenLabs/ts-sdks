@@ -313,7 +313,7 @@ describe('gRPC list query requests', () => {
 		},
 	);
 
-	it('throws when an event is missing its checkpoint', async () => {
+	it('reports an event without a checkpoint as null', async () => {
 		const client = makeClient();
 		mockListEvents(client, [
 			GrpcTypes.ListEventsResponse.create({
@@ -330,8 +330,7 @@ describe('gRPC list query requests', () => {
 			}),
 		]);
 
-		await expect(client.core.listEvents({})).rejects.toThrow(
-			'listEvents response is missing expected event fields',
-		);
+		const { events } = await client.core.listEvents({});
+		expect(events[0].checkpoint).toBeNull();
 	});
 });

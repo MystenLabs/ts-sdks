@@ -728,14 +728,7 @@ export class GraphQLCoreClient extends CoreClient {
 				const transactionDigest = event.transaction?.digest;
 				const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
 
-				if (
-					!packageId ||
-					!module ||
-					!sender ||
-					!eventType ||
-					!transactionDigest ||
-					checkpoint == null
-				) {
+				if (!packageId || !module || !sender || !eventType || !transactionDigest) {
 					throw new Error('listEvents response is missing expected event fields');
 				}
 
@@ -746,7 +739,7 @@ export class GraphQLCoreClient extends CoreClient {
 					eventType: normalizeStructTag(eventType),
 					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
 					json: (event.contents?.json as Record<string, unknown>) ?? null,
-					checkpoint: String(checkpoint),
+					checkpoint: checkpoint == null ? null : String(checkpoint),
 					transactionDigest,
 					eventIndex: event.sequenceNumber,
 				};
