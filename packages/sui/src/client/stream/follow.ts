@@ -1,13 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { linkedAbortController, sleep } from '../../utils/abort.js';
+import { linkedAbortController } from '../../utils/abort.js';
 import type {
 	CoreFrame,
 	LedgerStreamAdapter,
 	LiveEvent,
 	LiveSubscription,
-	PositionEvent,
 	StreamFamily,
 } from './adapter.js';
 import { compareBounds } from './plan.js';
@@ -18,14 +17,14 @@ import {
 	positionCoverage,
 	type StreamPosition,
 } from './position.js';
-import type { LiveFeed, StreamSession } from './session.js';
+import type { StreamSession } from './session.js';
 
 /**
  * The live handoff, rerun on every reconnect: subscribe after the resume point, then deliver. The
  * server backfills from there and then goes live. A transport whose subscriptions start at the
- * live tip instead pages history through the indexed tip, polling it until the first live item,
- * then replays the gap before that item. Live progress never ends that recovery: a cursor past the
- * tip says nothing about the history before it, and a quiet feed may send nothing else.
+ * live tip instead pages history through the indexed tip, then replays the gap before the first
+ * live item. Live progress never ends that recovery: a cursor past the tip says nothing about the
+ * history before it, and a quiet feed may send nothing else.
  */
 export async function* followLive<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
@@ -59,7 +58,7 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 				// it would skip what lies between the tip and the first item.
 				if (!caughtUp) yield* replayGap(session, subscription, 'tip');
 				session.markLive();
-				first = yield* pollUntilFirstItem(session, subscription, feed);
+				first = await feed.firstItem();
 			}
 			yield* replayGap(session, subscription, first.position);
 		}
@@ -68,29 +67,6 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 		attempt.controller.abort();
 		await feed.close();
 		attempt.dispose();
-	}
-}
-
-/** Pages to the moving indexed tip once per poll interval until the feed's first item arrives. */
-async function* pollUntilFirstItem<Item, Frame extends { resumeToken: string }>(
-	session: StreamSession<Item, Frame>,
-	subscription: LiveSubscription<Item>,
-	feed: LiveFeed<Item>,
-): AsyncGenerator<CoreFrame<Frame>, PositionEvent<Item>> {
-	const item = feed.firstItem();
-	// Closing the feed after a failed pass rejects the pending read.
-	item.catch(() => {});
-	while (true) {
-		const wait = linkedAbortController(session.signal);
-		try {
-			const interval = sleep(session.pollInterval, wait.controller.signal).then(() => undefined);
-			const first = await Promise.race([item, interval]);
-			if (first) return first;
-		} finally {
-			wait.controller.abort();
-			wait.dispose();
-		}
-		yield* replayGap(session, subscription, 'tip');
 	}
 }
 
