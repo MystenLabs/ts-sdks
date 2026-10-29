@@ -25,10 +25,11 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - **GraphQL event checkpoints** — `listEvents` reports `checkpoint: null` for an event whose
   checkpoint the server doesn't return. Seen once in e2e runs (an unfiltered read of the first
   events on a fresh localnet); retrying the page returned it.
-- **GraphQL's live `affectedAddress` matcher includes the sender and gas owner** — unlike gRPC and
-  GraphQL catch-up (pages and subscription backfill), which match only addresses whose objects or
-  balance changed. A GraphQL follow can deliver a transaction live that a re-read from history
-  doesn't.
+- **GraphQL `affectedAddress` can include the sender and gas owner** — gRPC, and GraphQL servers
+  that answer through their gRPC-backed query path, match only addresses whose objects or balance
+  changed. GraphQL's live subscription matcher, and GraphQL servers that answer from the Postgres
+  index (`tx_affected_addresses`), also match the sender and gas payer. Results can differ between
+  transports and between GraphQL deployments.
 
 ## Blocked by GraphQL
 
@@ -45,7 +46,9 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 
 ## Ledger streams
 
-Findings from the 2026-10-14 indexer prototypes against public mainnet and testnet nodes.
+Findings from the 2026-10-14 indexer prototypes against public mainnet and testnet nodes. The stream
+code they refer to arrives later in this stack (`src/client/stream/`, `src/grpc/stream/`,
+`src/graphql/stream/`).
 
 - **Replay handoff waits for the first live frame** — a following gRPC stream with a `start` opens
   the subscription first and only begins the historical read once the subscription reports a
