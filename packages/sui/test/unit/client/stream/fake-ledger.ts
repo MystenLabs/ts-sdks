@@ -133,8 +133,11 @@ export interface LiveScript {
 	end?: 'eof' | 'hang' | Error;
 }
 
-/** Per page request: fail it, or repeat the item at the cursor it resumes after. */
-export type PageFault = { error: Error } | { repeatCursor: true };
+/**
+ * Per page request: fail it (after `afterItems` of its items, if set), or repeat the item at the
+ * cursor it resumes after.
+ */
+export type PageFault = { error: Error; afterItems?: number } | { repeatCursor: true };
 
 export interface FakeOptions {
 	pageSize?: number;
@@ -213,7 +216,7 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 	async function fetchPage(request: PageRequest): Promise<Page<FakeItem>> {
 		calls.pages.push(request);
 		const fault = pageFaults.shift();
-		if (fault && 'error' in fault) throw fault.error;
+		if (fault && 'error' in fault && fault.afterItems === undefined) throw fault.error;
 		const { range, order } = request;
 		const tip = ledger.indexedTip;
 		if (options.watermarks && range.start !== undefined && range.start < floor) {
@@ -239,13 +242,20 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		if (fault && 'repeatCursor' in fault && resumed) items.unshift(itemAt(resumed));
 		options.afterRead?.(ledger);
 		const last = items.at(-1);
-		const page = (end: Omit<PageEnd, 'next'> = {}, head: Omit<Page<FakeItem>, 'items'> = {}) => ({
-			items: pageItems(
-				items.map((item) => ({ position: positionOf(item, ledger.opaque), item })),
-				{ next: { more, cursor: last && cursorOf(last) }, ...end },
-			),
-			...head,
-		});
+		const page = (end: Omit<PageEnd, 'next'> = {}, head: Omit<Page<FakeItem>, 'items'> = {}) => {
+			const read = items.map((item) => ({ position: positionOf(item, ledger.opaque), item }));
+			const pageEnd = { next: { more, cursor: last && cursorOf(last) }, ...end };
+			return {
+				items:
+					fault && 'error' in fault
+						? (async function* () {
+								yield* read.slice(0, fault.afterItems);
+								throw fault.error;
+							})()
+						: pageItems(read, pageEnd),
+				...head,
+			};
+		};
 		if (!options.watermarks) return page({}, { viewedAt: tip, retainedFrom: floor });
 		if (order === 'ascending' && !more) {
 			const end = range.end === undefined ? tip : range.end - 1n;

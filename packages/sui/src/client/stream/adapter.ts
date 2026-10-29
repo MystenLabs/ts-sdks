@@ -49,7 +49,11 @@ export interface PageEnd {
 	next: { more: boolean; cursor?: Uint8Array };
 	/** Ascending: every match through this checkpoint is in this page or an earlier one. */
 	covered?: bigint;
-	/** The oldest checkpoint the server retains for this read, when the server reports it last. */
+	/**
+	 * A descending read without a low end: the oldest checkpoint the server retains, where the read
+	 * stopped. Any other read reports retention before its items, as `Page.retainedFrom` or a
+	 * `HistoryUnavailable` failure.
+	 */
 	retainedFrom?: bigint;
 }
 

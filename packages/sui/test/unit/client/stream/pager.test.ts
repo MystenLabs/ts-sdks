@@ -342,19 +342,26 @@ describe('readPages', () => {
 		expect(delivered(known.events)).toEqual(['Boundary@6']);
 	});
 
-	it('checks retention reported at a page end against what the page started from', async () => {
-		const { adapter } = scripted([
-			{
-				items: pageItems([{ position: item(15n, 0n), item: '15:0' }], {
-					next: { more: false },
-					retainedFrom: 15n,
-				}),
-			},
-		]);
-		await expect(
-			read(adapter, { order: 'ascending', start: { checkpoint: 5n }, end: { checkpoint: 30n } }),
-		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-	});
+	it.each([
+		['an ascending page', 'ascending', { checkpoint: 5n }, { checkpoint: 30n }],
+		['a descending page with a low end', 'descending', { checkpoint: 30n }, { checkpoint: 5n }],
+	] as const)(
+		'rejects retention that %s reports only after its items',
+		async (_, order, start, end) => {
+			// Items already delivered may have resumed past pruned history.
+			const { adapter } = scripted([
+				{
+					items: pageItems([{ position: item(15n, 0n), item: '15:0' }], {
+						next: { more: false },
+						retainedFrom: 15n,
+					}),
+				},
+			]);
+			await expect(read(adapter, { order, start, end })).rejects.toMatchObject({
+				code: 'Protocol',
+			});
+		},
+	);
 
 	it('checks retention from the coverage of a progress start', async () => {
 		const start = progressPosition(bytes('p'), { coverage: { $kind: 'Through', checkpoint: 9n } });
@@ -419,6 +426,29 @@ describe('readPages', () => {
 			await pages.return({ complete: false, retentionLimit: false });
 		}
 		expect(closed).toBe(1);
+	});
+
+	it('delivers each item as it arrives, before the rest of the page', async () => {
+		let arrive!: () => void;
+		const late = new Promise<void>((resolve) => (arrive = resolve));
+		const items = (async function* () {
+			yield { position: item(3n, 0n), item: '3:0' };
+			await late;
+			yield { position: item(4n, 0n), item: '4:0' };
+			return { next: { more: false } };
+		})();
+		const { adapter } = scripted([{ items }]);
+		const pages = readPages(adapter, {
+			order: 'ascending',
+			start: { checkpoint: 1n },
+			signal: new AbortController().signal,
+		});
+		expect((await pages.next()).value).toEqual({ $kind: 'Connected' });
+		expect((await pages.next()).value).toMatchObject({ $kind: 'Item', item: '3:0' });
+		const next = pages.next();
+		arrive();
+		expect((await next).value).toMatchObject({ $kind: 'Item', item: '4:0' });
+		await pages.return({ complete: false, retentionLimit: false });
 	});
 
 	it('commits the boundary after a quiet range, within it, and judges completeness', async () => {
