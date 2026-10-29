@@ -122,6 +122,10 @@ describe('deduplication', () => {
 						ledger.item(8),
 						{ $kind: 'Progress', position: progressPosition(cursor('p1')) },
 						{ $kind: 'Progress', position: progressPosition(cursor('p2')) },
+						{
+							$kind: 'Progress',
+							position: progressPosition(cursor('p3'), { indexedCheckpoint: 30n }),
+						},
 					],
 					end: 'hang',
 				},
@@ -129,11 +133,12 @@ describe('deduplication', () => {
 		});
 		const frames = await take(
 			stream(adapter, { start: { checkpoint: 8 }, frames: { progress: true } }),
-			4,
+			5,
 		);
 		expect(frames.map((frame) => frame.$kind)).toEqual([
 			'Progress',
 			'Item',
+			'Progress',
 			'Progress',
 			'Progress',
 		]);
@@ -144,6 +149,38 @@ describe('deduplication', () => {
 		const position = (frame: (typeof frames)[number]) => decodeToken(tokenOf(frame)).position;
 		expect(position(frames[2])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 8n });
 		expect(position(frames[3])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 8n });
+		// A newer index the adapter reported is kept.
+		expect(position(frames[4])).toMatchObject({ kind: 'Progress', indexedCheckpoint: 30n });
+	});
+
+	it('places a live progress cursor only by checkpoints this feed passed', async () => {
+		// History reaches checkpoint 8, then a subscription at the live tip reports progress at a
+		// cursor past checkpoint 100 before the gap up to it is replayed.
+		const ledger = ledgerOf(120, 8);
+		const live = cursorOf({ checkpoint: 101n, index: 0 });
+		const adapter = fakeAdapter(ledger, {
+			pageSize: 200,
+			afterRead: () => (ledger.indexedTip = 120n),
+			live: [{ events: [{ $kind: 'Progress', position: progressPosition(live) }], end: 'hang' }],
+		});
+		const frames = await take(
+			stream(adapter, { start: { checkpoint: 0 }, frames: { progress: true } }),
+			103,
+		);
+		const progress = frames.at(-1);
+		expect(ids(frames).at(-1)).toBe('100:0');
+		expect(decodeToken(tokenOf(progress)).position).toMatchObject({ cursor: live });
+
+		// Resuming on a server indexed through 50 must not move the resume point behind the cursor.
+		const resumed = await collect(
+			stream(fakeAdapter(ledgerOf(120, 50), { pageSize: 200 }), {
+				start: { resumeToken: tokenOf(progress) },
+				follow: false,
+				frames: { progress: true },
+			}),
+		);
+		// A boundary from that server would sit behind the cursor and re-deliver 51..100.
+		expect(resumed).toEqual([]);
 	});
 });
 
