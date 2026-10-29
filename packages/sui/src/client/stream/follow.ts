@@ -22,14 +22,17 @@ import type { StreamSession } from './session.js';
 /**
  * The live handoff, rerun on every reconnect: subscribe after the resume point, then deliver. The
  * server backfills from there and then goes live. A transport whose subscriptions start at the
- * live tip instead pages history first and replays the gap before the first live event.
+ * live tip instead pages history through the indexed tip, then replays the gap before the first
+ * live item. Live progress never ends that recovery: a cursor past the tip says nothing about the
+ * history before it, and a quiet feed may send nothing else.
  */
 export async function* followLive<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
 	adapter: LedgerStreamAdapter<Item, Frame>,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
 	const replaysGap = !adapter.resumesSubscriptions;
-	if (replaysGap && session.catchesUpFirst()) yield* session.replay('tip', 'history');
+	const caughtUp = replaysGap && session.catchesUpFirst();
+	if (caughtUp) yield* session.replay('tip', 'history');
 	// Commit a checkpoint start, so a token exists before the first match.
 	const start = session.start;
 	if (!session.committed && start && 'checkpoint' in start) {
@@ -43,13 +46,20 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 		withCoverage(subscription, adapter.family, session.committed, !replaysGap),
 	);
 	try {
-		const first = await feed.first();
+		let first = await feed.first();
 		if (!start) {
 			// A fresh follow at the live tip: everything before the first live checkpoint is behind it.
 			if (first.$kind === 'Item') {
 				yield* session.baseline(boundaryPosition(first.position.checkpoint!));
 			}
 		} else if (replaysGap) {
+			if (first.$kind === 'Progress') {
+				// Recovery ends at the indexed tip. Progress before the first item is dropped: committed,
+				// it would skip what lies between the tip and the first item.
+				if (!caughtUp) yield* replayGap(session, subscription, 'tip');
+				session.markLive();
+				first = await feed.firstItem();
+			}
 			yield* replayGap(session, subscription, first.position);
 		}
 		yield* session.deliver(feed);
@@ -63,11 +73,11 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 async function* replayGap<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
 	subscription: LiveSubscription<Item>,
-	first: StreamPosition,
+	to: StreamPosition | 'tip',
 ): AsyncGenerator<CoreFrame<Frame>, void> {
-	const end = { position: first };
+	const end = to === 'tip' ? to : { position: to };
 	// The index can be ahead of the server that took the subscription: then there is no gap.
-	const comparison = compareBounds(session.start!, end, 'ascending');
+	const comparison = end === 'tip' ? undefined : compareBounds(session.start!, end, 'ascending');
 	if (comparison !== undefined && comparison >= 0) return;
 	subscription.readAhead?.(true);
 	try {
@@ -84,8 +94,7 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
  * It records the newest checkpoint the feed has passed as `indexedCheckpoint` instead: no match
  * lies between that checkpoint and the cursor, so a server indexed that far can resume it, and a
  * boundary from such a server never re-delivers or skips a match. `committed` counts as passed only
- * on a feed that `resumes` after it: otherwise a gap before the feed is still to be replayed, and
- * progress the feed cannot place yet is dropped rather than committed.
+ * on a feed that `resumes` after it: otherwise a gap before the feed is still to be replayed.
  */
 async function* withCoverage<Item>(
 	events: AsyncIterable<LiveEvent<Item>>,
@@ -107,8 +116,6 @@ async function* withCoverage<Item>(
 			const own = event.position.indexedCheckpoint;
 			const indexedCheckpoint =
 				passed === undefined || (own !== null && own > passed) ? own : passed;
-			// Nothing says how far a replay must reach before this cursor, so it cannot end the gap.
-			if (indexedCheckpoint === null && !resumes && committed) continue;
 			yield { ...event, position: { ...event.position, indexedCheckpoint } };
 		} else {
 			const position = tracker.apply(event.position);
