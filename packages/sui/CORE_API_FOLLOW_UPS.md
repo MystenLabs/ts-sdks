@@ -26,6 +26,11 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   checkpoint the server doesn't return. Seen once in e2e runs (an unfiltered read of the first
   events on a fresh localnet); retrying the page returned it.
 
+- **GraphQL's live `affectedAddress` matcher includes the sender and gas owner** — unlike gRPC and
+  GraphQL catch-up (pages and subscription backfill), which match only addresses whose objects or
+  balance changed. A GraphQL follow can deliver a transaction live that a re-read from history
+  doesn't.
+
 ## Blocked by GraphQL
 
 - **OR of filters, negated predicates, and repeated predicate values** — the gRPC DNF filter model
