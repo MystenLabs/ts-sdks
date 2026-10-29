@@ -3,8 +3,9 @@
 A native gRPC (HTTP/2) transport for `SuiGrpcClient` from `@mysten/sui/grpc`, built on
 [`@grpc/grpc-js`](https://www.npmjs.com/package/@grpc/grpc-js). Node.js only.
 
-Ledger streams read messages only as your loop asks for them, as on the default gRPC-web transport.
-Compared with gRPC-web, it also:
+Without `interceptors`, ledger streams read messages only as your loop asks for them, as on the
+default gRPC-web transport; with `interceptors`, messages are read as they arrive. Compared with
+gRPC-web, it also:
 
 - runs every call over one HTTP/2 connection,
 - sends keepalive pings while calls are open, so a long-lived stream notices a dead connection,

@@ -175,17 +175,20 @@ transport.close();
 ```
 
 `https://` URLs connect with TLS, and `http://` URLs, such as `http://127.0.0.1:9000` for a local
-node, connect without it. Errors carry the same codes as on the default transport, and
-[ledger streams](./streaming.mdx) still read messages only as your loop asks for them. Compared with
-gRPC-web, the transport:
+node, connect without it. Errors carry the same codes as on the default transport, except that a
+unary call whose stream is reset fails with `INTERNAL`, since the server may have acted on it.
+Without `interceptors`, [ledger streams](./streaming.mdx) read messages only as your loop asks for
+them. With `interceptors`, messages are read as they arrive. Compared with gRPC-web, the transport:
 
 - runs every call over one HTTP/2 connection,
 - sends keepalive pings while calls are open, so a long-lived stream notices a dead connection,
 - connects to nodes that serve gRPC without a gRPC-web proxy.
 
-While a stream's loop pauses, the transport holds at most `prefetch` decoded messages plus the
-HTTP/2 flow-control window, and the server waits. Every stream on the connection shares the window,
-so raise `grpc-node.flow_control_window` when many streams read history at once over a slow link.
+Without `interceptors`, a stream whose loop pauses holds up to about `prefetch` decoded messages,
+and HTTP/2 flow control stops the server once the window is full. `grpc-node.flow_control_window` in
+`clientOptions` (4 MiB by default) sets the window of each stream and of the connection, so each
+paused stream can also hold up to that many bytes not yet decoded. A smaller window holds less per
+stream but slows history reads whose pages are larger than it.
 
 | Option                    | Default                         | Purpose                                                         |
 | ------------------------- | ------------------------------- | --------------------------------------------------------------- |
