@@ -173,18 +173,120 @@ describe('restrictedMoveCalls', () => {
 		expect((await run([`${BAD}::any::thing`], { targets: { '0xbad': false } })).result).toEqual([]);
 	});
 
-	it('rejects malformed targets and exceptions outside their key', () => {
-		expect(() => restrictedMoveCalls({ targets: { '0x2::a::b::c': 'block' } })).toThrow(
-			'Invalid restricted Move call target',
-		);
-		expect(() => restrictedMoveCalls({ targets: { '0x2::': 'block' } })).toThrow(
-			'Invalid restricted Move call target',
-		);
+	it('rejects exceptions outside their key', () => {
 		expect(() =>
 			restrictedMoveCalls({
 				targets: { '0x2::allowance': { level: 'warn', except: ['0x2::coin::zero'] } },
 			}),
 		).toThrow('is not within restricted target');
+	});
+
+	it.each([
+		['bad package in a module target', '0xbad:drain'],
+		['non-hex package', 'not-an-address'],
+		['non-hex package in the example style', '0xapp'],
+		['wildcard package', '*::coin'],
+		['wildcard module', '0x2::*'],
+		['named package', '@foo/bar::mod'],
+		['address longer than 32 bytes', `0x${'a'.repeat(70)}`],
+		['empty string', ''],
+		['bare 0x', '0x'],
+		['empty package', '::coin'],
+		['trailing separator', '0x2::'],
+		['empty module', '0x2::::zero'],
+		['too many segments', '0x2::a::b::c'],
+		['invalid module', '0x2::1coin'],
+		['invalid function', '0x2::coin::ze-ro'],
+		['__proto__ as package', '__proto__'],
+		['__proto__ as module', '0x2::__proto__'],
+	])('rejects a malformed target and exception: %s', (_name, target) => {
+		const error = 'Invalid restricted Move call target';
+		expect(() => restrictedMoveCalls({ targets: { [target]: 'block' } })).toThrow(error);
+		expect(() => restrictedMoveCalls({ targets: { [target]: false } })).toThrow(error);
+		expect(() =>
+			restrictedMoveCalls({ targets: { '*': { level: 'warn', except: [target] } } }),
+		).toThrow(error);
+	});
+
+	it('rejects a __proto__ key from JSON and inherited targets', () => {
+		const fromJson = JSON.parse('{"__proto__":"block"}') as Record<string, 'block'>;
+		expect(() => restrictedMoveCalls({ targets: fromJson })).toThrow(
+			'Invalid restricted Move call target',
+		);
+
+		const inherited = Object.create({ '0xbad': 'block' }) as Record<string, 'block'>;
+		expect(() => restrictedMoveCalls({ targets: inherited })).toThrow('expected a plain object');
+	});
+
+	it.each([
+		['true', true],
+		['a number', 5],
+		['a Map', new Map([['0xbad', 'block']])],
+		['an array', ['block']],
+		['null', null],
+	])('rejects targets that are not a plain object: %s', (_name, targets) => {
+		expect(() =>
+			restrictedMoveCalls({ targets: targets as unknown as Record<string, 'block'> }),
+		).toThrow('expected a plain object');
+	});
+
+	it('accepts targets without a prototype', async () => {
+		const targets = Object.assign(Object.create(null), { '0xbad': 'block' }) as Record<
+			string,
+			'block'
+		>;
+		expect((await run([`${BAD}::any::thing`], { targets })).result).toHaveLength(1);
+	});
+
+	it.each([['0x2::coin'], [null], [{}]])('rejects the non-array except %j', (except) => {
+		expect(() =>
+			restrictedMoveCalls({
+				targets: { '0x2': { level: 'warn', except: except as unknown as string[] } },
+			}),
+		).toThrow('except must be an array');
+	});
+
+	it.each([['blok'], [true], [null], [undefined], [{}], [{ level: 'blok' }], [{ level: true }]])(
+		'rejects the invalid target level %j',
+		(value) => {
+			expect(() =>
+				restrictedMoveCalls({ targets: { '0xbad': value as unknown as 'block' } }),
+			).toThrow('Invalid restriction level');
+		},
+	);
+
+	it.each([['blok'], [true], [null]])('rejects the invalid addressAliases level %j', (value) => {
+		expect(() => restrictedMoveCalls({ addressAliases: value as unknown as 'block' })).toThrow(
+			'Invalid restriction level',
+		);
+	});
+
+	it.each([
+		['0x2', '0x2::coin::zero'],
+		['0x02', '0x2::coin::zero'],
+		['0xBAD', '0xbad::coin::zero'],
+		['0XBAD', '0xbad::coin::zero'],
+		['bad', '0xbad::coin::zero'],
+		[SUI, '0x2::coin::zero'],
+		['0x2::coin', '0x2::coin::zero'],
+		['0x2::coin::zero', '0x2::coin::zero'],
+		['*', '0x2::coin::zero'],
+	])('accepts the target %s, as a key and as an exception', async (target, call) => {
+		const flagged = await run([call], { targets: { [target]: 'block' } });
+		expect(flagged.result).toEqual([expect.objectContaining({ matchedBy: [target] })]);
+
+		const exempted = await run([call], {
+			targets: { '*': { level: 'block', except: [target] } },
+		});
+		expect(exempted.result).toEqual([]);
+	});
+
+	it('accepts false for targets and addressAliases', async () => {
+		const result = await run(['0x2::address_alias::add'], {
+			addressAliases: false,
+			targets: { '0x2': false, '0x2::address_alias': false, '*': false },
+		});
+		expect(result.result).toEqual([]);
 	});
 
 	it('runs several configurations in the same analysis', async () => {

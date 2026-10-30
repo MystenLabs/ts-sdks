@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { isValidSuiAddress, normalizeSuiAddress } from '@mysten/sui/utils';
 import { createAnalyzer } from '../analyzer.js';
 import { data } from './core.js';
 
@@ -56,21 +56,30 @@ interface CompiledRule {
 
 const ADDRESS_ALIAS_TARGET = '0x2::address_alias';
 const WILDCARD = '*';
+const MOVE_IDENTIFIER = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+// normalizeSuiAddress pads these to the zero address, which would pass validation.
+const EMPTY_ADDRESS = /^(0x)?$/i;
 
 function parseTarget(target: string): TargetPattern {
 	if (target === WILDCARD) {
 		return { package: null, module: null, function: null };
 	}
 
-	const parts = target.split('::');
-	if (parts.length > 3 || parts.some((part) => part.length === 0)) {
+	const [pkg, module, fn, ...rest] = target.split('::');
+	const normalizedPackage = normalizeSuiAddress(pkg);
+	if (
+		rest.length > 0 ||
+		EMPTY_ADDRESS.test(pkg) ||
+		!isValidSuiAddress(normalizedPackage) ||
+		(module !== undefined && !MOVE_IDENTIFIER.test(module)) ||
+		(fn !== undefined && !MOVE_IDENTIFIER.test(fn))
+	) {
 		throw new Error(
 			`Invalid restricted Move call target "${target}": expected "*", "pkg", "pkg::module", or "pkg::module::function"`,
 		);
 	}
 
-	const [pkg, module, fn] = parts;
-	return { package: normalizeSuiAddress(pkg), module: module ?? null, function: fn ?? null };
+	return { package: normalizedPackage, module: module ?? null, function: fn ?? null };
 }
 
 function matches(pattern: TargetPattern, pkg: string, module: string, fn: string) {
@@ -90,11 +99,27 @@ function isWithin(inner: TargetPattern, outer: TargetPattern) {
 	);
 }
 
+function isPlainObject(value: unknown) {
+	if (typeof value !== 'object' || value === null) return false;
+	const prototype = Object.getPrototypeOf(value);
+	return prototype === Object.prototype || prototype === null;
+}
+
 function compileRule(key: string, target: string, value: RestrictedTarget): CompiledRule | null {
+	const pattern = parseTarget(target);
 	if (value === false) return null;
 
-	const pattern = parseTarget(target);
-	const { level, except = [] } = typeof value === 'string' ? { level: value } : value;
+	const { level, except = [] } =
+		typeof value === 'object' && value !== null ? value : { level: value };
+	// Levels reach here untyped from JSON configs, and a typo must not weaken a block to a warn.
+	if (level !== 'block' && level !== 'warn') {
+		throw new Error(
+			`Invalid restriction level "${String(level)}" for "${key}": expected "block", "warn", or false`,
+		);
+	}
+	if (!Array.isArray(except)) {
+		throw new Error(`Invalid except for "${key}": except must be an array of targets`);
+	}
 	const exceptPatterns = except.map((exceptTarget) => {
 		const exception = parseTarget(exceptTarget);
 		if (!isWithin(exception, pattern)) {
@@ -119,17 +144,22 @@ function compileRule(key: string, target: string, value: RestrictedTarget): Comp
  * const restricted = restrictedMoveCalls({
  *   targets: {
  *     '0x2::allowance': { level: 'warn', except: ['0x2::allowance::new'] },
- *     '*': { level: 'warn', except: ['0x2', '0xapp'] }, // packages the app doesn't know
+ *     '*': { level: 'warn', except: ['0x2', '0xa99'] }, // packages the app doesn't know
  *   },
  * });
  * ```
  *
- * Throws if a target or exception is malformed, or an exception is outside its key.
+ * Throws if a target, exception or level is invalid, or an exception is outside its key.
  */
 export function restrictedMoveCalls({
 	addressAliases = 'block',
 	targets = {},
 }: RestrictedMoveCallsOptions = {}) {
+	// Object.entries sees no rules in a Map or an inherited preset, and array indexes parse as packages.
+	if (!isPlainObject(targets)) {
+		throw new Error('Invalid restricted Move call targets: expected a plain object');
+	}
+
 	const rules = [
 		compileRule('addressAliases', ADDRESS_ALIAS_TARGET, addressAliases),
 		...Object.entries(targets).map(([key, value]) => compileRule(key, key, value)),

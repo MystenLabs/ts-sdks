@@ -227,6 +227,12 @@ describe('allowedPackages / allowedFunctions', () => {
 });
 
 describe('noRestrictedMoveCalls', () => {
+	it('throws at creation on a malformed target', () => {
+		expect(() => noRestrictedMoveCalls({ targets: { '0xbad:drain': 'block' } })).toThrow(
+			'Invalid restricted Move call target',
+		);
+	});
+
 	const sui = normalizeSuiAddress('0x2');
 	const bad = normalizeSuiAddress('0xbad');
 
