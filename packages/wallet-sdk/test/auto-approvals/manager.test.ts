@@ -15,7 +15,7 @@ import {
 	type AutoApprovalResult,
 } from '../../src/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { MIST_PER_SUI, normalizeSuiAddress } from '@mysten/sui/utils';
+import { MIST_PER_SUI, normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import { DEFAULT_SENDER, FRAMEWORK_MOVE_FUNCTIONS } from '../mocks/mockData.js';
 
@@ -105,6 +105,7 @@ function autoApprovalAnalysis(overrides: Partial<AutoApprovalAnalysis> = {}): Au
 		senderBalanceFlows,
 		coinValues: { total: 0, coinTypesWithoutPrice: [], coinTypes: [] },
 		accessLevel: {},
+		addressAliasCalls: [],
 		ownedObjects: [],
 		digest: 'test-digest',
 		...overrides,
@@ -288,6 +289,106 @@ describe('AutoApprovalManager', () => {
 		manager.commitTransaction(results.autoApproval);
 
 		expect(manager.getSettings()?.coinBudgets).toEqual({ [SUI]: '0' });
+	});
+
+	test('never auto-approves address alias changes', async () => {
+		const client = new MockSuiClient();
+		const aliasesType = '0x2::address_alias::AddressAliases';
+		client.addObject({
+			objectId: '0xa11',
+			objectType: aliasesType,
+			owner: {
+				$kind: 'ConsensusAddressOwner',
+				ConsensusAddressOwner: { owner: DEFAULT_SENDER, startVersion: '1' },
+			},
+		});
+		client.addMoveFunction({
+			packageId: '0x2',
+			moduleName: 'address_alias',
+			name: 'add',
+			visibility: 'private',
+			isEntry: true,
+			parameters: [
+				{
+					reference: 'mutable',
+					body: { $kind: 'datatype', datatype: { typeName: aliasesType, typeParameters: [] } },
+				},
+				{ reference: null, body: { $kind: 'address' } },
+			],
+		});
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		tx.setGasBudget(10_000_000n);
+		tx.setGasPrice(1_000n);
+		tx.setGasPayment([]);
+		tx.moveCall({
+			target: '0x2::address_alias::add',
+			arguments: [
+				tx.objectRef({
+					objectId: '0xa11',
+					version: '1',
+					digest: '11111111111111111111111111111111',
+				}),
+				tx.pure.address('0xbad'),
+			],
+		});
+
+		const { approval } = await analyze(
+			{ approval: autoApprovalAnalyzer },
+			{
+				client,
+				transaction: await tx.toJSON(),
+				operationType: 'test-operation',
+				getCoinPrices: async () => [],
+			},
+		);
+
+		expect(approval.status).toBe('success');
+		expect(approval.result?.addressAliasCalls).toEqual([{ index: 0, function: 'add' }]);
+
+		const manager = new AutoApprovalManager({
+			policy: JSON.stringify({
+				...policy,
+				operations: [
+					{
+						id: 'test-operation',
+						description: 'Test operation',
+						permissions: {
+							anyBalance: { $kind: 'AnyBalance', description: 'Any' },
+							ownedObjects: [
+								{
+									$kind: 'ObjectType',
+									description: 'Address aliases',
+									objectType: normalizeStructTag(aliasesType),
+									accessLevel: 'mutate',
+								},
+							],
+						},
+					},
+				],
+			}),
+			state: null,
+		});
+		manager.updateSettings({
+			approvedOperations: ['test-operation'],
+			expiration: Date.now() + 1000 * 60 * 60,
+			remainingTransactions: 1,
+			sharedBudget: 10,
+			coinBudgets: {},
+		});
+
+		expect(manager.checkTransaction(approval)).toEqual({
+			matchesPolicy: false,
+			canAutoApprove: false,
+			analysisIssues: [],
+			policyIssues: [
+				{
+					message:
+						'Address alias changes cannot be auto-approved (command 0: 0x2::address_alias::add)',
+				},
+			],
+			settingsIssues: [],
+		});
 	});
 
 	test('checkTransaction reports partial analysis as analysis issues', () => {
