@@ -1,5 +1,21 @@
 # @mysten-incubation/sponsor
 
+## 0.4.0
+
+### Minor Changes
+
+- a70214d: **Behaviour change:** `defaults()` now includes `noRestrictedMoveCalls()`, so sponsors
+  using the default validators reject calls into `0x2::address_alias` with `RESTRICTED_MOVE_CALL`,
+  including sponsors that allowed them before. To keep sponsoring alias changes, leave it out of
+  your validator list or pass `noRestrictedMoveCalls({ addressAliases: false })`. Pass `targets` to
+  restrict more packages, modules or functions; invalid targets or levels throw when the validator
+  is created.
+
+### Patch Changes
+
+- Updated dependencies [a70214d]
+  - @mysten/wallet-sdk@0.10.0
+
 ## 0.3.12
 
 ## 0.3.11
