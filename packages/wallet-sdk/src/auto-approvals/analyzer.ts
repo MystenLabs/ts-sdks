@@ -49,27 +49,20 @@ const operationType = createAnalyzer({
 
 export const autoApprovalAnalyzer = createAnalyzer({
 	dependencies: {
+		// Not read here: a required dependency so its issues mark the result `partial`,
+		// which `AutoApprovalManager` never auto-approves.
+		defaultRules: analyzers.defaultRules,
 		operationType,
 		bytes: analyzers.bytes,
 		data: analyzers.data,
 		balanceFlows: analyzers.balanceFlows,
 		accessLevel: analyzers.accessLevel,
-		addressAliasCalls: analyzers.addressAliasCalls,
 		ownedObjects: analyzers.ownedObjects,
 		digest: analyzers.digest,
 	},
 	analyze:
 		(options: AutoApprovalAnalyzeOptions) =>
-		async ({
-			bytes,
-			data,
-			balanceFlows,
-			accessLevel,
-			addressAliasCalls,
-			ownedObjects,
-			digest,
-			operationType,
-		}) => {
+		async ({ bytes, data, balanceFlows, accessLevel, ownedObjects, digest, operationType }) => {
 			const senderAddresses = uniqueNormalizedAddresses([
 				...(data.sender ? [data.sender] : []),
 				...(options.autoApproval?.senderAddresses ?? []),
@@ -91,7 +84,6 @@ export const autoApprovalAnalyzer = createAnalyzer({
 					balanceFlows,
 					senderBalanceFlows,
 					accessLevel,
-					addressAliasCalls,
 					ownedObjects,
 					digest,
 					coinValues,

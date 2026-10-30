@@ -106,18 +106,6 @@ export class AutoApprovalManager {
 			return issues;
 		}
 
-		// Changing an account's address aliases changes who can sign for it, so it is
-		// never auto-approved. No policy permission can allow it.
-		for (const call of analysis.result.addressAliasCalls) {
-			issues.push({
-				message: `Address alias changes cannot be auto-approved (command ${call.index}: 0x2::address_alias::${call.function})`,
-			});
-		}
-
-		if (issues.length > 0) {
-			return issues;
-		}
-
 		if (!analysis.result.operationType) {
 			issues.push({ message: 'Operation type not found in Transaction' });
 

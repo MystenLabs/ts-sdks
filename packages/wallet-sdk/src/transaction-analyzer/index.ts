@@ -13,7 +13,7 @@ export type {
 	TransactionAnalysisIssue,
 } from './analyzer.js';
 
-export type { AddressAliasCall } from './rules/address-alias.js';
+export type { AddressAliasChange, AddressAliasChangesOptions } from './rules/address-alias.js';
 export type { AnalyzedCoin } from './rules/coins.js';
 export type { AnalyzedCommandArgument, AnalyzedCommand } from './rules/commands.js';
 export type { AnalyzedObject } from './rules/objects.js';
