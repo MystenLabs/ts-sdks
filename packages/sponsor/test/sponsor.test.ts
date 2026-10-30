@@ -232,6 +232,33 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		}
 	});
 
+	it('rejects address alias changes by default', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: new Ed25519Keypair().toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		tx.moveCall({ target: '0x2::address_alias::add', arguments: [tx.pure.address('0xbad')] });
+		// Just enough client for the simulation and epoch lookups in `defaults()`.
+		const client = {
+			core: {
+				simulateTransaction: async () => ({
+					$kind: 'Transaction',
+					Transaction: { effects: { status: { success: true, error: null } } },
+				}),
+				getCurrentSystemState: async () => ({ systemState: { epoch: '100' } }),
+			},
+		} as unknown as ClientWithCoreApi;
+		const sponsor = createSponsor({ signer: sponsorKey, client });
+
+		const result = await sponsor.signTransaction({ transaction: tx });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.issues.map((issue) => issue.code)).toEqual(['RESTRICTED_MOVE_CALL']);
+			expect(result.reason).toBe('POLICY_REJECTED');
+		}
+	});
+
 	it('preserves policy rejections when an independent validator cannot analyze', async () => {
 		const sponsorKey = new Ed25519Keypair();
 		const tx = resolvedTransaction({

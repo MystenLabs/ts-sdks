@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { accessLevel } from './accessLevel.js';
-import { addressAliasChanges } from './address-alias.js';
 import { balanceFlows } from './balance-flows.js';
 import { coinFlows } from './coin-flows.js';
 import { coinValues } from './coin-value.js';
 import { coins, gasCoins } from './coins.js';
 import { commands } from './commands.js';
 import { balanceChanges, bytes, data, digest, transactionResponse } from './core.js';
-import { defaultRules } from './defaults.js';
 import { moveFunctions } from './functions.js';
 import { inputs } from './inputs.js';
 import { objectIds, objects, objectsById, ownedObjects } from './objects.js';
 
 export const analyzers = {
 	accessLevel,
-	addressAliasChanges,
 	balanceChanges,
 	balanceFlows,
 	bytes,
@@ -25,7 +22,6 @@ export const analyzers = {
 	coinValues,
 	commands,
 	data,
-	defaultRules,
 	digest,
 	transactionResponse,
 	gasCoins,

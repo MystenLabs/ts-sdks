@@ -92,6 +92,7 @@ requires.
 | `onlyAddressBalanceGas()` | Requires empty gas payment so users cannot nominate sponsor gas coin objects  |
 | `gasCoinNotUsed()`        | Rejects commands that use `tx.gas`, which belongs to the sponsor              |
 | `onlySenderWithdrawals()` | Rejects address-balance withdrawals from the sponsor or any non-sender source |
+| `noRestrictedMoveCalls()` | Rejects calls that change the sender's address aliases                        |
 | `simulationSucceeds()`    | Rejects transactions that dry-run as aborting                                 |
 | `boundedExpiration()`     | Rejects missing or too-far-ahead transaction expirations                      |
 

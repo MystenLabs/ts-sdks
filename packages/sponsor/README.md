@@ -65,9 +65,9 @@ Because gas is the sponsor's, **a sponsored transaction must never use the gas c
 ## Defaults
 
 If you pass no `validate`, the sponsor runs `defaults()` — `validSender()`,
-`onlyAddressBalanceGas()`, `gasCoinNotUsed()`, `onlySenderWithdrawals()`, `simulationSucceeds()`,
-and `boundedExpiration()`. Once you add your own validators they no longer run automatically; drop
-them back in as one entry (the `validate` array flattens nested arrays):
+`onlyAddressBalanceGas()`, `gasCoinNotUsed()`, `onlySenderWithdrawals()`, `noRestrictedMoveCalls()`,
+`simulationSucceeds()`, and `boundedExpiration()`. Once you add your own validators they no longer
+run automatically; drop them back in as one entry (the `validate` array flattens nested arrays):
 
 ```ts
 createSponsor({ signer, client }); // runs defaults()
@@ -81,8 +81,9 @@ from spending the sponsor's gas (its address balance pays, and the gas coin is t
 sender and funded by someone other than the sponsor. It rejects unknown sources, allowances with an
 unset gas owner, and withdrawals from the sponsor's **address balance** (the same balance that pays
 gas — a direct drain the gas-coin check can't see, since the withdrawal is an _input_, not a command
-argument); `simulationSucceeds()` avoids paying for a transaction that aborts; and
-`boundedExpiration()` caps how long the signed transaction stays valid.
+argument); `noRestrictedMoveCalls()` rejects calls that change the sender's address aliases;
+`simulationSucceeds()` avoids paying for a transaction that aborts; and `boundedExpiration()` caps
+how long the signed transaction stays valid.
 
 Two things the defaults **don't** do, by design — handle them at your service boundary:
 

@@ -14,6 +14,7 @@ import {
 	defaults,
 	gasBudget,
 	gasCoinNotUsed,
+	noRestrictedMoveCalls,
 	onlyAddressBalanceGas,
 	simulationSucceeds,
 	onlySenderWithdrawals,
@@ -43,7 +44,7 @@ async function run(
 
 describe('defaults', () => {
 	it('bundles the baseline validators', () => {
-		expect(defaults()).toHaveLength(6);
+		expect(defaults()).toHaveLength(7);
 	});
 });
 
@@ -222,6 +223,51 @@ describe('allowedPackages / allowedFunctions', () => {
 		expect((await run(allowedFunctions(['0x2::coin::mint']), { data })).map((i) => i.code)).toEqual(
 			['FUNCTION_NOT_ALLOWED'],
 		);
+	});
+});
+
+describe('noRestrictedMoveCalls', () => {
+	const sui = normalizeSuiAddress('0x2');
+	const bad = normalizeSuiAddress('0xbad');
+
+	/** Run the validator against a transaction's `data`, resolving its matcher dependency. */
+	async function validate(validator: Validator, targets: string[]) {
+		const data = dataFor((tx) => {
+			for (const target of targets) tx.moveCall({ target });
+		});
+		const restricted = validator.dependencies.restricted as Validator;
+		const matched = await restricted.analyze(
+			{ client: {} as ClientWithCoreApi },
+			new Transaction(),
+		)({ data });
+		return run(validator, { restricted: 'result' in matched ? matched.result : undefined });
+	}
+
+	it('rejects address alias calls by default', async () => {
+		expect(
+			await validate(noRestrictedMoveCalls(), ['0x2::coin::zero', '0x2::address_alias::add']),
+		).toEqual([
+			{
+				code: 'RESTRICTED_MOVE_CALL',
+				message: `Command 1 calls restricted function ${sui}::address_alias::add.`,
+			},
+		]);
+	});
+
+	it('passes a transaction without restricted calls', async () => {
+		expect(await validate(noRestrictedMoveCalls(), ['0x2::coin::zero'])).toEqual([]);
+	});
+
+	it('rejects configured targets at any level, and can allow aliases', async () => {
+		const validator = noRestrictedMoveCalls({
+			addressAliases: false,
+			targets: { '0xbad': 'warn' },
+		});
+		expect(
+			(await validate(validator, ['0x2::address_alias::add', '0xbad::drain::all'])).map(
+				(issue) => issue.message,
+			),
+		).toEqual([`Command 1 calls restricted function ${bad}::drain::all.`]);
 	});
 });
 

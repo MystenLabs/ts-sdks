@@ -49,9 +49,6 @@ const operationType = createAnalyzer({
 
 export const autoApprovalAnalyzer = createAnalyzer({
 	dependencies: {
-		// Not read here: a required dependency so its issues mark the result `partial`,
-		// which `AutoApprovalManager` never auto-approves.
-		defaultRules: analyzers.defaultRules,
 		operationType,
 		bytes: analyzers.bytes,
 		data: analyzers.data,
