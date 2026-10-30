@@ -79,6 +79,7 @@ const getActiveNetwork = (): Network => {
 		'LZWBTC',
 		'USDT',
 		'WGIGA',
+		'HBTC',
 	]);
 
 	console.log(balances);

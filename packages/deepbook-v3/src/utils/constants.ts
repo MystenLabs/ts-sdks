@@ -249,6 +249,12 @@ export const mainnetCoins: CoinMap = {
 		type: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068::usdt::USDT`,
 		scalar: 1000000,
 	},
+	// Hashi BTC (on-chain symbol hBTC).
+	HBTC: {
+		address: `0xd30fb3f8914efdbeb7b8e85fae1d65dc584b44a1281f66737b92bb9f03a59d06`,
+		type: `0xd30fb3f8914efdbeb7b8e85fae1d65dc584b44a1281f66737b92bb9f03a59d06::btc::BTC`,
+		scalar: 100000000,
+	},
 };
 
 export const testnetPools: PoolMap = {
@@ -408,6 +414,11 @@ export const mainnetPools: PoolMap = {
 	USDSUI_USDC: {
 		address: '0xa374264d43e6baa5aa8b35ff18ff24fdba7443b4bcb884cb4c2f568d32cdac36',
 		baseCoin: 'USDSUI',
+		quoteCoin: 'USDC',
+	},
+	HBTC_USDC: {
+		address: '0x61368ab907934d7840d2e639b7fc2ee74785ffe3d46427d70e1ab8545f320c9b',
+		baseCoin: 'HBTC',
 		quoteCoin: 'USDC',
 	},
 };
