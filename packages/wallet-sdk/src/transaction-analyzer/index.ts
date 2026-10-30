@@ -31,4 +31,12 @@ export type { AnalyzedMoveCallCommand } from './rules/commands.js';
 
 export { createPASMoveCallHandler } from './move-call-handlers/pas.js';
 
+export { restrictedMoveCalls } from './rules/restricted-move-calls.js';
+export type {
+	RestrictedMoveCall,
+	RestrictedMoveCallsOptions,
+	RestrictedTarget,
+	RestrictionLevel,
+} from './rules/restricted-move-calls.js';
+
 export { analyzers } from './rules/index.js';

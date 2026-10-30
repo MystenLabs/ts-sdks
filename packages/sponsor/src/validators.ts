@@ -4,7 +4,14 @@
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { isValidTransactionSignature } from '@mysten/sui/verify';
-import { analyze, analyzers, createAnalyzer, type Analyzer } from '@mysten/wallet-sdk';
+import {
+	analyze,
+	analyzers,
+	createAnalyzer,
+	restrictedMoveCalls,
+	type Analyzer,
+	type RestrictedMoveCallsOptions,
+} from '@mysten/wallet-sdk';
 
 import type { TransactionData, ValidationIssue, Validator } from './validation.js';
 
@@ -55,7 +62,8 @@ function reject(...issues: ValidationIssue[]): { result: ValidationIssue[] } {
  * `validate: [...defaults(), myValidator()]` (or `[defaults(), ...]`) to keep the
  * baseline: {@link validSender}, {@link onlyAddressBalanceGas},
  * {@link gasCoinNotUsed}, {@link onlySenderWithdrawals},
- * {@link simulationSucceeds}, and {@link boundedExpiration}.
+ * {@link noRestrictedMoveCalls}, {@link simulationSucceeds}, and
+ * {@link boundedExpiration}.
  */
 export function defaults(): Validator[] {
 	return [
@@ -63,6 +71,7 @@ export function defaults(): Validator[] {
 		onlyAddressBalanceGas(),
 		gasCoinNotUsed(),
 		onlySenderWithdrawals(),
+		noRestrictedMoveCalls(),
 		simulationSucceeds(),
 		boundedExpiration(),
 	];
@@ -277,6 +286,32 @@ export function allowedFunctions(targets: Iterable<string>): Validator {
 						code: 'FUNCTION_NOT_ALLOWED',
 						message: `MoveCall to disallowed function ${call.package}::${call.module}::${call.function}.`,
 					}));
+				return issues.length ? reject(...issues) : pass;
+			},
+	});
+}
+
+/**
+ * Reject MoveCalls that `restrictedMoveCalls(options)` from `@mysten/wallet-sdk`
+ * flags, at any level (`RESTRICTED_MOVE_CALL`). With no options it rejects calls
+ * into `0x2::address_alias`, which change which addresses can sign for the
+ * sender's account, so a sponsor never pays for one. Add `targets` to restrict
+ * more packages, modules or functions. Part of {@link defaults}, with no
+ * options. Reads only `data`.
+ *
+ * To sponsor alias changes, leave this validator out, or pass
+ * `{ addressAliases: false }` in place of the default instance.
+ */
+export function noRestrictedMoveCalls(options?: RestrictedMoveCallsOptions): Validator {
+	return createAnalyzer({
+		dependencies: { restricted: restrictedMoveCalls(options) },
+		analyze:
+			() =>
+			({ restricted }) => {
+				const issues = restricted.map((call) => ({
+					code: 'RESTRICTED_MOVE_CALL',
+					message: `Command ${call.index} calls restricted function ${call.target}.`,
+				}));
 				return issues.length ? reject(...issues) : pass;
 			},
 	});

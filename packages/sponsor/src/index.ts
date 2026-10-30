@@ -34,6 +34,7 @@ export {
 	userSignatureMatchesSender,
 	gasCoinNotUsed,
 	onlySenderWithdrawals,
+	noRestrictedMoveCalls,
 	gasBudget,
 	allowedPackages,
 	allowedFunctions,
