@@ -17,11 +17,13 @@ export interface DeepbookPackageIds {
 }
 
 export const testnetPackageIds = {
-	DEEPBOOK_PACKAGE_ID: '0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24',
+	// deepbook core v21, kept in step with MARGIN_PACKAGE_ID (see the mainnet ids below).
+	DEEPBOOK_PACKAGE_ID: '0x4b1c2a827983d8fa73f6dc366cfab23636ae52e81e499d8724b71408fe6a00a4',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
-	// deepbook_margin v16 — the first testnet package carrying the upgraded-Pyth modules.
-	MARGIN_PACKAGE_ID: '0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f',
+	// deepbook_margin v17, linked to core v21 — the same source as mainnet margin v8
+	// (`MARGIN_VERSION = 8`, legacy-Pyth entrypoints retired).
+	MARGIN_PACKAGE_ID: '0x0ad965f35189c7eca57d4718c8f5bf1b7f9f7eb4ced6d5b7aa6496a16d71e8d2',
 	MARGIN_V1: '0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b',
 	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
 	// margin_liquidation v4 — carries liquidate_base_upgraded / liquidate_quote_upgraded.
@@ -29,14 +31,16 @@ export const testnetPackageIds = {
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
-	DEEPBOOK_PACKAGE_ID: '0x0e735f8c93a95722efd73521aca7a7652c0bb71ed1daf41b26dfd7d1ff71f748',
+	// deepbook core v9. Keep it in step with MARGIN_PACKAGE_ID: margin v8 links core v9, and a
+	// transaction that calls core v8 directly next to margin v8 fails with `InvalidLinkage`.
+	DEEPBOOK_PACKAGE_ID: '0xbca0cefe720330e7bb4f2283438b68de6a0e656688db4ac90d61e71fe6151fe8',
 	REGISTRY_ID: '0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d',
 	DEEP_TREASURY_ID: '0x032abf8948dda67a271bcc18e776dbbcfb0d58c8d288a700ff0d5521e57a1ffe',
-	// deepbook_margin v7 — the first mainnet package carrying the upgraded-Pyth modules.
-	// Its gate constant is `MARGIN_VERSION = 7`, and every entrypoint asserts the registry
-	// allows that version, so this id only works once `enable_version(7)` has run on the
-	// mainnet MarginRegistry. Until then v7 flows abort `EPackageVersionDisabled`.
-	MARGIN_PACKAGE_ID: '0x55ee8099674e46266df2bf0ffed9569e1511aa269f2a9b8c63a2c72f16404e72',
+	// deepbook_margin v8, linked to core v9. Its gate constant is `MARGIN_VERSION = 8`, which the
+	// upgrade transaction enabled on the mainnet MarginRegistry. v8 retires the legacy-Pyth
+	// entrypoints in the base modules (they abort `EDeprecatedUseUpgradedPyth`); every
+	// oracle-taking builder here already targets the `_upgraded` modules.
+	MARGIN_PACKAGE_ID: '0x40fa183b5602cd0f6c4d7b16c08766ad8d7d581608fbe3b2570fe72ab4f5625f',
 	MARGIN_V1: '0x97d9473771b01f77b0940c589484184b49f6444627ec121314fae6a6d36fb86b',
 	MARGIN_REGISTRY_ID: '0x0e40998b359a9ccbab22a98ed21bd4346abf19158bc7980c8291908086b3a742',
 	LIQUIDATION_PACKAGE_ID: '0xba2b39c026650fef52038c93c526fc5314a4286318a0d2a7054b65815178fb74',
@@ -245,6 +249,12 @@ export const mainnetCoins: CoinMap = {
 		type: `0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068::usdt::USDT`,
 		scalar: 1000000,
 	},
+	// Hashi BTC (on-chain symbol hBTC).
+	HBTC: {
+		address: `0xd30fb3f8914efdbeb7b8e85fae1d65dc584b44a1281f66737b92bb9f03a59d06`,
+		type: `0xd30fb3f8914efdbeb7b8e85fae1d65dc584b44a1281f66737b92bb9f03a59d06::btc::BTC`,
+		scalar: 100000000,
+	},
 };
 
 export const testnetPools: PoolMap = {
@@ -404,6 +414,11 @@ export const mainnetPools: PoolMap = {
 	USDSUI_USDC: {
 		address: '0xa374264d43e6baa5aa8b35ff18ff24fdba7443b4bcb884cb4c2f568d32cdac36',
 		baseCoin: 'USDSUI',
+		quoteCoin: 'USDC',
+	},
+	HBTC_USDC: {
+		address: '0x61368ab907934d7840d2e639b7fc2ee74785ffe3d46427d70e1ab8545f320c9b',
+		baseCoin: 'HBTC',
 		quoteCoin: 'USDC',
 	},
 };
