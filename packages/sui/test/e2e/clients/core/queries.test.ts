@@ -18,21 +18,30 @@ const EXCLUDE: ClientKind[] = [];
 
 /**
  * Asserts that a page reaching the end of a window ends the read. gRPC reports no next page.
- * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must then be
- * empty and report no next page.
+ * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must be empty.
+ * A transaction or event window can take one more empty page to end; `strict` allows only one
+ * (checkpoint windows).
  */
 async function expectWindowEnd(
 	kind: ClientKind,
 	page: { hasNextPage: boolean; endCursor: string | null },
-	fetchNext: (cursor: string | null) => Promise<{ items: unknown[]; hasNextPage: boolean }>,
+	fetchNext: (
+		cursor: string | null,
+	) => Promise<{ items: unknown[]; hasNextPage: boolean; endCursor: string | null }>,
+	{ strict = false } = {},
 ) {
 	if (kind === 'grpc') {
 		expect(page.hasNextPage).toBe(false);
 		return;
 	}
-	if (page.hasNextPage) {
-		expect(await fetchNext(page.endCursor)).toEqual({ items: [], hasNextPage: false });
-	}
+	if (!page.hasNextPage) return;
+	let next = await fetchNext(page.endCursor);
+	expect(next.items).toEqual([]);
+	if (next.hasNextPage && !strict) next = await fetchNext(next.endCursor);
+	expect({ items: next.items, hasNextPage: next.hasNextPage }).toEqual({
+		items: [],
+		hasNextPage: false,
+	});
 }
 
 describe('Core API - Queries', () => {
@@ -829,11 +838,13 @@ describe('Core API - Queries', () => {
 				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
 					// The sponsor's match shows this client's index has the transaction.
 					expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
+					expect(digestsOf(await affectingSender(client))).toEqual([]);
 					expect(digestsOf(await sentBy(client))).toEqual([digest]);
 				}
-				// The localnet GraphQL service answers this from its Postgres index, which also counts
-				// the sender.
-				expect(digestsOf(await affectingSender(toolbox.grpcClient))).toEqual([]);
+				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
+					exclude: EXCLUDE,
+					attempts: 3,
+				});
 				await toolbox.expectAllClientsReturnSameData(sentBy, stripCursors, {
 					exclude: EXCLUDE,
 					attempts: 3,
@@ -842,6 +853,30 @@ describe('Core API - Queries', () => {
 					exclude: EXCLUDE,
 					attempts: 3,
 				});
+
+				// Streams read history the same way.
+				const { Transaction: executed } = await toolbox.grpcClient.core.getTransaction({ digest });
+				const checkpoint = BigInt(executed!.checkpoint!);
+				const streamed = async (
+					client: ClientWithCore,
+					filter: SuiClientTypes.TransactionFilter,
+				) => {
+					const digests: string[] = [];
+					for await (const frame of client.core.streamTransactions({
+						filter,
+						start: { checkpoint: checkpoint.toString() },
+						end: { checkpoint: (checkpoint + 1n).toString() },
+					})) {
+						const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
+						digests.push(tx.digest);
+					}
+					return digests;
+				};
+				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					expect(await streamed(client, { affectedAddress: sponsor.address })).toEqual([digest]);
+					expect(await streamed(client, { affectedAddress: senderAddress })).toEqual([]);
+					expect(await streamed(client, { sender: senderAddress })).toEqual([digest]);
+				}
 			});
 
 			it('all clients return same data: affectedObject', async () => {
@@ -1243,8 +1278,12 @@ describe('Core API - Queries', () => {
 									return page;
 								}),
 							),
+							// Only the items: GraphQL can report a next page for an empty window (see
+							// expectWindowEnd).
 							empty: await Promise.all(
-								empty.map(async (query) => stripCursors(await client.core.listTransactions(query))),
+								empty.map(
+									async (query) => (await client.core.listTransactions(query)).transactions,
+								),
 							),
 							windowed: await collectTransactions(client, {
 								filter,
@@ -1279,7 +1318,11 @@ describe('Core API - Queries', () => {
 							after: cursor,
 							before: cursors[3],
 						});
-						return { items: next.transactions, hasNextPage: next.hasNextPage };
+						return {
+							items: next.transactions,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						};
 					});
 
 					const reversed = await client.core.listTransactions({
@@ -1326,12 +1369,16 @@ describe('Core API - Queries', () => {
 						[cursors[3], cursors[1]],
 						[cursors[2], cursors[2]],
 					]) {
-						expect(await client.core.listTransactions({ filter, after, before })).toEqual({
-							transactions: [],
-							hasNextPage: false,
-							startCursor: null,
-							endCursor: null,
-						});
+						const page = await client.core.listTransactions({ filter, after, before });
+						expect(page.transactions).toEqual([]);
+						// GraphQL can report a next page here (see expectWindowEnd).
+						if (kind === 'grpc') {
+							expect(page).toMatchObject({
+								hasNextPage: false,
+								startCursor: null,
+								endCursor: null,
+							});
+						}
 					}
 				},
 				{ skip: EXCLUDE },
@@ -1361,7 +1408,7 @@ describe('Core API - Queries', () => {
 			);
 
 			testWithAllClients(
-				'should end exhausted windows with at most one empty page',
+				'should end exhausted windows',
 				async (client, kind) => {
 					const cursors = await actorCursors(client);
 					const filter = { sender: actorAddress };
@@ -1372,7 +1419,11 @@ describe('Core API - Queries', () => {
 					expect(digestsOf(ascending)).toEqual(actorDigests.slice(1, 3));
 					await expectWindowEnd(kind, ascending, async (cursor) => {
 						const next = await client.core.listTransactions({ filter, after: cursor, before });
-						return { items: next.transactions, hasNextPage: next.hasNextPage };
+						return {
+							items: next.transactions,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						};
 					});
 
 					const descending = await client.core.listTransactions({
@@ -1389,7 +1440,11 @@ describe('Core API - Queries', () => {
 							before: cursor,
 							order: 'descending',
 						});
-						return { items: next.transactions, hasNextPage: next.hasNextPage };
+						return {
+							items: next.transactions,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						};
 					});
 
 					const first = await client.core.listEvents({ filter, limit: 1 });
@@ -1409,7 +1464,11 @@ describe('Core API - Queries', () => {
 								before: order === 'ascending' ? last.endCursor : cursor,
 								order,
 							});
-							return { items: next.events, hasNextPage: next.hasNextPage };
+							return {
+								items: next.events,
+								hasNextPage: next.hasNextPage,
+								endCursor: next.endCursor,
+							};
 						});
 					}
 				},
@@ -1482,10 +1541,16 @@ describe('Core API - Queries', () => {
 				if (!page.hasNextPage) return pages;
 				const next = await read(page.endCursor);
 				if (!next.checkpoints.length) {
-					await expectWindowEnd(kind, page, async () => ({
-						items: next.checkpoints,
-						hasNextPage: next.hasNextPage,
-					}));
+					await expectWindowEnd(
+						kind,
+						page,
+						async () => ({
+							items: next.checkpoints,
+							hasNextPage: next.hasNextPage,
+							endCursor: next.endCursor,
+						}),
+						{ strict: true },
+					);
 					return pages;
 				}
 				page = next;
