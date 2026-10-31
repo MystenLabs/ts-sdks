@@ -188,7 +188,7 @@ export async function getAllDynamicFields(
 	const data: DynamicFieldInfo[] = [];
 
 	while (hasNextPage) {
-		const result = await client.core.listDynamicFields({
+		const result: SuiClientTypes.ListDynamicFieldsResponse = await client.core.listDynamicFields({
 			parentId,
 			limit: pagination.limit || undefined,
 			cursor,
