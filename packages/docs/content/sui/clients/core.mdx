@@ -34,8 +34,8 @@ goal:
 ---
 
 The Core API is the contract every Sui client implements. It exists so that libraries do not have to
-care which transport their caller chose: an SDK written against the Core API works with
-`SuiGrpcClient`, `SuiGraphQLClient`, and the deprecated `SuiJsonRpcClient` alike.
+care which transport their caller chose: an SDK written against the Core API works with both
+`SuiGrpcClient` and `SuiGraphQLClient`.
 
 <Callout type="info">
 	This page is for SDK and library authors. If you are writing application code, create a client and
@@ -103,8 +103,7 @@ documents them in full, with options, include flags, and response shapes.
 
 `SuiGrpcClient` and `SuiGraphQLClient` also expose every one of these as a top-level method, so the
 choice between `client.core.getObject()` and `client.getObject()` is about portability rather than
-reach. The deprecated `SuiJsonRpcClient` is the exception: it implements the contract on
-`client.core`, but its own top-level methods keep their legacy JSON-RPC names and shapes.
+reach.
 
 ## Typing library code
 
@@ -195,8 +194,8 @@ are visible to callers. Library code that runs against any client should account
 | Behavior                    | What differs                                                                                                                       |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                              |
-| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                                 |
-| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC                        |
+| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC returns all of them                                             |
+| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL                                     |
 | Short pages                 | Servers bound how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true` on either transport |
 | Window ends                 | On GraphQL, a page that reaches a cursor bound may report `hasNextPage: true` and be followed by empty pages                       |
 | Reused history cursors      | A cursor passed with a different filter or checkpoint range gives transport-specific results                                       |
