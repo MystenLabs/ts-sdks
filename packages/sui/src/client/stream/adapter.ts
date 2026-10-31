@@ -9,6 +9,7 @@
  */
 
 import type { SuiClientTypes } from '../types.js';
+import type { SuiStreamError } from './errors.js';
 import type { StreamPosition } from './position.js';
 
 export type StreamFamily = 'checkpoints' | 'transactions' | 'events';
@@ -32,6 +33,8 @@ export type Bound = { checkpoint: bigint } | { position: StreamPosition };
 /** One page of a range: checkpoints `[range.start, range.end)`, then strictly between cursors. */
 export interface PageRequest {
 	range: { start?: bigint; end?: bigint };
+	/** The nearest checkpoint the pass may still have to read: the oldest ascending, the newest descending. */
+	unread?: bigint;
 	after?: Uint8Array;
 	before?: Uint8Array;
 	order: SuiClientTypes.Order;
@@ -55,6 +58,13 @@ export interface PageEnd {
 	 * `HistoryUnavailable` failure.
 	 */
 	retainedFrom?: bigint;
+	/** The server has not indexed where this page starts; the pass ends incomplete. */
+	notIndexed?: boolean;
+	/**
+	 * With `notIndexed`: the server's rejection could also mean pruned history. The core reports
+	 * this error if the rejection persists.
+	 */
+	mayBePruned?: SuiStreamError;
 }
 
 export interface Page<Item> {

@@ -48,12 +48,6 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
 - **A quiet gRPC stream doesn't page forward during gap recovery** — on gRPC, a stream that stays
   quiet during gap recovery while the index advances doesn't page forward until its first live item.
   Resuming is unaffected.
-- **Replay handoff waits for the first live frame** — a following gRPC stream with a `start` opens
-  the subscription first and only begins the historical read once the subscription reports a
-  position (`src/client/stream/follow.ts`). Time to first frame is 1–3 s unfiltered and up to 17 s
-  for sparse filters such as `affectedAddress`, so restarts of a filtered indexer sit idle that
-  long. Reading history up to the indexed tip while the subscription connects would remove the wait;
-  the later handoff must then dedupe the overlap the same way the recovery scan does.
 - **Event and progress frames carry no timestamp** — measuring lag needs a second checkpoint stream
   or a lookup; `EventEntry.checkpoint` is the only ordering information.
 - **Per-frame CPU** — the full gRPC transaction path costs about 96 µs per transaction (about 10,000

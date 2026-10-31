@@ -66,6 +66,8 @@ export type PassEvent<Item> =
 export interface PassResult {
 	complete: boolean;
 	retentionLimit: boolean;
+	/** The pass ended on a rejection that may be lag or pruned history. */
+	mayBePruned?: SuiStreamError;
 }
 
 export async function* readPages<Item>(
@@ -98,13 +100,14 @@ export async function* readPages<Item>(
 	let previous: StreamPosition | undefined;
 	let coverage: Coverage = { $kind: 'Unknown' };
 	// Ascending: the oldest checkpoint the pass may still have to read.
-	let unread = request.range.start ?? nextUncovered(boundCoverage(start, family));
+	let oldestUnread = request.range.start ?? nextUncovered(boundCoverage(start, family));
 	const advance = (raw: StreamPosition) => {
 		const position = tracker.apply(raw);
 		resumesFrom = position;
 		coverage = position.coverage;
 		const next = nextUncovered(coverage);
-		if (next !== undefined && (unread === undefined || next > unread)) unread = next;
+		if (next !== undefined && (oldestUnread === undefined || next > oldestUnread))
+			oldestUnread = next;
 		return position;
 	};
 
@@ -115,14 +118,23 @@ export async function* readPages<Item>(
 
 	const resumed = start !== undefined && 'position' in start;
 	for (let first = true; ; first = false) {
-		const page = await adapter.fetchPage({ ...request, range: { ...request.range } });
+		const newest =
+			previous?.checkpoint ??
+			lastCheckpoint(request.range.end) ??
+			(resumesFrom && indexedThrough(resumesFrom)) ??
+			undefined;
+		const page = await adapter.fetchPage({
+			...request,
+			range: { ...request.range },
+			unread: ascending ? oldestUnread : newest,
+		});
 		let empty = true;
 		let pageEnd: PageEnd;
 		try {
 			// The first read waits for the server's first answer.
 			let read = await page.items.next();
 			if (first) yield { $kind: 'Connected' };
-			assertRetained(page.retainedFrom, order, request, unread, first, resumed);
+			assertRetained(page.retainedFrom, order, request, oldestUnread, first, resumed);
 			// A server behind the point this page resumes from would silently skip items.
 			const needed = resumesFrom && indexedThrough(resumesFrom);
 			if (needed != null && page.viewedAt !== undefined && page.viewedAt < needed) {
@@ -144,13 +156,16 @@ export async function* readPages<Item>(
 		} finally {
 			await page.items.return?.();
 		}
+		if (pageEnd.notIndexed) {
+			return { complete: false, retentionLimit: false, mayBePruned: pageEnd.mayBePruned };
+		}
 		const retainedFrom = pageEnd.retainedFrom ?? page.retainedFrom;
 		if (pageEnd.retainedFrom !== undefined) {
 			// Only a read with no low end may report retention last: no item it delivered is pruned.
 			if (ascending || request.range.start !== undefined) {
 				throw protocol('Retention reported after the items it applies to');
 			}
-			assertRetained(pageEnd.retainedFrom, order, request, unread, first, resumed);
+			assertRetained(pageEnd.retainedFrom, order, request, oldestUnread, first, resumed);
 		}
 
 		const { more, cursor } = pageEnd.next;
@@ -222,7 +237,13 @@ function narrow(
 ) {
 	const { kind, cursor, checkpoint } = cut;
 	if (cursor && kind !== 'Boundary' && (resumes || checkpoint === null)) request[side] = cursor;
-	if (checkpoint === null) return;
+	if (checkpoint === null) {
+		// A progress cursor has no checkpoint, but what it covers still bounds the range, so a
+		// server can tell a cursor past its index from pruned history.
+		const next = side === 'after' ? nextUncovered(cut.coverage) : undefined;
+		if (next !== undefined) request.range.start = next;
+		return;
+	}
 	// Other items of an item's checkpoint can lie on either side of it.
 	if (side === 'after') request.range.start = checkpoint;
 	else request.range.end = kind === 'Item' ? checkpoint + 1n : checkpoint;
@@ -277,14 +298,14 @@ function assertRetained(
 	retainedFrom: bigint | undefined,
 	order: SuiClientTypes.Order,
 	{ range }: PageRequest,
-	unread: bigint | undefined,
+	oldestUnread: bigint | undefined,
 	first: boolean,
 	resumed: boolean,
 ) {
 	if (retainedFrom === undefined) return;
 	let pruned: bigint | undefined;
 	if (order === 'ascending') {
-		if (unread !== undefined && unread < retainedFrom) pruned = unread;
+		if (oldestUnread !== undefined && oldestUnread < retainedFrom) pruned = oldestUnread;
 	} else if (range.start !== undefined && range.start < retainedFrom) {
 		pruned = range.start;
 	} else if (
@@ -299,6 +320,10 @@ function assertRetained(
 		'HistoryUnavailable',
 		`Checkpoint ${pruned} has been pruned; the oldest available is ${retainedFrom}`,
 	);
+}
+
+function lastCheckpoint(end: bigint | undefined): bigint | undefined {
+	return end === undefined ? undefined : end - 1n;
 }
 
 function maxOf(a: bigint | undefined, b: bigint | undefined): bigint | undefined {

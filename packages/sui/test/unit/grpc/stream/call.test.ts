@@ -1,0 +1,223 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { describe, expect, it } from 'vitest';
+
+import {
+	estimateBytes,
+	isBufferOverflow,
+	openLedgerCall,
+} from '../../../../src/grpc/stream/call.js';
+import { GRPC_FAMILIES, type LiveFrame } from '../../../../src/grpc/stream/families.js';
+import { event, FakeLedger, Gate, mark, progress, type Delivery } from './fake-grpc.js';
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+/** A budget that holds `n` single-digit event frames. */
+const eventBudget = (n: number) => n * estimateBytes(event(1));
+
+function open(ledger: FakeLedger, options: { maxBytes?: number; coalesceProgress?: boolean } = {}) {
+	const controller = new AbortController();
+	const call = openLedgerCall(
+		ledger,
+		GRPC_FAMILIES.events.subscribe,
+		{ readMask: { paths: [] } },
+		{ signal: controller.signal, isItem: (frame: LiveFrame) => !!frame.event, ...options },
+	);
+	return { call, controller };
+}
+
+async function rejection(promise: Promise<unknown>) {
+	return promise.then(
+		() => {
+			throw new Error('expected a rejection');
+		},
+		(error: unknown) => error,
+	);
+}
+
+describe('ledger calls: pull path', () => {
+	it('reads a response only when asked', async () => {
+		const ledger = new FakeLedger('pull').subscribe(
+			'SubscribeEvents',
+			[1, 2, 3, 4].map((n) => event(n)),
+		);
+		const { call } = open(ledger);
+		await settle();
+		expect(ledger.reads.SubscribeEvents ?? 0).toBe(0);
+		await call.next();
+		await settle();
+		expect(ledger.reads.SubscribeEvents).toBe(1);
+		await call.return();
+	});
+
+	it('reads ahead into the bounded queue only while asked to, and overflows past it', async () => {
+		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger('pull').subscribe('SubscribeEvents', frames);
+		const { call } = open(ledger, { maxBytes: eventBudget(4) });
+		expect((await call.next()).value?.event?.checkpoint).toBe(1n);
+		call.readAhead(true);
+		await settle();
+		call.readAhead(false);
+		expect(ledger.reads.SubscribeEvents).toBe(6);
+		for (const checkpoint of [2n, 3n, 4n, 5n]) {
+			expect((await call.next()).value?.event?.checkpoint).toBe(checkpoint);
+		}
+		expect(isBufferOverflow(await rejection(call.next()))).toBe(true);
+		await call.return();
+		expect(ledger.cancelled.SubscribeEvents).toBe(1);
+	});
+
+	it('stops reading when read-ahead is switched off', async () => {
+		const gate = new Gate();
+		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger('pull').subscribe('SubscribeEvents', {
+			frames,
+			gate,
+			end: 'open',
+		});
+		const { call } = open(ledger);
+		call.readAhead(true);
+		gate.open(2);
+		await settle();
+		expect(ledger.reads.SubscribeEvents).toBe(2);
+		call.readAhead(false);
+		// Frames are still waiting to be read; only the read already in flight may complete.
+		gate.open(5);
+		await settle();
+		expect(ledger.reads.SubscribeEvents).toBe(3);
+		await call.return();
+		expect(ledger.cancelled.SubscribeEvents).toBe(1);
+	});
+});
+
+describe('ledger calls: push path (interceptor configured)', () => {
+	it('holds at most the bounded queue, draining the protobuf runtime queue', async () => {
+		const frames = Array.from({ length: 100 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger('push').subscribe('SubscribeEvents', frames);
+		const { call, controller } = open(ledger, { maxBytes: eventBudget(2) });
+		await settle();
+		// The transport pushed past the limit, so the call was cancelled at the third item.
+		expect(controller.signal.aborted).toBe(false);
+		expect(ledger.cancelled.SubscribeEvents).toBe(1);
+		expect((await call.next()).done).toBe(false);
+		expect((await call.next()).done).toBe(false);
+		expect(isBufferOverflow(await rejection(call.next()))).toBe(true);
+		await call.return();
+	});
+});
+
+describe('ledger calls: byte budget', () => {
+	it('holds responses by estimated size, not by count', async () => {
+		const frames = Array.from({ length: 2000 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger('push').subscribe('SubscribeEvents', frames);
+		const { call } = open(ledger, { maxBytes: estimateBytes(frames) });
+		await settle();
+		expect(ledger.cancelled.SubscribeEvents ?? 0).toBe(0);
+		for (let n = 1; n <= 2000; n++) {
+			expect((await call.next()).value?.event?.checkpoint).toBe(BigInt(n));
+		}
+		await call.return();
+	});
+
+	it('admits a response larger than the budget into an empty queue', async () => {
+		const ledger = new FakeLedger('push').subscribe('SubscribeEvents', [event(1), event(2)]);
+		const { call } = open(ledger, { maxBytes: 1 });
+		await settle();
+		expect((await call.next()).value?.event?.checkpoint).toBe(1n);
+		expect(isBufferOverflow(await rejection(call.next()))).toBe(true);
+		await call.return();
+	});
+
+	it('estimates bytes and strings by length and other fields by 8', () => {
+		expect(estimateBytes({ a: new Uint8Array(100), b: 'abcd', c: 1n, d: [true, null] })).toBe(
+			8 + 100 + 4 + 8 + (8 + 8 + 0),
+		);
+	});
+});
+
+describe.each(['pull', 'push'] satisfies Delivery[])('ledger calls (%s)', (delivery) => {
+	it('reads a call whose responses arrived before it was returned', async () => {
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', {
+			frames: [event(1), event(2)],
+			end: 'complete',
+			sync: true,
+		});
+		const { call } = open(ledger);
+		const read = async () => {
+			const results = [];
+			for (;;) {
+				const result = await call.next();
+				results.push(result.done ? 'done' : result.value.event?.checkpoint);
+				if (result.done) return results;
+			}
+		};
+		const timeout = settle().then(() => 'timed out');
+		expect(await Promise.race([read(), timeout])).toEqual([1n, 2n, 'done']);
+		await call.return();
+	});
+
+	it.each(['open', 'complete'] as const)(
+		'drops buffered responses when the stream signal aborts (call %s)',
+		async (end) => {
+			const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', {
+				frames: [event(1), event(2), event(3)],
+				end,
+			});
+			const { call, controller } = open(ledger);
+			call.readAhead(true);
+			await settle();
+			expect(ledger.reads.SubscribeEvents).toBe(3);
+			expect((await call.next()).value?.event?.checkpoint).toBe(1n);
+			controller.abort(new Error('stop'));
+			expect(await rejection(call.next())).toMatchObject({ message: 'stop' });
+			expect(await rejection(call.next())).toMatchObject({ message: 'stop' });
+			await call.return();
+		},
+	);
+
+	it('fails with the abort reason when the stream signal aborts after an overflow', async () => {
+		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', frames);
+		const { call, controller } = open(ledger, { maxBytes: eventBudget(2) });
+		call.readAhead(true);
+		await settle();
+		controller.abort(new Error('stop'));
+		expect(await rejection(call.next())).toMatchObject({ message: 'stop' });
+		await call.return();
+	});
+
+	it('cancels a pending read on return()', async () => {
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', []);
+		const { call } = open(ledger);
+		const pending = call.next();
+		await settle();
+		await call.return();
+		expect(await pending).toEqual({ done: true, value: undefined });
+		expect(ledger.cancelled.SubscribeEvents).toBe(1);
+	});
+
+	it('cancels a pending read when the stream signal aborts', async () => {
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', []);
+		const { call, controller } = open(ledger);
+		const pending = call.next();
+		await settle();
+		controller.abort(new Error('stop'));
+		expect(await rejection(pending)).toMatchObject({ message: 'stop' });
+		await call.return();
+	});
+
+	it('keeps only the newest of consecutive queued progress responses when coalescing', async () => {
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', [
+			progress(mark('a'), 1),
+			progress(mark('b'), 2),
+			event(3),
+		]);
+		const { call } = open(ledger, { coalesceProgress: true });
+		call.readAhead(true);
+		await settle();
+		expect((await call.next()).value?.watermark?.checkpoint).toBe(2n);
+		expect((await call.next()).value?.event?.checkpoint).toBe(3n);
+		await call.return();
+	});
+});

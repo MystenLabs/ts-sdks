@@ -12,7 +12,7 @@ import type {
 	PositionEvent,
 } from './adapter.js';
 import { StreamDisconnected } from './errors.js';
-import { readPages } from './pager.js';
+import { readPages, type PassResult } from './pager.js';
 import { rangeEndBound, type StreamPlan } from './plan.js';
 import type { StatusReporter } from './status.js';
 import {
@@ -26,6 +26,12 @@ import {
 	type StreamPosition,
 } from './position.js';
 import { encodeToken, filterHash, sameBytes, type StreamToken } from './token.js';
+
+/**
+ * Consecutive polls that may end on an out-of-range rejection before it is reported as pruned
+ * history. A lagging server catches up well within them.
+ */
+const UNCONFIRMED_REJECTIONS = 30;
 
 const COMPLETION_REASON = {
 	Checkpoint: 'checkpointBound',
@@ -66,6 +72,8 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	/** The committed state is within one reconnect of the live tip. */
 	#nearLiveTip: boolean;
 	#retentionLimit = false;
+	/** Consecutive passes, across reconnects, that ended on a rejection that may be pruned history. */
+	#rejectedPasses = 0;
 
 	constructor(options: {
 		plan: StreamPlan;
@@ -155,7 +163,14 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	): AsyncGenerator<CoreFrame<Frame>, void> {
 		if (stage === 'gap') this.#status.recovering();
 		const end = to === 'tip' ? undefined : to;
-		while (!(yield* this.#scanOnce(end, stage))) {
+		while (true) {
+			const before = this.#committedBytes;
+			const { complete, mayBePruned } = yield* this.#scanOnce(end, stage);
+			if (complete) break;
+			// A rejection that may be pruned history is lag only if it clears. Any commit resets the
+			// count, including one earlier in this pass.
+			if (mayBePruned && before === this.#committedBytes) this.#rejectedPasses++;
+			if (mayBePruned && this.#rejectedPasses >= UNCONFIRMED_REJECTIONS) throw mayBePruned;
 			// The index has not reached `end` yet. Never move on with a partial range.
 			await sleep(this.#plan.pollInterval, this.signal);
 		}
@@ -205,11 +220,11 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		};
 	}
 
-	// One pager pass. Returns whether it reached its end.
+	// One pager pass.
 	async *#scanOnce(
 		end: Bound | undefined,
 		stage: 'history' | 'gap',
-	): AsyncGenerator<CoreFrame<Frame>, boolean> {
+	): AsyncGenerator<CoreFrame<Frame>, PassResult> {
 		const { order, capturedTip } = this.#plan;
 		const pass = readPages(this.#adapter, {
 			start: this.start,
@@ -223,7 +238,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 				const next = await pass.next();
 				if (next.done) {
 					this.#retentionLimit ||= next.value.retentionLimit;
-					return next.value.complete;
+					return next.value;
 				}
 				const event = next.value;
 				switch (event.$kind) {
@@ -266,6 +281,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		this.signal.throwIfAborted();
 		this.#committed = event.position;
 		this.#committedBytes = this.#bytes(event.position);
+		this.#rejectedPasses = 0;
 		if (event.$kind === 'Item') {
 			this.#lastItem = event.position;
 			this.#deliveredItem = true;
