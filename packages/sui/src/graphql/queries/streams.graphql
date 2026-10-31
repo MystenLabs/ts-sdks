@@ -1,0 +1,254 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# Ledger streams use the list methods' fragments so streamed items match list results.
+
+# Checkpoint streams also read the oldest retained checkpoint with the tip, so a follow that
+# subscribes without reading pages still fails on pruned history. Transactions and events don't:
+# servers with subscriptions answer them from the fullnode, whose retention `availableRange` does
+# not report.
+query ledgerStreamState($checkpointRetention: Boolean!) {
+	chainIdentifier
+	checkpoint {
+		sequenceNumber
+	}
+	serviceConfig @include(if: $checkpointRetention) {
+		availableRange(type: "Query", field: "checkpoints") {
+			first {
+				sequenceNumber
+			}
+		}
+	}
+}
+
+fragment STREAM_PAGE_INFO on PageInfo {
+	hasNextPage
+	hasPreviousPage
+	startCursor
+	endCursor
+}
+
+query scanCheckpoints(
+	$filter: CheckpointFilter
+	$filters: [String!]!
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+) {
+	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
+	serviceConfig {
+		availableRange(type: "Query", field: "checkpoints", filters: $filters) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...CHECKPOINT_FIELDS
+			}
+		}
+	}
+}
+
+subscription subscribeCheckpoints($after: String, $afterCheckpoint: UInt53) {
+	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
+		cursor
+		node {
+			...CHECKPOINT_FIELDS
+		}
+	}
+}
+
+query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	# The checkpoint this page was read at.
+	checkpoint {
+		sequenceNumber
+	}
+	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...EVENT_FIELDS
+			}
+		}
+	}
+}
+
+subscription subscribeEvents($filter: EventFilter, $after: String) {
+	events(filter: $filter, after: $after, progress: true) {
+		cursor
+		node {
+			...EVENT_FIELDS
+		}
+	}
+}
+
+query scanTransactions(
+	$filter: TransactionFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	# The checkpoint this page was read at.
+	checkpoint {
+		sequenceNumber
+	}
+	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...TRANSACTION_FIELDS
+			}
+		}
+	}
+}
+
+subscription subscribeTransactions(
+	$filter: TransactionFilter
+	$after: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(filter: $filter, after: $after, progress: true) {
+		cursor
+		node {
+			...TRANSACTION_FIELDS
+		}
+	}
+}
+
+# Checkpoints with their transactions. A checkpoint's first page of transactions is nested; the
+# rest are read with `checkpointTransactions`.
+
+fragment CHECKPOINT_TRANSACTIONS_PAGE on TransactionConnection {
+	pageInfo {
+		hasNextPage
+		endCursor
+	}
+	nodes {
+		...TRANSACTION_FIELDS
+	}
+}
+
+query scanCheckpointsWithTransactions(
+	$filter: CheckpointFilter
+	$filters: [String!]!
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	# The oldest checkpoint the filter's indexes retain, and the checkpoint this page was read at.
+	serviceConfig {
+		availableRange(type: "Query", field: "checkpoints", filters: $filters) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...CHECKPOINT_FIELDS
+				transactions(first: 50) {
+					...CHECKPOINT_TRANSACTIONS_PAGE
+				}
+			}
+		}
+	}
+}
+
+subscription subscribeCheckpointsWithTransactions(
+	$after: String
+	$afterCheckpoint: UInt53
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
+		cursor
+		node {
+			...CHECKPOINT_FIELDS
+			transactions(first: 50) {
+				...CHECKPOINT_TRANSACTIONS_PAGE
+			}
+		}
+	}
+}
+
+query checkpointTransactions(
+	$atCheckpoint: UInt53!
+	$previousCheckpoint: UInt53 = 0
+	$withTotals: Boolean!
+	$hasPrevious: Boolean!
+	$after: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	# The checkpoint this replica has indexed through.
+	checkpoint {
+		sequenceNumber
+	}
+	# Running transaction totals, whose difference is the checkpoint's transaction count.
+	total: checkpoint(sequenceNumber: $atCheckpoint) @include(if: $withTotals) {
+		networkTotalTransactions
+	}
+	previousTotal: checkpoint(sequenceNumber: $previousCheckpoint) @include(if: $hasPrevious) {
+		networkTotalTransactions
+	}
+	transactions(filter: { atCheckpoint: $atCheckpoint }, first: 50, after: $after) {
+		...CHECKPOINT_TRANSACTIONS_PAGE
+	}
+}

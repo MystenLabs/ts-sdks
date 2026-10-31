@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { GraphQLQueryResult } from './client.js';
-import { isRetryableStatus, SuiGraphQLRequestError } from './errors.js';
+import { isRetryableStatus, markConnectionLost, SuiGraphQLRequestError } from './errors.js';
 import { ServerSentEventParser } from './sse-parser.js';
 
 /** Never awaited: a teed body's cancel may never settle, and cleanup must not hide the caller's error. */
@@ -49,10 +49,12 @@ export async function* readGraphQLSSE<Result>(
 				chunk = await reader.read();
 			} catch (cause) {
 				signal.throwIfAborted();
-				throw new SuiGraphQLRequestError('GraphQL subscription body could not be read', {
-					retryable: true,
-					cause,
-				});
+				throw markConnectionLost(
+					new SuiGraphQLRequestError('GraphQL subscription body could not be read', {
+						retryable: true,
+						cause,
+					}),
+				);
 			}
 			signal.throwIfAborted();
 			for (const message of parser.feed(decoder.decode(chunk.value, { stream: !chunk.done }))) {

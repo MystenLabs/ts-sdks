@@ -19,7 +19,12 @@ import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { abortableAsyncGenerator } from '../utils/abort.js';
-import { isRetryableStatus, SuiGraphQLRequestError } from './errors.js';
+import {
+	isRetryableStatus,
+	markConnectionLost,
+	markNetworkFailure,
+	SuiGraphQLRequestError,
+} from './errors.js';
 import { readGraphQLSSE } from './subscribe.js';
 
 export { SuiGraphQLRequestError } from './errors.js';
@@ -59,6 +64,8 @@ export type GraphQLSubscriptionOptions<
 		 * @default 16 * 1024 * 1024
 		 */
 		maxMessageSize?: number;
+		/** Called once the server accepts the subscription, before the first result. */
+		onOpen?: () => void;
 	};
 
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
@@ -194,10 +201,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			body = await res.text();
 		} catch (cause) {
 			options.signal?.throwIfAborted();
-			throw new SuiGraphQLRequestError('GraphQL response body could not be read', {
-				retryable: true,
-				cause,
-			});
+			throw markConnectionLost(
+				new SuiGraphQLRequestError('GraphQL response body could not be read', {
+					retryable: true,
+					cause,
+				}),
+			);
 		}
 		// Invalid JSON is a protocol error, not a transport failure, so it is not retryable.
 		return JSON.parse(body);
@@ -223,6 +232,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 				body: requestBody(options),
 				signal,
 			});
+			if (response.ok) options.onOpen?.();
 			yield* readGraphQLSSE<Result>(
 				response,
 				signal,
@@ -247,10 +257,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		} catch (cause) {
 			init.signal?.throwIfAborted();
 			if (!(cause instanceof TypeError)) throw cause;
-			throw new SuiGraphQLRequestError('GraphQL network request failed', {
-				retryable: true,
-				cause,
-			});
+			throw markNetworkFailure(
+				new SuiGraphQLRequestError('GraphQL network request failed', {
+					retryable: true,
+					cause,
+				}),
+			);
 		}
 	}
 
@@ -468,6 +480,30 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		input: SuiClientTypes.ListCheckpointsOptions,
 	): Promise<SuiClientTypes.ListCheckpointsResponse> {
 		return this.core.listCheckpoints(input);
+	}
+
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include, Frames>> {
+		return this.core.streamCheckpoints(input);
+	}
+
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include, Frames>> {
+		return this.core.streamTransactions(input);
+	}
+
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		input?: SuiClientTypes.StreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
+		return this.core.streamEvents(input);
 	}
 
 	getMoveFunction(

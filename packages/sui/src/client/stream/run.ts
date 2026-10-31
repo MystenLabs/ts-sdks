@@ -53,7 +53,8 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 		if (signal.aborted || status.callbackFailed) throw error;
 		const errorClass = classify(error, adapter);
 		const reason = errorClass === 'fatal' ? undefined : retryReason(error, adapter);
-		const delay = retry.onFailure(error, errorClass, advanced, reason, progressOnly);
+		const limit = errorClass === 'fatal' ? undefined : adapter.attemptLimit?.(error);
+		const delay = retry.onFailure(error, errorClass, advanced, reason, progressOnly, limit);
 		status.retrying(retry.attempt, delay, reason!, error);
 		await sleep(delay, signal);
 	}
@@ -70,11 +71,10 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 	const identity = await withRetries(() => adapter.initialize(signal));
 	if (!identity.chain) throw new SuiStreamError('Protocol', 'Stream chain identity is missing');
 	assertTokensCompatible(tokens, identity, adapter);
+	const readIndexedTip = async () =>
+		identity.indexedTip ?? (await withRetries(() => adapter.indexedTip(signal)));
 	// Bounds that depend on the tip fail here with `InvalidOptions`, outside the retry loop.
-	const plan = await planStream(
-		prepared,
-		async () => identity.indexedTip ?? (await withRetries(() => adapter.indexedTip(signal))),
-	);
+	const plan = await planStream(prepared, readIndexedTip);
 	const session = new StreamSession({
 		plan,
 		identity,
@@ -82,6 +82,8 @@ async function* runStream<Item, Frame extends { resumeToken: string }>(
 		frames: options.frames,
 		status,
 		signal,
+		liveFrom:
+			plan.mode === 'follow' && adapter.liveAtIndexedTip ? await readIndexedTip() : undefined,
 	});
 	if (plan.empty) {
 		yield* session.complete();

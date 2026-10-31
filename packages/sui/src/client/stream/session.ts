@@ -74,6 +74,9 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	#retentionLimit = false;
 	/** Consecutive passes, across reconnects, that ended on a rejection that may be pruned history. */
 	#rejectedPasses = 0;
+	/** Where set, live delivery reports `Live` at the first item at or past this checkpoint. */
+	readonly #liveFrom: bigint | undefined;
+	#reportedLive = false;
 
 	constructor(options: {
 		plan: StreamPlan;
@@ -82,6 +85,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		frames: SuiClientTypes.StreamFrameOptions | undefined;
 		status: StatusReporter;
 		signal: AbortSignal;
+		liveFrom?: bigint;
 	}) {
 		const { plan, adapter } = options;
 		this.signal = options.signal;
@@ -103,6 +107,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		}
 		this.#covered = this.#initialCoverage();
 		this.#nearLiveTip = plan.anchored;
+		this.#liveFrom = options.liveFrom;
 	}
 
 	/** Resume point: the last committed position, else the planned start bound. */
@@ -150,6 +155,11 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 
 	/** Delivery reached the indexed tip: a poll pass, or gap recovery before the first live item. */
 	markLive() {
+		this.#reportLive();
+	}
+
+	#reportLive() {
+		this.#reportedLive = true;
 		this.#status.live();
 	}
 
@@ -189,12 +199,27 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		return new FeedReader(events, () => this.#status.connected());
 	}
 
-	/** Reports `Live`, then delivers the feed: drops events at or before committed state. */
+	/**
+	 * Reports `Live`, then delivers the feed: drops events at or before committed state. Called
+	 * with the feed's first event read. With `liveFrom`, `Live` waits for the first item at or past
+	 * it, unless the feed is known to be at the tip: a fresh follow that has delivered no item yet,
+	 * or any reconnect after the stream was live, however the earlier attempts failed.
+	 */
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#delivering = true;
-		this.#status.live();
+		const liveFrom = this.#liveFrom;
+		const atTip = this.#reportedLive || (this.#plan.anchored && this.#lastItem === undefined);
+		if (liveFrom === undefined || atTip) this.#reportLive();
 		for await (const event of feed) {
-			if (!this.#isStale(event)) yield* this.#commit(event);
+			if (this.#isStale(event)) continue;
+			if (
+				liveFrom !== undefined &&
+				event.$kind === 'Item' &&
+				event.position.checkpoint! >= liveFrom
+			) {
+				this.#reportLive();
+			}
+			yield* this.#commit(event);
 		}
 		// A live feed never completes. Its end is a disconnect, and the core reconnects.
 		throw new StreamDisconnected();

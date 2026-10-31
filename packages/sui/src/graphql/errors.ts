@@ -3,7 +3,7 @@
 
 /**
  * A transport or protocol failure of a GraphQL query or subscription. GraphQL errors delivered in
- * a response body are returned in `errors` instead.
+ * a response body are returned in `errors` instead, except by ledger streams, which throw them.
  */
 export class SuiGraphQLRequestError extends Error {
 	/** The HTTP status, when the server responded with a non-2xx status. */
@@ -23,4 +23,30 @@ export class SuiGraphQLRequestError extends Error {
 
 export function isRetryableStatus(status: number) {
 	return status === 408 || status === 429 || status >= 500;
+}
+
+const networkFailures = new WeakSet<object>();
+
+/** Marks a request that failed before the server answered. */
+export function markNetworkFailure<E extends object>(error: E): E {
+	networkFailures.add(error);
+	return error;
+}
+
+/** Whether `error` was marked with `markNetworkFailure`. */
+export function isNetworkFailure(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && networkFailures.has(error);
+}
+
+const connectionLost = new WeakSet<object>();
+
+/** Marks a response whose body broke after the server answered. */
+export function markConnectionLost<E extends object>(error: E): E {
+	connectionLost.add(error);
+	return error;
+}
+
+/** Whether `error` was marked with `markConnectionLost`. */
+export function isConnectionLost(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && connectionLost.has(error);
 }

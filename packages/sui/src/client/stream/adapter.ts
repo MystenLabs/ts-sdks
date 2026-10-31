@@ -134,6 +134,17 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 * at the live tip, so the core pages history first and replays the gap before the first event.
 	 */
 	readonly resumesSubscriptions: boolean;
+	/**
+	 * true: a live feed starts with the server's backfill, which looks like live data, so `Live` is
+	 * reported at the first item at or past the indexed tip read at startup, not when the feed opens.
+	 * Progress carries no checkpoint and never reports it.
+	 */
+	readonly liveAtIndexedTip?: boolean;
+	/**
+	 * With `resumesSubscriptions`, whether `subscribe(from)` can backfill from `from`. Where it
+	 * cannot, the core pages history first and subscribes after it. Defaults to true.
+	 */
+	canResume?(from: Bound): boolean;
 
 	/**
 	 * Resolves names in the filter. The returned filter is hashed into every token. An adapter that
@@ -159,6 +170,12 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 * end as `Disconnected` itself.
 	 */
 	retryReason(error: unknown): SuiClientTypes.StreamRetryReason;
+	/**
+	 * A cap on failures of this kind since the last progress, for errors that may recur on every
+	 * attempt, or `undefined` for none. Only progress resets the count. The stream's `maxAttempts`
+	 * still applies, and whichever limit is reached first ends the stream.
+	 */
+	attemptLimit?(error: unknown): number | undefined;
 }
 
 /** An adapter whose item type is known only to itself. */
