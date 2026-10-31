@@ -360,4 +360,8 @@ expressions.
 larger message fails the stream with `RESOURCE_EXHAUSTED`. It applies only when `SuiGrpcClient`
 builds its own transport without `interceptors`.
 
+On Node.js, streams also read on demand over native gRPC with
+[`GrpcNodeTransport`](./grpc.mdx#native-grpc-transport), which has its own `maxResponseMessageBytes`
+and `prefetch` options.
+
 For arbitrary GraphQL selection sets, use [native subscriptions](./graphql.mdx#subscriptions).

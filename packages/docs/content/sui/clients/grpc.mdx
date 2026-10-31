@@ -156,38 +156,57 @@ const client = new SuiGrpcClient({
 
 ### Native gRPC transport
 
-For server-side applications (Node.js, Bun, and others), requests can also use the native gRPC
-transport from `@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HTTP/2 and the native
-gRPC protocol rather than the gRPC-web translation layer. Unary calls and bounded list methods such
-as `listCheckpoints`, `listTransactions` and `listEvents` work on it.
-
-Use the default transport, without interceptors, for the resumable ledger streams
-(`streamCheckpoints`, `streamTransactions` and `streamEvents`). The native transport, like the
-default one with interceptors configured, buffers stream responses whether or not they are consumed.
-The native transport can also end a stream on a server-side reset instead of reconnecting it.
+On Node.js, `@mysten/grpc-node-transport` provides `GrpcNodeTransport`, which speaks native gRPC
+over HTTP/2 through [`@grpc/grpc-js`](https://github.com/grpc/grpc-node) instead of gRPC-web.
 
 ```npm
-npm install @protobuf-ts/grpc-transport @grpc/grpc-js
+npm install @mysten/grpc-node-transport
 ```
 
 ```typescript
+import { GrpcNodeTransport } from '@mysten/grpc-node-transport';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { GrpcTransport } from '@protobuf-ts/grpc-transport';
-import { ChannelCredentials } from '@grpc/grpc-js';
 
-const transport = new GrpcTransport({
-	host: 'fullnode.testnet.sui.io:443',
-	channelCredentials: ChannelCredentials.createSsl(),
-});
+const transport = new GrpcNodeTransport({ baseUrl: 'https://fullnode.mainnet.sui.io:443' });
+const client = new SuiGrpcClient({ network: 'mainnet', transport });
 
-const client = new SuiGrpcClient({
-	network: 'testnet',
-	transport,
-});
+// Release the HTTP/2 connection when the client is no longer needed
+transport.close();
 ```
 
-For local development without TLS, use `ChannelCredentials.createInsecure()` and a plain
-`host: '127.0.0.1:9000'`.
+`https://` URLs connect with TLS, and `http://` URLs, such as `http://127.0.0.1:9000` for a local
+node, connect without it. Errors carry the same codes as on the default transport, except that a
+unary call whose stream is reset fails with `INTERNAL`, since the server may have acted on it.
+Without `interceptors`, [ledger streams](./streaming.mdx) read messages only as your loop asks for
+them. With `interceptors`, messages are read as they arrive. Compared with gRPC-web, the transport:
+
+- runs every call over one HTTP/2 connection,
+- sends keepalive pings while calls are open, so a long-lived stream notices a dead connection,
+- connects to nodes that serve gRPC without a gRPC-web proxy.
+
+Without `interceptors`, a stream whose loop pauses holds up to about `prefetch` decoded messages,
+and HTTP/2 flow control stops the server once the window is full. `grpc-node.flow_control_window` in
+`clientOptions` (4 MiB by default) sets the window of each stream and of the connection, so each
+paused stream can also hold up to that many bytes not yet decoded. A smaller window holds less per
+stream but slows history reads whose pages are larger than it.
+
+| Option                    | Default                         | Purpose                                                         |
+| ------------------------- | ------------------------------- | --------------------------------------------------------------- |
+| `baseUrl`                 | required                        | `https://host[:port]` or `http://host[:port]`, without a path   |
+| `channelCredentials`      | TLS or insecure, from `baseUrl` | `ChannelCredentials` from `@grpc/grpc-js`                       |
+| `clientOptions`           | keepalive and a 4 MiB window    | `@grpc/grpc-js` channel options                                 |
+| `maxResponseMessageBytes` | 64 MiB                          | Largest response message, for unary and streaming calls         |
+| `prefetch`                | 16                              | Decoded stream messages held ahead of your loop                 |
+| `meta`, `timeout`         | none                            | Default metadata and deadline for every call, including streams |
+
+A `timeout` set on the transport also ends long-lived streams; bound individual calls with a
+`signal` instead.
+
+`@protobuf-ts/grpc-transport` with `@grpc/grpc-js` also works as a `transport` for unary calls and
+bounded list methods such as `listCheckpoints`, `listTransactions` and `listEvents`. Don't use it
+for the resumable ledger streams (`streamCheckpoints`, `streamTransactions` and `streamEvents`): it
+buffers stream messages whether or not they are read, and reports a server-side reset as `INTERNAL`,
+which ends the stream instead of reconnecting it.
 
 ## Read masks
 
