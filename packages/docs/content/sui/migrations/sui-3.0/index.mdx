@@ -81,6 +81,10 @@ together with `@mysten/sui`.
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
   [Querying](/sui/clients/querying) for the current rules.
+- **The gRPC-web transport uses the binary wire format by default.** Both `SuiGrpcClient` and
+  `GrpcWebFetchTransport` from `@mysten/sui/grpc` now send `application/grpc-web+proto` instead of
+  base64 `application/grpc-web-text`. If a proxy in front of your full node only supports the text
+  format, pass `format: 'text'`.
 
 `@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`;
 their users have nothing to change. If your code names legacy response types such as
