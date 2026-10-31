@@ -393,6 +393,8 @@ describe('toNetworkRpcError', () => {
 	it('leaves RpcErrors and failures after an abort unchanged', () => {
 		const status = new RpcError('server failure', 'INTERNAL');
 		expect(toNetworkRpcError(status, undefined, 'request')).toBe(status);
+		const pruned = new RpcError('pruned', 'OUT_OF_RANGE');
+		expect(toNetworkRpcError(pruned, undefined, 'request')).toBe(pruned);
 
 		const controller = new AbortController();
 		controller.abort();
