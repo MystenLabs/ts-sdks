@@ -4,6 +4,7 @@
 import { CoreClient } from '../client/core.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { grpcTransactionToLedgerTransactionData } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
@@ -52,12 +53,12 @@ import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.j
 import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcJson,
-	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
 import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
+import type { FundsWithdrawal_Source, Input_Mutability } from '../grpc/proto/sui/rpc/v2/input.js';
 import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { BuildTransactionOptions } from '../transactions/index.js';
@@ -1182,20 +1183,18 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 				};
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
-	if (include?.transaction && transaction.transactionJson) {
-		const grpcTx = GrpcTransactionType.fromJson(
+	if (include?.transaction) {
+		if (!transaction.transactionJson) {
+			throw new Error('Transaction data is required but missing from GraphQL response');
+		}
+		// `transactionJson` is the gRPC JSON encoding. Unknown fields and enum values, from kinds
+		// newer than this SDK, are dropped so they map to `Unknown` like they do over gRPC.
+		const grpcTransaction = GrpcTransactionType.fromJson(
 			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
 			{ ignoreUnknownFields: true },
 		);
-		const resolved = grpcTransactionToTransactionData(grpcTx);
-		transactionData = {
-			gasData: resolved.gasData,
-			sender: resolved.sender,
-			expiration: resolved.expiration,
-			commands: resolved.commands,
-			inputs: resolved.inputs,
-			version: resolved.version,
-		};
+		markUnrecognizedEnums(transaction.transactionJson, grpcTransaction);
+		transactionData = grpcTransactionToLedgerTransactionData(grpcTransaction);
 	}
 
 	const bcsBytes =
@@ -1221,7 +1220,11 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
-		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
+		// Genesis has no sender signatures; the ledger may return a synthetic placeholder.
+		signatures:
+			transaction.effects?.checkpoint?.sequenceNumber === 0
+				? []
+				: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
 			? (transaction.effects?.events?.nodes.map((event) => {
@@ -1435,4 +1438,33 @@ function listPageCursors(
 		startCursor: edges[0]?.cursor ?? null,
 		endCursor: hasNextPage ? resumeFrom : (edges.at(-1)?.cursor ?? null),
 	};
+}
+
+/**
+ * An absent shared-object `mutability` or withdrawal `source` is valid (older data), so dropping an
+ * unrecognized name would read as a legacy input. Give such inputs a value outside the enum
+ * instead, so the kind maps to `Unknown` as an unrecognized number does over gRPC.
+ */
+function markUnrecognizedEnums(json: unknown, grpcTransaction: GrpcTransactionType) {
+	const kind = grpcTransaction.kind?.data;
+	if (kind?.oneofKind !== 'programmableTransaction') {
+		return;
+	}
+	const jsonKind = (json as { kind?: Record<string, { inputs?: unknown[] } | undefined> }).kind;
+	const jsonInputs = (jsonKind?.programmableTransaction ?? jsonKind?.programmable_transaction)
+		?.inputs;
+	kind.programmableTransaction.inputs.forEach((input, i) => {
+		const jsonInput = jsonInputs?.[i] as
+			{ mutability?: unknown; fundsWithdrawal?: { source?: unknown } } | undefined;
+		if (input.mutability === undefined && jsonInput?.mutability != null) {
+			input.mutability = -1 as Input_Mutability;
+		}
+		if (
+			input.fundsWithdrawal &&
+			input.fundsWithdrawal.source === undefined &&
+			jsonInput?.fundsWithdrawal?.source != null
+		) {
+			input.fundsWithdrawal.source = -1 as FundsWithdrawal_Source;
+		}
+	});
 }
