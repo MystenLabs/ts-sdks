@@ -64,10 +64,10 @@ import type { ResolvedPagination } from '../client/query-filters.js';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import {
+	resolveCheckpointRange,
 	resolveEventFilter,
 	resolvePagination,
 	resolveTransactionFilter,
-	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 import { hasDecodedStatusMessage } from './transport.js';
@@ -647,16 +647,18 @@ export class GrpcCoreClient extends CoreClient {
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
 		const paths = transactionReadMaskPaths(options.include);
 
+		const pagination = resolvePagination(options);
+		const range = resolveCheckpointRange(options);
 		const filter = options.filter
 			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
 			: undefined;
-		const pagination = resolvePagination(options);
-		validateTransactionQuery(filter, pagination);
 
 		const call = this.#client.ledgerService.listTransactions(
 			{
 				readMask: { paths },
-				filter: filter && toGrpcTransactionFilter(filter),
+				filter: toGrpcTransactionFilter(filter),
+				startCheckpoint: range.start,
+				endCheckpoint: range.end,
 				// Request one extra item as lookahead: the server reports its item limit as reached
 				// without scanning past it, so an exact-limit final page is otherwise
 				// indistinguishable from one with more results
@@ -714,6 +716,10 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse> {
 		const pagination = resolvePagination(options);
+		const range = resolveCheckpointRange(options);
+		const filter = options.filter
+			? await resolveEventFilter(this.mvr, options.filter, options.signal)
+			: undefined;
 		const call = this.#client.ledgerService.listEvents(
 			{
 				readMask: {
@@ -729,9 +735,9 @@ export class GrpcCoreClient extends CoreClient {
 						'event_index',
 					],
 				},
-				filter: options.filter
-					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter, options.signal))
-					: undefined,
+				filter: toGrpcEventFilter(filter),
+				startCheckpoint: range.start,
+				endCheckpoint: range.end,
 				// Request one extra item as lookahead: the server reports its item limit as reached
 				// without scanning past it, so an exact-limit final page is otherwise
 				// indistinguishable from one with more results
@@ -758,16 +764,26 @@ export class GrpcCoreClient extends CoreClient {
 					startCursor ??= frontier;
 					endCursor = frontier;
 					const event = frame.event;
+					if (
+						!event.packageId ||
+						!event.module ||
+						!event.sender ||
+						!event.eventType ||
+						!event.transactionDigest ||
+						event.eventIndex == null
+					) {
+						throw new Error('listEvents response is missing expected event fields');
+					}
 					events.push({
-						packageId: normalizeSuiAddress(event.packageId!),
-						module: event.module!,
-						sender: normalizeSuiAddress(event.sender!),
-						eventType: normalizeStructTag(event.eventType!),
+						packageId: normalizeSuiAddress(event.packageId),
+						module: event.module,
+						sender: normalizeSuiAddress(event.sender),
+						eventType: normalizeStructTag(event.eventType),
 						bcs: event.contents?.value ?? new Uint8Array(),
 						json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
 						checkpoint: event.checkpoint?.toString() ?? null,
-						transactionDigest: event.transactionDigest!,
-						eventIndex: event.eventIndex!,
+						transactionDigest: event.transactionDigest,
+						eventIndex: event.eventIndex,
 					});
 				}
 			}

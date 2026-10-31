@@ -11,6 +11,9 @@ keywords:
   - listTransactions
   - listEvents
   - pagination
+  - affectedAddress
+  - affectedObject
+  - checkpoint range
   - '@mysten/sui'
 questions:
   - What is Querying Data?
@@ -384,12 +387,28 @@ for (const result of page.transactions) {
 }
 ```
 
-Transaction filters take exactly one predicate:
+Transaction filters combine their predicates with AND, and an empty filter matches every
+transaction. A filter takes at most one of `affectedAddress`, `affectedObject`, or `function`, and
+`sender` can be combined with any of them:
 
-| Predicate  | Description                                                                 |
-| ---------- | --------------------------------------------------------------------------- |
-| `sender`   | Transactions sent by an address                                             |
-| `function` | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`) |
+| Predicate         | Description                                                                                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sender`          | Transactions sent by an address                                                                                                                                                                                                                    |
+| `affectedAddress` | Transactions that changed objects an address owned before or owns after (including its gas coin), or its address balance. On gRPC, not ones it only signed (use `sender`); GraphQL servers that answer from a Postgres index also match the sender |
+| `affectedObject`  | Transactions whose effects include a change to an object                                                                                                                                                                                           |
+| `function`        | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`), including aborts                                                                                                                                                      |
+
+```typescript
+// Calls into a package by one sender
+const calls = await client.listTransactions({
+	filter: { sender: '0xabc...', function: '0xpkg...' },
+});
+
+// Every transaction that touched an object
+const history = await client.listTransactions({
+	filter: { affectedObject: '0xobject...' },
+});
+```
 
 ### `listEvents`
 
@@ -408,21 +427,25 @@ for (const event of page.events) {
 }
 ```
 
-Event filters take exactly one predicate:
+Event filters also combine their predicates with AND. A filter cannot combine `emitModule` with
+`eventType`, and `sender` can be combined with either:
 
-| Predicate    | Description                                                                       |
-| ------------ | --------------------------------------------------------------------------------- |
-| `sender`     | Events from transactions sent by an address                                       |
-| `emitModule` | Events emitted by a module (`pkg::mod`)                                           |
-| `eventType`  | Events with types defined in a module (`pkg::mod`) or a fully qualified type name |
+| Predicate    | Description                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| `sender`     | Events from transactions sent by an address                                                      |
+| `emitModule` | Events emitted by functions in a package (`pkg`) or module (`pkg::mod`), whatever their type     |
+| `eventType`  | Events with types defined in a package (`pkg`) or module (`pkg::mod`), or a fully qualified type |
 
-Both filters resolve [MVR](#move-registry-names) names automatically, and both methods take a
-`limit` and an `order` and page through history with the cursors described under
-[Pagination](#pagination).
+A generic type name without type arguments (`pkg::mod::Wrapped`) matches every instantiation of that
+type, while `pkg::mod::Wrapped<0x2::sui::SUI>` matches only that instantiation.
 
-For filters beyond one predicate (combined or negated predicates, affected addresses and objects, or
-checkpoint ranges), use the [raw gRPC list RPCs](/sui/clients/grpc#using-service-clients) or a
-[custom GraphQL query](/sui/clients/graphql#writing-queries). To follow new activity as it happens,
+Both filters resolve [MVR](#move-registry-names) names automatically. Both methods take a `limit`
+and an `order`, can be limited to a range of checkpoints, and page through history with the cursors
+described under [Pagination](#pagination).
+
+For filters the Core API does not express (OR of predicates, negated or repeated predicates, or
+event-based and package-write predicates on transactions), use the
+[raw gRPC list RPCs](/sui/clients/grpc#using-service-clients). To follow new activity as it happens,
 see [gRPC subscriptions](/sui/clients/grpc#subscriptions).
 
 ## Pagination
@@ -464,10 +487,11 @@ while (true) {
 ### History cursors
 
 `listTransactions` and `listEvents` read an ordered ledger instead of a collection, so they take
-`after` and `before`, which are exclusive ledger-position bounds. A query takes at most one of them,
-and the bound implies the direction: `after` reads ascending, `before` reads descending. Each page
-reports the position of its first and last item as `startCursor` and `endCursor`, so a feed can page
-in both directions from any point:
+`after` and `before`, which are exclusive ledger-position bounds. Both bounds work with either
+`order`, and they can be combined to read a window. Without an explicit `order`, a query bounded
+only by `before` reads descending, and every other query reads ascending. Each page reports the
+position of its first and last item as `startCursor` and `endCursor`, so a feed can page in both
+directions from any point:
 
 ```typescript
 // The most recent transactions
@@ -491,12 +515,55 @@ const newer = await client.listTransactions({
 });
 ```
 
+To page through a window, keep the fixed bound and replace the moving one with `endCursor`. This
+reads everything between two known positions, newest first:
+
+```typescript
+// `start` and `end` are cursors from earlier pages of the same query
+let page = await client.listTransactions({
+	filter: { sender: '0xabc...' },
+	after: start,
+	before: end,
+	order: 'descending',
+});
+
+while (page.hasNextPage) {
+	page = await client.listTransactions({
+		filter: { sender: '0xabc...' },
+		after: start,
+		before: page.endCursor,
+		order: 'descending',
+	});
+}
+```
+
+On GraphQL, the page that reaches a cursor bound may report `hasNextPage: true` and be followed by
+empty pages. On both transports a page can also be short or empty with `hasNextPage: true`. Loops
+driven by `hasNextPage`, like the one above, handle both.
+
+Cursors are only valid for the query that produced them: pass them back with the same filter and
+checkpoint range.
+
+### Checkpoint ranges
+
+`startCheckpoint` (inclusive) and `endCheckpoint` (exclusive) limit either method to a range of
+checkpoints, and combine with filters and cursors. Both accept a string, number, or bigint:
+
+```typescript
+// Events of one type emitted in checkpoints 1000 through 1999
+const page = await client.listEvents({
+	filter: { eventType: '0xpkg...::my_module::MyEvent' },
+	startCheckpoint: 1000,
+	endCheckpoint: 2000,
+});
+```
+
 <Callout type="info">
-	Drive pagination off `hasNextPage` rather than page length. On gRPC, a filtered query is bounded
-	in how much ledger it scans per request, so a page can come back shorter than `limit`, even empty,
-	while `hasNextPage` is still `true`; continuing from `endCursor` always makes progress. Servers
-	also cap page sizes (50 by default); over-large `limit` values are truncated on gRPC and rejected
-	on GraphQL.
+	Drive pagination off `hasNextPage` rather than page length. A filtered query is bounded in how
+	much ledger it scans per request, so on either transport a page can come back shorter than
+	`limit`, even empty, while `hasNextPage` is still `true`; continuing from `endCursor` always makes
+	progress. Servers also cap page sizes (50 by default); over-large `limit` values are truncated on
+	gRPC and rejected on GraphQL.
 </Callout>
 
 ## Move functions
