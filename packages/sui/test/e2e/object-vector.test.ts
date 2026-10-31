@@ -65,8 +65,8 @@ describe('Test Move call with a vector of objects as input', () => {
 
 	it('Test regular arg mixed with object vector arg', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
-		const coin = coins.data[3];
-		const coinIDs = coins.data.map((coin) => coin.coinObjectId);
+		const coin = coins[3];
+		const coinIDs = coins.map((coin) => coin.objectId);
 		const tx = new Transaction();
 		const vec = tx.makeMoveVec({
 			elements: [coinIDs[1], tx.object(coinIDs[2])],
@@ -76,7 +76,7 @@ describe('Test Move call with a vector of objects as input', () => {
 			typeArguments: ['0x2::sui::SUI'],
 			arguments: [tx.object(coinIDs[0]), vec],
 		});
-		tx.setGasPayment([{ objectId: coin.coinObjectId, digest: coin.digest, version: coin.version }]);
+		tx.setGasPayment([{ objectId: coin.objectId, digest: coin.digest, version: coin.version }]);
 		const result = await toolbox.keypair.signAndExecuteTransaction({
 			client: toolbox.grpcClient,
 			transaction: tx,

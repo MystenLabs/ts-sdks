@@ -141,4 +141,19 @@ describe('tx.pure serialization', () => {
 			]
 		`);
 	});
+
+	test('rejects empty or invalid addresses and object ids', () => {
+		const tx = new Transaction();
+
+		for (const invalid of [
+			'',
+			'0xWRONG',
+			'0x0000000000000000000000004ce52ee7b659b610d59a1ced129291b3d0d4216322',
+		]) {
+			expect(() => tx.pure.address(invalid)).toThrowError(/Invalid Sui address/);
+			expect(() => tx.pure.id(invalid)).toThrowError(/Invalid Sui address/);
+		}
+
+		expect(tx.getData().inputs).toHaveLength(0);
+	});
 });

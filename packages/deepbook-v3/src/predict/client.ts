@@ -707,7 +707,7 @@ type BinaryMarketCoordinates = Pick<MarketDescriptor, 'underlying' | 'expiryMs' 
 };
 
 /** The Sui client surface PredictClient reads through: any `ClientWithCoreApi`
- * (gRPC or JSON-RPC) provides both the `simulateTransaction` the reads/quotes
+ * (gRPC or GraphQL) provides both the `simulateTransaction` the reads/quotes
  * sit on and the `core` object methods position enumeration needs. */
 export interface PredictCompatibleClient extends ClientWithCoreApi {}
 

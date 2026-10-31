@@ -61,8 +61,8 @@ export type ResolvedTransactionFilter =
 /**
  * Validates that a transaction query's filter supports pagination bounds.
  *
- * Function filters can only be paginated when fully qualified, since JSON-RPC
- * rejects cursors on package- or module-level `MoveFunction` filters.
+ * Function filters can only be paginated when fully qualified (`package::module::function`);
+ * cursors on package- or module-level function filters are rejected.
  */
 export function validateTransactionQuery(
 	filter: ResolvedTransactionFilter | undefined,
