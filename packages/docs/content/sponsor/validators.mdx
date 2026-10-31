@@ -210,15 +210,15 @@ from nominated gas coins; the sponsor-builds flow always sets this, so this vali
 user-supplied bytes.
 
 ‡ Verifies (through `@mysten/sui`'s `isValidTransactionSignature`) that **every** supplied user
-signature is cryptographically valid over the bytes **and** resolves to the sender, caught before
-the sponsor co-signs, rather than only at execution (all supplied signatures are attached to
-execution, so one that isn't the sender's would be rejected onchain after the sponsor signed). A
-malformed, invalid, or wrong-signer signature is rejected as `USER_SIGNATURE_INVALID`; the sender
-match is key-type aware (a zkLogin key matches either its legacy or current address). An
-_environmental_ failure during verification (for example, a zkLogin JWK or epoch lookup throwing)
-isn't a validation result; it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as
-a bad signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature
-is read from the request, not from `validationOptions`.
+signature is valid over the bytes **and** that the sender or one of its address aliases signed it,
+checked by the client's node. This is caught before the sponsor co-signs, rather than only at
+execution (all supplied signatures are attached to execution, so one that isn't the sender's would
+be rejected onchain after the sponsor signed). A malformed, invalid, or wrong-signer signature is
+rejected as `USER_SIGNATURE_INVALID`. An _environmental_ failure during verification (for example, a
+network error or the node not applying the address alias check) isn't a validation result; it
+surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as a bad signature. Passes when
+no user signature was supplied (the sponsor-builds flow). The signature is read from the request,
+not from `validationOptions`.
 
 `defaults()` bundles `validSender()` + `onlyAddressBalanceGas()` + `gasCoinNotUsed()` +
 `onlySenderWithdrawals()` + `simulationSucceeds()` + `boundedExpiration()`.

@@ -584,7 +584,8 @@ describe('Integration test', () => {
 		).rejects.toThrow(InconsistentKeyServersError);
 	});
 
-	it('test fetchKeys throws SealAPIError', async () => {
+	// Public nodes don't apply the address alias check yet.
+	it.skip('test fetchKeys throws SealAPIError', async () => {
 		// Setup encrypted object.
 		const whitelistId = '0x5809c296d41e0d6177e8cf956010c1d2387299892bb9122ca4ba4ffd165e05cb';
 		const client = new SealClient({
@@ -667,7 +668,8 @@ describe('Integration test', () => {
 		);
 	});
 
-	it('test session key verify personal message signature', async () => {
+	// Public nodes don't apply the address alias check yet.
+	it.skip('test session key verify personal message signature', async () => {
 		const kp = Ed25519Keypair.generate();
 		const sessionKey = await SessionKey.create({
 			address: kp.getPublicKey().toSuiAddress(),

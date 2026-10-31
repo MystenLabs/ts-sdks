@@ -52,6 +52,14 @@ export enum ExecutionStatus {
   Success = 'SUCCESS'
 }
 
+/** An enum that specifies the intent scope for signature verification. */
+export enum IntentScope {
+  /** Indicates that the bytes are to be parsed as a personal message. */
+  PersonalMessage = 'PERSONAL_MESSAGE',
+  /** Indicates that the bytes are to be parsed as transaction data bytes. */
+  TransactionData = 'TRANSACTION_DATA'
+}
+
 /** Abilities are keywords in Sui Move that define how types behave at the compiler level. */
 export enum MoveAbility {
   /** Enables values to be copied. */
@@ -601,6 +609,17 @@ export type ResolveTransactionQueryVariables = Exact<{
 
 
 export type ResolveTransactionQuery = { simulateTransaction: { effects: { transaction: { transactionBcs: string | null, effects: { status: ExecutionStatus | null, epoch: { epochId: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null } | null } | null } | null } };
+
+export type VerifySignatureQueryVariables = Exact<{
+  message: string;
+  signature: string;
+  intentScope: IntentScope;
+  author: string;
+  checkAddressAliases?: boolean | null | undefined;
+}>;
+
+
+export type VerifySignatureQuery = { verifySignature: { success: boolean | null } | null };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: string;
@@ -2504,6 +2523,19 @@ export const ResolveTransactionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<ResolveTransactionQuery, ResolveTransactionQueryVariables>;
+export const VerifySignatureDocument = new TypedDocumentString(`
+    query verifySignature($message: Base64!, $signature: Base64!, $intentScope: IntentScope!, $author: SuiAddress!, $checkAddressAliases: Boolean) {
+  verifySignature(
+    message: $message
+    signature: $signature
+    intentScope: $intentScope
+    author: $author
+    checkAddressAliases: $checkAddressAliases
+  ) {
+    success
+  }
+}
+    `) as unknown as TypedDocumentString<VerifySignatureQuery, VerifySignatureQueryVariables>;
 export const VerifyZkLoginSignatureDocument = new TypedDocumentString(`
     query verifyZkLoginSignature($bytes: Base64!, $signature: Base64!, $intentScope: ZkLoginIntentScope!, $author: SuiAddress!) {
   verifyZkLoginSignature(

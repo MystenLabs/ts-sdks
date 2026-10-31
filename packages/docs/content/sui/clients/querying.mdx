@@ -641,6 +641,39 @@ const {
 });
 ```
 
+## Signatures and address aliases
+
+### `verifySignature`
+
+Verify a personal message or transaction signature on the node. With `address`, the signer must be
+`address` or one of its current address aliases:
+
+```typescript
+const { valid, reason } = await client.verifySignature({
+	personalMessage: 'Sign in to example.com\nAddress: 0xabc...\nNonce: 3f9a...',
+	signature,
+	address: '0xabc...',
+});
+```
+
+Pass `transaction` (the BCS transaction bytes) instead of `personalMessage` to verify a transaction
+signature, and `checkAddressAliases: false` to accept only the address's own key. A malformed
+signature returns `valid: false`. It throws for network errors, or when the node didn't apply the
+address alias check. To verify offline or get the signer's public key, use the
+[`@mysten/sui/verify` helpers](/sui/cryptography#verifying-locally).
+
+### `getAddressAliases`
+
+Fetch the addresses allowed to sign for an address. An address that has not enabled aliases only has
+itself:
+
+```typescript
+const { addressAliases } = await client.getAddressAliases({ address: '0xabc...' });
+
+console.log(addressAliases.enabled); // whether the address has enabled aliases
+console.log(addressAliases.aliases); // the addresses that can sign for it
+```
+
 ## Move Registry names
 
 Wherever a method takes a Move type or package, it also accepts a Move Registry (MVR) name, a

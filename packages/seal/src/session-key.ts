@@ -6,7 +6,7 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { isValidNamedPackage, isValidSuiAddress, isValidSuiObjectId } from '@mysten/sui/utils';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
+import { isValidPersonalMessageSignature } from '@mysten/sui/verify';
 import { generateSecretKey, toPublicKey, toVerificationKey } from './elgamal.js';
 import {
 	ExpiredSessionKeyError,
@@ -154,14 +154,15 @@ export class SessionKey {
 
 	async setPersonalMessageSignature(personalMessageSignature: string) {
 		if (!this.#personalMessageSignature) {
-			try {
-				await verifyPersonalMessageSignature(this.getPersonalMessage(), personalMessageSignature, {
-					client: this.#suiClient,
-				});
-				this.#personalMessageSignature = personalMessageSignature;
-			} catch {
+			const valid = await isValidPersonalMessageSignature(
+				this.getPersonalMessage(),
+				personalMessageSignature,
+				{ client: this.#suiClient, address: this.#address },
+			);
+			if (!valid) {
 				throw new InvalidPersonalMessageSignatureError('Not valid');
 			}
+			this.#personalMessageSignature = personalMessageSignature;
 		}
 	}
 

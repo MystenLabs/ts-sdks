@@ -266,14 +266,22 @@ describe('ZkLoginPublicIdentifier verification', () => {
 					: { success: false, errors: ['address mismatch'] };
 			},
 		);
-		const client = { core: { verifyZkLoginSignature } } as unknown as ClientWithCoreApi;
-		return { client, verifyZkLoginSignature };
+		const verifySignature = vi.fn(
+			async ({ signature, address }: { signature: string; address: string }) => {
+				const { success } = await verifyZkLoginSignature({ signature, address });
+				return { valid: success };
+			},
+		);
+		const client = {
+			core: { verifyZkLoginSignature, verifySignature },
+		} as unknown as ClientWithCoreApi;
+		return { client, verifyZkLoginSignature, verifySignature };
 	}
 
 	const tx = new Uint8Array([1, 2, 3]);
 
-	test('standalone verification uses the signature identity address', async () => {
-		const { client, verifyZkLoginSignature } = nodeLikeClient();
+	test('standalone verification checks the signer against address on the node', async () => {
+		const { client, verifySignature } = nodeLikeClient();
 		const signer = makeSigner();
 		const { signature } = await signer.signTransaction(tx);
 
@@ -283,13 +291,13 @@ describe('ZkLoginPublicIdentifier verification', () => {
 		});
 
 		expect(publicKey.toSuiAddress()).toBe(signer.toSuiAddress());
-		expect(verifyZkLoginSignature).toHaveBeenCalledWith(
+		expect(verifySignature).toHaveBeenCalledWith(
 			expect.objectContaining({ address: signer.toSuiAddress() }),
 		);
 	});
 
 	test('standalone verification still accepts a legacy address', async () => {
-		const { client, verifyZkLoginSignature } = nodeLikeClient();
+		const { client, verifyZkLoginSignature, verifySignature } = nodeLikeClient();
 		// A short seed, so the legacy and current addresses differ.
 		const inputs = { ...aSignatureInputs, addressSeed: '12345' };
 		const signer = new ZkLoginSigner({
@@ -312,9 +320,8 @@ describe('ZkLoginPublicIdentifier verification', () => {
 		});
 
 		expect(publicKey.toSuiAddress()).toBe(legacyAddress);
-		// The signature is parsed into a current-derivation identifier, as before.
-		expect(verifyZkLoginSignature).toHaveBeenLastCalledWith(
-			expect.objectContaining({ address: currentAddress }),
+		expect(verifySignature).toHaveBeenLastCalledWith(
+			expect.objectContaining({ address: legacyAddress }),
 		);
 
 		// A legacy identifier verifies against its own (legacy) address, which the node also accepts.

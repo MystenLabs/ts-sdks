@@ -98,8 +98,11 @@ documents them in full, with options, include flags, and response shapes.
 | Move           | `getMoveFunction`                                                                          |
 | Names          | `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr`                               |
 | Network        | `getReferenceGasPrice`, `getCurrentSystemState`, `getProtocolConfig`, `getChainIdentifier` |
-| Verification   | `verifyZkLoginSignature`                                                                   |
+| Verification   | `verifySignature` (`verifyZkLoginSignature` is deprecated), `getAddressAliases`            |
 | Building       | `resolveTransactionPlugin`                                                                 |
+
+Library code verifies signatures with `client.core.verifySignature`, which loads no keypair code,
+and reads alias sets with `client.core.getAddressAliases`.
 
 `SuiGrpcClient` and `SuiGraphQLClient` also expose every one of these as a top-level method, so the
 choice between `client.core.getObject()` and `client.getObject()` is about portability rather than

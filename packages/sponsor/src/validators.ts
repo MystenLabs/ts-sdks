@@ -139,28 +139,26 @@ export function onlyAddressBalanceGas(): Validator {
 }
 
 /**
- * Verify that the supplied user signature(s) match the transaction's sender —
- * each is cryptographically valid over the transaction bytes *and* its public
- * key resolves to `sender`. The sponsor injects the user signature(s) it was
- * given, so this checks them ahead of time: a mismatched signature is caught
- * before the sponsor co-signs, rather than only being rejected at execution.
- * Passes when no user signature was supplied (the sponsor-builds flow, where the
- * user signs the returned bytes afterward).
+ * Verify that the supplied user signature(s) match the transaction's sender:
+ * each is a valid signature over the transaction bytes from the sender or one of
+ * its address aliases, checked by the client's node. The sponsor injects the
+ * user signature(s) it was given, so this checks them ahead of time: a
+ * mismatched signature is caught before the sponsor co-signs, rather than only
+ * being rejected at execution. Passes when no user signature was supplied (the
+ * sponsor-builds flow, where the user signs the returned bytes afterward).
  *
- * **Every** supplied signature must be the sender's, not just one:
- * `signTransaction` attaches all of them to execution, so a signature that isn't
- * the sender's would be rejected on-chain *after* the sponsor already signed.
+ * **Every** supplied signature must be valid for the sender, not just one:
+ * `signTransaction` attaches all of them to execution, so an invalid one would
+ * be rejected on-chain *after* the sponsor already signed.
  *
- * A signature that's malformed, cryptographically invalid, or from a different
- * signer is reported as `USER_SIGNATURE_INVALID` (a clear policy decline). Only a
- * genuine *environmental* failure during verification (e.g. a zkLogin JWK/epoch
- * lookup over the client throwing) propagates as `ANALYSIS_FAILED` — a network
- * blip is never mislabeled as a bad signature. This split is exactly what
- * `isValidTransactionSignature` provides: `false` for an invalid signature, but a
- * throw for an environmental failure.
+ * A signature that's malformed, invalid, or from a signer that isn't the sender
+ * or one of its aliases is reported as `USER_SIGNATURE_INVALID`. An
+ * environmental failure (a network error or the node not applying the address
+ * alias check) propagates as `ANALYSIS_FAILED`, so it is never mislabeled as a
+ * bad signature.
  *
  * Reads `bytes` and `data`, plus the sponsor-injected `userSignatures` and
- * `client` (used to verify zkLogin signatures).
+ * `client` (which verifies the signatures).
  */
 export function userSignatureMatchesSender(): Validator {
 	return createAnalyzer({

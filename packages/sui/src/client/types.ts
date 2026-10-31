@@ -335,6 +335,7 @@ export namespace SuiClientTypes {
 			options: ListDynamicFieldsOptions<Include>,
 		) => Promise<ListDynamicFieldsResponse<Include>>;
 		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
+		getAddressAliases: (options: GetAddressAliasesOptions) => Promise<GetAddressAliasesResponse>;
 	}
 
 	export interface ObjectInclude {
@@ -426,6 +427,30 @@ export namespace SuiClientTypes {
 	export interface GetDynamicFieldOptions extends CoreClientMethodOptions {
 		parentId: string;
 		name: DynamicFieldName;
+	}
+
+	export interface GetAddressAliasesOptions extends CoreClientMethodOptions {
+		address: string;
+	}
+
+	/**
+	 * The addresses whose signatures are accepted for `address`. An address that never enabled
+	 * aliases is only its own alias.
+	 */
+	export interface AddressAliases {
+		address: string;
+		/** Whether `address` has enabled aliases, so its alias set is an object on chain. */
+		enabled: boolean;
+		/** The current alias set; `[address]` when aliases are not enabled. */
+		aliases: string[];
+		/** The ID of the alias set object, derived from `address` whether or not it exists. */
+		objectId: string;
+		/** The alias set object's version; `null` when aliases are not enabled. */
+		version: string | null;
+	}
+
+	export interface GetAddressAliasesResponse {
+		addressAliases: AddressAliases;
 	}
 
 	export interface GetObjectsResponse<out Include extends ObjectInclude = {}> {
@@ -1202,6 +1227,47 @@ export namespace SuiClientTypes {
 		stakeSubsidyDecreaseRate: number;
 	}
 
+	/** Signature verification methods */
+	export interface VerifySignatureBaseOptions extends CoreClientMethodOptions {
+		/** The serialized signature (flag, signature and public key), Base64. */
+		signature: string;
+		/**
+		 * The account the signature must be valid for. Without it, any valid signature passes, so
+		 * pass it whenever you check a signature for an account.
+		 */
+		address?: string;
+		/**
+		 * Accept a signature from any of `address`'s current address aliases, not only from `address`
+		 * itself. Defaults to `true`; ignored without `address`. Throws if the node did not apply the
+		 * check.
+		 */
+		checkAddressAliases?: boolean;
+	}
+
+	export type VerifySignatureOptions = VerifySignatureBaseOptions &
+		(
+			| {
+					/** The signed personal message; a string is UTF-8 encoded. */
+					personalMessage: Uint8Array | string;
+					transaction?: never;
+			  }
+			| {
+					/** The signed BCS `TransactionData` bytes. */
+					transaction: Uint8Array;
+					personalMessage?: never;
+			  }
+		);
+
+	export interface VerifySignatureResponse {
+		valid: boolean;
+		/** Why verification failed, as reported by the node. */
+		reason?: string;
+	}
+
+	export interface TransportMethods {
+		verifySignature: (options: VerifySignatureOptions) => Promise<VerifySignatureResponse>;
+	}
+
 	/** ZkLogin methods */
 	export interface VerifyZkLoginSignatureOptions extends CoreClientMethodOptions {
 		bytes: string;
@@ -1216,6 +1282,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface TransportMethods {
+		/** @deprecated Use `verifySignature`, which supports every scheme and address aliases. */
 		verifyZkLoginSignature: (
 			options: VerifyZkLoginSignatureOptions,
 		) => Promise<ZkLoginVerifyResponse>;
