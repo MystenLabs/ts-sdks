@@ -1,5 +1,12 @@
 # @mysten/mvr-static
 
+## 0.4.37
+
+### Patch Changes
+
+- Updated dependencies [401d6d1]
+  - @mysten/sui@2.39.0
+
 ## 0.4.36
 
 ### Patch Changes

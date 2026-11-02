@@ -1,5 +1,13 @@
 # @mysten/sui.js
 
+## 2.39.0
+
+### Minor Changes
+
+- 401d6d1: Add the `TransactionExpired` execution error, which Sui returns when a transaction's
+  consensus commit timestamp is outside its `ValidDuring` or `Validity` timestamp window. Raise
+  `MAX_PROTOCOL_VERSION` to 141.
+
 ## 2.38.0
 
 ### Minor Changes
