@@ -374,6 +374,7 @@ function parseBcsExecutionError(failure: {
 		case 'ExecutionCancelledDueToRandomnessUnavailable':
 		case 'InvalidLinkage':
 		case 'InsufficientBalanceForWithdraw':
+		case 'TransactionExpired':
 			return {
 				$kind: 'Unknown',
 				message: error.$kind,

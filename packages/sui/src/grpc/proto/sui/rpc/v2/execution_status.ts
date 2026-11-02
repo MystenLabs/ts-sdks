@@ -398,6 +398,12 @@ export enum ExecutionError_ExecutionErrorKind {
 	 * @generated from protobuf enum value: NON_EXCLUSIVE_WRITE_INPUT_OBJECT_MODIFIED = 42;
 	 */
 	NON_EXCLUSIVE_WRITE_INPUT_OBJECT_MODIFIED = 42,
+	/**
+	 * The consensus commit timestamp is outside the transaction's validity window.
+	 *
+	 * @generated from protobuf enum value: TRANSACTION_EXPIRED = 43;
+	 */
+	TRANSACTION_EXPIRED = 43,
 }
 /**
  * @generated from protobuf message sui.rpc.v2.MoveAbort
