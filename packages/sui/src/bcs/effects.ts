@@ -146,6 +146,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	NonExclusiveWriteInputObjectModified: bcs.struct('NonExclusiveWriteInputObjectModified', {
 		id: Address,
 	}),
+	TransactionExpired: null,
 });
 
 // Rust: crates/sui-types/src/execution_status.rs
