@@ -243,6 +243,32 @@ describe('queued mints', () => {
 		).toBe('none');
 	});
 
+	test('the retirement guard follows the version the configured call target compiles', async () => {
+		// Mainnet's configured Predict v4 compiles 4 and its orders v1 compiles 1, so watermarks 5 and
+		// 2 retire them, while Testnet's Version 5 targets keep queuing there.
+		const s = scenario({ ...spare(10_000_000_000n), watermark: 5n, deskWatermark: 2n });
+		const q = queueClient(s);
+		const asMainnet = {
+			...cfg,
+			packages: { ...cfg.packages, predictCurrentVersion: 4n, predictOrdersCurrentVersion: 1n },
+		};
+		const pc = new PredictClient({ network: 'testnet', client: q.client, config: asMainnet });
+		expect(
+			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
+		).toBe('retired');
+		const deskOnly = scenario({ ...spare(10_000_000_000n), watermark: 4n, deskWatermark: 2n });
+		const pcDesk = new PredictClient({
+			network: 'testnet',
+			client: queueClient(deskOnly).client,
+			config: asMainnet,
+		});
+		expect(
+			await preflightCode(
+				pcDesk.tx.enqueueMintCost(OWNER, market(deskOnly), { spend: 8, minQuantity: 0 }),
+			),
+		).toBe('retired');
+	});
+
 	test('preflight refuses an order whose τ lands past the cutoff', async () => {
 		// Expiry 12 s out: the cutoff is expiry − max(10 s, 5 s + 5 s) = now + 2 s, τ ≈ now + 0.8 s.
 		const ok = scenario({ expiryMs: BigInt(Date.now()) + 12_000n });

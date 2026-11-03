@@ -280,7 +280,10 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   the companion whenever the bindings are regenerated. `PREDICT_PACKAGE_VERSION` does the same for
   Predict's `constants::current_version`. Both are the code's version constants, which follow the
   **Mainnet** package number (Version 5 = Predict 5 / orders 2 / Sessions 4), never the Testnet
-  package number (Testnet runs them as packages v8 / v3 / v5).
+  package number (Testnet runs them as packages v8 / v3 / v5). They are only the default: each
+  network config pins what ITS call targets compile (`packages.predictCurrentVersion`,
+  `packages.predictOrdersCurrentVersion`), so a network still on older call targets keeps an
+  accurate `'retired'` guard. Move those pins whenever the network's call targets move.
 
 ### Account call target vs. identity (`InvalidLinkage`)
 

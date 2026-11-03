@@ -7,6 +7,7 @@ import { bcs } from '@mysten/sui/bcs';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { ProtocolConfig } from '../../src/contracts/deepbook_predict/protocol_config.js';
+import { MAINNET_CONFIG, TESTNET_CONFIG } from '../../src/predict/config/index.js';
 import { toGeneratedConfig, toOrdersConfig } from '../../src/predict/config/generated.js';
 import {
 	executionModeFor,
@@ -276,6 +277,13 @@ describe('execution mode and the watermark', () => {
 		expect(executionModeFor(5n, true)).toBe('delayed');
 		// A watermark above the Predict code this SDK calls retires it.
 		expect(executionModeFor(6n, true)).toBe('retired');
+		// A config pins the version its call target compiles: Mainnet's Predict v4 compiles 4.
+		expect(executionModeFor(5n, true, true, MAINNET_CONFIG.packages.predictCurrentVersion)).toBe(
+			'retired',
+		);
+		expect(executionModeFor(5n, true, true, TESTNET_CONFIG.packages.predictCurrentVersion)).toBe(
+			'delayed',
+		);
 		expect(executionModeFor(4n, false)).toBe('unsupported');
 		// The Predict upgrade recorded without the order-flow package.
 		expect(executionModeFor(3n, false, true)).toBe('awaiting-cutover');
