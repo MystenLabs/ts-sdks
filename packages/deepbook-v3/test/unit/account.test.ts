@@ -311,3 +311,13 @@ describe('the exported account bindings call the latest package', () => {
 		}
 	});
 });
+
+test('an inline config may name the latest account package (types)', () => {
+	const tx = new Transaction();
+	tx.add(
+		accountMoveCalls.generateAuth({
+			config: { accountPackageId: PKG, accountPackageIdLatest: '0x' + '44'.repeat(32) },
+		}),
+	);
+	expect(targets(tx)).toEqual([`0x${'44'.repeat(32)}::account::generate_auth`]);
+});

@@ -5,7 +5,8 @@
 // (see `latest.ts`). Types and BCS layouts are re-exported unchanged.
 
 import * as generated from '../contracts/account/account.js';
-import { latestAccountPackage } from './latest.js';
+import type { BcsType } from '@mysten/sui/bcs';
+import { latestAccountPackage, type WithLatestConfig } from './latest.js';
 
 export * from '../contracts/account/account.js';
 
@@ -28,7 +29,16 @@ export const deposit = latestAccountPackage(generated.deposit);
 export const withdraw = latestAccountPackage(generated.withdraw);
 export const depositFunds = latestAccountPackage(generated.depositFunds);
 export const withdrawFunds = latestAccountPackage(generated.withdrawFunds);
-export const attach = latestAccountPackage(generated.attach);
+// Generic, so written out to keep `Data`.
+export function attach<Data extends BcsType<any>>(
+	options: WithLatestConfig<generated.AttachOptions<Data>>,
+) {
+	return (
+		latestAccountPackage(generated.attach) as (
+			options: WithLatestConfig<generated.AttachOptions<Data>>,
+		) => ReturnType<typeof generated.attach<Data>>
+	)(options);
+}
 export const hasData = latestAccountPackage(generated.hasData);
 export const borrowData = latestAccountPackage(generated.borrowData);
 export const borrowDataMut = latestAccountPackage(generated.borrowDataMut);

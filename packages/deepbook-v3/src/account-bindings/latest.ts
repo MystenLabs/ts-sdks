@@ -14,16 +14,28 @@ export interface AccountCallOptions {
 	config?: { accountPackageId?: string; accountPackageIdLatest?: string };
 }
 
+/** An options type whose `config` also accepts the latest account package. */
+export type WithLatestConfig<Options> = Options extends { config?: infer Config }
+	? Omit<Options, 'config'> & { config?: Config & { accountPackageIdLatest?: string } }
+	: Options;
+
+/** A generated call whose options' `config` also accepts `accountPackageIdLatest`. */
+export type LatestAccountCall<Call> = Call extends (...args: infer Args) => infer Result
+	? (...args: { [K in keyof Args]: WithLatestConfig<Args[K]> }) => Result
+	: never;
+
 /**
- * The generated call with its package resolved to the latest account package. Returns the
- * generated function's own type, so optional options and generics are unchanged.
+ * The generated call with its package resolved to the latest account package. Options stay
+ * optional where the generated call's are; `config` also accepts `accountPackageIdLatest`.
  */
-export function latestAccountPackage<Call extends (options: never) => unknown>(call: Call): Call {
+export function latestAccountPackage<Call extends (options: never) => unknown>(
+	call: Call,
+): LatestAccountCall<Call> {
 	const wrapped = (options?: AccountCallOptions) => {
 		const target = options?.package ?? options?.config?.accountPackageIdLatest;
 		return (call as unknown as (options?: AccountCallOptions) => unknown)(
 			target ? { ...options, package: target } : options,
 		);
 	};
-	return wrapped as unknown as Call;
+	return wrapped as unknown as LatestAccountCall<Call>;
 }
