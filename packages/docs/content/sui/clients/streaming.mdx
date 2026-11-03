@@ -153,9 +153,11 @@ follows. `start` is still inclusive and `end` exclusive, so `start: { checkpoint
 On a server that has pruned old history, a descending read without an `end` stops at the oldest
 checkpoint the server keeps and completes with `reason: 'retentionLimit'`, while a `start` or `end`
 below that checkpoint fails with `SuiStreamError` code `HistoryUnavailable`. On GraphQL this applies
-to checkpoint streams only. A transaction or event stream that starts before the server's history
-retries the server's errors as `ServerError` instead, and a descending one without an `end`
-completes with `reason: 'genesis'`.
+to checkpoint streams only. GraphQL doesn't report how much transaction and event history it keeps,
+so a transaction or event stream that reads history the server has pruned, including a descending
+read without an `end`, retries the server's error as `ServerError` until `retry.maxAttempts` runs
+out. On a server that keeps full history, a descending read without an `end` completes with
+`reason: 'genesis'`.
 
 ```typescript
 client.streamTransactions({
