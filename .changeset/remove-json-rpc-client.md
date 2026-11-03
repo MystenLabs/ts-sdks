@@ -5,7 +5,8 @@
 Remove the deprecated JSON-RPC transport. Use `SuiGrpcClient` from `@mysten/sui/grpc` (recommended)
 or `SuiGraphQLClient` from `@mysten/sui/graphql`; both implement the same core API and top-level
 methods. See [Migrating from JSON-RPC](https://sdk.mystenlabs.com/sui/migrations/sui-2.0/json-rpc-migration) for method-by-method
-replacements.
+replacements, and [Migrate to 3.0](https://sdk.mystenlabs.com/sui/migrations/sui-3.0) for the other
+breaking changes in this release.
 
 Removed:
 
