@@ -1539,7 +1539,7 @@ exports[`marginLiquidations PTB snapshots > balance 1`] = `
         ],
         "function": "balance",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
         ],
@@ -1572,7 +1572,7 @@ exports[`marginLiquidations PTB snapshots > createLiquidationVault 1`] = `
         ],
         "function": "create_liquidation_vault",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [],
       },
     },
@@ -1624,7 +1624,7 @@ exports[`marginLiquidations PTB snapshots > deposit 1`] = `
         ],
         "function": "deposit",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
         ],
@@ -1708,7 +1708,7 @@ exports[`marginLiquidations PTB snapshots > liquidateBase 1`] = `
         ],
         "function": "liquidate_base_upgraded",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
           "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
@@ -1846,7 +1846,7 @@ exports[`marginLiquidations PTB snapshots > liquidateBaseAll 1`] = `
         ],
         "function": "liquidate_base_upgraded",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
           "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
@@ -1984,7 +1984,7 @@ exports[`marginLiquidations PTB snapshots > liquidateQuote 1`] = `
         ],
         "function": "liquidate_quote_upgraded",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
           "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
@@ -2087,7 +2087,7 @@ exports[`marginLiquidations PTB snapshots > withdraw 1`] = `
         ],
         "function": "withdraw",
         "module": "liquidation_vault",
-        "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
+        "package": "0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
         ],

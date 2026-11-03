@@ -26,8 +26,9 @@ export const testnetPackageIds = {
 	MARGIN_PACKAGE_ID: '0x0ad965f35189c7eca57d4718c8f5bf1b7f9f7eb4ced6d5b7aa6496a16d71e8d2',
 	MARGIN_V1: '0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b',
 	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
-	// margin_liquidation v4 — carries liquidate_base_upgraded / liquidate_quote_upgraded.
-	LIQUIDATION_PACKAGE_ID: '0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476',
+	// margin_liquidation v5, linked to core v21 and margin v17 — the same source as mainnet v6
+	// (legacy-Pyth liquidate_base / liquidate_quote retired; the builders call the _upgraded pair).
+	LIQUIDATION_PACKAGE_ID: '0x4f4916fc38892fe335a8aab45e3f42700060eb2d20f854607489ad88a88393a9',
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
