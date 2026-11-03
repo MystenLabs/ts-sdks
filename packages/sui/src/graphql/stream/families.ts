@@ -460,8 +460,8 @@ interface AvailableRange {
 
 /**
  * A scan page. Checkpoint scans read the retention of their index with `availableRange`;
- * transaction and event scans read only the checkpoint the page was read at, since servers with
- * subscriptions answer them from the fullnode, whose retention `availableRange` does not report.
+ * transaction and event scans read only the checkpoint the page was read at, since GraphQL reads
+ * them from its ledger gRPC service and `availableRange` reports no retention for them.
  */
 function scanPage<
 	Result extends {

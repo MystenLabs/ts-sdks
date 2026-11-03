@@ -5,8 +5,8 @@
 
 # Checkpoint streams also read the oldest retained checkpoint with the tip, so a follow that
 # subscribes without reading pages still fails on pruned history. Transactions and events don't:
-# servers with subscriptions answer them from the fullnode, whose retention `availableRange` does
-# not report.
+# GraphQL reads them from its ledger gRPC service, and `availableRange` reports no retention for
+# them.
 query ledgerStreamState($checkpointRetention: Boolean!) {
 	chainIdentifier
 	checkpoint {

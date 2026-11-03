@@ -259,8 +259,8 @@ describe('historical scan', () => {
 	});
 
 	it('reads transactions and events from far back whatever availableRange reports', async () => {
-		// Servers with subscriptions answer transactions and events from the fullnode; the
-		// retention availableRange reports is their Postgres index's, so the stream never asks.
+		// GraphQL reads transactions and events from its ledger gRPC service, and availableRange
+		// reports no retention for them, so the stream never asks.
 		const server = fakeGraphQL({ tip: 1_000, first: 900 });
 		server.on('scanEvents', page('events', [event(10)]));
 		server.on('subscribeEvents', live('events', [event(20)]));
