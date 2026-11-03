@@ -812,13 +812,13 @@ describe('Core API - Queries', () => {
 				{ skip: EXCLUDE },
 			);
 
-			it('all clients return same data: affectedAddress for the sponsor, not the signer, of a sponsored transaction', async () => {
+			it('all clients return same data: affectedAddress matches both the sponsor and the sender of a sponsored transaction', async () => {
 				const sponsor = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const sender = new Ed25519Keypair();
 				const senderAddress = sender.toSuiAddress();
 
-				// The sender owns nothing the transaction touches, so `affectedAddress` doesn't match it;
-				// `sender` does. The sponsor matches because its gas coin changed.
+				// The sender owns nothing the transaction touches but matches as its sender; the sponsor
+				// matches because its gas coin changed.
 				const tx = new Transaction();
 				tx.moveCall({ target: '0x2::tx_context::sender' });
 				const bytes = await buildWithoutSimulation(tx, senderAddress, sponsor);
@@ -849,11 +849,13 @@ describe('Core API - Queries', () => {
 				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
 					// The sponsor's match shows this client's index has the transaction.
 					expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
+					expect(digestsOf(await affectingSender(client))).toEqual([digest]);
 					expect(digestsOf(await sentBy(client))).toEqual([digest]);
 				}
-				// The localnet GraphQL service answers this from its Postgres index, which also counts
-				// the sender.
-				expect(digestsOf(await affectingSender(toolbox.grpcClient))).toEqual([]);
+				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
+					exclude: EXCLUDE,
+					attempts: 3,
+				});
 				await toolbox.expectAllClientsReturnSameData(sentBy, stripCursors, {
 					exclude: EXCLUDE,
 					attempts: 3,
