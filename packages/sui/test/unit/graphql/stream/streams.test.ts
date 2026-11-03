@@ -608,8 +608,8 @@ describe('resumable empty passes', () => {
 		]);
 	});
 
-	// Server quirk seen on v1.83: an empty window can answer `hasNextPage: true` with the cursor
-	// it was sent.
+	// Older servers can answer an empty window with `hasNextPage: true` and the cursor they were
+	// sent.
 	it('ends the window at an empty page that repeats the cursor it was sent', async () => {
 		const [anchor] = await followTokens('events', [event(1)]);
 		const server = fakeGraphQL({ tip: 5 }).on(
