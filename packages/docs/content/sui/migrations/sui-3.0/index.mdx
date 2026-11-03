@@ -40,9 +40,11 @@ goal:
 [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), which maps every JSON-RPC
 method to its replacement. Code that already runs on gRPC or GraphQL needs few or no changes.
 
-Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a major release that requires
-`@mysten/sui@^3`. Apart from the items below, those packages have no API changes: upgrade them
-together with `@mysten/sui`.
+Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new release that requires
+`@mysten/sui@^3`: a major release, or a minor release for packages still on 0.x.
+`@mysten/dapp-kit-react` also gets a major release, because it depends on `@mysten/dapp-kit-core`
+2.0. Apart from the items below, these packages have no API changes: upgrade them together with
+`@mysten/sui`.
 
 ## Breaking changes
 
@@ -58,6 +60,8 @@ together with `@mysten/sui`.
   `getMoveFunction`, which already returns `OpenSignature`s.
 - **`GraphQLSimulateTransactionOptions` is removed** from `@mysten/sui/graphql`. Use
   `SuiClientTypes.SimulateTransactionOptions`, which now includes `doGasSelection`.
+- **`CoreClient` has a new abstract `listCheckpoints` method.** Custom `CoreClient` subclasses, such
+  as test mocks, need to implement it.
 - **`SuiClientTypes.ChangedObject` has a new required `objectType: string | null` field.** Set it
   wherever you construct `ChangedObject` values yourself, such as test mocks.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
