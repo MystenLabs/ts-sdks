@@ -42,8 +42,7 @@ export class StatusReporter {
 	}
 
 	recovering() {
-		// Once live, a replay up to the first live item finishes the same handoff: not a recovery.
-		if (this.#phase === 'recovering' || this.#phase === 'live') return;
+		if (this.#phase === 'recovering') return;
 		this.#phase = 'recovering';
 		this.#emit({ $kind: 'Recovering' });
 	}

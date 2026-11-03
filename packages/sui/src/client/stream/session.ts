@@ -16,6 +16,7 @@ import { readPages } from './pager.js';
 import { rangeEndBound, type StreamPlan } from './plan.js';
 import type { StatusReporter } from './status.js';
 import {
+	boundaryPosition,
 	compareCoverage,
 	comparePositions,
 	coverageBefore,
@@ -38,8 +39,6 @@ const COMPLETION_REASON = {
 export interface LiveFeed<Item> extends AsyncIterable<PositionEvent<Item>> {
 	/** Reads the first Item or Progress. `deliver()` sees it again as the feed's first event. */
 	first(): Promise<PositionEvent<Item>>;
-	/** Drops Progress up to the first Item, which `deliver()` then sees as the feed's first event. */
-	firstItem(): Promise<PositionEvent<Item>>;
 	close(): Promise<void>;
 }
 
@@ -106,6 +105,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		return this.#committed;
 	}
 
+	get covered(): Coverage {
+		return this.#covered;
+	}
+
 	beginAttempt(attempt: number) {
 		this.#attemptStartBytes = this.#committedBytes;
 		this.#deliveredItem = false;
@@ -140,7 +143,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 			: !sameBytes(before, after);
 	}
 
-	/** Delivery reached the indexed tip: a poll pass, or gap recovery before the first live item. */
+	/** Poll delivery reached the indexed tip. */
 	markLive() {
 		this.#status.live();
 	}
@@ -178,8 +181,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#delivering = true;
 		this.#status.live();
+		// A subscription at the live tip reports watermarks rather than resuming after a position.
+		const watermarks = !this.#adapter.resumesSubscriptions;
 		for await (const event of feed) {
-			if (!this.#isStale(event)) yield* this.#commit(event);
+			if (!this.#isStale(event, watermarks)) yield* this.#commit(event);
 		}
 		// A live feed never completes. Its end is a disconnect, and the core reconnects.
 		throw new StreamDisconnected();
@@ -245,13 +250,17 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	}
 
 	/** Whether everything at `event`'s position was already delivered. */
-	#isStale(event: PositionEvent<Item>): boolean {
+	#isStale(event: PositionEvent<Item>, watermarks = false): boolean {
 		const { position } = event;
 		if (this.#committedBytes && sameBytes(this.#bytes(position), this.#committedBytes)) {
 			return true; // a reconnect that repeats the resume cursor
 		}
 		if (event.$kind === 'Progress') {
-			return this.#regressesCoverage(position) || this.#isBehind(position, this.#committed, false);
+			// A watermark sits at the boundary after what it reports, so it orders against items.
+			const next = watermarks ? nextUncovered(this.#coverage(position)) : undefined;
+			const at =
+				position.checkpoint === null && next !== undefined ? boundaryPosition(next) : position;
+			return this.#regressesCoverage(position) || this.#isBehind(at, this.#committed, false);
 		}
 		return (
 			this.#isCovered(position) ||
@@ -368,11 +377,6 @@ class FeedReader<Item> implements LiveFeed<Item> {
 		this.#pending ??= await this.#read();
 		if (!this.#pending) throw new StreamDisconnected('Live feed ended before its first event');
 		return this.#pending;
-	}
-
-	async firstItem(): Promise<PositionEvent<Item>> {
-		while ((await this.first()).$kind !== 'Item') this.#pending = undefined;
-		return this.#pending!;
 	}
 
 	async *[Symbol.asyncIterator](): AsyncGenerator<PositionEvent<Item>> {

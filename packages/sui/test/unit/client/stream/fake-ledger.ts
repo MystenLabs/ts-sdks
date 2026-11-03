@@ -24,6 +24,7 @@ import {
 	boundaryPosition,
 	itemPosition,
 	pageItems,
+	progressPosition,
 	SuiStreamError,
 	type StreamPosition,
 } from '../../../../src/client/stream/index.js';
@@ -67,6 +68,9 @@ export const positionOf = (item: FakeItem, opaque = false): FakePosition =>
 		cursor: cursorOf(item),
 		...(opaque ? { itemId: itemId(item) } : { transactionIndex: BigInt(item.index) }),
 	});
+
+/** A cursor before every item of `checkpoint`, as a watermark after the checkpoint before it. */
+export const cursorBefore = (checkpoint: bigint) => cursorOf({ checkpoint, index: -1 });
 
 function itemAt(cursor: Uint8Array): FakeItem {
 	const [checkpoint, index] = new TextDecoder().decode(cursor).split(':');
@@ -119,6 +123,20 @@ export class Ledger {
 		return { $kind: 'Progress', position: boundary(checkpoint + 1) };
 	}
 
+	/**
+	 * A gRPC watermark: a progress cursor after all of `checkpoint`, reporting it as covered. A
+	 * subscription's entry frame and its heartbeats look like this.
+	 */
+	watermark(checkpoint: bigint | number): LiveEvent<FakeItem> {
+		const next = BigInt(checkpoint) + 1n;
+		return {
+			$kind: 'Progress',
+			position: progressPosition(cursorBefore(next), {
+				coverage: { $kind: 'Through', checkpoint: next - 1n },
+			}),
+		};
+	}
+
 	/** Live events for every item from `checkpoint` on. */
 	liveFrom(checkpoint: bigint | number): LiveEvent<FakeItem>[] {
 		return this.items
@@ -127,9 +145,13 @@ export class Ledger {
 	}
 }
 
-/** One live connection: its events, then how it ends. `hang` stays open until aborted. */
+/**
+ * One live connection: its events, then any `later` ones as they arrive, then how it ends. `hang`
+ * stays open until aborted.
+ */
 export interface LiveScript {
 	events: LiveEvent<FakeItem>[];
+	later?: AsyncIterable<LiveEvent<FakeItem>>;
 	end?: 'eof' | 'hang' | Error;
 }
 
@@ -203,6 +225,10 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		const script = liveScript(calls.subscriptions++, after);
 		yield { $kind: 'Connected' };
 		for (const event of script.events) {
+			signal.throwIfAborted();
+			yield event;
+		}
+		for await (const event of script.later ?? []) {
 			signal.throwIfAborted();
 			yield event;
 		}

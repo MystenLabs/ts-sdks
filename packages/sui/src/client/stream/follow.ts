@@ -12,6 +12,7 @@ import type {
 import { compareBounds } from './plan.js';
 import {
 	boundaryPosition,
+	compareCoverage,
 	CoverageTracker,
 	indexedThrough,
 	positionCoverage,
@@ -22,17 +23,16 @@ import type { StreamSession } from './session.js';
 /**
  * The live handoff, rerun on every reconnect: subscribe after the resume point, then deliver. The
  * server backfills from there and then goes live. A transport whose subscriptions start at the
- * live tip instead pages history through the indexed tip, then replays the gap before the first
- * live item. Live progress never ends that recovery: a cursor past the tip says nothing about the
- * history before it, and a quiet feed may send nothing else.
+ * live tip instead pages history through the indexed tip, then replays the gap up to the feed's
+ * first frame, normally its entry watermark. Only then does the feed commit, so the pager and the
+ * feed never interleave commits.
  */
 export async function* followLive<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
 	adapter: LedgerStreamAdapter<Item, Frame>,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
 	const replaysGap = !adapter.resumesSubscriptions;
-	const caughtUp = replaysGap && session.catchesUpFirst();
-	if (caughtUp) yield* session.replay('tip', 'history');
+	if (replaysGap && session.catchesUpFirst()) yield* session.replay('tip', 'history');
 	// Commit a checkpoint start, so a token exists before the first match.
 	const start = session.start;
 	if (!session.committed && start && 'checkpoint' in start) {
@@ -46,21 +46,14 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 		withCoverage(subscription, adapter.family, session.committed, !replaysGap),
 	);
 	try {
-		let first = await feed.first();
+		const first = await feed.first();
 		if (!start) {
 			// A fresh follow at the live tip: everything before the first live checkpoint is behind it.
 			if (first.$kind === 'Item') {
 				yield* session.baseline(boundaryPosition(first.position.checkpoint!));
 			}
 		} else if (replaysGap) {
-			if (first.$kind === 'Progress') {
-				// Recovery ends at the indexed tip. Progress before the first item is dropped: committed,
-				// it would skip what lies between the tip and the first item.
-				if (!caughtUp) yield* replayGap(session, subscription, 'tip');
-				session.markLive();
-				first = await feed.firstItem();
-			}
-			yield* replayGap(session, subscription, first.position);
+			yield* replayGap(session, subscription, first.position, adapter.family);
 		}
 		yield* session.deliver(feed);
 	} finally {
@@ -73,11 +66,18 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 async function* replayGap<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
 	subscription: LiveSubscription<Item>,
-	to: StreamPosition | 'tip',
+	to: StreamPosition,
+	family: StreamFamily,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
-	const end = to === 'tip' ? to : { position: to };
-	// The index can be ahead of the server that took the subscription: then there is no gap.
-	const comparison = end === 'tip' ? undefined : compareBounds(session.start!, end, 'ascending');
+	const end = { position: to };
+	// The index can be ahead of the server that took the subscription: then there is no gap. A
+	// watermark has no coordinates, so the coverage it reports orders it instead.
+	const covered = session.covered;
+	const comparison =
+		compareBounds(session.start!, end, 'ascending') ??
+		(to.checkpoint === null && covered.$kind !== 'Unknown'
+			? compareCoverage(covered, positionCoverage(to, family))
+			: undefined);
 	if (comparison !== undefined && comparison >= 0) return;
 	subscription.readAhead?.(true);
 	try {
@@ -88,13 +88,15 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
 }
 
 /**
- * Live events with coverage carried on from `committed` (contiguous once any gap is replayed), so
- * every position records what it covers. Progress on a feed that never reports coverage keeps
- * none: its cursor may be far past the last item, so a carried coverage would understate it.
- * It records the newest checkpoint the feed has passed as `indexedCheckpoint` instead: no match
- * lies between that checkpoint and the cursor, so a server indexed that far can resume it, and a
- * boundary from such a server never re-delivers or skips a match. `committed` counts as passed only
- * on a feed that `resumes` after it: otherwise a gap before the feed is still to be replayed.
+ * Live events with coverage carried on, so every position records what it covers. Only a feed that
+ * `resumes` after `committed` carries coverage on from it: any other feed may start before
+ * `committed`, and its stale frames must not look current. Progress on a feed that never reports
+ * coverage keeps none: its cursor may be far past the last item, so a carried coverage would
+ * understate it. It records the newest checkpoint the feed has passed as `indexedCheckpoint`
+ * instead: no match lies between that checkpoint and the cursor, so a server indexed that far can
+ * resume it, and a boundary from such a server never re-delivers or skips a match. `committed`
+ * counts as passed only on a feed that `resumes` after it: otherwise a gap before the feed is still
+ * to be replayed.
  */
 async function* withCoverage<Item>(
 	events: AsyncIterable<LiveEvent<Item>>,
@@ -105,7 +107,7 @@ async function* withCoverage<Item>(
 	const tracker = new CoverageTracker(
 		'ascending',
 		family,
-		committed ? positionCoverage(committed, family) : { $kind: 'Unknown' },
+		resumes && committed ? positionCoverage(committed, family) : { $kind: 'Unknown' },
 	);
 	const placed = resumes && committed ? indexedThrough(committed) : null;
 	let passed = placed === null ? undefined : max(placed, 0n);
