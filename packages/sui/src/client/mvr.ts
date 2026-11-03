@@ -11,6 +11,7 @@ import {
 	parseStructTag,
 } from '../utils/sui-types.js';
 import type { ClientCache } from './cache.js';
+import { pageBase } from './utils.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { PACKAGE_VERSION } from '../version.js';
 import type { SuiClientTypes } from './types.js';
@@ -175,7 +176,7 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 
 		const target = `${this.#url}${url}`;
 		// Checked first, so a malformed URL is not mistaken for a failed request.
-		new URL(target, globalThis.location?.href);
+		new URL(target, pageBase());
 		let response: Response;
 		try {
 			response = await fetch(target, {
