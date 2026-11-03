@@ -1284,7 +1284,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				SizeError: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					size: Number(details.sizeError.size ?? 0n),
 					maxSize: Number(details.sizeError.maxSize ?? 0n),
 				},
@@ -1297,7 +1297,10 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				command,
 				CommandArgumentError: {
 					argument: details.commandArgumentError.argument ?? 0,
-					name: mapErrorName(details.commandArgumentError.kind),
+					name: mapErrorName(
+						CommandArgumentError_CommandArgumentErrorKind,
+						details.commandArgumentError.kind,
+					),
 				},
 			};
 
@@ -1308,7 +1311,10 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				command,
 				TypeArgumentError: {
 					typeArgument: details.typeArgumentError.typeArgument ?? 0,
-					name: mapErrorName(details.typeArgumentError.kind),
+					name: mapErrorName(
+						TypeArgumentError_TypeArgumentErrorKind,
+						details.typeArgumentError.kind,
+					),
 				},
 			};
 
@@ -1318,7 +1324,10 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				PackageUpgradeError: {
-					name: mapErrorName(details.packageUpgradeError.kind),
+					name: mapErrorName(
+						PackageUpgradeError_PackageUpgradeErrorKind,
+						details.packageUpgradeError.kind,
+					),
 					packageId: details.packageUpgradeError.packageId,
 					digest: details.packageUpgradeError.digest,
 				},
@@ -1341,7 +1350,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				CoinDenyListError: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					coinType: details.coinDenyListError.coinType!,
 					address: details.coinDenyListError.address,
 				},
@@ -1353,7 +1362,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				CongestedObjects: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					objects: details.congestedObjects.objects,
 				},
 			};
@@ -1364,7 +1373,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				ObjectIdError: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					objectId: details.objectId,
 				},
 			};
@@ -1412,18 +1421,12 @@ function parseMoveLocation(location: GrpcMoveLocation): SuiClientTypes.MoveLocat
 	};
 }
 
-function mapErrorName(
-	kind:
-		| ExecutionError_ExecutionErrorKind
-		| CommandArgumentError_CommandArgumentErrorKind
-		| TypeArgumentError_TypeArgumentErrorKind
-		| PackageUpgradeError_PackageUpgradeErrorKind
-		| undefined,
-): string {
+/** The PascalCase name of a protobuf enum value, from that enum's reverse mapping. */
+function mapErrorName(names: Record<number, string>, kind: number | undefined): string {
 	if (kind == null) {
 		return 'Unknown';
 	}
-	const name = CommandArgumentError_CommandArgumentErrorKind[kind];
+	const name = names[kind];
 	if (!name || name.endsWith('_UNKNOWN')) {
 		return 'Unknown';
 	}

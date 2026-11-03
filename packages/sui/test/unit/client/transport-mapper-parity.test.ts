@@ -9,7 +9,11 @@ import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { parseTransactionEffects } from '../../../src/grpc/core.js';
 import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import { UnchangedConsensusObject_UnchangedConsensusObjectKind as UnchangedKind } from '../../../src/grpc/proto/sui/rpc/v2/effects.js';
-import { ExecutionError_ExecutionErrorKind as ErrorKind } from '../../../src/grpc/proto/sui/rpc/v2/execution_status.js';
+import {
+	ExecutionError_ExecutionErrorKind as ErrorKind,
+	PackageUpgradeError_PackageUpgradeErrorKind as UpgradeKind,
+	TypeArgumentError_TypeArgumentErrorKind as TypeArgumentKind,
+} from '../../../src/grpc/proto/sui/rpc/v2/execution_status.js';
 import { normalizeSuiAddress } from '../../../src/utils/index.js';
 
 const digest = '11111111111111111111111111111111';
@@ -254,4 +258,109 @@ describe('unchanged consensus objects', () => {
 		]);
 		expect(fromGrpc!.unchangedConsensusObjects).toEqual(fromBcs.unchangedConsensusObjects);
 	});
+});
+
+describe('execution error names', () => {
+	const objectId = normalizeSuiAddress('0x7');
+	const errors = [
+		{
+			bcs: { MoveObjectTooBig: { objectSize: 10n, maxObjectSize: 5n } },
+			grpc: {
+				kind: ErrorKind.OBJECT_TOO_BIG,
+				errorDetails: { oneofKind: 'sizeError', sizeError: { size: 10n, maxSize: 5n } },
+			},
+		},
+		{
+			bcs: { EffectsTooLarge: { currentSize: 10n, maxSize: 5n } },
+			grpc: {
+				kind: ErrorKind.EFFECTS_TOO_LARGE,
+				errorDetails: { oneofKind: 'sizeError', sizeError: { size: 10n, maxSize: 5n } },
+			},
+		},
+		{
+			bcs: { TypeArgumentError: { argumentIdx: 1, kind: { ConstraintNotSatisfied: true } } },
+			grpc: {
+				kind: ErrorKind.TYPE_ARGUMENT_ERROR,
+				errorDetails: {
+					oneofKind: 'typeArgumentError',
+					typeArgumentError: { typeArgument: 1, kind: TypeArgumentKind.CONSTRAINT_NOT_SATISFIED },
+				},
+			},
+		},
+		{
+			bcs: { PackageUpgradeError: { upgradeError: { IncompatibleUpgrade: true } } },
+			grpc: {
+				kind: ErrorKind.PACKAGE_UPGRADE_ERROR,
+				errorDetails: {
+					oneofKind: 'packageUpgradeError',
+					packageUpgradeError: { kind: UpgradeKind.INCOMPATIBLE_UPGRADE },
+				},
+			},
+		},
+		{
+			bcs: { CoinTypeGlobalPause: { coinType: '0x2::sui::SUI' } },
+			grpc: {
+				kind: ErrorKind.COIN_TYPE_GLOBAL_PAUSE,
+				errorDetails: {
+					oneofKind: 'coinDenyListError',
+					coinDenyListError: { coinType: '0x2::sui::SUI' },
+				},
+			},
+		},
+		{
+			bcs: { ExecutionCancelledDueToSharedObjectCongestion: { congested_objects: [objectId] } },
+			grpc: {
+				kind: ErrorKind.EXECUTION_CANCELED_DUE_TO_CONSENSUS_OBJECT_CONGESTION,
+				errorDetails: { oneofKind: 'congestedObjects', congestedObjects: { objects: [objectId] } },
+			},
+		},
+		{
+			bcs: { CircularObjectOwnership: { object: objectId } },
+			grpc: {
+				kind: ErrorKind.CIRCULAR_OBJECT_OWNERSHIP,
+				errorDetails: { oneofKind: 'objectId', objectId },
+			},
+		},
+	];
+
+	it.each(errors)(
+		'match BCS from gRPC for $grpc.errorDetails.oneofKind',
+		({ bcs: error, grpc }) => {
+			const fromBcs = parseTransactionEffectsBcs(
+				bcs.TransactionEffects.serialize({
+					V2: {
+						status: { Failure: { error: error as never, command: null } },
+						executedEpoch: 1n,
+						gasUsed: {
+							computationCost: 1n,
+							storageCost: 1n,
+							storageRebate: 0n,
+							nonRefundableStorageFee: 0n,
+						},
+						transactionDigest: digest,
+						gasObjectIndex: null,
+						eventsDigest: null,
+						dependencies: [],
+						lamportVersion: 2n,
+						changedObjects: [],
+						unchangedConsensusObjects: [],
+						auxDataDigest: null,
+					},
+				}).toBytes(),
+			);
+			const fromGrpc = parseTransactionEffects({
+				effects: {
+					status: { success: false, error: grpc as never },
+					changedObjects: [],
+					dependencies: [],
+					unchangedLoadedRuntimeObjects: [],
+					unchangedConsensusObjects: [],
+				},
+			});
+
+			const { message: _bcsMessage, ...expected } = fromBcs.status.error!;
+			const { message: _grpcMessage, ...actual } = fromGrpc!.status.error!;
+			expect(actual).toEqual(expected);
+		},
+	);
 });
