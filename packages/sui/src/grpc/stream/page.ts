@@ -1,11 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { base64decode } from '@protobuf-ts/runtime';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 
 import type { Page, PageEnd, PageItem, PageRequest } from '../../client/stream/index.js';
 import { SuiStreamError } from '../../client/stream/index.js';
+import { ErrorInfo } from '../proto/google/rpc/error_details.js';
+import { Status } from '../proto/google/rpc/status.js';
 import { Ordering, QueryEndReason } from '../proto/sui/rpc/v2/query_options.js';
 import type { Watermark } from '../proto/sui/rpc/v2/query_options.js';
 import { openLedgerCall, type LedgerCall } from './call.js';
@@ -57,6 +60,24 @@ async function* listItems(
 	} catch (error) {
 		if (!isOutOfRange(error)) throw error;
 		const pruned = new SuiStreamError('HistoryUnavailable', error.message, { cause: error });
+		const marker = ledgerErrorInfo(error);
+		if (marker?.reason === 'ABOVE_LATEST_AVAILABLE') {
+			return { next: { more: false }, notIndexed: true };
+		}
+		if (marker?.reason === 'BELOW_EARLIEST_AVAILABLE') {
+			const floor = marker.metadata.lowestAvailableCheckpoint;
+			// A descending read with no low end of its own stops at the floor, after its items.
+			if (
+				order === 'descending' &&
+				range.start === undefined &&
+				!request.after &&
+				/^\d+$/.test(floor ?? '')
+			) {
+				return { next: { more: false }, retainedFrom: BigInt(floor) };
+			}
+			throw pruned;
+		}
+		// Older servers send OUT_OF_RANGE without a marker.
 		const rejection = await classifyOutOfRange(request, retainedFrom);
 		if (rejection === 'pruned') throw pruned;
 		return {
@@ -165,12 +186,12 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
 }
 
 /**
- * A server reports OUT_OF_RANGE for a starting cursor past its index, such as one from a server
- * further ahead, and for an explicit low end (a start checkpoint or an `after` cursor) below its
- * retention floor. An open low end is raised to the floor instead. A read whose low end has a
- * checkpoint at or above the floor was not pruned; the floor is checked rather than the tip,
- * which can pass the cursor before it is read. A low end that is a cursor without a checkpoint
- * is pruned when the floor has passed everything left to read, and is otherwise unknown.
+ * For a server that does not mark OUT_OF_RANGE. It reports one for a starting cursor past its
+ * index, such as one from a server further ahead, and for an explicit low end (a start checkpoint
+ * or an `after` cursor) below its retention floor. A read whose low end has a checkpoint at or
+ * above the floor was not pruned; the floor is checked rather than the tip, which can pass the
+ * cursor before it is read. A low end that is a cursor without a checkpoint is pruned when the
+ * floor has passed everything left to read, and is otherwise unknown.
  */
 async function classifyOutOfRange(
 	{ order, range, unread, after, before, signal }: PageRequest,
@@ -184,6 +205,24 @@ async function classifyOutOfRange(
 	if (needed === undefined) return 'unknown';
 	if (needed < (await retainedFrom(signal))) return 'pruned';
 	return order === 'ascending' || range.start !== undefined ? 'notIndexed' : 'unknown';
+}
+
+/** The `ErrorInfo` a server marks a ledger OUT_OF_RANGE with, if any. */
+function ledgerErrorInfo(error: RpcError): ErrorInfo | undefined {
+	const details = error.meta['grpc-status-details-bin'];
+	const encoded = Array.isArray(details) ? details[0] : details;
+	if (!encoded) return undefined;
+	try {
+		const status = Status.fromBinary(base64decode(encoded));
+		// Servers send the type URL `/google.rpc.ErrorInfo`, with no host, which `Any.contains` rejects.
+		const detail = status.details.find(
+			({ typeUrl }) => typeUrl.slice(typeUrl.lastIndexOf('/') + 1) === ErrorInfo.typeName,
+		);
+		const info = detail && ErrorInfo.fromBinary(detail.value);
+		return info?.domain === 'sui.io' ? info : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 function isOutOfRange(error: unknown): error is RpcError {

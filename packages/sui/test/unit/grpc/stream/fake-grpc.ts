@@ -11,6 +11,7 @@
  * back to push the way a user's interceptor would.
  */
 
+import { base64encode } from '@protobuf-ts/runtime';
 import {
 	RpcError,
 	RpcOutputStreamController,
@@ -26,6 +27,8 @@ import type {
 
 import { SuiGrpcClient } from '../../../../src/grpc/client.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
+import { ErrorInfo } from '../../../../src/grpc/proto/google/rpc/error_details.js';
+import { Status } from '../../../../src/grpc/proto/google/rpc/status.js';
 import { PULL_SERVER_STREAMING } from '../../../../src/grpc/pull-call.js';
 import type { ServerStreamingIterableCall } from '../../../../src/grpc/pull-call.js';
 
@@ -356,6 +359,66 @@ export function progress(
 /** A terminal frame whose watermark covers through `covered`. */
 export function ended(reason: Reason, covered: number): GrpcTypes.ListEventsResponse {
 	return progress(mark(`end-${covered}`), covered, reason);
+}
+
+/**
+ * An OUT_OF_RANGE error with the `ErrorInfo` a server marks it with in `grpc-status-details-bin`.
+ * Older servers send it without one.
+ */
+export function outOfRange(
+	reason: 'BELOW_EARLIEST_AVAILABLE' | 'ABOVE_LATEST_AVAILABLE',
+	metadata: Record<string, string>,
+): RpcError {
+	const info = ErrorInfo.create({ reason, domain: 'sui.io', metadata });
+	const status = Status.toBinary({
+		code: 11,
+		message: reason,
+		// As servers pack it: a type URL with no host.
+		details: [{ typeUrl: '/google.rpc.ErrorInfo', value: ErrorInfo.toBinary(info) }],
+	});
+	// Servers encode the header without padding.
+	const details = base64encode(status).replace(/=+$/, '');
+	return new RpcError(reason, 'OUT_OF_RANGE', { 'grpc-status-details-bin': details });
+}
+
+/**
+ * `grpc-status-details-bin` as a localnet server sent it, unchanged, for a descending
+ * ListCheckpoints with `end_checkpoint` 1000000000 when it had indexed below 161: an
+ * ABOVE_LATEST_AVAILABLE `ErrorInfo` with `bound` "end_checkpoint".
+ */
+export const LOCALNET_ABOVE_LATEST =
+	'CAsScXJlcXVlc3RlZCBkYXRhIGFib3ZlIGxhdGVzdCBhdmFpbGFibGU7IGVuZF9jaGVja3BvaW50IGlzIDEwMDAwMDAwMDAsIGFuZCBvbmx5IGNoZWNrcG9pbnRzIGJlbG93IDE2MSBhcmUgYXZhaWxhYmxlGpgBChUvZ29vZ2xlLnJwYy5FcnJvckluZm8SfwoWQUJPVkVfTEFURVNUX0FWQUlMQUJMRRIGc3VpLmlvGhcKBWJvdW5kEg5lbmRfY2hlY2twb2ludBohChpmaXJzdFVuYXZhaWxhYmxlQ2hlY2twb2ludBIDMTYxGiEKE3JlcXVlc3RlZENoZWNrcG9pbnQSCjEwMDAwMDAwMDA';
+
+/** The request reads below the server's lowest available checkpoint, `floor`. */
+export function belowEarliest(floor: number): RpcError {
+	return outOfRange('BELOW_EARLIEST_AVAILABLE', { lowestAvailableCheckpoint: String(floor) });
+}
+
+/** The request reads at or past `tip + 1`, which the server has not indexed yet. */
+export function aboveLatest(
+	tip: number,
+	bound: 'cursor' | 'start_checkpoint' | 'end_checkpoint' = 'cursor',
+	requested = tip + 1,
+): RpcError {
+	return outOfRange('ABOVE_LATEST_AVAILABLE', {
+		bound,
+		requestedCheckpoint: String(requested),
+		firstUnavailableCheckpoint: String(tip + 1),
+	});
+}
+
+/**
+ * How a server ends a descending read with no lower bound of its own at its floor: the items, a
+ * payload-free watermark frame at the floor with no QueryEnd, then BELOW_EARLIEST_AVAILABLE.
+ */
+export function servingFloor(floor: number, ...items: Frame[]): Script {
+	return {
+		frames: [
+			...items,
+			{ watermark: { cursor: mark(`floor-${floor}`), checkpoint: BigInt(floor) } },
+		],
+		end: belowEarliest(floor),
+	};
 }
 
 /** A checkpoint item as ListCheckpoints returns it. */

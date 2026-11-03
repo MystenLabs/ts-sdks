@@ -20,7 +20,9 @@ import { GrpcLedgerStreamAdapter } from '../../../../src/grpc/stream/index.js';
 import { readIndexedTip } from '../../../../src/grpc/stream/page.js';
 import { collect, noDelay, statusLog, take } from '../../client/stream/fake-ledger.js';
 import {
+	aboveLatest,
 	at,
+	belowEarliest,
 	checkpointFrame,
 	checkpointMessage,
 	DELIVERIES,
@@ -29,8 +31,11 @@ import {
 	eventIds,
 	FakeLedger,
 	Gate,
+	LOCALNET_ABOVE_LATEST,
 	mark,
+	outOfRange,
 	progress,
+	servingFloor,
 	type Delivery,
 } from './fake-grpc.js';
 
@@ -361,7 +366,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		it.each([
 			['polls', 0, 85, 'polls'],
 			['fails pruned history', 87, 85, 'pruned'],
-			// A server raises an open low end to its floor, so OUT_OF_RANGE cannot mean pruned.
+			// An unmarked rejection of an open low end is taken for lag, not the floor.
 			['polls toward genesis', 0, undefined, 'polls'],
 		] as const)('%s when a descending page is out of range', async (_, floor, end, outcome) => {
 			const result = await descendingOutOfRange(
@@ -410,6 +415,144 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(eventIds(frames)).toEqual(['90:0']);
 			expect(frames.at(-1)).toMatchObject({ completion: { reason: 'retentionLimit' } });
 			expect(l.floorReads).toBe(1);
+		});
+
+		describe('on a server that marks OUT_OF_RANGE', () => {
+			const descending = (l: FakeLedger, end?: SuiClientTypes.StreamBound) =>
+				collect(
+					l.client().streamEvents({
+						order: 'descending',
+						start: { checkpoint: 90 },
+						end,
+						pollInterval: 1,
+						retry: noDelay,
+						frames: { completion: true },
+					}),
+				);
+
+			it('completes at the retention limit when the first page reaches the floor', async () => {
+				const l = ledger()
+					.retainedFrom(89)
+					.list(
+						'ListEvents',
+						servingFloor(89, event(90, 0, { covered: null }), event(89, 0, { covered: null })),
+					);
+				const frames = await descending(l);
+				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
+				expect(frames.at(-1)).toMatchObject({ completion: { reason: 'retentionLimit' } });
+				expect(l.requestsTo('ListEvents')).toHaveLength(1);
+				expect(l.floorReads).toBe(0);
+			});
+
+			it('completes at the retention limit when a later page reaches the floor', async () => {
+				const l = ledger()
+					.retainedFrom(85)
+					.list(
+						'ListEvents',
+						[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
+						servingFloor(85, event(89, 0, { covered: null })),
+						// Polling again would only meet the floor again.
+						...Array.from({ length: 5 }, () => ({ frames: [], end: belowEarliest(85) })),
+					);
+				const frames = await descending(l);
+				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
+				expect(frames.at(-1)).toMatchObject({ completion: { reason: 'retentionLimit' } });
+				expect(l.requestsTo('ListEvents')).toHaveLength(2);
+				expect(l.floorReads).toBe(0);
+			});
+
+			it('completes at the retention limit when a page at the floor has no items', async () => {
+				const l = ledger()
+					.retainedFrom(85)
+					.list(
+						'ListEvents',
+						[event(90, 0, { covered: null, end: 'ITEM_LIMIT' })],
+						servingFloor(85),
+						...Array.from({ length: 5 }, () => ({ frames: [], end: belowEarliest(85) })),
+					);
+				const frames = await descending(l);
+				expect(eventIds(frames)).toEqual(['90:0']);
+				expect(frames.at(-1)).toMatchObject({ completion: { reason: 'retentionLimit' } });
+				expect(l.requestsTo('ListEvents')).toHaveLength(2);
+				expect(l.floorReads).toBe(0);
+			});
+
+			it('fails a read whose low end is a cursor below the floor', async () => {
+				const end = await uncoveredEnd();
+				const l = ledger()
+					.retainedFrom(87)
+					.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], {
+						frames: [],
+						end: belowEarliest(87),
+					});
+				await expect(descending(l, end)).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+				const [, request] = l.requestsTo('ListEvents');
+				expect(request.options?.after).toBeDefined();
+				expect(l.floorReads).toBe(0);
+			});
+
+			it('fails a floor it cannot read as a checkpoint', async () => {
+				const l = ledger()
+					.retainedFrom(85)
+					.list('ListEvents', {
+						frames: [event(90, 0, { covered: null })],
+						end: outOfRange('BELOW_EARLIEST_AVAILABLE', { lowestAvailableCheckpoint: '8x5' }),
+					});
+				await expect(descending(l)).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+			});
+
+			it('polls on the marker a real server sends past the tip', async () => {
+				const l = ledger()
+					.retainedFrom(0)
+					.list(
+						'ListEvents',
+						{
+							frames: [],
+							end: new RpcError('requested data above latest available', 'OUT_OF_RANGE', {
+								'grpc-status-details-bin': LOCALNET_ABOVE_LATEST,
+							}),
+						},
+						[
+							event(90, 0, { covered: null }),
+							event(89, 0, { covered: null }),
+							ended('CHECKPOINT_BOUND', 0),
+						],
+					);
+				const frames = await descending(l);
+				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
+				expect(l.requestsTo('ListEvents')).toHaveLength(2);
+				expect(l.floorReads).toBe(0);
+			});
+
+			it('fails a read whose own low end is below the floor, without a floor read', async () => {
+				const l = ledger()
+					.retainedFrom(87)
+					.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], {
+						frames: [],
+						end: belowEarliest(87),
+					});
+				await expect(descending(l, { checkpoint: '85' })).rejects.toMatchObject({
+					code: 'HistoryUnavailable',
+				});
+				expect(l.floorReads).toBe(0);
+			});
+
+			it('polls a page past the tip, however long, without a floor read', async () => {
+				const end = await uncoveredEnd();
+				const rejected = Array.from({ length: PERSISTENT + 1 }, () => ({
+					frames: [],
+					end: aboveLatest(89),
+				}));
+				const l = ledger()
+					.retainedFrom(50)
+					.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], ...rejected, [
+						event(89, 0, { covered: null }),
+						ended('CHECKPOINT_BOUND', 5),
+					]);
+				const frames = await descending(l, end);
+				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
+				expect(l.floorReads).toBe(0);
+			});
 		});
 
 		it.each([
