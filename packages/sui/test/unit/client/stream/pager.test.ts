@@ -229,29 +229,6 @@ describe('readPages', () => {
 		expect(result.complete).toBe(false);
 	});
 
-	it('keeps a descending progress cursor from resuming on a server behind it', async () => {
-		const scan = scripted([
-			page([item(95n, 0n)], { more: true, cursor: bytes('95:0') }),
-			page([], { more: true, cursor: bytes('p90') }),
-			page([], { more: false }),
-		]);
-		const { events } = await read(scan.adapter, {
-			order: 'descending',
-			start: { checkpoint: 99n },
-		});
-		const progress = events.find((event) => event.$kind === 'Progress');
-		if (progress?.$kind !== 'Progress') throw new Error('expected a progress position');
-		expect(progress.position.indexedCheckpoint).toBe(95n);
-
-		const lagging = scripted([page([item(80n, 0n)], { more: false })], 80n);
-		const resumed = await read(lagging.adapter, {
-			order: 'descending',
-			start: { position: progress.position },
-		});
-		expect(resumed.result.complete).toBe(false);
-		expect(lagging.requests).toEqual([]);
-	});
-
 	it('fails a range that starts below the retained history', async () => {
 		const { adapter } = scripted([page([], { more: false }, { retainedFrom: 4n })]);
 		await expect(
@@ -305,15 +282,13 @@ describe('readPages', () => {
 		const end = { position: progressPosition(bytes('end'), { indexedCheckpoint: 100n }) };
 		const pass = { order: 'ascending', start: { checkpoint: 1n }, end } as const;
 
-		const caughtUp = scripted([
-			page([item(5n, 0n)], { more: false }, { covered: 9n, viewedAt: 100n }),
-		]);
+		const caughtUp = scripted([page([item(5n, 0n)], { more: false }, { viewedAt: 100n })]);
 		const done = await read(caughtUp.adapter, pass);
 		expect(caughtUp.requests[0].before).toEqual(bytes('end'));
 		expect(delivered(done.events)).toEqual(['5:0']);
 		expect(done.result.complete).toBe(true);
 
-		const lagging = scripted([page([], { more: false }, { covered: 9n, viewedAt: 95n })]);
+		const lagging = scripted([page([], { more: false }, { viewedAt: 95n })]);
 		expect((await read(lagging.adapter, pass)).result.complete).toBe(false);
 	});
 

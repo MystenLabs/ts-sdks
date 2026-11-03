@@ -16,7 +16,6 @@ import { readPages } from './pager.js';
 import { rangeEndBound, type StreamPlan } from './plan.js';
 import type { StatusReporter } from './status.js';
 import {
-	boundaryPosition,
 	compareCoverage,
 	comparePositions,
 	coverageBefore,
@@ -105,10 +104,6 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		return this.#committed;
 	}
 
-	get covered(): Coverage {
-		return this.#covered;
-	}
-
 	beginAttempt(attempt: number) {
 		this.#attemptStartBytes = this.#committedBytes;
 		this.#deliveredItem = false;
@@ -181,10 +176,8 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#delivering = true;
 		this.#status.live();
-		// A subscription at the live tip reports watermarks rather than resuming after a position.
-		const watermarks = !this.#adapter.resumesSubscriptions;
 		for await (const event of feed) {
-			if (!this.#isStale(event, watermarks)) yield* this.#commit(event);
+			if (!this.#isStale(event)) yield* this.#commit(event);
 		}
 		// A live feed never completes. Its end is a disconnect, and the core reconnects.
 		throw new StreamDisconnected();
@@ -250,17 +243,13 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	}
 
 	/** Whether everything at `event`'s position was already delivered. */
-	#isStale(event: PositionEvent<Item>, watermarks = false): boolean {
+	#isStale(event: PositionEvent<Item>): boolean {
 		const { position } = event;
 		if (this.#committedBytes && sameBytes(this.#bytes(position), this.#committedBytes)) {
 			return true; // a reconnect that repeats the resume cursor
 		}
 		if (event.$kind === 'Progress') {
-			// A watermark sits at the boundary after what it reports, so it orders against items.
-			const next = watermarks ? nextUncovered(this.#coverage(position)) : undefined;
-			const at =
-				position.checkpoint === null && next !== undefined ? boundaryPosition(next) : position;
-			return this.#regressesCoverage(position) || this.#isBehind(at, this.#committed, false);
+			return this.#regressesCoverage(position) || this.#isBehind(position, this.#committed, false);
 		}
 		return (
 			this.#isCovered(position) ||

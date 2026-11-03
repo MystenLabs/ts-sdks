@@ -12,7 +12,6 @@ import type {
 import { compareBounds } from './plan.js';
 import {
 	boundaryPosition,
-	compareCoverage,
 	CoverageTracker,
 	indexedThrough,
 	positionCoverage,
@@ -53,7 +52,7 @@ export async function* followLive<Item, Frame extends { resumeToken: string }>(
 				yield* session.baseline(boundaryPosition(first.position.checkpoint!));
 			}
 		} else if (replaysGap) {
-			yield* replayGap(session, subscription, first.position, adapter.family);
+			yield* replayGap(session, subscription, first.position);
 		}
 		yield* session.deliver(feed);
 	} finally {
@@ -67,17 +66,10 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
 	session: StreamSession<Item, Frame>,
 	subscription: LiveSubscription<Item>,
 	to: StreamPosition,
-	family: StreamFamily,
 ): AsyncGenerator<CoreFrame<Frame>, void> {
 	const end = { position: to };
-	// The index can be ahead of the server that took the subscription: then there is no gap. A
-	// watermark has no coordinates, so the coverage it reports orders it instead.
-	const covered = session.covered;
-	const comparison =
-		compareBounds(session.start!, end, 'ascending') ??
-		(to.checkpoint === null && covered.$kind !== 'Unknown'
-			? compareCoverage(covered, positionCoverage(to, family))
-			: undefined);
+	// The index can be ahead of the server that took the subscription: then there is no gap.
+	const comparison = compareBounds(session.start!, end, 'ascending');
 	if (comparison !== undefined && comparison >= 0) return;
 	subscription.readAhead?.(true);
 	try {
@@ -90,8 +82,8 @@ async function* replayGap<Item, Frame extends { resumeToken: string }>(
 /**
  * Live events with coverage carried on, so every position records what it covers. Only a feed that
  * `resumes` after `committed` carries coverage on from it: any other feed may start before
- * `committed`, and its stale frames must not look current. Progress on a feed that never reports
- * coverage keeps none: its cursor may be far past the last item, so a carried coverage would
+ * `committed`, and its stale frames must not look current. Progress without a checkpoint (a GraphQL
+ * cursor) keeps no coverage: its cursor may be far past the last item, so a carried coverage would
  * understate it. It records the newest checkpoint the feed has passed as `indexedCheckpoint`
  * instead: no match lies between that checkpoint and the cursor, so a server indexed that far can
  * resume it, and a boundary from such a server never re-delivers or skips a match. `committed`
@@ -114,7 +106,7 @@ async function* withCoverage<Item>(
 	for await (const event of events) {
 		if (event.$kind === 'Connected') {
 			yield event;
-		} else if (event.$kind === 'Progress' && !reports(event.position) && !tracker.reported) {
+		} else if (event.$kind === 'Progress' && event.position.checkpoint === null) {
 			const own = event.position.indexedCheckpoint;
 			const indexedCheckpoint =
 				passed === undefined || (own !== null && own > passed) ? own : passed;
@@ -127,10 +119,6 @@ async function* withCoverage<Item>(
 			yield { ...event, position };
 		}
 	}
-}
-
-function reports(position: StreamPosition): boolean {
-	return position.coverage.$kind !== 'Unknown' || position.checkpoint !== null;
 }
 
 function max(a: bigint, b: bigint): bigint {

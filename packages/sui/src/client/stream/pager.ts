@@ -159,12 +159,9 @@ export async function* readPages<Item>(
 			const sent = ascending ? request.after : request.before;
 			if (sent && sameBytes(sent, cursor)) throw protocol('Pagination did not advance');
 			if (empty) {
-				// A server resuming a descending cursor clamps to its own tip, so the cursor needs at
-				// least the index this pass already relied on.
-				const relied = !ascending && resumesFrom ? indexedThrough(resumesFrom) : null;
 				const raw = progressPosition(cursor, {
 					coverage: through(pageEnd.covered),
-					indexedCheckpoint: page.viewedAt ?? relied,
+					indexedCheckpoint: page.viewedAt ?? null,
 				});
 				yield { $kind: 'Progress', position: advance(raw) };
 			}
@@ -175,10 +172,7 @@ export async function* readPages<Item>(
 		}
 
 		const reached = pageEnd.covered ?? page.viewedAt;
-		// An end cursor bounds the page, so coverage stops at the cursor, short of the tip the cursor
-		// was read at; the server's own tip says whether it has indexed that far.
-		const indexed = endCut?.kind === 'Progress' ? maxOf(pageEnd.covered, page.viewedAt) : reached;
-		const complete = target === null || indexed === undefined || indexed >= target;
+		const complete = target === null || reached === undefined || reached >= target;
 		// Commit the boundary after what was covered, so a quiet range moves its resume point and a
 		// finished range resumes as empty. A descending pass has covered down to a checkpoint end.
 		let boundary: bigint | undefined;
@@ -304,11 +298,6 @@ function assertRetained(
 		'HistoryUnavailable',
 		`Checkpoint ${pruned} has been pruned; the oldest available is ${retainedFrom}`,
 	);
-}
-
-function maxOf(a: bigint | undefined, b: bigint | undefined): bigint | undefined {
-	if (a === undefined) return b;
-	return b === undefined || a > b ? a : b;
 }
 
 function through(checkpoint: bigint | undefined): Coverage {

@@ -10,11 +10,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { LiveSubscription } from '../../../../src/client/stream/adapter.js';
-import {
-	comparePositions,
-	nextUncovered,
-	type StreamPosition,
-} from '../../../../src/client/stream/position.js';
+import { comparePositions, nextUncovered } from '../../../../src/client/stream/position.js';
 import { decodeToken } from '../../../../src/client/stream/token.js';
 import {
 	collect,
@@ -26,11 +22,9 @@ import {
 	ids,
 	itemId,
 	Ledger,
-	ledgerOrder,
 	type LiveScript,
 	LostConnection,
 	NetworkError,
-	positionOf,
 	statusLog,
 	stream,
 	take,
@@ -74,14 +68,7 @@ function subscription(ledger: Ledger, entry: number, last: number, heartbeat: nu
 const positionOfFrame = (frame: FakeOutput) => decodeToken(tokenOf(frame)).position;
 const coverageOf = (frame: FakeOutput) => decodeToken(tokenOf(frame)).coverage;
 
-/** Where a position sits in the fake ledger, by the item its cursor encodes; else undefined. */
-function ledgerSlot(position: StreamPosition): StreamPosition | undefined {
-	if (position.kind !== 'Progress') return position;
-	const match = /^(\d+):(-?\d+)$/.exec(new TextDecoder().decode(position.cursor!));
-	return match ? positionOf({ checkpoint: BigInt(match[1]), index: Number(match[2]) }) : undefined;
-}
-
-/** Tokens never move backwards: in coverage, in coordinates, or in the fake's ledger order. */
+/** Tokens never move backwards: in coverage or in coordinates. */
 function expectMonotoneTokens(frames: FakeOutput[]) {
 	const tokens = frames.filter((frame) => frame.$kind !== 'Complete');
 	for (let i = 1; i < tokens.length; i++) {
@@ -89,9 +76,7 @@ function expectMonotoneTokens(frames: FakeOutput[]) {
 		const covered = [coverageOf(before), coverageOf(after)].map((c) => nextUncovered(c) ?? -1n);
 		expect(covered[1]).toBeGreaterThanOrEqual(covered[0]);
 		const [a, b] = [positionOfFrame(before), positionOfFrame(after)];
-		expect(comparePositions(b, a) ?? 0).toBeGreaterThanOrEqual(0);
-		const [x, y] = [ledgerSlot(a), ledgerSlot(b)];
-		if (x && y) expect(ledgerOrder(y, x)).toBeGreaterThanOrEqual(0);
+		expect(comparePositions(b, a)).toBeGreaterThanOrEqual(0);
 	}
 }
 
@@ -296,7 +281,8 @@ describe('gap recovery to the first placed frame', () => {
 				const fetchPage = adapter.fetchPage;
 				let failed = false;
 				adapter.fetchPage = (request) => {
-					if (request.before && !failed) {
+					// Only a gap page has an end.
+					if (request.range.end !== undefined && !failed) {
 						failed = true;
 						throw new NetworkError();
 					}
@@ -350,16 +336,16 @@ describe('tokens across subscriptions', () => {
 
 	it('commits no boundary behind a watermark token on a lagging server', async () => {
 		const ledger = ledgerWith(30, 18, (checkpoint) => (checkpoint === 25 ? 1 : 0));
-		// The history boundary before 19, then the entry watermark after 18.
+		// The history boundary before 19; the entry watermark after 18 is the same boundary.
 		const first = await take(
 			stream(fakeAdapter(ledger, { live: [{ events: [ledger.watermark(18)], end: 'hang' }] }), {
 				start: { checkpoint: 0 },
 				frames: { progress: true },
 			}),
-			2,
+			1,
 		);
 		const token = tokenOf(first.at(-1));
-		expect(decodeToken(token).position.kind).toBe('Progress');
+		expect(decodeToken(token).position).toMatchObject({ kind: 'Boundary', checkpoint: 19n });
 
 		ledger.indexedTip = 15n;
 		const adapter = fakeAdapter(ledger, {

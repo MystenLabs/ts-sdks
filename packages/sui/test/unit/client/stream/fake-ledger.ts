@@ -24,7 +24,6 @@ import {
 	boundaryPosition,
 	itemPosition,
 	pageItems,
-	progressPosition,
 	SuiStreamError,
 	type StreamPosition,
 } from '../../../../src/client/stream/index.js';
@@ -68,9 +67,6 @@ export const positionOf = (item: FakeItem, opaque = false): FakePosition =>
 		cursor: cursorOf(item),
 		...(opaque ? { itemId: itemId(item) } : { transactionIndex: BigInt(item.index) }),
 	});
-
-/** A cursor before every item of `checkpoint`, as a watermark after the checkpoint before it. */
-export const cursorBefore = (checkpoint: bigint) => cursorOf({ checkpoint, index: -1 });
 
 function itemAt(cursor: Uint8Array): FakeItem {
 	const [checkpoint, index] = new TextDecoder().decode(cursor).split(':');
@@ -124,16 +120,14 @@ export class Ledger {
 	}
 
 	/**
-	 * A gRPC watermark: a progress cursor after all of `checkpoint`, reporting it as covered. A
+	 * A gRPC watermark: the boundary after all of `checkpoint`, reporting it as covered. A
 	 * subscription's entry frame and its heartbeats look like this.
 	 */
 	watermark(checkpoint: bigint | number): LiveEvent<FakeItem> {
 		const next = BigInt(checkpoint) + 1n;
 		return {
 			$kind: 'Progress',
-			position: progressPosition(cursorBefore(next), {
-				coverage: { $kind: 'Through', checkpoint: next - 1n },
-			}),
+			position: boundaryPosition(next, { coverage: { $kind: 'Through', checkpoint: next - 1n } }),
 		};
 	}
 
@@ -234,6 +228,7 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		}
 		if (script.end instanceof Error) throw script.end;
 		if (script.end === 'eof') return;
+		signal.throwIfAborted();
 		await new Promise((_, reject) => {
 			signal.addEventListener('abort', () => reject(signal.reason), { once: true });
 		});
