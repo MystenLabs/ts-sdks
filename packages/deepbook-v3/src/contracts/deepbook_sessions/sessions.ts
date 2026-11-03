@@ -6,6 +6,11 @@
  * Owns time-limited trading session grants attached to canonical Accounts. Account
  * owners grant and revoke sessions; an active session can only generate app auth
  * inside the Predict and DeepBook spot wrappers exposed here.
+ *
+ * A session-key trade that names a Predict builder code pays that builder a fee
+ * the session holder picks, so the owner approves one code and a maximum fee per
+ * session (`approve_session_builder`), and the `_with_builder` wrappers accept
+ * only that code at or below that fee.
  */
 
 import {
@@ -47,6 +52,41 @@ export const SessionRevoked = new MoveStruct({
 		expires_at_ms: U64,
 	},
 });
+export const SessionBuildersApp = new MoveStruct({
+	name: `${$moduleName}::SessionBuildersApp`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
+});
+export const SessionBuilder = new MoveStruct({
+	name: `${$moduleName}::SessionBuilder`,
+	fields: {
+		code_id: bcs.Address,
+		max_fee_per_contract: U64,
+	},
+});
+export const SessionBuilders = new MoveStruct({
+	name: `${$moduleName}::SessionBuilders`,
+	fields: {
+		approvals: vec_map.VecMap(bcs.Address, SessionBuilder),
+	},
+});
+export const SessionBuilderApproved = new MoveStruct({
+	name: `${$moduleName}::SessionBuilderApproved`,
+	fields: {
+		account_id: bcs.Address,
+		session: bcs.Address,
+		code_id: bcs.Address,
+		max_fee_per_contract: U64,
+	},
+});
+export const SessionBuilderCleared = new MoveStruct({
+	name: `${$moduleName}::SessionBuilderCleared`,
+	fields: {
+		account_id: bcs.Address,
+		session: bcs.Address,
+	},
+});
 export interface SessionExpirationMsArguments {
 	wrapper: RawTransactionArgument<string>;
 	session: RawTransactionArgument<string>;
@@ -74,6 +114,81 @@ export function sessionExpirationMs(options: SessionExpirationMsOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SessionBuilderArguments {
+	wrapper: RawTransactionArgument<string>;
+	session: RawTransactionArgument<string>;
+}
+export interface SessionBuilderOptions {
+	package?: string;
+	arguments:
+		| SessionBuilderArguments
+		| [wrapper: RawTransactionArgument<string>, session: RawTransactionArgument<string>];
+	config?: {
+		sessionsPackageId?: string;
+	};
+}
+/** Return a session's approved builder, or `none`, for SDK and devInspect reads. */
+export function sessionBuilder(options: SessionBuilderOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'session'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'session_builder',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ApprovedCodeIdArguments {
+	builder: TransactionArgument;
+}
+export interface ApprovedCodeIdOptions {
+	package?: string;
+	arguments: ApprovedCodeIdArguments | [builder: TransactionArgument];
+	config?: {
+		sessionsPackageId?: string;
+	};
+}
+/** Return the builder code an approval allows, for SDK and devInspect reads. */
+export function approvedCodeId(options: ApprovedCodeIdOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['builder'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'approved_code_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ApprovedMaxFeePerContractArguments {
+	builder: TransactionArgument;
+}
+export interface ApprovedMaxFeePerContractOptions {
+	package?: string;
+	arguments: ApprovedMaxFeePerContractArguments | [builder: TransactionArgument];
+	config?: {
+		sessionsPackageId?: string;
+	};
+}
+/** Return the most an approval allows per contract, for SDK and devInspect reads. */
+export function approvedMaxFeePerContract(options: ApprovedMaxFeePerContractOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['builder'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'approved_max_fee_per_contract',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface AuthorizeSessionArguments {
 	wrapper: RawTransactionArgument<string>;
 	sessionsConfig?: RawTransactionArgument<string>;
@@ -90,7 +205,10 @@ export interface AuthorizeSessionOptions {
 }
 /**
  * Authorize `session` from execution time for at most 30 days. Accounts may store
- * at most 20 addresses; reauthorization replaces in place.
+ * at most 20 addresses; reauthorization replaces in place and keeps the session's
+ * builder approval, while a new grant starts without one. A session that expired
+ * but was never revoked is still stored, so granting it again is a reauthorization
+ * and keeps its approval.
  */
 export function authorizeSession(options: AuthorizeSessionOptions) {
 	const packageAddress =
@@ -104,6 +222,53 @@ export function authorizeSession(options: AuthorizeSessionOptions) {
 			package: packageAddress,
 			module: 'sessions',
 			function: 'authorize_session',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface ApproveSessionBuilderArguments {
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	session: RawTransactionArgument<string>;
+	codeId: RawTransactionArgument<string>;
+	maxFeePerContract: RawTransactionArgument<number | bigint>;
+}
+export interface ApproveSessionBuilderOptions {
+	package?: string;
+	arguments: ApproveSessionBuilderArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Approve the builder code `session`'s trades may name, and the most they may
+ * charge per contract (`max_fee_per_contract`, in FLOAT_SCALING of the $1 payout),
+ * replacing any earlier approval. Only the Account owner may call this, and only
+ * for a session already authorized (`ESessionNotAuthorized`), so an app calls it
+ * right after `authorize_session` in the same transaction. The approval lasts
+ * until `revoke_session`; re-authorizing the session keeps it. Aborts
+ * `EBuilderApprovalsNotEnabled` until the `SessionsConfig` watermark reaches the
+ * first version that clears stale approvals.
+ */
+export function approveSessionBuilder(options: ApproveSessionBuilderOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [null, null, 'address', '0x2::object::ID', 'u64'] satisfies (
+		string | null
+	)[];
+	const parameterNames = ['wrapper', 'sessionsConfig', 'session', 'codeId', 'maxFeePerContract'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'approve_session_builder',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -128,8 +293,8 @@ export interface RevokeSessionOptions {
 	};
 }
 /**
- * Revoke `session` if it is present. Only the Account owner may call this
- * function.
+ * Revoke `session` and its builder approval if present. Only the Account owner may
+ * call this function.
  */
 export function revokeSession(options: RevokeSessionOptions) {
 	const packageAddress =
@@ -828,6 +993,100 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 			),
 		});
 }
+export interface EnqueueExactQuantityWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueExactQuantityWithBuilderArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_quantity` for a session-key mint that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWithBuilderOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_quantity_with_builder',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactAmountArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -904,6 +1163,100 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 			package: packageAddress,
 			module: 'sessions',
 			function: 'enqueue_exact_amount',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactAmountWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueExactAmountWithBuilderArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_amount` for a session-key mint that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBuilderOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_amount_with_builder',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -997,6 +1350,97 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 			),
 		});
 }
+export interface EnqueueExactCostWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueExactCostWithBuilderArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_cost` for a session-key mint that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilderOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_cost_with_builder',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueRedeemOpenArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1070,6 +1514,97 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 			package: packageAddress,
 			module: 'sessions',
 			function: 'enqueue_redeem_open',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueRedeemOpenWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueRedeemOpenWithBuilderArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_redeem_open` for a session-key sell that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuilderOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_redeem_open_with_builder',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

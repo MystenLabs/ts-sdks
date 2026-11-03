@@ -7,6 +7,10 @@ import { expect, test } from 'vitest';
 import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG as cfg } from '../../src/predict/config/index.js';
 
+// Account calls target the latest account package (a PTB can't call one older than Predict links);
+// event and struct types keep the original `cfg.packages.account`.
+const ACCOUNT_CALLS = cfg.packages.accountLatest ?? cfg.packages.account;
+
 const OWNER = '0x' + 'ab'.repeat(32);
 
 // tx builders never touch the client — these tests only inspect the emitted PTB.
@@ -59,7 +63,7 @@ function argPureBytes(tx: Transaction, cmdIdx: number, argIdx: number): string |
 
 const b64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
 
-const AUTH = `${cfg.packages.account}::account::generate_auth`;
+const AUTH = `${ACCOUNT_CALLS}::account::generate_auth`;
 
 test('supplyPlp: auth → request_supply, 8 args, min-plp-out floor slot', () => {
 	const tx = pc.tx.supplyPlp(OWNER, 5);

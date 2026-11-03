@@ -8,8 +8,8 @@ import type {
 } from '@mysten/sui/transactions';
 import { deriveObjectID } from '@mysten/sui/utils';
 
-import * as account from './contracts/account/account.js';
-import * as accountRegistry from './contracts/account/account_registry.js';
+import * as account from './account-bindings/account.js';
+import * as accountRegistry from './account-bindings/account-registry.js';
 import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
 import { MAINNET_ACCOUNT } from './deployments/mainnet.js';
 import { TESTNET_ACCOUNT } from './deployments/testnet.js';
@@ -36,10 +36,21 @@ export type { DeployedNetwork } from './deployments/index.js';
  * wrapper-address derivation needs plain ids.
  */
 export interface AccountConfig extends GeneratedAccountConfig {
-	/** The `account` Move package id. */
+	/**
+	 * The ORIGINAL `account` Move package id. Type tags and the derived wrapper address are built
+	 * from it, so it never moves to an upgraded package: that would derive addresses nothing lives
+	 * at, and a coin sent to one is lost.
+	 */
 	accountPackageId: string;
 	/** The shared `AccountRegistry` object id. */
 	accountRegistry: string;
+	/**
+	 * The latest `account` package, once the network has upgraded it: the call target of every
+	 * builder here. A PTB can't call account at an older version than another package in it links
+	 * (Predict's Version 5 links account v2), and `receiveCoin` / `receiveCoinAtAccountId` exist
+	 * only from v2. Absent while the network runs v1: calls then target `accountPackageId`.
+	 */
+	accountPackageIdLatest?: string;
 }
 
 /**
@@ -193,6 +204,77 @@ export class AccountContract {
 	}
 
 	/**
+	 * @description Move a `Coin<T>` that was transferred to an account's wrapper address into
+	 * the account's stored balance (`receive_coin`). Permissionless: anyone may submit it, and
+	 * value only enters the account the coin was addressed to. A sender that can only transfer a
+	 * coin to an address (a bridge mint, for example) sends it to `deriveAccountWrapperId(owner)`.
+	 * The coin can arrive before the account exists and waits there until the owner creates it.
+	 * @param {object} params Wrapper id, the received coin's object id (or a `Receiving` input),
+	 * and its coin type
+	 * @returns A function that takes a Transaction object
+	 * @throws if the config has no `accountPackageIdLatest`, i.e. the network still runs account v1
+	 */
+	receiveCoin(params: {
+		wrapperId: string;
+		coin: string | TransactionObjectArgument;
+		coinType: string;
+	}) {
+		const packageId = this.#latestPackage('receiveCoin');
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				account.receiveCoin({
+					package: packageId,
+					arguments: {
+						wrapper: params.wrapperId,
+						coin: typeof params.coin === 'string' ? tx.object(params.coin) : params.coin,
+					},
+					typeArguments: [params.coinType],
+				}),
+			);
+	}
+
+	/**
+	 * @description `receiveCoin` for a coin sent to the account's canonical ID (`account_id`,
+	 * the address `account_registry::derived_address` returns) instead of its wrapper address.
+	 * A `Receiving` input can't name its owner, so pick the call from where the coin sits: the
+	 * wrong one aborts `EUnableToReceiveObject`. Senders should use the wrapper address.
+	 * @param {object} params Wrapper id, the received coin's object id (or a `Receiving` input),
+	 * and its coin type
+	 * @returns A function that takes a Transaction object
+	 * @throws if the config has no `accountPackageIdLatest`, i.e. the network still runs account v1
+	 */
+	receiveCoinAtAccountId(params: {
+		wrapperId: string;
+		coin: string | TransactionObjectArgument;
+		coinType: string;
+	}) {
+		const packageId = this.#latestPackage('receiveCoinAtAccountId');
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				account.receiveCoinAtAccountId({
+					package: packageId,
+					arguments: {
+						wrapper: params.wrapperId,
+						coin: typeof params.coin === 'string' ? tx.object(params.coin) : params.coin,
+					},
+					typeArguments: [params.coinType],
+				}),
+			);
+	}
+
+	// The call target for the functions added in account v2, which v1 doesn't have.
+	#latestPackage(builder: string): string {
+		const latest = this.#config.accountPackageIdLatest;
+		if (!latest) {
+			throw new Error(
+				`@mysten/deepbook-v3/account: ${builder} calls a function added in account v2, and this ` +
+					'config has no `accountPackageIdLatest` (the network still runs account v1).',
+			);
+		}
+		return latest;
+	}
+
+	/**
 	 * @description Borrow the `Account` out of its wrapper — the read-side entry point apps
 	 * chain their own getters onto (`account::balance<T>`, an app's own data accessors).
 	 * @param {object} params Wrapper id
@@ -235,7 +317,9 @@ export class AccountContract {
 // package's root — the root already exports a different `Account`
 // (`@deepbook/core::account::Account`, the per-pool trading account) and the two
 // have unrelated layouts. Keep them separated by subpath.
-export * as accountMoveCalls from './contracts/account/account.js';
-export * as accountRegistryMoveCalls from './contracts/account/account_registry.js';
+// The move calls resolve their package to `config.accountPackageIdLatest` when the config has one
+// (see `account-bindings/latest.ts`); `accountPackageId` stays the original for derivation.
+export * as accountMoveCalls from './account-bindings/account.js';
+export * as accountRegistryMoveCalls from './account-bindings/account-registry.js';
 export * as accountEvents from './contracts/account/account_events.js';
 export { Account, AccountWrapper } from './contracts/account/account.js';

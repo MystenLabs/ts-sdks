@@ -15,7 +15,7 @@ import { describe, expect, test } from 'vitest';
 import { cadencePeriods } from '../../../src/contracts/deepbook_predict/registry.js';
 
 import { getAccountConfig } from '../../../src/account.js';
-import { getDeployment, TESTNET_PREDICT } from '../../../src/deployments/index.js';
+import { getDeployment, TESTNET_ACCOUNT, TESTNET_PREDICT } from '../../../src/deployments/index.js';
 import { TESTNET_CONFIG } from '../../../src/predict/index.js';
 import { getSessionsConfig } from '../../../src/sessions.js';
 
@@ -115,18 +115,19 @@ describe('the deployment record matches the live chain', () => {
 });
 
 describe('package publication and type origins', () => {
-	// Testnet's relink to Propbook v2 (DBU-1027): Sessions v4, and predict_orders and predict_math
-	// at version 2, after the delayed-execution rollout (DBU-887) published them. Predict is v7,
-	// the cadence-table upgrade (DBU-1109).
+	// The Version 5 rehearsal (DBU-1117): Predict v8, predict_orders v3, Sessions v5 and account
+	// v2, relinked in that order. predict_math stays at version 2 from the relink to Propbook v2
+	// (DBU-1027). These are Testnet package numbers; the code's version constants follow Mainnet.
 	test.each([
-		[TESTNET_PREDICT.packages.predict, 7n, TESTNET_PREDICT.packages.predictV1],
+		[TESTNET_PREDICT.packages.predict, 8n, TESTNET_PREDICT.packages.predictV1],
 		[
 			getSessionsConfig('testnet').sessionsPackageId,
-			4n,
+			5n,
 			getSessionsConfig('testnet').sessionsPackageIdV1,
 		],
-		[TESTNET_CONFIG.packages.predictOrders!, 2n, PREDICT_ORDERS_V1],
+		[TESTNET_CONFIG.packages.predictOrders!, 3n, PREDICT_ORDERS_V1],
 		[TESTNET_CONFIG.packages.predictMath!, 2n, PREDICT_MATH_V1],
+		[TESTNET_ACCOUNT.accountPackageIdLatest!, 2n, TESTNET_ACCOUNT.accountPackageId],
 	])('latest package %s is version %s of %s', async (packageId, version, originalId) => {
 		const { response } = await client.movePackageService.getPackage({ packageId });
 		expect(response.package?.version).toBe(version);

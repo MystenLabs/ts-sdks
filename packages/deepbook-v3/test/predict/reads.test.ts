@@ -29,6 +29,10 @@ import {
 import { poolStats } from '../../src/predict/reads/pool.js';
 import { POS_INF_TICK } from '../../src/predict/ticks.js';
 
+// Account calls target the latest account package (a PTB can't call one older than Predict links);
+// event and struct types keep the original `cfg.packages.account`.
+const ACCOUNT_CALLS = cfg.packages.accountLatest ?? cfg.packages.account;
+
 // The moveCall targets in the order the read built its PTB.
 function targets(tx: Transaction): string[] {
 	return tx
@@ -292,7 +296,7 @@ describe('markets reads', () => {
 		]);
 		const ok = await hasPosition(client, config, ADDR_A, ADDR_B, 7n);
 		expect(targets(captured.tx!)).toEqual([
-			`${cfg.packages.account}::account::load_account`,
+			`${ACCOUNT_CALLS}::account::load_account`,
 			`${cfg.packages.predict}::predict_account::has_position`,
 		]);
 		expect(ok).toBe(true);
@@ -353,8 +357,8 @@ describe('balances read', () => {
 		]);
 		const bal = await accountBalance(client, config, ADDR_A, cfg.quoteCoinType);
 		expect(targets(captured.tx!)).toEqual([
-			`${cfg.packages.account}::account::load_account`,
-			`${cfg.packages.account}::account::balance`,
+			`${ACCOUNT_CALLS}::account::load_account`,
+			`${ACCOUNT_CALLS}::account::balance`,
 		]);
 		expect(bal).toBe(123_456n);
 		const balCmd = captured.tx!.getData().commands[1];

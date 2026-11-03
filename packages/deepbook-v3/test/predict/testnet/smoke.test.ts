@@ -35,6 +35,9 @@ const TESTNET_GRPC_URL = 'https://fullnode.testnet.sui.io:443';
 const SMOKE_SENDER = '0x51de1e01c51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51d';
 
 const cfg = TESTNET_CONFIG;
+// Account calls target the latest account package: a PTB can't call account at an older version
+// than Predict links (InvalidLinkage). Derived addresses and types keep `cfg.packages.account`.
+const ACCOUNT_CALLS = cfg.packages.accountLatest ?? cfg.packages.account;
 const config = toGeneratedConfig(cfg);
 const client = new SuiGrpcClient({ network: 'testnet', baseUrl: TESTNET_GRPC_URL });
 const predict = new PredictClient({ network: 'testnet', client });
@@ -54,7 +57,7 @@ function freshWrapperTx(): { tx: Transaction; wrapper: string } {
 	const tx = new Transaction();
 	const wrapper = tx.add(
 		accountRegistry._new({
-			package: cfg.packages.account,
+			package: ACCOUNT_CALLS,
 			arguments: { registry: cfg.objects.accountRegistry },
 		}),
 	);
@@ -64,7 +67,7 @@ function freshWrapperTx(): { tx: Transaction; wrapper: string } {
 function shareWrapper(tx: Transaction, wrapper: string): void {
 	tx.add(
 		account.share({
-			package: cfg.packages.account,
+			package: ACCOUNT_CALLS,
 			arguments: { self: wrapper },
 		}),
 	);

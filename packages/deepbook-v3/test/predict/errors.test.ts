@@ -99,7 +99,7 @@ describe('decodeMoveAbort', () => {
 
 // Predict's error constants are plain u64 codes, so the fullnode surfaces no clever-error name and
 // the SDK names them from ABORT_NAMES. The expected names are the Move constants at deepbookv3
-// 29117434 (`const EName: u64 = code;`).
+// 29117434 (`const EName: u64 = code;`), and the builder-fee codes at 166cdf5c.
 describe('plain abort codes decode to their constant names', () => {
 	const plain = (module: string, code: number) =>
 		decodeMoveAbort({ MoveAbort: { abortCode: String(code), location: { module } } });
@@ -122,12 +122,15 @@ describe('plain abort codes decode to their constant names', () => {
 		['protocol_config', 3, 'EPackageVersionDisabled'],
 		['protocol_config', 13, 'ECutoverNotReached'],
 		['protocol_config', 15, 'EOrderFlowNotAllowed'],
+		['protocol_config', 16, 'EBuilderFeeCutoverNotReached'],
 		['lazer_price', 2, 'EFeedMissing'],
 		['pricing', 0, 'EZeroForward'],
 		['pricing', 12, 'EBlockScholesPriceUnavailable'],
 		['pricing', 16, 'EBlockScholesInputTooWide'],
 		['pricing', 19, 'EPythForwardRequired'],
 		['sessions', 1, 'ESessionNotAuthorized'],
+		['sessions', 3, 'EBuilderNotApproved'],
+		['sessions', 5, 'EBuilderApprovalsNotEnabled'],
 		['session_config', 0, 'EPackageVersionDisabled'],
 		['account_registry', 1, 'EAppNotAuthorized'],
 		['strike_payout_tree', 1, 'EMaxPayoutTreeNodes'],
@@ -150,9 +153,9 @@ describe('plain abort codes decode to their constant names', () => {
 		expect(ABORT_NAMES.queue).toHaveLength(13);
 		expect(ABORT_NAMES.desk).toHaveLength(3);
 		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
-		expect(ABORT_NAMES.protocol_config).toHaveLength(16);
+		expect(ABORT_NAMES.protocol_config).toHaveLength(17);
 		expect(ABORT_NAMES.pricing).toHaveLength(20);
-		expect(ABORT_NAMES.sessions).toHaveLength(3);
+		expect(ABORT_NAMES.sessions).toHaveLength(6);
 		expect(ABORT_NAMES.session_config).toHaveLength(2);
 		expect(ABORT_NAMES.account_registry).toHaveLength(3);
 		expect(ABORT_NAMES.strike_payout_tree).toHaveLength(6);

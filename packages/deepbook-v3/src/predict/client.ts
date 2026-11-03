@@ -44,6 +44,7 @@ import {
 } from './errors.js';
 import {
 	ORDER_FLOW_PACKAGE_VERSION,
+	PREDICT_PACKAGE_VERSION,
 	ORDER_KIND,
 	ORDER_STATUS,
 	budgetMintLimits,
@@ -1286,6 +1287,16 @@ export class PredictClient {
 		return Boolean(predictDelayedExecution && predictOrders && orderDesk && queueRegistry);
 	}
 
+	// The version constants the configured call targets compile: the network's own pins, else the
+	// versions these bindings were generated from. A watermark above one retires that code.
+	#predictCurrentVersion(): bigint {
+		return this.cfg.packages.predictCurrentVersion ?? PREDICT_PACKAGE_VERSION;
+	}
+
+	#ordersCurrentVersion(): bigint {
+		return this.cfg.packages.predictOrdersCurrentVersion ?? ORDER_FLOW_PACKAGE_VERSION;
+	}
+
 	// The market's queue ID, once its `MarketQueue` is known to exist. A missing queue would abort
 	// every read and order with an opaque error, so it is refused here with a typed one.
 	async #existingQueueId(orders: OrdersGeneratedConfig, marketId: string): Promise<string> {
@@ -1333,7 +1344,12 @@ export class PredictClient {
 				"queued orders aren't live yet: the protocol hasn't enabled the order-flow package",
 			);
 		}
-		const mode = executionModeFor(state.protocol.versionWatermark, true);
+		const mode = executionModeFor(
+			state.protocol.versionWatermark,
+			true,
+			true,
+			this.#predictCurrentVersion(),
+		);
 		if (mode === 'retired') {
 			throw new PredictPreflightError(
 				'retired',
@@ -1346,7 +1362,7 @@ export class PredictClient {
 				"queued orders aren't live yet: the protocol's version watermark hasn't been raised",
 			);
 		}
-		if (state.desk.versionWatermark > ORDER_FLOW_PACKAGE_VERSION) {
+		if (state.desk.versionWatermark > this.#ordersCurrentVersion()) {
 			throw new PredictPreflightError(
 				'retired',
 				'the order-flow package version this SDK calls is retired: update the SDK',
@@ -2385,6 +2401,7 @@ export class PredictClient {
 				await versionWatermark(this.#client, this.cfg.objects.protocolConfig),
 				this.#recordsDelayedExecution(),
 				this.cfg.packages.predictDelayedExecution != null,
+				this.#predictCurrentVersion(),
 			),
 
 		/**
@@ -2400,7 +2417,12 @@ export class PredictClient {
 			const state = await this.#queueState(orders, id, { owner });
 			const nowMs = BigInt(Date.now());
 			const policy = state.desk.policy;
-			const mode = executionModeFor(state.protocol.versionWatermark, true);
+			const mode = executionModeFor(
+				state.protocol.versionWatermark,
+				true,
+				true,
+				this.#predictCurrentVersion(),
+			);
 			const timing = previewTiming({
 				nowMs,
 				policy,

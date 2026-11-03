@@ -11,7 +11,15 @@ import { TESTNET_ACCOUNT, TESTNET_PREDICT, TESTNET_SESSIONS } from '../../src/de
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-function generate(overrides: { chain?: string; original?: string; plp?: string } = {}) {
+function generate(
+	overrides: {
+		chain?: string;
+		original?: string;
+		plp?: string;
+		accountLatest?: string;
+		accountOriginal?: string;
+	} = {},
+) {
 	const dir = mkdtempSync(join(tmpdir(), 'sdk-deployment-'));
 	dirs.push(dir);
 	mkdirSync(join(dir, 'src/deployments'), { recursive: true });
@@ -46,6 +54,11 @@ function generate(overrides: { chain?: string; original?: string; plp?: string }
 	for (const [name, latest, original] of [
 		['predict', cfg.packages.predict, overrides.original ?? cfg.packages.predictV1],
 		['sessions', TESTNET_SESSIONS.sessionsPackageId, TESTNET_SESSIONS.sessionsPackageIdV1],
+		[
+			'account',
+			overrides.accountLatest ?? TESTNET_ACCOUNT.accountPackageIdLatest!,
+			overrides.accountOriginal ?? TESTNET_ACCOUNT.accountPackageId,
+		],
 	]) {
 		const pkg = join(dir, 'packages', name);
 		mkdirSync(pkg, { recursive: true });
@@ -79,12 +92,22 @@ test('regeneration takes call targets from Published.toml and retains original t
 	expect(source).toContain(`sessionsPackageId: "${TESTNET_SESSIONS.sessionsPackageId}"`);
 	expect(source).toContain(`sessionsPackageIdV1: "${TESTNET_SESSIONS.sessionsPackageIdV1}"`);
 	expect(source).toContain(TESTNET_PREDICT.coinTypes.plp);
+	// account keeps its original ID for types and derivation; the upgrade is a separate call target.
+	expect(source).toContain(`accountPackageId: "${TESTNET_ACCOUNT.accountPackageId}"`);
+	expect(source).toContain(`accountPackageIdLatest: "${TESTNET_ACCOUNT.accountPackageIdLatest}"`);
+});
+
+test('an account still at v1 has no separate call target', () => {
+	const { result, output } = generate({ accountLatest: TESTNET_ACCOUNT.accountPackageId });
+	expect(result.status, result.stderr).toBe(0);
+	expect(output()).not.toContain('accountPackageIdLatest');
 });
 
 test.each([
 	[{ chain: 'wrongchain' }, /chain-id does not match/],
 	[{ original: '0x' + 'ab'.repeat(32) }, /does not belong/],
 	[{ plp: `${TESTNET_PREDICT.packages.predict}::plp::PLP` }, /must use the original/],
+	[{ accountOriginal: '0x' + 'cd'.repeat(32) }, /does not belong/],
 ] as const)('rejects mismatched publication metadata: %j', (overrides, error) => {
 	const { result } = generate(overrides);
 	expect(result.status).not.toBe(0);

@@ -27,6 +27,10 @@ export const MAINNET_CONFIG: PredictConfig = Object.freeze({
 	packages: Object.freeze({
 		...MAINNET_PREDICT.packages,
 		predictDelayedExecution: '0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+		// The version constants the call targets compile: Predict v4 compiles 4 and orders v1 compiles
+		// 1. Move them with the call targets at the Version 5 upgrade (to 5 and 2).
+		predictCurrentVersion: 4n,
+		predictOrdersCurrentVersion: 1n,
 	}),
 	objects: Object.freeze({
 		...MAINNET_PREDICT.objects,

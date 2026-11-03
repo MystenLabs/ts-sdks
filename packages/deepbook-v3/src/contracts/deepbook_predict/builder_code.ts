@@ -5,7 +5,8 @@
 /**
  * Owns deterministic builder referral codes and the USDC fees delivered to their
  * object addresses through the funds accumulator. Codes are derived per owner and
- * index, and only the immutable owner may withdraw accumulated fees.
+ * index, and only the immutable owner may withdraw accumulated fees. A trade names
+ * the code it pays, and its fee per contract, as a `BuilderFee`.
  */
 
 import {
@@ -16,7 +17,7 @@ import {
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/deepbook_predict::builder_code';
 export const BuilderCodeKey = new MoveTuple({
 	name: `${$moduleName}::BuilderCodeKey`,
@@ -28,6 +29,13 @@ export const BuilderCode = new MoveStruct({
 		id: bcs.Address,
 		owner: bcs.Address,
 		index: U64,
+	},
+});
+export const BuilderFee = new MoveStruct({
+	name: `${$moduleName}::BuilderFee`,
+	fields: {
+		code_id: bcs.Address,
+		fee_per_contract: U64,
 	},
 });
 export interface IdArguments {
@@ -51,6 +59,90 @@ export function id(options: IdOptions) {
 			package: packageAddress,
 			module: 'builder_code',
 			function: 'id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface NewFeeArguments {
+	code: RawTransactionArgument<string>;
+	feePerContract: RawTransactionArgument<number | bigint>;
+}
+export interface NewFeeOptions {
+	package?: string;
+	arguments:
+		| NewFeeArguments
+		| [
+				code: RawTransactionArgument<string>,
+				feePerContract: RawTransactionArgument<number | bigint>,
+		  ];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Name `code` and its fee per contract for one trade. For PTB construction and the
+ * order-flow companion, which pass it to Predict's builder admission.
+ */
+export function newFee(options: NewFeeOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['code', 'feePerContract'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'builder_code',
+			function: 'new_fee',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface CodeIdArguments {
+	fee: TransactionArgument;
+}
+export interface CodeIdOptions {
+	package?: string;
+	arguments: CodeIdArguments | [fee: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/** Returns the code a `BuilderFee` pays, for the companion and Sessions' checks. */
+export function codeId(options: CodeIdOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['fee'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'builder_code',
+			function: 'code_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface FeePerContractArguments {
+	fee: TransactionArgument;
+}
+export interface FeePerContractOptions {
+	package?: string;
+	arguments: FeePerContractArguments | [fee: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Returns a `BuilderFee`'s uncapped fee per contract, for the companion and
+ * Sessions' checks.
+ */
+export function feePerContract(options: FeePerContractOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['fee'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'builder_code',
+			function: 'fee_per_contract',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

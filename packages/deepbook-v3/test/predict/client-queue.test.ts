@@ -214,8 +214,8 @@ describe('queued mints', () => {
 	test.each([
 		['not-live', { watermark: 3n }],
 		['not-live', { orderFlowEnabled: false }],
-		['retired', { deskWatermark: 2n }],
-		['retired', { watermark: 5n }],
+		['retired', { deskWatermark: 3n }],
+		['retired', { watermark: 6n }],
 		['paused', { frozen: true }],
 		['paused', { tradingPaused: true }],
 		['paused', { mintPaused: true }],
@@ -231,6 +231,42 @@ describe('queued mints', () => {
 		expect(
 			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
 		).toBe(code);
+	});
+
+	test('the Version 5 watermarks (Predict 5, desk 2) still queue', async () => {
+		// The batch that opens builder fees moves both floors to the code constants these bindings
+		// compile, so this SDK must keep queuing there, not report its own code retired.
+		const s = scenario({ ...spare(10_000_000_000n), watermark: 5n, deskWatermark: 2n });
+		const { pc } = client(s);
+		expect(
+			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
+		).toBe('none');
+	});
+
+	test('the retirement guard follows the version the configured call target compiles', async () => {
+		// Mainnet's configured Predict v4 compiles 4 and its orders v1 compiles 1, so watermarks 5 and
+		// 2 retire them, while Testnet's Version 5 targets keep queuing there.
+		const s = scenario({ ...spare(10_000_000_000n), watermark: 5n, deskWatermark: 2n });
+		const q = queueClient(s);
+		const asMainnet = {
+			...cfg,
+			packages: { ...cfg.packages, predictCurrentVersion: 4n, predictOrdersCurrentVersion: 1n },
+		};
+		const pc = new PredictClient({ network: 'testnet', client: q.client, config: asMainnet });
+		expect(
+			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
+		).toBe('retired');
+		const deskOnly = scenario({ ...spare(10_000_000_000n), watermark: 4n, deskWatermark: 2n });
+		const pcDesk = new PredictClient({
+			network: 'testnet',
+			client: queueClient(deskOnly).client,
+			config: asMainnet,
+		});
+		expect(
+			await preflightCode(
+				pcDesk.tx.enqueueMintCost(OWNER, market(deskOnly), { spend: 8, minQuantity: 0 }),
+			),
+		).toBe('retired');
 	});
 
 	test('preflight refuses an order whose τ lands past the cutoff', async () => {
@@ -386,8 +422,8 @@ describe('reads', () => {
 		['frozen', { frozen: true }, 'paused', 'paused'],
 		['watermark not raised', { watermark: 3n }, 'not-live', 'not-live'],
 		['order flow not allowlisted', { orderFlowEnabled: false }, 'not-live', 'not-live'],
-		['the desk floor retired this companion', { deskWatermark: 2n }, 'retired', 'retired'],
-		['a Predict upgrade retired the code this SDK calls', { watermark: 5n }, 'retired', 'retired'],
+		['the desk floor retired this companion', { deskWatermark: 3n }, 'retired', 'retired'],
+		['a Predict upgrade retired the code this SDK calls', { watermark: 6n }, 'retired', 'retired'],
 		['the account at its cap', { waitingOrders: 5n }, 'account-cap', 'account-cap'],
 	] as [string, Partial<QueueScenario>, string | null, string | null][])(
 		'read.queue acceptance matches the builder gates: %s',

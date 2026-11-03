@@ -6,8 +6,12 @@
 // move-call exports keep the keys these bindings shipped with, renamed here before calling the
 // generated binding, so the emitted move call is unchanged.
 
-/** Rename an arguments object's keys by `keys` (shipped key → generated key). */
+/**
+ * Rename an arguments object's keys by `keys` (shipped key → generated key). A positional tuple
+ * has no keys, so it passes through unchanged.
+ */
 export function renameArguments<T>(args: object, keys: Readonly<Record<string, string>>): T {
+	if (Array.isArray(args)) return args as T;
 	return Object.fromEntries(
 		Object.entries(args).map(([key, value]) => [keys[key] ?? key, value]),
 	) as T;

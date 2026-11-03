@@ -7,10 +7,10 @@
  * application-scoped data. Consuming `Auth` is the mutable-borrow boundary: owner
  * auth is checked against the account, while package-issued app auth yields the
  * same full `&mut Account` and is not bound to an owner or operation. The wrapper
- * address receives accumulator funds; a distinct derived account UID identifies
- * the account and anchors app data, while typed balances remain embedded in the
- * account. App data is namespaced by witness type, requires `Permit<App>` to
- * mutate, and remains publicly readable.
+ * address receives accumulator funds and transferred coins; a distinct derived
+ * account UID identifies the account and anchors app data, while typed balances
+ * remain embedded in the account. App data is namespaced by witness type, requires
+ * `Permit<App>` to mutate, and remains publicly readable.
  */
 
 import {
@@ -403,6 +403,75 @@ export function settle(options: SettleOptions) {
 			package: packageAddress,
 			module: 'account',
 			function: 'settle',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ReceiveCoinArguments {
+	wrapper: RawTransactionArgument<string>;
+	coin: TransactionArgument;
+}
+export interface ReceiveCoinOptions {
+	package?: string;
+	arguments:
+		ReceiveCoinArguments | [wrapper: RawTransactionArgument<string>, coin: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * Permissionlessly folds a `Coin<T>` transferred to the wrapper address into
+ * stored account balance, for senders that can only transfer a coin and owners who
+ * have not signed. Value only enters the account, and only the wrapper UID the
+ * coin was addressed to can receive it. A coin may arrive before the account
+ * exists: `account_registry::derived_wrapper_address` is its recipient.
+ */
+export function receiveCoin(options: ReceiveCoinOptions) {
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'coin'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'account',
+			function: 'receive_coin',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ReceiveCoinAtAccountIdArguments {
+	wrapper: RawTransactionArgument<string>;
+	coin: TransactionArgument;
+}
+export interface ReceiveCoinAtAccountIdOptions {
+	package?: string;
+	arguments:
+		| ReceiveCoinAtAccountIdArguments
+		| [wrapper: RawTransactionArgument<string>, coin: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * `receive_coin` for a coin sent to the canonical account address, the account's
+ * public identity, which can get copied as a destination. Senders should still use
+ * the wrapper address, the one that also takes `send_funds`. A `Receiving` cannot
+ * reveal its owner, so the caller picks the function from the coin's owner; the
+ * wrong one aborts.
+ */
+export function receiveCoinAtAccountId(options: ReceiveCoinAtAccountIdOptions) {
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'coin'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'account',
+			function: 'receive_coin_at_account_id',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

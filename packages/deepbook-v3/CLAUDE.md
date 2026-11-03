@@ -277,7 +277,36 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   Predict's `order` and `registry` stay out: DeepBook core has modules of the same names.
 - `queue.ORDER_FLOW_PACKAGE_VERSION` mirrors `desk::current_version` of the generated companion
   source. The preflight refuses with `'retired'` when the desk floor is above it, so bump it with
-  the companion whenever the bindings are regenerated.
+  the companion whenever the bindings are regenerated. `PREDICT_PACKAGE_VERSION` does the same for
+  Predict's `constants::current_version`. Both are the code's version constants, which follow the
+  **Mainnet** package number (Version 5 = Predict 5 / orders 2 / Sessions 4), never the Testnet
+  package number (Testnet runs them as packages v8 / v3 / v5). They are only the default: each
+  network config pins what ITS call targets compile (`packages.predictCurrentVersion`,
+  `packages.predictOrdersCurrentVersion`), so a network still on older call targets keeps an
+  accurate `'retired'` guard. Move those pins whenever the network's call targets move.
+
+### Account call target vs. identity (`InvalidLinkage`)
+
+- Sui rejects a PTB whose explicit call target is older than a version another package in the PTB
+  links: account v1 next to Predict v8 (which links account v2) aborts `InvalidLinkage`. Account v2
+  next to an older Predict is fine. So once a network upgrades `account`, EVERY account call
+  (`generate_auth`, `new`, `share`, `deposit_funds`, …) targets the latest package.
+- The original id never moves: derived wrapper/account addresses and type tags (`DataKey`, events)
+  are built from it. Deriving from the latest id points at addresses nothing lives at.
+- One meaning everywhere: `accountPackageId` (and Predict's `packages.account`) is the original id
+  in every config, including the projected `GeneratedConfig`, so any config handed to
+  `AccountContract` derives the same address. The call target is the optional
+  `accountPackageIdLatest` (Predict: `packages.accountLatest`).
+- The generated account bindings resolve their package from `config.accountPackageId`, so
+  `src/account-bindings/` wraps every one to resolve `package`, then
+  `config.accountPackageIdLatest`, then that. `accountMoveCalls`, `accountRegistryMoveCalls`,
+  `AccountContract` and the Predict code all call through the wrappers; never import
+  `contracts/account/{account,account_registry}.js` for a call. `test/unit/account.test.ts` fails if
+  codegen adds an account function that isn't wrapped (the wrapper files are written out by name, so
+  add it there).
+- `sync-deployment` reads `packages/account/Published.toml` and emits the latest ids only once the
+  network has upgraded account. The live smoke suite caught the linkage rule; hand-built PTBs in
+  tests must use the call target too.
 
 ## Formatting
 
@@ -493,3 +522,5 @@ Track significant updates to this file:
 - **2026-10**: `DEEPBOOKV3_ROOT` codegen override and Predict delayed-execution notes (DBU-885)
 - **2026-10**: Delayed execution split across Predict, `deepbook_predict_orders` and
   `deepbook_predict_math` (DBU-885)
+- **2026-11**: Version 5 rehearsal ids, Mainnet-numbered version mirrors, and the account call
+  target vs. identity split (`InvalidLinkage`)

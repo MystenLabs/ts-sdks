@@ -27,6 +27,10 @@ export const TESTNET_CONFIG: PredictConfig = Object.freeze({
 	packages: Object.freeze({
 		...TESTNET_PREDICT.packages,
 		predictDelayedExecution: '0x0654ecbed7c0f2645d9de7cb6cf08e65c2ee05cdbb39a415f17a6bd1cd92e267',
+		// The version constants the call targets compile (Version 5: Predict 5, orders 2, as Mainnet
+		// will ship them), not their Testnet package numbers (v8, v3). Move them with the call targets.
+		predictCurrentVersion: 5n,
+		predictOrdersCurrentVersion: 2n,
 	}),
 	objects: Object.freeze({
 		...TESTNET_PREDICT.objects,

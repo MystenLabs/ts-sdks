@@ -5,12 +5,14 @@ import type { GeneratedConfig } from '../config/generated.js';
 import { U64_MAX } from '../units.js';
 import { accountMoveCalls as account } from '../../account.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
+import * as expiryMarketBindings from '../bindings/expiry-market.js';
 import { withAuth } from './common.js';
 
 // The trade calls with their `auth` argument already supplied (see `withAuth`): each
 // takes its generated options minus that slot and expands to auth → call.
 const authed = {
-	redeemSettled: withAuth(expiryMarket.redeemSettled),
+	// The shipped argument keys: Predict v5 underscore-prefixed the retired call's parameters.
+	redeemSettled: withAuth(expiryMarketBindings.redeemSettled),
 };
 
 // The oracle feed object ids a live market's pricer reads. Grouped so callers pass one

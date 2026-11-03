@@ -29,6 +29,7 @@ import { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../../contr
 import * as desk from '../../contracts/deepbook_predict_orders/desk.js';
 import { OrderView as OrderViewBcs } from '../../contracts/deepbook_predict_orders/order_queue.js';
 import * as queue from '../../contracts/deepbook_predict_orders/queue.js';
+import { quoteRedeemOpen as quoteRedeemOpenCall } from '../bindings/queue.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseOptionalU64, parseU64LE } from './parse.js';
 
@@ -294,8 +295,9 @@ export async function versionWatermark(
  *   `EDelayedExecutionRequired`.
  * - `'unsupported'`: the watermark is raised but this SDK's config has no delayed-execution
  *   record for the network. Upgrade the SDK, or pass a config that records it.
- * - `'retired'`: the watermark is above the Predict code version this SDK calls
- *   (`PREDICT_PACKAGE_VERSION`), so every version-gated call aborts `EPackageVersionDisabled`.
+ * - `'retired'`: the watermark is above the Predict code version the config calls
+ *   (`packages.predictCurrentVersion`, else `PREDICT_PACKAGE_VERSION`), so every version-gated
+ *   call aborts `EPackageVersionDisabled`.
  *   Upgrade the SDK.
  */
 export type ExecutionMode =
@@ -312,10 +314,11 @@ export function executionModeFor(
 	watermark: bigint,
 	recordsDelayedExecution: boolean,
 	recordsPredictUpgrade: boolean = recordsDelayedExecution,
+	predictCurrentVersion: bigint = PREDICT_PACKAGE_VERSION,
 ): ExecutionMode {
 	if (watermark >= DELAYED_EXECUTION_VERSION) {
 		if (!recordsDelayedExecution) return 'unsupported';
-		return watermark > PREDICT_PACKAGE_VERSION ? 'retired' : 'delayed';
+		return watermark > predictCurrentVersion ? 'retired' : 'delayed';
 	}
 	return recordsDelayedExecution || recordsPredictUpgrade ? 'awaiting-cutover' : 'immediate';
 }
@@ -400,7 +403,7 @@ export async function quoteRedeemOpen(
 	const tx = new Transaction();
 	const pricer = tx.add(loadLivePricer(config, args));
 	tx.add(
-		queue.quoteRedeemOpen({
+		quoteRedeemOpenCall({
 			config,
 			arguments: {
 				queue: queueIdOf(config, args),

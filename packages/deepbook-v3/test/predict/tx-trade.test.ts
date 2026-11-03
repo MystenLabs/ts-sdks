@@ -16,6 +16,10 @@ import {
 	redeemSettled,
 } from '../../src/predict/tx/trade.js';
 
+// Account calls target the latest account package (a PTB can't call one older than Predict links);
+// event and struct types keep the original `cfg.packages.account`.
+const ACCOUNT_CALLS = cfg.packages.accountLatest ?? cfg.packages.account;
+
 const config = toGeneratedConfig(cfg);
 const btc = cfg.underlyings.BTC;
 // The live-pricer feed bundle, keyed as the migrated `MarketFeeds` builder expects
@@ -107,7 +111,7 @@ test('mintExactQuantity: pricer → auth → mint, 12 args', () => {
 	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-		`${cfg.packages.account}::account::generate_auth`,
+		`${ACCOUNT_CALLS}::account::generate_auth`,
 		`${cfg.packages.predict}::expiry_market::mint_exact_quantity`,
 	]);
 	const mint = call(tx, 2);
@@ -158,7 +162,7 @@ test('mintExactAmount: pricer → auth → mint, 12 args, budget/min-quantity sl
 	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-		`${cfg.packages.account}::account::generate_auth`,
+		`${ACCOUNT_CALLS}::account::generate_auth`,
 		`${cfg.packages.predict}::expiry_market::mint_exact_amount`,
 	]);
 	const mint = call(tx, 2);
@@ -189,7 +193,7 @@ test('redeemLive: pricer → auth → redeem, 11 args, min-probability/min-proce
 	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-		`${cfg.packages.account}::account::generate_auth`,
+		`${ACCOUNT_CALLS}::account::generate_auth`,
 		`${cfg.packages.predict}::expiry_market::redeem_live`,
 	]);
 	const redeem = call(tx, 2);
@@ -236,7 +240,7 @@ test('redeemSettled: auth → redeem_settled, 7 args, owner-auth hot potato', ()
 	);
 	// owner-auth form now mints an Auth hot potato first (no accountRegistry/oracle/pyth)
 	expect(targets(tx)).toEqual([
-		`${cfg.packages.account}::account::generate_auth`,
+		`${ACCOUNT_CALLS}::account::generate_auth`,
 		`${cfg.packages.predict}::expiry_market::redeem_settled`,
 	]);
 	const redeem = call(tx, 1);
@@ -268,7 +272,7 @@ test('mintExactCost: v2 target, all-in budget and quantity floor occupy distinct
 	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-		`${cfg.packages.account}::account::generate_auth`,
+		`${ACCOUNT_CALLS}::account::generate_auth`,
 		`${cfg.packages.predict}::expiry_market::mint_exact_cost`,
 	]);
 	expect(call(tx, 2).arguments).toHaveLength(11);

@@ -43,7 +43,11 @@ export const mainnetPackageIds = {
 	MARGIN_PACKAGE_ID: '0x40fa183b5602cd0f6c4d7b16c08766ad8d7d581608fbe3b2570fe72ab4f5625f',
 	MARGIN_V1: '0x97d9473771b01f77b0940c589484184b49f6444627ec121314fae6a6d36fb86b',
 	MARGIN_REGISTRY_ID: '0x0e40998b359a9ccbab22a98ed21bd4346abf19158bc7980c8291908086b3a742',
-	LIQUIDATION_PACKAGE_ID: '0xba2b39c026650fef52038c93c526fc5314a4286318a0d2a7054b65815178fb74',
+	// margin_liquidation v6, linked to core v9 and margin v8. Older versions link margin v7, so
+	// their liquidations abort once margin version 7 is disabled on the MarginRegistry. v6
+	// retires the legacy-Pyth liquidate_base / liquidate_quote; the builders here call the
+	// _upgraded pair.
+	LIQUIDATION_PACKAGE_ID: '0xd61f264aaf707285a712347fccfb8e905e99d7dc72a6bd1053829ddebf420c2b',
 } satisfies DeepbookPackageIds;
 
 /**

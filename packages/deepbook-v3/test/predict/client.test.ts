@@ -15,6 +15,10 @@ import { accountMoveCalls as account } from '../../src/account.js';
 import { deriveAccountWrapperIdFrom, generateAuth } from '../../src/predict/tx/common.js';
 import { LEGACY_CFG } from './queue-fixtures.js';
 
+// Account calls target the latest account package (a PTB can't call one older than Predict links);
+// event and struct types keep the original `cfg.packages.account`.
+const ACCOUNT_CALLS = cfg.packages.accountLatest ?? cfg.packages.account;
+
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
 const EXPIRY = 1_700_000_000_000;
@@ -229,18 +233,21 @@ describe('PredictClient constructor', () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
 		const initialWrapper = pc.wrapperIdFor(OWNER);
 		const accountPackageId = `0x${'11'.repeat(32)}`;
+		const accountLatest = `0x${'33'.repeat(32)}`;
 		const accountRegistry = `0x${'22'.repeat(32)}`;
 
 		config.packages.account = accountPackageId;
+		config.packages.accountLatest = accountLatest;
 		config.objects.accountRegistry = accountRegistry;
 
+		// Derivation follows the original ID; calls follow the latest package.
 		expect(pc.wrapperIdFor(OWNER)).toBe(
 			deriveAccountWrapperIdFrom({ accountPackageId, accountRegistry }, OWNER),
 		);
 		expect(pc.wrapperIdFor(OWNER)).not.toBe(initialWrapper);
 		expect(targets(pc.tx.createManager())).toEqual([
-			`${accountPackageId}::account_registry::new`,
-			`${accountPackageId}::account::share`,
+			`${accountLatest}::account_registry::new`,
+			`${accountLatest}::account::share`,
 		]);
 	});
 });
@@ -254,11 +261,11 @@ describe('tx.deposit / tx.withdraw', () => {
 			.getData()
 			.commands.some((c) => '$Intent' in c && c.$Intent?.name === 'CoinWithBalance');
 		expect(hasIntent).toBe(true);
-		expect(targets(tx)).toContain(`${cfg.packages.account}::account::deposit_funds`);
+		expect(targets(tx)).toContain(`${ACCOUNT_CALLS}::account::deposit_funds`);
 		// auth is minted immediately before the deposit that consumes it, and the
 		// deposit is typed to the quote coin
 		const t = targets(tx);
-		expect(t[t.length - 2]).toBe(`${cfg.packages.account}::account::generate_auth`);
+		expect(t[t.length - 2]).toBe(`${ACCOUNT_CALLS}::account::generate_auth`);
 		const deposit = tx.getData().commands.at(-1)!;
 		expect('MoveCall' in deposit && deposit.MoveCall!.typeArguments).toEqual([cfg.quoteCoinType]);
 	});
@@ -276,8 +283,8 @@ describe('tx.deposit / tx.withdraw', () => {
 		const tx = pc.tx.withdraw(OWNER, '5');
 		// auth → withdraw_funds<USDC>, amount converted to raw in the u64 slot
 		expect(targets(tx).slice(0, 2)).toEqual([
-			`${cfg.packages.account}::account::generate_auth`,
-			`${cfg.packages.account}::account::withdraw_funds`,
+			`${ACCOUNT_CALLS}::account::generate_auth`,
+			`${ACCOUNT_CALLS}::account::withdraw_funds`,
 		]);
 		expect(call(tx, 1).typeArguments).toEqual([cfg.quoteCoinType]);
 		expect(argPureBytes(tx, 1, 2)).toBe(b64(5_000_000n));
@@ -367,7 +374,7 @@ describe('tx.deposit / tx.withdraw', () => {
 	test('withdraw({ toCoinObject: true }) returns a discrete Coin via TransferObjects', () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const tx = pc.tx.withdraw(OWNER, '5', { toCoinObject: true });
-		expect(targets(tx)).toContain(`${cfg.packages.account}::account::withdraw_funds`);
+		expect(targets(tx)).toContain(`${ACCOUNT_CALLS}::account::withdraw_funds`);
 		expect(sendFundsCmd(tx)).toBeUndefined();
 		const hasTransfer = tx
 			.getData()
@@ -387,7 +394,7 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		);
 		expect(targets(tx)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-			`${cfg.packages.account}::account::generate_auth`,
+			`${ACCOUNT_CALLS}::account::generate_auth`,
 			`${cfg.packages.predict}::expiry_market::mint_exact_quantity`,
 		]);
 		// mint args: [market, wrapper, auth, config, pricer, lower, higher, quantity, maxCost, ...]
@@ -779,7 +786,7 @@ describe('v2 all-in budget mint', () => {
 		const tx = await pc.tx.mintCost(OWNER, market, { spend: 25.125, minQuantity: 0.015 });
 		expect(targets(tx)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-			`${cfg.packages.account}::account::generate_auth`,
+			`${ACCOUNT_CALLS}::account::generate_auth`,
 			`${cfg.packages.predict}::expiry_market::mint_exact_cost`,
 		]);
 		expect(argPureBytes(tx, 2, 7)).toBe(b64(25_125_000n));
@@ -814,7 +821,8 @@ test('custom latest call target and original event ID remain independent through
 	const tx = await pc.tx.mintCost(OWNER, market, { spend: 20, minQuantity: 0 });
 	expect(targets(tx)).toEqual([
 		`${latest}::expiry_market::load_live_pricer`,
-		`${cfg.packages.account}::account::generate_auth`,
+		// This legacy config records no `accountLatest`, so account calls stay on `account`.
+		`${config.packages.accountLatest ?? config.packages.account}::account::generate_auth`,
 		`${latest}::expiry_market::mint_exact_cost`,
 	]);
 	// The mock returns an event with the original type ID, not the custom call target.

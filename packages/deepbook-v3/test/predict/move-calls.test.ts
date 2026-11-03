@@ -5,7 +5,7 @@ import { bcs } from '@mysten/sui/bcs';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiObjectId } from '@mysten/sui/utils';
 import { expect, test } from 'vitest';
-import { accountMoveCalls, accountRegistryMoveCalls } from '../../src/account.js';
+import { AccountContract, accountMoveCalls, accountRegistryMoveCalls } from '../../src/account.js';
 import * as predictExports from '../../src/predict/index.js';
 import {
 	PredictClient,
@@ -122,7 +122,15 @@ test('every generated Predict module with a function or event layout is exported
 	// The retired entry points are exported through wrappers that keep their shipped argument keys
 	// (`bindings-compat.test.ts`), not as the generated functions.
 	const wrapped: Record<string, string[]> = {
-		'expiry_market.ts': ['mintExactQuantity', 'mintExactAmount', 'mintExactCost', 'redeemLive'],
+		'expiry_market.ts': [
+			'mintExactQuantity',
+			'mintExactAmount',
+			'mintExactCost',
+			'redeemLive',
+			'redeemSettled',
+			'redeemSettledPermissionless',
+			'quoteClose',
+		],
 		'protocol_config.ts': ['setEwmaParams', 'setEwmaEnabled'],
 	};
 	const files = readdirSync(new URL('../../src/contracts/deepbook_predict/', import.meta.url));
@@ -137,4 +145,37 @@ test('every generated Predict module with a function or event layout is exported
 	}
 
 	expect(missing).toEqual([]);
+});
+
+// A PTB can't call a package at an older version than another package in it links, and Testnet's
+// Predict v8 links account v2: an account call at the original ID beside it aborts InvalidLinkage.
+// So every account call targets the latest account package, while the derived wrapper address
+// (and every type tag) keeps the original ID.
+test('Predict PTBs call the latest account package and derive from the original', () => {
+	const latest = normalizeSuiObjectId(cfg.packages.accountLatest!);
+	const original = normalizeSuiObjectId(cfg.packages.account);
+	expect(latest).not.toBe(original);
+	const wrapperId = new AccountContract({
+		accountPackageId: cfg.packages.account,
+		accountRegistry: cfg.objects.accountRegistry,
+	}).deriveAccountWrapperId(OWNER);
+
+	for (const tx of [
+		pc.tx.deposit(OWNER, 100, { create: true }),
+		pc.tx.deposit(OWNER, '12.5'),
+		pc.tx.withdraw(OWNER, '5'),
+		pc.tx.supplyPlp(OWNER, 15, { minPlpOut: 14_850_000n }),
+	]) {
+		const accountCalls = moveCalls(tx).filter((c) => c.module.startsWith('account'));
+		expect(accountCalls.length).toBeGreaterThan(0);
+		for (const c of accountCalls) expect(normalizeSuiObjectId(c.package)).toBe(latest);
+		const objectIds = tx
+			.getData()
+			.inputs.flatMap((i) =>
+				'UnresolvedObject' in i && i.UnresolvedObject ? [i.UnresolvedObject.objectId] : [],
+			);
+		if (!moveCalls(tx).some((c) => c.function === 'new')) {
+			expect(objectIds).toContain(normalizeSuiObjectId(wrapperId));
+		}
+	}
 });

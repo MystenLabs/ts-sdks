@@ -38,8 +38,20 @@ export interface DeploymentUnits {
 
 /** Ids for the shared `account` primitive. */
 export interface AccountIds {
+	/**
+	 * The ORIGINAL `account` package ID. Type tags and the derived wrapper and account addresses
+	 * are built from it, because Move types keep their defining package across upgrades. Moving it
+	 * to a newer package would derive addresses nothing lives at.
+	 */
 	accountPackageId: string;
 	accountRegistry: string;
+	/**
+	 * The latest `account` package, once the network has upgraded it: the call target of every
+	 * account call. A PTB can't call a package at an older version than another package in it
+	 * links (Predict's Version 5 links account v2), and `receive_coin` only exists from v2.
+	 * Absent while the network runs v1. Never used for type tags or derived addresses.
+	 */
+	accountPackageIdLatest?: string;
 }
 
 /** Ids for time-limited sessions, including the spot- and Predict-only extras. */
@@ -79,6 +91,8 @@ export interface PredictIds {
 		predictOrdersV1?: string;
 		/** `deepbook_predict_math`, once the network records delayed execution. */
 		predictMath?: string;
+		/** Latest `account`, once the network has upgraded it. `account` stays the original ID. */
+		accountLatest?: string;
 	};
 	objects: {
 		registry: string;

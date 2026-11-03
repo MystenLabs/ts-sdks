@@ -37,8 +37,31 @@ export interface PredictPackages {
 	predictOrdersV1?: string;
 	/** The `deepbook_predict_math` package ID, for its pure calls and layouts. */
 	predictMath?: string;
+	/**
+	 * ORIGINAL `account` package ID: type tags (`DataKey`, events) and the derived wrapper and
+	 * account addresses are built from it, so it never moves.
+	 */
 	account: string;
+	/**
+	 * Latest `account` package once the network has upgraded it: the call target of every account
+	 * call in a Predict PTB (`generate_auth`, `deposit_funds`, `load_account`, …). A PTB can't call
+	 * a package at an older version than another package in it links, and Predict's Version 5
+	 * links account v2. Omit while account is at v1: calls then target `account`.
+	 */
+	accountLatest?: string;
 	propbook: string;
+	/**
+	 * Predict's `constants::current_version` compiled into `predict`, the call target. A
+	 * `ProtocolConfig.version_watermark` above it retires the code this config calls. It follows the
+	 * Mainnet package number, not the Testnet one (Testnet's package v8 compiles 5). Defaults to
+	 * `PREDICT_PACKAGE_VERSION`, the version these bindings were generated from.
+	 */
+	predictCurrentVersion?: bigint;
+	/**
+	 * `desk::current_version` compiled into `predictOrders`. A desk floor above it retires the
+	 * order-flow code this config calls. Defaults to `ORDER_FLOW_PACKAGE_VERSION`.
+	 */
+	predictOrdersCurrentVersion?: bigint;
 }
 
 /**

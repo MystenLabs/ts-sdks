@@ -4,7 +4,18 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
-import { Account, AccountContract, AccountWrapper } from '../../src/account.js';
+import {
+	Account,
+	AccountContract,
+	AccountWrapper,
+	accountMoveCalls,
+	accountRegistryMoveCalls,
+	getAccountConfig,
+} from '../../src/account.js';
+import * as generatedAccount from '../../src/contracts/account/account.js';
+import * as generatedAccountRegistry from '../../src/contracts/account/account_registry.js';
+import { getConfig } from '../../src/predict/config/index.js';
+import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 
 const PKG = '0x' + '11'.repeat(32);
 const REGISTRY = '0x' + '22'.repeat(32);
@@ -199,4 +210,114 @@ describe('generated layout', () => {
 		expect(Object.keys(parsed)).toEqual(['id', 'account']);
 		expect(parsed.account.account_id).toBe(accountValue.account_id);
 	});
+});
+
+describe('receiveCoin / receiveCoinAtAccountId (account v2)', () => {
+	const LATEST = '0x' + '33'.repeat(32);
+	const COIN = '0x' + 'c0'.repeat(32);
+	const upgraded = new AccountContract({
+		accountPackageId: PKG,
+		accountRegistry: REGISTRY,
+		accountPackageIdLatest: LATEST,
+	});
+
+	test.each([
+		['receiveCoin', 'receive_coin'],
+		['receiveCoinAtAccountId', 'receive_coin_at_account_id'],
+	] as const)('%s calls the latest package with the wrapper and the coin', (builder, fn) => {
+		const tx = new Transaction();
+		const wrapperId = upgraded.deriveAccountWrapperId(OWNER);
+		tx.add(upgraded[builder]({ wrapperId, coin: COIN, coinType: COIN_TYPE }));
+		expect(targets(tx)).toEqual([`${LATEST}::account::${fn}`]);
+		expect(call(tx, 0).typeArguments).toEqual([COIN_TYPE]);
+		expect(argObjectId(tx, 0, 0)).toBe(normalizeSuiAddress(wrapperId));
+		expect(argObjectId(tx, 0, 1)).toBe(normalizeSuiAddress(COIN));
+	});
+
+	test('every builder calls the latest package once the config records one', () => {
+		// A PTB can't call account at an older version than another package in it links.
+		const tx = new Transaction();
+		tx.add(upgraded.createAccount());
+		tx.add(upgraded.generateAuth());
+		tx.add(upgraded.depositFunds({ wrapperId: COIN, coin: tx.object(COIN), coinType: COIN_TYPE }));
+		tx.add(upgraded.withdrawFunds({ wrapperId: COIN, amount: 1n, coinType: COIN_TYPE }));
+		tx.add(upgraded.balance({ owner: OWNER, coinType: COIN_TYPE }));
+		for (const target of targets(tx)) expect(target.startsWith(`${LATEST}::`)).toBe(true);
+	});
+
+	test('derivation keeps the original package id, so the wrapper address does not move', () => {
+		// The key type's defining package is the original id on chain, whatever version runs.
+		expect(upgraded.deriveAccountWrapperId(OWNER)).toBe(account.deriveAccountWrapperId(OWNER));
+	});
+
+	test.each(['receiveCoin', 'receiveCoinAtAccountId'] as const)(
+		'%s refuses a config still at account v1',
+		(builder) => {
+			expect(() => account[builder]({ wrapperId: OWNER, coin: COIN, coinType: COIN_TYPE })).toThrow(
+				/accountPackageIdLatest/,
+			);
+		},
+	);
+});
+
+describe('the exported account bindings call the latest package', () => {
+	const owner = '0x' + '77'.repeat(32);
+
+	test('raw move calls with the Testnet config target account v2, not the original id', () => {
+		const cfg = getAccountConfig('testnet');
+		const tx = new Transaction();
+		const wrapper = tx.add(accountRegistryMoveCalls._new({ config: cfg }));
+		tx.add(accountMoveCalls.share({ config: cfg, arguments: { self: wrapper } }));
+		tx.add(accountMoveCalls.generateAuth({ config: cfg }));
+		expect(targets(tx)).toEqual([
+			`${cfg.accountPackageIdLatest}::account_registry::new`,
+			`${cfg.accountPackageIdLatest}::account::share`,
+			`${cfg.accountPackageIdLatest}::account::generate_auth`,
+		]);
+	});
+
+	test('an explicit package still wins, and a config without a latest id keeps its own', () => {
+		const tx = new Transaction();
+		tx.add(accountMoveCalls.generateAuth({ package: PKG, config: getAccountConfig('testnet') }));
+		tx.add(accountMoveCalls.generateAuth({ config: { accountPackageId: PKG } }));
+		expect(targets(tx)).toEqual([
+			`${PKG}::account::generate_auth`,
+			`${PKG}::account::generate_auth`,
+		]);
+		// Options stay optional: the no-argument form still builds a thunk.
+		expect(typeof accountMoveCalls.generateAuth()).toBe('function');
+	});
+
+	test('a projected Predict config derives the same wrapper as the account config', () => {
+		// Both carry the original id in `accountPackageId`; only calls use the latest package.
+		const fromPredict = new AccountContract(toGeneratedConfig(getConfig('testnet')));
+		const fromAccount = new AccountContract(getAccountConfig('testnet'));
+		expect(fromPredict.deriveAccountWrapperId(owner)).toBe(
+			fromAccount.deriveAccountWrapperId(owner),
+		);
+	});
+
+	test('every generated account function is wrapped', () => {
+		for (const [generated, exported] of [
+			[generatedAccount, accountMoveCalls],
+			[generatedAccountRegistry, accountRegistryMoveCalls],
+		] as const) {
+			for (const [name, member] of Object.entries(generated)) {
+				if (typeof member !== 'function' || /^[A-Z]/.test(name)) continue;
+				const wrapped = (exported as Record<string, unknown>)[name];
+				expect(typeof wrapped, name).toBe('function');
+				expect(wrapped, name).not.toBe(member);
+			}
+		}
+	});
+});
+
+test('an inline config may name the latest account package (types)', () => {
+	const tx = new Transaction();
+	tx.add(
+		accountMoveCalls.generateAuth({
+			config: { accountPackageId: PKG, accountPackageIdLatest: '0x' + '44'.repeat(32) },
+		}),
+	);
+	expect(targets(tx)).toEqual([`0x${'44'.repeat(32)}::account::generate_auth`]);
 });

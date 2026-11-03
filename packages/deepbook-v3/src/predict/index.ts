@@ -81,7 +81,7 @@ export * as vaultEvents from '../contracts/deepbook_predict/vault_events.js';
 // `config: toOrdersConfig(cfg)`, which adds the companion package and the desk to the projected
 // config. `deepbook_predict_math` is the pure math library (`predictMathMoveCalls`) and the
 // `LazerPrice` a verified Pyth Lazer update decodes to (`lazerPriceMoveCalls`).
-export * as queueMoveCalls from '../contracts/deepbook_predict_orders/queue.js';
+export * as queueMoveCalls from './bindings/queue.js';
 export * as deskMoveCalls from '../contracts/deepbook_predict_orders/desk.js';
 export * as orderQueueMoveCalls from '../contracts/deepbook_predict_orders/order_queue.js';
 export * as delayedExecutionConfigMoveCalls from '../contracts/deepbook_predict_orders/delayed_execution_config.js';

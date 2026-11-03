@@ -47,6 +47,27 @@ const tx = new Transaction();
 tx.add(account.depositFunds({ wrapperId, coin, coinType: quoteCoinType }));
 ```
 
+**Upgraded account packages.** `accountPackageId` is always the ORIGINAL package id: the wrapper
+address and every type tag are derived from it, and Move types keep their defining package across
+upgrades. Once a network upgrades `account`, its config also carries `accountPackageIdLatest`, and
+every builder, and the exported `accountMoveCalls` / `accountRegistryMoveCalls` given that config,
+call that package. A transaction can't call a package at an older version than another package in it
+links, so a hand-written `tx.moveCall` into account next to an upgraded Predict must name the latest
+id too, or it aborts `InvalidLinkage`.
+
+**Receiving a coin (account v2).** A coin transferred to `deriveAccountWrapperId(owner)`, for
+example by a bridge that can only send to an address, sits there until anyone moves it into the
+account's balance. It can arrive before the account exists. The call is permissionless and only
+credits that account:
+
+```ts
+tx.add(account.receiveCoin({ wrapperId, coin: coinObjectId, coinType: quoteCoinType }));
+// A coin sent to the account's canonical id instead of its wrapper address:
+tx.add(account.receiveCoinAtAccountId({ wrapperId, coin: coinObjectId, coinType: quoteCoinType }));
+```
+
+Both throw on a network whose config has no `accountPackageIdLatest` (still on account v1).
+
 > `Account` exported from the package root is `@deepbook/core::account::Account` (the per-pool
 > trading account). The account primitive's `Account` is a different type with an unrelated layout
 > and is exported only from the `/account` subpath.

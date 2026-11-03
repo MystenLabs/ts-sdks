@@ -1,0 +1,12 @@
+---
+'@mysten/deepbook-v3': minor
+---
+
+Point Testnet at the Predict Version 5 rehearsal packages and add account v2's coin receive.
+
+- Testnet ids: Predict v8 `0x7fc9677d…`, `deepbook_predict_orders` v3 `0xc5869f5b…`, Sessions v5 `0x13108df3…` and account v2 `0x4401eae9…`. Mainnet ids are unchanged.
+- The retirement guard follows the configured call targets. The new `packages.predictCurrentVersion` and `packages.predictOrdersCurrentVersion` pin the version constants each network's call targets compile: Testnet 5 and 2 (Version 5), Mainnet 4 and 1 until its upgrade. So the SDK keeps trading on Testnet when the Predict and order-desk watermarks move to 5 and 2, and still reports Mainnet's v4 code as `'retired'` if Mainnet's move first. `PREDICT_PACKAGE_VERSION` (5) and `ORDER_FLOW_PACKAGE_VERSION` (2) are the versions these bindings were generated from, and the default for a custom config. They follow the Mainnet package numbers, never Testnet's.
+- Account calls go to the latest account package, through the new optional `accountPackageIdLatest` (`/account` and `/sessions` ids) and `packages.accountLatest` (Predict). A transaction can't call a package at an older version than another package in it links, so an account call at v1 next to Predict v8 aborts `InvalidLinkage`. `AccountContract`, the Predict builders and the exported `accountMoveCalls` / `accountRegistryMoveCalls` all resolve it from the config (an explicit `package` still wins). `accountPackageId` and `packages.account` stay the original id, which every derived address and type tag uses.
+- `AccountContract.receiveCoin` and `receiveCoinAtAccountId` move a `Coin<T>` sent to an account's wrapper address (or its canonical id) into its balance. They are permissionless and need account v2.
+- The Predict, `deepbook_predict_orders`, Sessions and account bindings are regenerated from the Version 5 sources, so they include the builder-fee calls. `expiryMarketMoveCalls.redeemSettled`, `redeemSettledPermissionless` and `quoteClose`, and `queueMoveCalls.quoteRedeemOpen`, keep their shipped argument keys, because Version 5 underscore-prefixed those parameters. `redeemSettled` and `redeemSettledPermissionless` always abort from Predict v5.
+- Abort names for the builder-fee codes: `protocol_config` 16 `EBuilderFeeCutoverNotReached`, and `sessions` 3–5 `EBuilderNotApproved`, `EBuilderFeeAboveApproved` and `EBuilderApprovalsNotEnabled`.

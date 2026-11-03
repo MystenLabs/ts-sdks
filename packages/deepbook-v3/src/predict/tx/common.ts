@@ -15,6 +15,7 @@ export function accountContract(cfg: PredictConfig): AccountContract {
 	return new AccountContract({
 		accountPackageId: cfg.packages.account,
 		accountRegistry: cfg.objects.accountRegistry,
+		accountPackageIdLatest: cfg.packages.accountLatest,
 	});
 }
 
@@ -84,6 +85,7 @@ export function deriveAccountWrapperIdFrom(
 	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,
 	owner: string,
 ): string {
+	// The original ID: the key type's defining package, whatever account version runs.
 	return new AccountContract({
 		accountPackageId: config.accountPackageId,
 		accountRegistry: config.accountRegistry,

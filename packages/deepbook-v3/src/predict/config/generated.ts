@@ -26,6 +26,7 @@ export type GeneratedConfig = DeepbookPredictConfig &
 	AccountConfig & {
 		predictPackageId: string;
 		predictPackageIdV1: string;
+		/** The ORIGINAL account ID: type tags and derived addresses are built from it. */
 		accountPackageId: string;
 		accountRegistry: string;
 	};
@@ -35,6 +36,8 @@ export function toGeneratedConfig(cfg: PredictConfig): GeneratedConfig {
 		predictPackageId: cfg.packages.predict,
 		predictPackageIdV1: cfg.packages.predictV1 ?? cfg.packages.predict,
 		accountPackageId: cfg.packages.account,
+		// The account bindings call this when present (see `account-bindings/latest.ts`).
+		accountPackageIdLatest: cfg.packages.accountLatest,
 		protocolConfig: cfg.objects.protocolConfig,
 		poolVault: cfg.objects.poolVault,
 		registry: cfg.objects.registry,

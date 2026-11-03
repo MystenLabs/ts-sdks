@@ -94,7 +94,7 @@ export interface DerivedWrapperAddressOptions {
 }
 /**
  * Returns the deterministic wrapper address for external discovery, accumulator
- * delivery, and PTB construction.
+ * and coin delivery, and PTB construction.
  */
 export function derivedWrapperAddress(options: DerivedWrapperAddressOptions) {
 	const packageAddress =
