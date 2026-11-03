@@ -153,6 +153,89 @@ describe('GraphQL subscribe', () => {
 		expect((fetch.mock.calls[0] as unknown[])[0]).toBe('/graphql/subscriptions?key=x');
 	});
 
+	it('sends queries and subscriptions to the same endpoint for page-relative URLs', async () => {
+		vi.stubGlobal('location', { href: 'https://example.com/graphql' });
+		try {
+			for (const [url, query, subscription] of [
+				[
+					'?key=x',
+					'https://example.com/graphql?key=x',
+					'https://example.com/graphql/subscriptions?key=x',
+				],
+				['', 'https://example.com/graphql', 'https://example.com/graphql/subscriptions'],
+				[
+					'https://example.com/graphql ',
+					'https://example.com/graphql',
+					'https://example.com/graphql/subscriptions',
+				],
+			]) {
+				const fetch = vi.fn(async () => sse(['event: complete\n\n']).response);
+				const client = new SuiGraphQLClient({ url, network: 'unknown', fetch });
+				await client.query({ query: '{ value }', variables: {} }).catch(() => {});
+				await collect(client.subscribe({ query: 'subscription { value }', variables: {} }));
+				expect(fetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
+					query,
+					subscription,
+				]);
+			}
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('does not retry a URL fetch cannot request', async () => {
+		for (const url of ['example.com/graphql', 'localhost:9000/graphql']) {
+			const client = new SuiGraphQLClient({
+				url,
+				network: 'unknown',
+				fetch: (input, init) => globalThis.fetch(input, init),
+			});
+			for (const request of [
+				() => client.query({ query: '{ value }', variables: {} }),
+				() => client.subscribe({ query: 'subscription { value }' }).next(),
+			]) {
+				const error = await request().catch((e: unknown) => e);
+				expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+				expect(error).toMatchObject({ retryable: false, cause: expect.any(TypeError) });
+			}
+		}
+	});
+
+	it('retries an absolute URL when reading the page location throws', async () => {
+		// Deno run without `--location` throws on any read of `location`.
+		Object.defineProperty(globalThis, 'location', {
+			configurable: true,
+			get() {
+				throw new ReferenceError('Access to "location", run again with --location <href>.');
+			},
+		});
+		try {
+			const cause = new TypeError('fetch failed');
+			const fetch = vi.fn(async () => {
+				throw cause;
+			});
+			const client = new SuiGraphQLClient({
+				url: 'https://example.com/graphql',
+				network: 'unknown',
+				fetch,
+			});
+			for (const request of [
+				() => client.query({ query: '{ value }', variables: {} }),
+				() => client.subscribe({ query: 'subscription { value }' }).next(),
+			]) {
+				const error = await request().catch((e: unknown) => e);
+				expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+				expect(error).toMatchObject({ retryable: true, cause });
+			}
+			expect(fetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
+				'https://example.com/graphql',
+				'https://example.com/graphql/subscriptions',
+			]);
+		} finally {
+			delete (globalThis as { location?: unknown }).location;
+		}
+	});
+
 	it('does no network work until iteration begins and aborts on early return', async () => {
 		const { response, cancel } = sse(['event: next\ndata: {"data":{"value":1}}\n\n'], false);
 		const { client, fetch } = clientFor(response);

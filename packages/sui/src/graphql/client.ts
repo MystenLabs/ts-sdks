@@ -10,6 +10,7 @@ import {
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
 import { BaseClient } from '../client/index.js';
+import { pageBase } from '../client/utils.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
 import type { TypedDocumentString } from './generated/queries.js';
@@ -105,6 +106,24 @@ function requestBody(options: {
 	});
 }
 
+/** Resolves `url` against the page, as `fetch` does; `null` when it isn't a URL. */
+function resolveUrl(url: string): URL | null {
+	try {
+		return new URL(url, pageBase());
+	} catch {
+		return null;
+	}
+}
+
+// Only `href` is read: React Native's built-in `URL` lacks the other accessors and setters.
+function deriveSubscriptionUrl(url: string) {
+	const href = resolveUrl(url)?.href ?? url;
+	const suffixIndex = href.search(/[?#]/);
+	const path = suffixIndex === -1 ? href : href.slice(0, suffixIndex);
+	const suffix = suffixIndex === -1 ? '' : href.slice(suffixIndex);
+	return `${path.replace(/\/$/, '')}/subscriptions${suffix}`;
+}
+
 const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGraphQLClient') as never;
 
 export function isSuiGraphQLClient(client: unknown): client is SuiGraphQLClient {
@@ -133,7 +152,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	implements SuiClientTypes.TransportMethods
 {
 	#url: string;
-	#subscriptionUrl: string;
+	#subscriptionUrl: string | undefined;
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
@@ -159,10 +178,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			network,
 		});
 		this.#url = url;
-		const suffixIndex = url.search(/[?#]/);
-		const path = suffixIndex === -1 ? url : url.slice(0, suffixIndex);
-		const suffix = suffixIndex === -1 ? '' : url.slice(suffixIndex);
-		this.#subscriptionUrl = subscriptionUrl ?? `${path.replace(/\/$/, '')}/subscriptions${suffix}`;
+		this.#subscriptionUrl = subscriptionUrl;
 		this.#queries = queries;
 		this.#headers = headers;
 		this.#fetch = (...args) => fetchFn(...args);
@@ -214,15 +230,18 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			client: SuiGraphQLClient,
 			signal: AbortSignal,
 		): AsyncGenerator<GraphQLQueryResult<Result>> {
-			const response = await client.#fetchResponse(client.#subscriptionUrl, {
-				method: 'POST',
-				headers: client.#requestHeaders({
-					'Content-Type': 'application/json',
-					Accept: 'text/event-stream',
-				}),
-				body: requestBody(options),
-				signal,
-			});
+			const response = await client.#fetchResponse(
+				client.#subscriptionUrl ?? deriveSubscriptionUrl(client.#url),
+				{
+					method: 'POST',
+					headers: client.#requestHeaders({
+						'Content-Type': 'application/json',
+						Accept: 'text/event-stream',
+					}),
+					body: requestBody(options),
+					signal,
+				},
+			);
 			yield* readGraphQLSSE<Result>(
 				response,
 				signal,
@@ -240,13 +259,21 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return headers;
 	}
 
-	/** `fetch` that reports network failures (a `TypeError`) as a retryable `SuiGraphQLRequestError`. */
+	/**
+	 * `fetch` that reports network failures (a `TypeError`) as a `SuiGraphQLRequestError`, retryable
+	 * unless the URL isn't http(s).
+	 */
 	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
+		const resolved = resolveUrl(url);
 		try {
-			return await this.#fetch(url, init);
+			return await this.#fetch(resolved?.href ?? url, init);
 		} catch (cause) {
 			init.signal?.throwIfAborted();
 			if (!(cause instanceof TypeError)) throw cause;
+			// Fetch rejects a non-http(s) URL the same way every time, so retrying can't help.
+			if (!/^https?:/i.test(resolved?.href ?? '')) {
+				throw new SuiGraphQLRequestError('GraphQL request URL is not an http(s) URL', { cause });
+			}
 			throw new SuiGraphQLRequestError('GraphQL network request failed', {
 				retryable: true,
 				cause,
