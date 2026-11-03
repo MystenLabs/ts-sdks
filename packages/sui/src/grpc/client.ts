@@ -381,7 +381,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.resolveNameServiceAddress(input);
 	}
 
-	/** See `CoreClient.streamCheckpoints`. `grpcFilter` keeps checkpoints with a matching transaction. */
+	/**
+	 * Streams checkpoints in ledger order, resumable from any frame's `resumeToken`, following new
+	 * checkpoints by default. `grpcFilter` keeps only checkpoints with a matching transaction.
+	 */
 	streamCheckpoints<
 		Include extends SuiClientTypes.StreamCheckpointInclude = {},
 		Frames extends SuiClientTypes.StreamFrameOptions = {},
@@ -391,7 +394,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.streamCheckpoints(options);
 	}
 
-	/** See `CoreClient.streamTransactions`. `grpcFilter` replaces `filter` with a native filter. */
+	/**
+	 * Streams transactions matching `filter` in ledger order, resumable from any frame's
+	 * `resumeToken`. `grpcFilter` replaces `filter` with a native filter.
+	 */
 	streamTransactions<
 		Include extends SuiClientTypes.TransactionInclude = {},
 		Frames extends SuiClientTypes.StreamFrameOptions = {},
@@ -401,7 +407,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.streamTransactions(options);
 	}
 
-	/** See `CoreClient.streamEvents`. `grpcFilter` replaces `filter` with a native filter. */
+	/**
+	 * Streams events matching `filter` in ledger order, resumable from any frame's `resumeToken`.
+	 * `grpcFilter` replaces `filter` with a native filter.
+	 */
 	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
 		options?: GrpcStreamEventsOptions<Frames>,
 	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
