@@ -121,6 +121,29 @@ describe('verify helpers', () => {
 			isValidPersonalMessageSignature(message, zkLoginSig, { offline: true }),
 		).rejects.toThrow("zkLogin signatures can't be verified offline");
 	});
+
+	it('UTF-8 encode a string personal message, offline and on the node', async () => {
+		const keypair = new Ed25519Keypair();
+		const text = 'Sign in to example.com ✓';
+		const { signature } = await keypair.signPersonalMessage(new TextEncoder().encode(text));
+		const address = keypair.toSuiAddress();
+
+		expect(
+			(
+				await verifyPersonalMessageSignature(text, signature, { offline: true, address })
+			).toSuiAddress(),
+		).toBe(address);
+		expect(await isValidPersonalMessageSignature(text, signature, { offline: true, address })).toBe(
+			true,
+		);
+		expect(
+			await isValidPersonalMessageSignature('another message', signature, { offline: true }),
+		).toBe(false);
+
+		const { client, verifySignature: core } = mockClient();
+		await verifyPersonalMessageSignature(text, signature, { client, address });
+		expect(core.mock.calls[0][0].personalMessage).toEqual(new TextEncoder().encode(text));
+	});
 });
 
 describe('GrpcCoreClient.verifySignature', () => {

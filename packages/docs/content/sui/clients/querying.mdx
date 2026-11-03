@@ -682,7 +682,12 @@ const { addressAliases } = await client.getAddressAliases({ address: '0xabc...' 
 
 console.log(addressAliases.enabled); // whether the address has enabled aliases
 console.log(addressAliases.aliases); // the addresses that can sign for it
+console.log(addressAliases.objectId); // the alias set object's ID, set even before it exists
+console.log(addressAliases.version); // the alias set object's version, or null if not enabled
 ```
+
+Pass `objectId` to the `0x2::address_alias` functions that change the set. See
+[Address aliases](/sui/cryptography#address-aliases).
 
 ## Move Registry names
 

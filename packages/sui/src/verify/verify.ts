@@ -64,7 +64,8 @@ export async function isValidSignature(
 }
 
 /**
- * Whether `signature` is a valid signature over the personal message `message`. Returns `false`
+ * Whether `signature` is a valid signature over the personal message `message` (a string is UTF-8
+ * encoded, as in `client.verifySignature`). Returns `false`
  * for an invalid signature, or one from a signer not authorized for `address`. Throws for a network
  * error, a node that did not apply the address alias check, or a zkLogin signature offline.
  * `checkAddressAliases` is ignored without `address`.
@@ -72,11 +73,14 @@ export async function isValidSignature(
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.
  */
 export async function isValidPersonalMessageSignature(
-	message: Uint8Array,
+	message: Uint8Array | string,
 	signature: string,
 	options: VerifyOptions,
 ): Promise<boolean> {
-	return 'publicKey' in (await checkSignature(message, signature, 'PersonalMessage', options));
+	return (
+		'publicKey' in
+		(await checkSignature(messageBytes(message), signature, 'PersonalMessage', options))
+	);
 }
 
 /**
@@ -112,7 +116,8 @@ export async function verifySignature(
 }
 
 /**
- * Verifies a personal message signature and returns the signer's public key. Throws if the
+ * Verifies a personal message signature and returns the signer's public key. A string `message` is
+ * UTF-8 encoded, as in `client.verifySignature`. Throws if the
  * signature is invalid or its signer is not authorized for `address`, and for the errors listed on
  * {@link isValidPersonalMessageSignature}. The returned key may belong to one of `address`'s
  * aliases, so use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
@@ -120,11 +125,13 @@ export async function verifySignature(
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.
  */
 export async function verifyPersonalMessageSignature(
-	message: Uint8Array,
+	message: Uint8Array | string,
 	signature: string,
 	options: VerifyOptions,
 ): Promise<PublicKey> {
-	return expectValid(await checkSignature(message, signature, 'PersonalMessage', options));
+	return expectValid(
+		await checkSignature(messageBytes(message), signature, 'PersonalMessage', options),
+	);
 }
 
 /**
@@ -141,6 +148,10 @@ export async function verifyTransactionSignature(
 	options: VerifyOptions,
 ): Promise<PublicKey> {
 	return expectValid(await checkSignature(transaction, signature, 'TransactionData', options));
+}
+
+function messageBytes(message: Uint8Array | string): Uint8Array {
+	return typeof message === 'string' ? new TextEncoder().encode(message) : message;
 }
 
 type CheckResult = { publicKey: PublicKey } | { error: string };

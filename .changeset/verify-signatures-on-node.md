@@ -10,4 +10,6 @@ signer may be `address` or one of its current address aliases (`checkAddressAlia
 `true`), and the call throws if the node didn't apply that check. Pass `checkAddressAliases: false`
 for a strict signer-equals-address check. `offline: true` verifies locally and can't verify zkLogin
 signatures. The raw-bytes `verifySignature` export from `@mysten/sui/verify` and `isValidSignature`
-now require `offline: true`. `CoreClient` has a new abstract `verifySignature` method.
+now require `offline: true`. `verifyPersonalMessageSignature` and
+`isValidPersonalMessageSignature` also accept a string message, UTF-8 encoded like
+`client.verifySignature`. `CoreClient` has a new abstract `verifySignature` method.

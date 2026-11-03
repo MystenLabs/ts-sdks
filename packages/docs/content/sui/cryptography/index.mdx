@@ -152,9 +152,9 @@ console.log('Digest:', result.Transaction.digest);
 ## Verifying signatures
 
 Verify a signature for an account with `client.verifySignature`. Pass the signed `personalMessage`
-(or `transaction` bytes), the `signature`, and the `address` of the account. The node you query
-checks the signature, and that the signer is `address` or one of its current
-[address aliases](#address-aliases). Use a client for the network the account is on.
+(a string, UTF-8 encoded, or bytes) or `transaction` bytes, the `signature`, and the `address` of
+the account. The node you query checks the signature, and that the signer is `address` or one of its
+current [address aliases](#address-aliases). Use a client for the network the account is on.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -209,11 +209,65 @@ await client.verifySignature({
 `checkAddressAliases` is ignored without `address`. Results reflect the alias set when you verify,
 so a stored signature can verify today and fail later.
 
+An address enables aliases once, which creates its alias set object, and then adds aliases to that
+object in a later transaction. Read the object's ID with `client.getAddressAliases`:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+const enable = new Transaction();
+enable.moveCall({ target: '0x2::address_alias::enable', arguments: [enable.object('0xa')] });
+const result = await client.signAndExecuteTransaction({ transaction: enable, signer: keypair });
+await client.waitForTransaction({ result });
+
+const { addressAliases } = await client.getAddressAliases({ address: keypair.toSuiAddress() });
+
+const add = new Transaction();
+add.moveCall({
+	target: '0x2::address_alias::add',
+	arguments: [add.object(addressAliases.objectId), add.pure.address(aliasAddress)],
+});
+await client.signAndExecuteTransaction({ transaction: add, signer: keypair });
+```
+
+`0x2::address_alias::remove` and `replace_all` change the set the same way. An address can have at
+most 8 aliases and always keeps at least one.
+
 ### Sign-in with a personal message
 
-Put the account address and a server-issued, single-use nonce in the message, verify it with that
-`address`, then consume the nonce. An alias can belong to more than one account, so the address in
-the message is what ties the signature to one account.
+Build the message on your server with your domain, the account address, a single-use nonce and an
+expiry. When the user signs in, look the message up by its nonce, check that it was issued for the
+`address` signing in and hasn't expired, and verify the stored message rather than one the client
+sends:
+
+```typescript
+// Issue a sign-in message
+const nonce = crypto.randomUUID();
+const expiresAt = Date.now() + 5 * 60_000;
+const message = [
+	'example.com wants you to sign in with your Sui account.',
+	`Address: ${address}`,
+	`Nonce: ${nonce}`,
+	`Expires: ${new Date(expiresAt).toISOString()}`,
+].join('\n');
+await challenges.set(nonce, { address, message, expiresAt });
+
+// Sign in with the nonce, signature and address the client sends back
+const challenge = await challenges.take(nonce); // reads and deletes, so each nonce works once
+if (!challenge || challenge.address !== address || challenge.expiresAt < Date.now()) {
+	throw new Error('Unknown, expired or mismatched sign-in request');
+}
+
+const { valid } = await client.verifySignature({
+	personalMessage: challenge.message,
+	signature,
+	address,
+});
+```
+
+When `valid` is `true`, `address` is the signed-in account. Use it as the user's identity, not the
+signer's public key: the signer can be an alias, and an alias can belong to more than one account,
+so the address in the message is what ties the signature to one account.
 
 ### zkLogin signatures
 
@@ -224,7 +278,8 @@ node accepts both the standard and [legacy address](/sui/zklogin#legacy-addresse
 ### Verifying locally
 
 The `@mysten/sui/verify` helpers verify signatures offline, or return the signer's public key. Pass
-`offline: true` to verify locally, or a `client` to verify on the node as above:
+`offline: true` to verify locally, or a `client` to verify on the node as above. Personal messages
+can be strings or bytes:
 
 ```typescript
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
