@@ -56,7 +56,6 @@ are available directly on both clients.
 | ------------------ | ---------------------------------------------------------------------------------- |
 | `SuiGrpcClient`    | Standard reads, writes, simulations, transaction/event queries, and streams        |
 | `SuiGraphQLClient` | The same shared methods plus custom indexed queries and historical object versions |
-| `SuiJsonRpcClient` | Maintaining legacy JSON-RPC code while migrating                                   |
 
 ## Quick migration to gRPC
 
@@ -107,7 +106,7 @@ const result = await client.signAndExecuteTransaction({
 ```
 
 For SDKs and shared libraries, accept `ClientWithCoreApi` and use `client.core` so the caller can
-provide `SuiGrpcClient`, `SuiGraphQLClient`, or a legacy `SuiJsonRpcClient` during migration:
+provide either `SuiGrpcClient` or `SuiGraphQLClient`:
 
 ```typescript
 import type { ClientWithCoreApi } from '@mysten/sui/client';
@@ -221,6 +220,24 @@ const { chainIdentifier } = await client.core.getChainIdentifier();
 
 ## Object and coin reads
 
+### Migrating `getObject`
+
+`getObject` throws when the object does not exist or cannot be read, where JSON-RPC returned
+`{ error }`. Catch `ObjectError` and check its `reason` (`'notFound'`, `'deleted'` or `'unknown'`),
+or use `getObjects`, which returns per-object errors in place instead of throwing.
+
+```typescript
+import { ObjectError } from '@mysten/sui/client';
+
+try {
+	const { object } = await client.getObject({ objectId });
+	console.log(object.version);
+} catch (error) {
+	if (!(error instanceof ObjectError) || error.reason !== 'notFound') throw error;
+	// the object does not exist
+}
+```
+
 ### Migrating `getOwnedObjects`
 
 ```diff
@@ -253,6 +270,17 @@ code.
 +   owner: '0xabc...',
 +   coinType: '0x2::sui::SUI',
 + });
+```
+
+An account can hold its balance as an address balance with no coin objects, so `listCoins` can
+return nothing for an account with funds. Use `getBalance` or `listBalances` to read the total.
+
+### Migrating `getBalance`
+
+```diff
+- const { totalBalance } = await jsonRpcClient.getBalance({ owner: '0xabc...' });
++ const { balance } = await client.getBalance({ owner: '0xabc...' });
++ const totalBalance = balance.balance; // coinBalance + addressBalance
 ```
 
 ### Migrating `getAllBalances`
@@ -524,6 +552,23 @@ Common event filter mappings:
 | `MoveEventModule` | `eventType: 'package::module'`        |
 | `MoveEventType`   | `eventType: 'package::module::Event'` |
 
+`emitModule` matches the package version that emitted the event, so after an upgrade it needs the
+new version's ID. Filter by `eventType`, which uses the original package ID, to match events from
+every version.
+
+Event fields map as follows:
+
+| JSON-RPC field         | Event field                                  |
+| ---------------------- | -------------------------------------------- |
+| `id.txDigest`          | `transactionDigest`                          |
+| `id.eventSeq` (string) | `eventIndex` (number)                        |
+| `type`                 | `eventType`                                  |
+| `transactionModule`    | `module`                                     |
+| `parsedJson`           | `json`                                       |
+| `bcs` (encoded string) | `bcs` (`Uint8Array`)                         |
+| `timestampMs`          | None; use `checkpoint` and `listCheckpoints` |
+| `packageId`, `sender`  | Unchanged                                    |
+
 The top-level query methods handle pagination and cursor normalization. Since `@mysten/sui` 3.0 they
 also accept combined predicates, `affectedAddress` and `affectedObject` filters, and
 `startCheckpoint`/`endCheckpoint` ranges (see [Querying](/sui/clients/querying)). For filters beyond
@@ -543,7 +588,7 @@ Some JSON-RPC methods map to gRPC service clients rather than top-level methods:
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `getCheckpoint`                     | `ledgerService.getCheckpoint`                                                                                    |
 | `getCheckpoints`                    | `client.core.listCheckpoints` for summaries (3.0+); `ledgerService.listCheckpoints` for full checkpoint contents |
-| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` and read `checkpointHeight`                                                       |
+| `getLatestCheckpointSequenceNumber` | `client.listCheckpoints({ order: 'descending', limit: 1 })`, then read `sequenceNumber`                          |
 | `getCurrentEpoch`                   | `ledgerService.getEpoch` with no `epoch` argument                                                                |
 | `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask                                                       |
 | `getLatestSuiSystemState`           | `client.core.getCurrentSystemState` or `ledgerService.getEpoch`                                                  |
@@ -561,15 +606,12 @@ const client = new SuiGrpcClient({
 	network: 'mainnet',
 });
 
-const { response: info } = await client.ledgerService.getServiceInfo({});
-const latestCheckpoint = info.checkpointHeight;
-
-if (latestCheckpoint == null) {
-	throw new Error('The server did not return a checkpoint height');
-}
+const {
+	checkpoints: [latest],
+} = await client.listCheckpoints({ order: 'descending', limit: 1 });
 
 const { response } = await client.ledgerService.getCheckpoint({
-	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: latestCheckpoint },
+	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: BigInt(latest.sequenceNumber) },
 	readMask: { paths: ['sequence_number', 'digest', 'summary.timestamp'] },
 });
 
@@ -640,7 +682,7 @@ import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { graphql } from '@mysten/sui/graphql/schema';
 
 const graphqlClient = new SuiGraphQLClient({
-	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	url: 'https://graphql.mainnet.sui.io/graphql',
 	network: 'mainnet',
 });
 
