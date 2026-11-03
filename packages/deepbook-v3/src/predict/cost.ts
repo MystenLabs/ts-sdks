@@ -545,7 +545,11 @@ interface MintInputsBase {
 	nowMs?: number | bigint;
 	/** Boundary probabilities, or a pricer snapshot plus the range's strikes. */
 	probabilities: ProbabilitySource;
-	/** Whether the minting account carries a builder code (it pays the builder fee). */
+	/**
+	 * Whether the minting account carries a builder code and pays the account-attached builder fee:
+	 * Predict v4 semantics. From Predict Version 5 an attached code charges nothing (a builder fee
+	 * is passed on each trade instead), so leave this `false` on a network running Version 5.
+	 */
 	builderCode?: boolean;
 	/** The expiry's remaining sponsored fee balance (`fee_incentive_balance`). Default `0n`. */
 	feeIncentiveBalance?: number | bigint;
@@ -902,6 +906,10 @@ export interface RedeemLiveInputs {
 	closeQuantity: number | bigint;
 	/** Current position payout quantity, when known. Validates the close and returns the remainder. */
 	positionQuantity?: number | bigint;
+	/**
+	 * Whether the selling account pays the account-attached builder fee: Predict v4 semantics.
+	 * Leave it `false` on a network running Version 5, where an attached code charges nothing.
+	 */
 	builderCode?: boolean;
 	penaltyRate?: bigint;
 	/** Pre-trade payout-tree terms. Required when inventory impact is enabled. */
