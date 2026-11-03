@@ -1550,6 +1550,66 @@ describe('ledger streams', () => {
 			expect(log.kinds()).not.toContain('Retrying');
 		});
 
+		it('advances a quiet filtered follow from a checkpoint on heartbeats, then delivers its first match', async () => {
+			const from = await newSigner();
+			const filter = { sender: from.address };
+			const start = await tip();
+			type Frame = SuiClientTypes.StreamEventResult<{ progress: true }>;
+			let reader: Reader<Frame> | undefined;
+			const log = statusLog(() => reader?.frames.length ?? 0);
+			reader = new Reader((signal) =>
+				toolbox.grpcClient.core.streamEvents({
+					start: { checkpoint: start },
+					filter,
+					frames: { progress: true },
+					onStatus: log.onStatus,
+					signal,
+				}),
+			);
+			const covered = (frames: Frame[]) =>
+				frames.flatMap((frame) =>
+					frame.$kind === 'Progress' && frame.coveredCheckpoint
+						? [BigInt(frame.coveredCheckpoint)]
+						: [],
+				);
+			// The entry watermark and at least one heartbeat (every 25 quiet checkpoints) arrive
+			// before any match, and each moves the resume token forward.
+			await reader.until((frames) => covered(frames).filter((c) => c >= BigInt(start)).length >= 3);
+			expect(reader.frames.filter((frame) => frame.$kind === 'Event')).toEqual([]);
+			const progress = covered(reader.frames);
+			expect(progress).toEqual([...progress].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
+			expect(progress.at(-1)! - progress[0]).toBeGreaterThanOrEqual(25n);
+			const quietToken = reader.frames.findLast((frame) => frame.$kind === 'Progress')!.resumeToken;
+
+			const { digest, checkpoint } = await emitEvents(from, 1);
+			await reader.until((frames) => frames.some((frame) => frame.$kind === 'Event'));
+			await reader.settle(1_000);
+			const events = reader.frames.filter((frame) => frame.$kind === 'Event');
+			expect(events.map((frame) => frame.event.transactionDigest)).toEqual([digest]);
+			// No heartbeat delivered before the match claims its checkpoint.
+			const before = covered(reader.frames.slice(0, reader.frames.indexOf(events[0])));
+			expect(before.every((c) => c < BigInt(checkpoint))).toBe(true);
+
+			// Recovering, if any, comes before Live, and nothing reconnects.
+			const kinds = log.kinds();
+			expect(kinds).toContain('Live');
+			if (kinds.includes('Recovering')) {
+				expect(kinds.indexOf('Recovering')).toBeLessThan(kinds.indexOf('Live'));
+			}
+			expect(kinds).not.toContain('Retrying');
+
+			// A heartbeat token resumes without a gap: the match is the next item.
+			const [resumed] = await take(
+				toolbox.grpcClient.core.streamEvents({
+					start: { resumeToken: quietToken },
+					filter,
+					signal: signal(),
+				}),
+				1,
+			);
+			expect(resumed.event.transactionDigest).toBe(digest);
+		});
+
 		// Covered by unit tests: localnet never prunes and starts after genesis is indexed.
 		it.skip('reports pruned history as HistoryUnavailable', () => {});
 		it.skip('waits for the first indexed checkpoint on a new chain', () => {});
