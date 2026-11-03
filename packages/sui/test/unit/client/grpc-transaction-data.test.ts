@@ -393,6 +393,10 @@ const cases: Record<
 							kind: EndOfEpochKind.WRITE_ACCUMULATOR_STORAGE_COST,
 							data: { oneofKind: 'storageCost', storageCost: 123n },
 						},
+						{
+							kind: EndOfEpochKind.FORWARDING_ADDRESS_REGISTRY_CREATE,
+							data: { oneofKind: undefined },
+						},
 					],
 				},
 			},
@@ -429,6 +433,7 @@ const cases: Record<
 				{ DisplayRegistryCreate: true },
 				{ AddressAliasStateCreate: true },
 				{ WriteAccumulatorStorageCost: { storageCost: '123' } },
+				{ ForwardingAddressRegistryCreate: true },
 			],
 		},
 	},

@@ -468,6 +468,8 @@ function grpcEndOfEpochTransactionKindOrThrow(
 				$kind: 'WriteAccumulatorStorageCost',
 				WriteAccumulatorStorageCost: { storageCost: data.storageCost.toString() },
 			};
+		case EndOfEpochTransactionKind_Kind.FORWARDING_ADDRESS_REGISTRY_CREATE:
+			return { $kind: 'ForwardingAddressRegistryCreate', ForwardingAddressRegistryCreate: true };
 		default:
 			return UNKNOWN_KIND;
 	}
