@@ -116,9 +116,9 @@ A resume token start continues after the frame that carried the token, so save a
 frame is processed. Commit each item's work and its token together, or make processing idempotent,
 so a replay after a crash is harmless.
 
-Tokens are opaque. Resume on the same transport and chain, with the same method and filter;
-otherwise the stream throws `SuiStreamError` with code `IncompatibleToken`. `include` and `frames`
-can change between runs.
+Tokens are opaque strings, so they fit in a text column. Resume on the same transport and chain,
+with the same method and filter; otherwise the stream throws `SuiStreamError` with code
+`IncompatibleToken`. `include` and `frames` can change between runs.
 
 ## Read a finite range
 
@@ -250,8 +250,21 @@ item at or past the chain tip when the stream started, so a quiet filter catchin
 
 ## Measure lag
 
-Checkpoint and transaction frames carry `timestampMs`; event and `Progress` frames do not. To see
-how far a stream is behind, follow checkpoint headers alongside it and compare checkpoints:
+Checkpoints (`frame.checkpoint.timestampMs`) and transactions (`timestampMs` and `checkpoint` on
+`frame.transaction.Transaction ?? frame.transaction.FailedTransaction`) carry their checkpoint's
+timestamp, so `Date.now() - timestampMs` is their lag. The transaction fields are typed
+`number | null` and `string | null`, but are always set on streamed transactions:
+
+```typescript
+for await (const frame of client.streamTransactions({ filter })) {
+	const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
+	console.log('chain delay', Date.now() - tx.timestampMs!, 'ms');
+}
+```
+
+Events (`frame.event.checkpoint`) and `Progress` frames carry no timestamp. To see how far an event
+stream is behind, follow checkpoint headers alongside it and compare checkpoints. The header stream
+can briefly trail the event stream, so the difference can dip below zero:
 
 ```typescript
 let tip: bigint | undefined;
@@ -315,14 +328,14 @@ Once retries are exhausted or a failure is not retryable, transport errors are t
 `RpcError` on gRPC and `SuiGraphQLRequestError` on GraphQL, including GraphQL response `errors`.
 Other stream failures throw `SuiStreamError` from `@mysten/sui/client` with a `code`:
 
-| Code                 | Cause                                                                 |
-| -------------------- | --------------------------------------------------------------------- |
-| `InvalidOptions`     | An option combination or bound was rejected.                          |
-| `InvalidToken`       | Not a resume token, or an unsupported or corrupted one.               |
-| `IncompatibleToken`  | A token from another stream, or a changed direction or end on resume. |
-| `HistoryUnavailable` | The server has pruned history the stream needs.                       |
-| `Protocol`           | The server returned an invalid response.                              |
-| `Disconnected`       | The live feed kept ending without progress until retries ran out.     |
+| Code                 | Cause                                                                    |
+| -------------------- | ------------------------------------------------------------------------ |
+| `InvalidOptions`     | An option, bound or filter (including a malformed address) was rejected. |
+| `InvalidToken`       | Not a resume token, or an unsupported or corrupted one.                  |
+| `IncompatibleToken`  | A token from another stream, or a changed direction or end on resume.    |
+| `HistoryUnavailable` | The server has pruned history the stream needs.                          |
+| `Protocol`           | The server returned an invalid response.                                 |
+| `Disconnected`       | The live feed kept ending without progress until retries ran out.        |
 
 ```typescript
 import { SuiStreamError } from '@mysten/sui/client';

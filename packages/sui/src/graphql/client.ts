@@ -520,6 +520,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.listCheckpoints(input);
 	}
 
+	/**
+	 * Streams checkpoints in ledger order, resumable from any frame's `resumeToken`, following new
+	 * checkpoints by default.
+	 */
 	streamCheckpoints<
 		Include extends SuiClientTypes.StreamCheckpointInclude = {},
 		Frames extends SuiClientTypes.StreamFrameOptions = {},
@@ -529,6 +533,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.streamCheckpoints(input);
 	}
 
+	/**
+	 * Streams transactions matching `filter` in ledger order, resumable from any frame's
+	 * `resumeToken`.
+	 */
 	streamTransactions<
 		Include extends SuiClientTypes.TransactionInclude = {},
 		Frames extends SuiClientTypes.StreamFrameOptions = {},
@@ -538,6 +546,9 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.streamTransactions(input);
 	}
 
+	/**
+	 * Streams events matching `filter` in ledger order, resumable from any frame's `resumeToken`.
+	 */
 	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
 		input?: SuiClientTypes.StreamEventsOptions<Frames>,
 	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {

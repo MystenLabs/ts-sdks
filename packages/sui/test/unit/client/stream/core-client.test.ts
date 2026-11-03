@@ -5,6 +5,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { CoreClient, type LedgerStreamRequest } from '../../../../src/client/core.js';
 import type { AnyLedgerStreamAdapter } from '../../../../src/client/stream/adapter.js';
+import { SuiStreamError } from '../../../../src/client/stream/errors.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { fakeAdapter, ids, Ledger, noDelay, take, type FakeOutput } from './fake-ledger.js';
 
@@ -93,5 +94,41 @@ describe('CoreClient ledger streams', () => {
 		).toEqualTypeOf<
 			AsyncGenerator<SuiClientTypes.StreamCheckpointFrame<{ transactions: { effects: true } }>>
 		>();
+	});
+	it.each([
+		['transactions', { affectedAddress: '0x1', function: '0x2::coin' }, 'at most one of'],
+		['transactions', { function: '0x2::a::b::c' }, 'Invalid function filter'],
+		['transactions', { sender: 'alice' }, 'Invalid sender filter "alice"'],
+		['transactions', { affectedObject: '0x' + '1'.repeat(65) }, 'Invalid affectedObject filter'],
+		['transactions', { function: 'alice::coin' }, '"alice" is not a package address'],
+		['events', { sender: 123 }, 'Invalid sender filter'],
+		['events', { emitModule: '0x2::a::b' }, 'Invalid emitModule filter'],
+		['events', { eventType: 'zz::coin::Coin' }, '"zz" is not a package address'],
+	] as const)(
+		'rejects an invalid %s filter %o with InvalidOptions before calling the transport',
+		async (family, filter, message) => {
+			const client = streamingClient(new Ledger([1]));
+			const options = { ...finite, filter: filter as never };
+			const stream =
+				family === 'events' ? client.streamEvents(options) : client.streamTransactions(options);
+			const error = await stream.next().catch((error: unknown) => error);
+			expect(error).toBeInstanceOf(SuiStreamError);
+			expect(error).toMatchObject({ code: 'InvalidOptions' });
+			expect((error as Error).message).toContain(message);
+			expect(client.requests).toEqual([]);
+		},
+	);
+
+	it('accepts short addresses and MVR names in filters', async () => {
+		const client = streamingClient(new Ledger([1]));
+		const streams = [
+			client.streamTransactions({
+				...finite,
+				filter: { sender: '0x2', function: '@scope/pkg::m' },
+			}),
+			client.streamEvents({ ...finite, filter: { eventType: '@scope/pkg::m::E<0x2::sui::SUI>' } }),
+			client.streamEvents({ ...finite, filter: { emitModule: '0x2::coin' } }),
+		];
+		for (const stream of streams) expect(await idsOf(stream, 1)).toEqual(['0:0']);
 	});
 });

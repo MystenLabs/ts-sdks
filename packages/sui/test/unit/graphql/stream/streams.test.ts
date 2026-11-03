@@ -1503,6 +1503,8 @@ describe('errors', () => {
 			['transactions', { sender: 123 }],
 			['transactions', { function: 123 }],
 			['events', { emitModule: 123 }],
+			['transactions', { affectedAddress: 'alice' }],
+			['events', { sender: 'alice' }],
 		] as const)('does not retry an invalid %s filter %o', async (family, invalid) => {
 			const server = fakeGraphQL();
 			const reasons: string[] = [];
@@ -1515,8 +1517,14 @@ describe('errors', () => {
 				family === 'events'
 					? collect(server.client.streamEvents(options))
 					: collect(server.client.streamTransactions(options));
-			await expect(frames).rejects.toThrow('Invalid');
+			const error = await frames.catch((error: unknown) => error);
+			expect(error).toBeInstanceOf(SuiStreamError);
+			expect(error).toMatchObject({
+				code: 'InvalidOptions',
+				message: expect.stringContaining('Invalid'),
+			});
 			expect(reasons).toEqual([]);
+			expect(server.requests).toEqual([]);
 		});
 	});
 
