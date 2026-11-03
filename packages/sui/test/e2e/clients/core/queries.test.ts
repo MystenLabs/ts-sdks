@@ -18,9 +18,8 @@ const EXCLUDE: ClientKind[] = [];
 
 /**
  * Asserts that a page reaching the end of a window ends the read. gRPC reports no next page.
- * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must be empty.
- * A transaction or event window can take one more empty page to end; `strict` allows only one
- * (checkpoint windows).
+ * GraphQL treats cursors as inclusive bounds, so it can report a next page, which must be empty and
+ * end the window.
  */
 async function expectWindowEnd(
 	kind: ClientKind,
@@ -28,16 +27,13 @@ async function expectWindowEnd(
 	fetchNext: (
 		cursor: string | null,
 	) => Promise<{ items: unknown[]; hasNextPage: boolean; endCursor: string | null }>,
-	{ strict = false } = {},
 ) {
 	if (kind === 'grpc') {
 		expect(page.hasNextPage).toBe(false);
 		return;
 	}
 	if (!page.hasNextPage) return;
-	let next = await fetchNext(page.endCursor);
-	expect(next.items).toEqual([]);
-	if (next.hasNextPage && !strict) next = await fetchNext(next.endCursor);
+	const next = await fetchNext(page.endCursor);
 	expect({ items: next.items, hasNextPage: next.hasNextPage }).toEqual({
 		items: [],
 		hasNextPage: false,
@@ -1278,12 +1274,8 @@ describe('Core API - Queries', () => {
 									return page;
 								}),
 							),
-							// Only the items: GraphQL can report a next page for an empty window (see
-							// expectWindowEnd).
 							empty: await Promise.all(
-								empty.map(
-									async (query) => (await client.core.listTransactions(query)).transactions,
-								),
+								empty.map(async (query) => stripCursors(await client.core.listTransactions(query))),
 							),
 							windowed: await collectTransactions(client, {
 								filter,
@@ -1369,16 +1361,12 @@ describe('Core API - Queries', () => {
 						[cursors[3], cursors[1]],
 						[cursors[2], cursors[2]],
 					]) {
-						const page = await client.core.listTransactions({ filter, after, before });
-						expect(page.transactions).toEqual([]);
-						// GraphQL can report a next page here (see expectWindowEnd).
-						if (kind === 'grpc') {
-							expect(page).toMatchObject({
-								hasNextPage: false,
-								startCursor: null,
-								endCursor: null,
-							});
-						}
+						expect(await client.core.listTransactions({ filter, after, before })).toEqual({
+							transactions: [],
+							hasNextPage: false,
+							startCursor: null,
+							endCursor: null,
+						});
 					}
 				},
 				{ skip: EXCLUDE },
@@ -1541,16 +1529,11 @@ describe('Core API - Queries', () => {
 				if (!page.hasNextPage) return pages;
 				const next = await read(page.endCursor);
 				if (!next.checkpoints.length) {
-					await expectWindowEnd(
-						kind,
-						page,
-						async () => ({
-							items: next.checkpoints,
-							hasNextPage: next.hasNextPage,
-							endCursor: next.endCursor,
-						}),
-						{ strict: true },
-					);
+					await expectWindowEnd(kind, page, async () => ({
+						items: next.checkpoints,
+						hasNextPage: next.hasNextPage,
+						endCursor: next.endCursor,
+					}));
 					return pages;
 				}
 				page = next;
