@@ -293,11 +293,17 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   (`generate_auth`, `new`, `share`, `deposit_funds`, …) targets the latest package.
 - The original id never moves: derived wrapper/account addresses and type tags (`DataKey`, events)
   are built from it. Deriving from the latest id points at addresses nothing lives at.
-- Where each lives: `/account` and `/sessions` keep `accountPackageId` (original) plus optional
-  `accountPackageIdLatest` (call target). Predict's `packages.account` is the original and
-  `packages.accountLatest` the call target. The flat `GeneratedConfig` follows the
-  `predictPackageId`/`predictPackageIdV1` convention: `accountPackageId` is the call target and
-  `accountPackageIdV1` the original, which the derivation helpers require by type.
+- One meaning everywhere: `accountPackageId` (and Predict's `packages.account`) is the original id
+  in every config, including the projected `GeneratedConfig`, so any config handed to
+  `AccountContract` derives the same address. The call target is the optional
+  `accountPackageIdLatest` (Predict: `packages.accountLatest`).
+- The generated account bindings resolve their package from `config.accountPackageId`, so
+  `src/account-bindings/` wraps every one to resolve `package`, then
+  `config.accountPackageIdLatest`, then that. `accountMoveCalls`, `accountRegistryMoveCalls`,
+  `AccountContract` and the Predict code all call through the wrappers; never import
+  `contracts/account/{account,account_registry}.js` for a call. `test/unit/account.test.ts` fails if
+  codegen adds an account function that isn't wrapped (the wrapper files are written out by name, so
+  add it there).
 - `sync-deployment` reads `packages/account/Published.toml` and emits the latest ids only once the
   network has upgraded account. The live smoke suite caught the linkage rule; hand-built PTBs in
   tests must use the call target too.

@@ -26,10 +26,8 @@ export type GeneratedConfig = DeepbookPredictConfig &
 	AccountConfig & {
 		predictPackageId: string;
 		predictPackageIdV1: string;
-		/** The account call target: the latest package once upgraded (see `accountLatest`). */
+		/** The ORIGINAL account ID: type tags and derived addresses are built from it. */
 		accountPackageId: string;
-		/** The ORIGINAL account ID, for type tags and derived addresses. Never a call target. */
-		accountPackageIdV1: string;
 		accountRegistry: string;
 	};
 
@@ -37,8 +35,9 @@ export function toGeneratedConfig(cfg: PredictConfig): GeneratedConfig {
 	return {
 		predictPackageId: cfg.packages.predict,
 		predictPackageIdV1: cfg.packages.predictV1 ?? cfg.packages.predict,
-		accountPackageId: cfg.packages.accountLatest ?? cfg.packages.account,
-		accountPackageIdV1: cfg.packages.account,
+		accountPackageId: cfg.packages.account,
+		// The account bindings call this when present (see `account-bindings/latest.ts`).
+		accountPackageIdLatest: cfg.packages.accountLatest,
 		protocolConfig: cfg.objects.protocolConfig,
 		poolVault: cfg.objects.poolVault,
 		registry: cfg.objects.registry,

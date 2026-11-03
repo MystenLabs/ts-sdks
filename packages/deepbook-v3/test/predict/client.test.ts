@@ -242,7 +242,7 @@ describe('PredictClient constructor', () => {
 
 		// Derivation follows the original ID; calls follow the latest package.
 		expect(pc.wrapperIdFor(OWNER)).toBe(
-			deriveAccountWrapperIdFrom({ accountPackageIdV1: accountPackageId, accountRegistry }, OWNER),
+			deriveAccountWrapperIdFrom({ accountPackageId, accountRegistry }, OWNER),
 		);
 		expect(pc.wrapperIdFor(OWNER)).not.toBe(initialWrapper);
 		expect(targets(pc.tx.createManager())).toEqual([

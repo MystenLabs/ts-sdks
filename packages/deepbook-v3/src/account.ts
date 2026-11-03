@@ -8,8 +8,8 @@ import type {
 } from '@mysten/sui/transactions';
 import { deriveObjectID } from '@mysten/sui/utils';
 
-import * as account from './contracts/account/account.js';
-import * as accountRegistry from './contracts/account/account_registry.js';
+import * as account from './account-bindings/account.js';
+import * as accountRegistry from './account-bindings/account-registry.js';
 import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
 import { MAINNET_ACCOUNT } from './deployments/mainnet.js';
 import { TESTNET_ACCOUNT } from './deployments/testnet.js';
@@ -90,20 +90,12 @@ const AccountWrapperKey = bcs.struct('AccountWrapperKey', {
  */
 export class AccountContract {
 	#config: AccountConfig;
-	// What the generated calls resolve their package from: the latest account package once the
-	// network has upgraded it. A PTB can't call account at an older version than another package
-	// in it links (Predict's Version 5 links account v2). Derivation and type tags never read it.
-	#callConfig: AccountConfig;
 
 	/**
 	 * @param {AccountConfig} config Deployed ids of the shared `account` package
 	 */
 	constructor(config: AccountConfig) {
 		this.#config = config;
-		this.#callConfig = {
-			...config,
-			accountPackageId: config.accountPackageIdLatest ?? config.accountPackageId,
-		};
 	}
 
 	/**
@@ -130,7 +122,7 @@ export class AccountContract {
 	 */
 	generateAuth() {
 		return (tx: Transaction): TransactionResult =>
-			tx.add(account.generateAuth({ config: this.#callConfig }));
+			tx.add(account.generateAuth({ config: this.#config }));
 	}
 
 	/**
@@ -141,8 +133,8 @@ export class AccountContract {
 	 */
 	createAccount() {
 		return (tx: Transaction): void => {
-			const wrapper = tx.add(accountRegistry._new({ config: this.#callConfig }));
-			tx.add(account.share({ config: this.#callConfig, arguments: { self: wrapper } }));
+			const wrapper = tx.add(accountRegistry._new({ config: this.#config }));
+			tx.add(account.share({ config: this.#config, arguments: { self: wrapper } }));
 		};
 	}
 
@@ -157,16 +149,16 @@ export class AccountContract {
 	 */
 	createAccountAndDeposit(params: { coin: TransactionObjectArgument; coinType: string }) {
 		return (tx: Transaction): void => {
-			const wrapper = tx.add(accountRegistry._new({ config: this.#callConfig }));
+			const wrapper = tx.add(accountRegistry._new({ config: this.#config }));
 			const auth = tx.add(this.generateAuth());
 			tx.add(
 				account.depositFunds({
-					config: this.#callConfig,
+					config: this.#config,
 					arguments: { wrapper, auth, coin: params.coin },
 					typeArguments: [params.coinType],
 				}),
 			);
-			tx.add(account.share({ config: this.#callConfig, arguments: { self: wrapper } }));
+			tx.add(account.share({ config: this.#config, arguments: { self: wrapper } }));
 		};
 	}
 
@@ -182,7 +174,7 @@ export class AccountContract {
 			const auth = tx.add(this.generateAuth());
 			tx.add(
 				account.depositFunds({
-					config: this.#callConfig,
+					config: this.#config,
 					arguments: { wrapper: params.wrapperId, auth, coin: params.coin },
 					typeArguments: [params.coinType],
 				}),
@@ -203,7 +195,7 @@ export class AccountContract {
 			const auth = tx.add(this.generateAuth());
 			return tx.add(
 				account.withdrawFunds({
-					config: this.#callConfig,
+					config: this.#config,
 					arguments: { wrapper: params.wrapperId, auth, amount: params.amount },
 					typeArguments: [params.coinType],
 				}),
@@ -290,9 +282,7 @@ export class AccountContract {
 	 */
 	loadAccount(params: { wrapperId: string }) {
 		return (tx: Transaction): TransactionResult =>
-			tx.add(
-				account.loadAccount({ config: this.#callConfig, arguments: { self: params.wrapperId } }),
-			);
+			tx.add(account.loadAccount({ config: this.#config, arguments: { self: params.wrapperId } }));
 	}
 
 	/**
@@ -309,7 +299,7 @@ export class AccountContract {
 			);
 			return tx.add(
 				account.balance({
-					config: this.#callConfig,
+					config: this.#config,
 					typeArguments: [params.coinType],
 					arguments: { self: acct },
 				}),
@@ -327,7 +317,9 @@ export class AccountContract {
 // package's root — the root already exports a different `Account`
 // (`@deepbook/core::account::Account`, the per-pool trading account) and the two
 // have unrelated layouts. Keep them separated by subpath.
-export * as accountMoveCalls from './contracts/account/account.js';
-export * as accountRegistryMoveCalls from './contracts/account/account_registry.js';
+// The move calls resolve their package to `config.accountPackageIdLatest` when the config has one
+// (see `account-bindings/latest.ts`); `accountPackageId` stays the original for derivation.
+export * as accountMoveCalls from './account-bindings/account.js';
+export * as accountRegistryMoveCalls from './account-bindings/account-registry.js';
 export * as accountEvents from './contracts/account/account_events.js';
 export { Account, AccountWrapper } from './contracts/account/account.js';

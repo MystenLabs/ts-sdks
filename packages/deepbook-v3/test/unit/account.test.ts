@@ -4,7 +4,18 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
-import { Account, AccountContract, AccountWrapper } from '../../src/account.js';
+import {
+	Account,
+	AccountContract,
+	AccountWrapper,
+	accountMoveCalls,
+	accountRegistryMoveCalls,
+	getAccountConfig,
+} from '../../src/account.js';
+import * as generatedAccount from '../../src/contracts/account/account.js';
+import * as generatedAccountRegistry from '../../src/contracts/account/account_registry.js';
+import { getConfig } from '../../src/predict/config/index.js';
+import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 
 const PKG = '0x' + '11'.repeat(32);
 const REGISTRY = '0x' + '22'.repeat(32);
@@ -247,4 +258,56 @@ describe('receiveCoin / receiveCoinAtAccountId (account v2)', () => {
 			);
 		},
 	);
+});
+
+describe('the exported account bindings call the latest package', () => {
+	const owner = '0x' + '77'.repeat(32);
+
+	test('raw move calls with the Testnet config target account v2, not the original id', () => {
+		const cfg = getAccountConfig('testnet');
+		const tx = new Transaction();
+		const wrapper = tx.add(accountRegistryMoveCalls._new({ config: cfg }));
+		tx.add(accountMoveCalls.share({ config: cfg, arguments: { self: wrapper } }));
+		tx.add(accountMoveCalls.generateAuth({ config: cfg }));
+		expect(targets(tx)).toEqual([
+			`${cfg.accountPackageIdLatest}::account_registry::new`,
+			`${cfg.accountPackageIdLatest}::account::share`,
+			`${cfg.accountPackageIdLatest}::account::generate_auth`,
+		]);
+	});
+
+	test('an explicit package still wins, and a config without a latest id keeps its own', () => {
+		const tx = new Transaction();
+		tx.add(accountMoveCalls.generateAuth({ package: PKG, config: getAccountConfig('testnet') }));
+		tx.add(accountMoveCalls.generateAuth({ config: { accountPackageId: PKG } }));
+		expect(targets(tx)).toEqual([
+			`${PKG}::account::generate_auth`,
+			`${PKG}::account::generate_auth`,
+		]);
+		// Options stay optional: the no-argument form still builds a thunk.
+		expect(typeof accountMoveCalls.generateAuth()).toBe('function');
+	});
+
+	test('a projected Predict config derives the same wrapper as the account config', () => {
+		// Both carry the original id in `accountPackageId`; only calls use the latest package.
+		const fromPredict = new AccountContract(toGeneratedConfig(getConfig('testnet')));
+		const fromAccount = new AccountContract(getAccountConfig('testnet'));
+		expect(fromPredict.deriveAccountWrapperId(owner)).toBe(
+			fromAccount.deriveAccountWrapperId(owner),
+		);
+	});
+
+	test('every generated account function is wrapped', () => {
+		for (const [generated, exported] of [
+			[generatedAccount, accountMoveCalls],
+			[generatedAccountRegistry, accountRegistryMoveCalls],
+		] as const) {
+			for (const [name, member] of Object.entries(generated)) {
+				if (typeof member !== 'function' || /^[A-Z]/.test(name)) continue;
+				const wrapped = (exported as Record<string, unknown>)[name];
+				expect(typeof wrapped, name).toBe('function');
+				expect(wrapped, name).not.toBe(member);
+			}
+		}
+	});
 });

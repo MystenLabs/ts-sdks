@@ -50,9 +50,10 @@ tx.add(account.depositFunds({ wrapperId, coin, coinType: quoteCoinType }));
 **Upgraded account packages.** `accountPackageId` is always the ORIGINAL package id: the wrapper
 address and every type tag are derived from it, and Move types keep their defining package across
 upgrades. Once a network upgrades `account`, its config also carries `accountPackageIdLatest`, and
-every builder calls that package. A transaction can't call a package at an older version than
-another package in it links, so a hand-built PTB that calls account next to an upgraded Predict must
-use the latest id too, or it aborts `InvalidLinkage`.
+every builder, and the exported `accountMoveCalls` / `accountRegistryMoveCalls` given that config,
+call that package. A transaction can't call a package at an older version than another package in it
+links, so a hand-written `tx.moveCall` into account next to an upgraded Predict must name the latest
+id too, or it aborts `InvalidLinkage`.
 
 **Receiving a coin (account v2).** A coin transferred to `deriveAccountWrapperId(owner)`, for
 example by a bridge that can only send to an address, sits there until anyone moves it into the
