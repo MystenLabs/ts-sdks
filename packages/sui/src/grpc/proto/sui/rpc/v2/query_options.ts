@@ -66,19 +66,88 @@ export interface QueryOptions {
 	ordering?: Ordering;
 }
 /**
- * Progress marker for a query scan. Carried on every response frame, whether or
- * not the frame delivers a matching item. Watermarks never regress in the
- * requested ordering, but consecutive frames may carry the same watermark when
+ * A point in ledger order: the boundary between the items whose keys sort
+ * below this position and the items whose keys sort at or above it.
+ *
+ * An item's key is (`sequence_number`) for a `Checkpoint`, (`checkpoint`,
+ * `transaction_index`) for an `ExecutedTransaction`, and (`checkpoint`,
+ * `transaction_index`, `event_index`) for an `Event`. Keys and positions sort
+ * lexicographically, with unset fields counting as 0.
+ *
+ * An index past the last transaction of a checkpoint, or past the last event of
+ * a transaction, names the start of the next one, so different positions can
+ * name the same boundary: after the last of checkpoint `c`'s `n` transactions,
+ * both (`c`, `n`) and (`c + 1`, 0) name the start of checkpoint `c + 1`.
+ * Sorting never contradicts ledger order: a position that sorts below another
+ * is at or before it. Use comparisons to drop what is behind, and never assume
+ * that positions that differ name different boundaries.
+ *
+ * To bound a request at a position: as its start, set `start_checkpoint` to
+ * `checkpoint` and, when either index is nonzero, the start index fields to
+ * both indexes, including one that is 0 (`start_transaction_index`, plus
+ * `start_event_index` for events). As its end, set `end_checkpoint` to
+ * `checkpoint` when both indexes are 0; otherwise set `end_checkpoint` to
+ * `checkpoint + 1` and the end index fields to both indexes
+ * (`end_transaction_index`, plus `end_event_index` for events). Checkpoint
+ * positions carry only `checkpoint`, so they set only `start_checkpoint` or
+ * `end_checkpoint`.
+ *
+ * @generated from protobuf message sui.rpc.v2.LedgerPosition
+ */
+export interface LedgerPosition {
+	/**
+	 * Checkpoint sequence number.
+	 *
+	 * @generated from protobuf field: optional uint64 checkpoint = 1;
+	 */
+	checkpoint?: bigint;
+	/**
+	 * Zero-based position of a transaction within `checkpoint`.
+	 *
+	 * @generated from protobuf field: optional uint64 transaction_index = 2;
+	 */
+	transactionIndex?: bigint;
+	/**
+	 * Zero-based index of an event within its transaction's event list. Event
+	 * streams only.
+	 *
+	 * @generated from protobuf field: optional uint32 event_index = 3;
+	 */
+	eventIndex?: number;
+}
+/**
+ * Progress of a scan, carried on every response frame, whether or not the
+ * frame delivers a matching item. Watermarks never regress in the requested
+ * ordering, but consecutive frames may carry the same watermark when
  * additional work does not advance the safe resume frontier.
+ *
+ * A watermark has two parts:
+ *
+ * - The resume point, in two forms: `cursor`, opaque, for the server, and
+ *   `cursor_position`, in ledger coordinates, for clients to order frames and
+ *   drop duplicates.
+ * - Coverage: `checkpoint`, the boundary checkpoint the scan has proven fully
+ *   covered. It trails the resume point.
+ *
+ * To continue in the same direction, set the request's start (ascending) or
+ * end (descending) at `cursor_position`. To read in the other direction, set
+ * the other bound at `cursor_position` from a frame without an item; from a
+ * frame with an item, start a page after the item at its key with the finest
+ * index incremented, or end a page before it at its key. In both cases pass
+ * `cursor` as `options.after` with a start and as `options.before` with an
+ * end.
  *
  * @generated from protobuf message sui.rpc.v2.Watermark
  */
 export interface Watermark {
 	/**
-	 * Opaque cursor at this scan position. Set on every watermark. Use as
+	 * Opaque cursor at the resume point. Set on every watermark. Use as
 	 * `options.after` (ascending) or `options.before` (descending) on the next
 	 * request to resume from here. The most recently received cursor is always
 	 * the safe resume point.
+	 *
+	 * Pass cursors back unchanged; never compare or inspect them. Cursors that
+	 * differ can name the same point, and their encoding may change.
 	 *
 	 * @generated from protobuf field: optional bytes cursor = 1;
 	 */
@@ -100,6 +169,30 @@ export interface Watermark {
 	 * @generated from protobuf field: optional uint64 checkpoint = 2;
 	 */
 	checkpoint?: bigint;
+	/**
+	 * The resume point in ledger coordinates. Set on every watermark by servers
+	 * that support it.
+	 *
+	 * Ascending, every match from the request's start up to (excluding)
+	 * `cursor_position` has been delivered. Descending, every match from
+	 * `cursor_position` up to (excluding) the request's end has been delivered.
+	 *
+	 * On a frame that carries an item, ascending, it is the boundary just past
+	 * the item, so it is not the item's own key: it is that key with its finest
+	 * index incremented (`event_index` for events, `transaction_index` for
+	 * transactions, `checkpoint` for checkpoints). Descending, it is the boundary
+	 * just before the item, which is the item's key.
+	 *
+	 * It never moves before the request's start (ascending) or past its end
+	 * (descending), so an ascending request that starts beyond what the server
+	 * has indexed gets its start echoed back: the resume point says where the
+	 * client is, not where the ledger is. `cursor` may then name an earlier
+	 * point; bounds intersect, so resuming with both starts at
+	 * `cursor_position`.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.LedgerPosition cursor_position = 4;
+	 */
+	cursorPosition?: LedgerPosition;
 }
 /**
  * Marker for the final frame of a successful query stream. Every successful
@@ -130,13 +223,13 @@ export interface QueryEnd {
  */
 export enum Ordering {
 	/**
-	 * Return results in increasing cursor order.
+	 * Return results in increasing ledger order.
 	 *
 	 * @generated from protobuf enum value: ORDERING_ASCENDING = 0;
 	 */
 	ASCENDING = 0,
 	/**
-	 * Return results in decreasing cursor order.
+	 * Return results in decreasing ledger order.
 	 *
 	 * @generated from protobuf enum value: ORDERING_DESCENDING = 1;
 	 */
@@ -172,8 +265,10 @@ export enum QueryEndReason {
 	 */
 	SCAN_LIMIT = 2,
 	/**
-	 * The scan reached a requested checkpoint range bound. The terminal frame
-	 * carries no item.
+	 * The scan reached the edge of the window the request set: its checkpoint
+	 * range bound, or a start or end position the request set within a
+	 * checkpoint at that range's edge (for example `end_transaction_index` on
+	 * `ListTransactionsRequest`). The terminal frame carries no item.
 	 *
 	 * @generated from protobuf enum value: QUERY_END_REASON_CHECKPOINT_BOUND = 3;
 	 */
@@ -216,6 +311,34 @@ class QueryOptions$Type extends MessageType<QueryOptions> {
  */
 export const QueryOptions = new QueryOptions$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class LedgerPosition$Type extends MessageType<LedgerPosition> {
+	constructor() {
+		super('sui.rpc.v2.LedgerPosition', [
+			{
+				no: 1,
+				name: 'checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 2,
+				name: 'transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 3, name: 'event_index', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.LedgerPosition
+ */
+export const LedgerPosition = new LedgerPosition$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class Watermark$Type extends MessageType<Watermark> {
 	constructor() {
 		super('sui.rpc.v2.Watermark', [
@@ -228,6 +351,7 @@ class Watermark$Type extends MessageType<Watermark> {
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
 			},
+			{ no: 4, name: 'cursor_position', kind: 'message', T: () => LedgerPosition },
 		]);
 	}
 }
