@@ -2,7 +2,7 @@
 '@mysten/sui': major
 ---
 
-Align the BCS schemas with Sui 1.82 so every system transaction decodes:
+Align the BCS schemas with the current Sui protocol so every system transaction decodes:
 
 - `bcs.SharedObjectRef` encodes the new `bcs.SharedObjectMutability`. Non-exclusive write inputs in
   system transactions parse as `{ mutable: false, mutability: 'NonExclusiveWrite' }`.
