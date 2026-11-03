@@ -33,10 +33,19 @@ export interface SessionsConfig extends DeepbookSessionsConfig {
 	sessionsPackageIdV1?: string;
 	/** The shared `SessionsConfig` object id. */
 	sessionsConfig: string;
-	/** The shared `account` Move package id. */
+	/**
+	 * The ORIGINAL shared `account` package id. The derived account and wrapper ids and the
+	 * session data key's type are built from it, so it never moves to an upgraded package.
+	 */
 	accountPackageId: string;
 	/** The shared `AccountRegistry` object id. */
 	accountRegistry: string;
+	/**
+	 * The latest `account` package once the network has upgraded it: the call target for any
+	 * account call composed into the same PTB as these sessions calls, which link it. A PTB can't
+	 * call account at an older version (`InvalidLinkage`). Absent while the network runs v1.
+	 */
+	accountPackageIdLatest?: string;
 }
 
 /**

@@ -261,3 +261,9 @@ describe('sessions deployment ids', () => {
 		expect(fromRecord.deriveSessionsFieldId(owner)).toBe(explicit.deriveSessionsFieldId(owner));
 	});
 });
+
+test('getSessionsConfig exposes the account call target with the original id', () => {
+	const cfg = getSessionsConfig('testnet');
+	expect(cfg.accountPackageIdLatest).toBe(TESTNET_ACCOUNT.accountPackageIdLatest);
+	expect(cfg.accountPackageId).toBe(TESTNET_ACCOUNT.accountPackageId);
+});
