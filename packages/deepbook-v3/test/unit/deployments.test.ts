@@ -8,6 +8,7 @@ import { getSessionsConfig, SessionsContract } from '../../src/sessions.js';
 import {
 	getDeployment,
 	getUnits,
+	MAINNET_ACCOUNT,
 	TESTNET_ACCOUNT,
 	TESTNET_DEPLOYMENT,
 	TESTNET_PREDICT,
@@ -88,9 +89,34 @@ describe('slices cannot disagree about the ids they share', () => {
 		expect(TESTNET_PREDICT.packages.account).toBe(TESTNET_ACCOUNT.accountPackageId);
 	});
 
+	test('the account call target is identical across account, sessions and predict', () => {
+		expect(TESTNET_SESSIONS.accountPackageIdLatest).toBe(TESTNET_ACCOUNT.accountPackageIdLatest);
+		expect(TESTNET_PREDICT.packages.accountLatest).toBe(TESTNET_ACCOUNT.accountPackageIdLatest);
+	});
+
 	test('accountRegistry is identical across account, sessions and predict', () => {
 		expect(TESTNET_SESSIONS.accountRegistry).toBe(TESTNET_ACCOUNT.accountRegistry);
 		expect(TESTNET_PREDICT.objects.accountRegistry).toBe(TESTNET_ACCOUNT.accountRegistry);
+	});
+});
+
+describe('account call target vs. identity', () => {
+	// Type tags and derived addresses are built from `accountPackageId`, so it must stay the
+	// original id after an upgrade. Only functions newer than v1 call the latest package.
+	test('Testnet keeps the original id and calls account v2 separately', () => {
+		expect(TESTNET_ACCOUNT.accountPackageId).toBe(
+			'0x1e57d6554b99e4ca68330322c3e5c409ba1b681642726b603bf1be92c1840ca9',
+		);
+		expect(TESTNET_ACCOUNT.accountPackageIdLatest).toBe(
+			'0x4401eae9984271faf178b6a43c0f2f144b6274b6406aab09bf9db0b3c2b441a1',
+		);
+	});
+
+	test('Mainnet records no account call target until it upgrades account', () => {
+		expect(MAINNET_ACCOUNT.accountPackageId).toBe(
+			'0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
+		);
+		expect(MAINNET_ACCOUNT.accountPackageIdLatest).toBeUndefined();
 	});
 });
 
@@ -171,9 +197,10 @@ describe('sessions deployment ids', () => {
 	// package was told apart from the version retired by DBU-746.
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
-		// Sessions v4, relinked to Predict v6 and Propbook v2 (DBU-1027).
+		// Sessions v5 from the Version 5 rehearsal, relinked to Predict v8, predict_orders v3 and
+		// account v2 (DBU-1117).
 		expect(cfg.sessionsPackageId).toBe(
-			'0x3c50acf2d3bf48719ca9dfa2fd538e134d5c778c3502349b6417bb511f3c9889',
+			'0x13108df3e049a45ef396e49477b50fea157e7b9994ab835e72d3726855a9d651',
 		);
 		expect(cfg.sessionsPackageIdV1).toBe(
 			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',

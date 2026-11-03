@@ -114,6 +114,8 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'ECutoverNotReached',
 		'EEwmaRetired',
 		'EOrderFlowNotAllowed',
+		// Predict v5: a builder trade before the watermark reaches the builder-fee version.
+		'EBuilderFeeCutoverNotReached',
 	],
 	// Predict's live pricer, which every quote, plan and enqueue loads.
 	pricing: [
@@ -234,7 +236,15 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 	// The math library (`deepbook_predict_math`).
 	lazer_price: ['EPropertyNotRequested', 'EGenerationAfterEnvelope', 'EFeedMissing'],
 	// Sessions (`deepbook_sessions`), which the `/sessions` Predict wrappers abort in.
-	sessions: ['EInvalidSessionDuration', 'ESessionNotAuthorized', 'ESessionLimitExceeded'],
+	sessions: [
+		'EInvalidSessionDuration',
+		'ESessionNotAuthorized',
+		'ESessionLimitExceeded',
+		// Session builder approvals (Sessions v4, the Mainnet number).
+		'EBuilderNotApproved',
+		'EBuilderFeeAboveApproved',
+		'EBuilderApprovalsNotEnabled',
+	],
 	session_config: ['EPackageVersionDisabled', 'EVersionWatermarkNotAdvanced'],
 	// The shared account (`deepbook_account`).
 	account_registry: ['EAppAlreadyAuthorized', 'EAppNotAuthorized', 'EAccountAlreadyExists'],

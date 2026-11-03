@@ -65,6 +65,13 @@ export const FeeIncentiveSubsidyRateUpdated = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const BuilderFeeCapUpdated = new MoveStruct({
+	name: `${$moduleName}::BuilderFeeCapUpdated`,
+	fields: {
+		builder_fee_cap: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
 export const FeeIncentiveAllocationRatesUpdated = new MoveStruct({
 	name: `${$moduleName}::FeeIncentiveAllocationRatesUpdated`,
 	fields: {

@@ -36,10 +36,21 @@ export type { DeployedNetwork } from './deployments/index.js';
  * wrapper-address derivation needs plain ids.
  */
 export interface AccountConfig extends GeneratedAccountConfig {
-	/** The `account` Move package id. */
+	/**
+	 * The ORIGINAL `account` Move package id. Type tags and the derived wrapper address are built
+	 * from it, so it never moves to an upgraded package: that would derive addresses nothing lives
+	 * at, and a coin sent to one is lost.
+	 */
 	accountPackageId: string;
 	/** The shared `AccountRegistry` object id. */
 	accountRegistry: string;
+	/**
+	 * The latest `account` package, once the network has upgraded it: the call target of every
+	 * builder here. A PTB can't call account at an older version than another package in it links
+	 * (Predict's Version 5 links account v2), and `receiveCoin` / `receiveCoinAtAccountId` exist
+	 * only from v2. Absent while the network runs v1: calls then target `accountPackageId`.
+	 */
+	accountPackageIdLatest?: string;
 }
 
 /**
@@ -79,12 +90,20 @@ const AccountWrapperKey = bcs.struct('AccountWrapperKey', {
  */
 export class AccountContract {
 	#config: AccountConfig;
+	// What the generated calls resolve their package from: the latest account package once the
+	// network has upgraded it. A PTB can't call account at an older version than another package
+	// in it links (Predict's Version 5 links account v2). Derivation and type tags never read it.
+	#callConfig: AccountConfig;
 
 	/**
 	 * @param {AccountConfig} config Deployed ids of the shared `account` package
 	 */
 	constructor(config: AccountConfig) {
 		this.#config = config;
+		this.#callConfig = {
+			...config,
+			accountPackageId: config.accountPackageIdLatest ?? config.accountPackageId,
+		};
 	}
 
 	/**
@@ -111,7 +130,7 @@ export class AccountContract {
 	 */
 	generateAuth() {
 		return (tx: Transaction): TransactionResult =>
-			tx.add(account.generateAuth({ config: this.#config }));
+			tx.add(account.generateAuth({ config: this.#callConfig }));
 	}
 
 	/**
@@ -122,8 +141,8 @@ export class AccountContract {
 	 */
 	createAccount() {
 		return (tx: Transaction): void => {
-			const wrapper = tx.add(accountRegistry._new({ config: this.#config }));
-			tx.add(account.share({ config: this.#config, arguments: { self: wrapper } }));
+			const wrapper = tx.add(accountRegistry._new({ config: this.#callConfig }));
+			tx.add(account.share({ config: this.#callConfig, arguments: { self: wrapper } }));
 		};
 	}
 
@@ -138,16 +157,16 @@ export class AccountContract {
 	 */
 	createAccountAndDeposit(params: { coin: TransactionObjectArgument; coinType: string }) {
 		return (tx: Transaction): void => {
-			const wrapper = tx.add(accountRegistry._new({ config: this.#config }));
+			const wrapper = tx.add(accountRegistry._new({ config: this.#callConfig }));
 			const auth = tx.add(this.generateAuth());
 			tx.add(
 				account.depositFunds({
-					config: this.#config,
+					config: this.#callConfig,
 					arguments: { wrapper, auth, coin: params.coin },
 					typeArguments: [params.coinType],
 				}),
 			);
-			tx.add(account.share({ config: this.#config, arguments: { self: wrapper } }));
+			tx.add(account.share({ config: this.#callConfig, arguments: { self: wrapper } }));
 		};
 	}
 
@@ -163,7 +182,7 @@ export class AccountContract {
 			const auth = tx.add(this.generateAuth());
 			tx.add(
 				account.depositFunds({
-					config: this.#config,
+					config: this.#callConfig,
 					arguments: { wrapper: params.wrapperId, auth, coin: params.coin },
 					typeArguments: [params.coinType],
 				}),
@@ -184,12 +203,83 @@ export class AccountContract {
 			const auth = tx.add(this.generateAuth());
 			return tx.add(
 				account.withdrawFunds({
-					config: this.#config,
+					config: this.#callConfig,
 					arguments: { wrapper: params.wrapperId, auth, amount: params.amount },
 					typeArguments: [params.coinType],
 				}),
 			);
 		};
+	}
+
+	/**
+	 * @description Move a `Coin<T>` that was transferred to an account's wrapper address into
+	 * the account's stored balance (`receive_coin`). Permissionless: anyone may submit it, and
+	 * value only enters the account the coin was addressed to. A sender that can only transfer a
+	 * coin to an address (a bridge mint, for example) sends it to `deriveAccountWrapperId(owner)`.
+	 * The coin can arrive before the account exists and waits there until the owner creates it.
+	 * @param {object} params Wrapper id, the received coin's object id (or a `Receiving` input),
+	 * and its coin type
+	 * @returns A function that takes a Transaction object
+	 * @throws if the config has no `accountPackageIdLatest`, i.e. the network still runs account v1
+	 */
+	receiveCoin(params: {
+		wrapperId: string;
+		coin: string | TransactionObjectArgument;
+		coinType: string;
+	}) {
+		const packageId = this.#latestPackage('receiveCoin');
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				account.receiveCoin({
+					package: packageId,
+					arguments: {
+						wrapper: params.wrapperId,
+						coin: typeof params.coin === 'string' ? tx.object(params.coin) : params.coin,
+					},
+					typeArguments: [params.coinType],
+				}),
+			);
+	}
+
+	/**
+	 * @description `receiveCoin` for a coin sent to the account's canonical ID (`account_id`,
+	 * the address `account_registry::derived_address` returns) instead of its wrapper address.
+	 * A `Receiving` input can't name its owner, so pick the call from where the coin sits: the
+	 * wrong one aborts `EUnableToReceiveObject`. Senders should use the wrapper address.
+	 * @param {object} params Wrapper id, the received coin's object id (or a `Receiving` input),
+	 * and its coin type
+	 * @returns A function that takes a Transaction object
+	 * @throws if the config has no `accountPackageIdLatest`, i.e. the network still runs account v1
+	 */
+	receiveCoinAtAccountId(params: {
+		wrapperId: string;
+		coin: string | TransactionObjectArgument;
+		coinType: string;
+	}) {
+		const packageId = this.#latestPackage('receiveCoinAtAccountId');
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				account.receiveCoinAtAccountId({
+					package: packageId,
+					arguments: {
+						wrapper: params.wrapperId,
+						coin: typeof params.coin === 'string' ? tx.object(params.coin) : params.coin,
+					},
+					typeArguments: [params.coinType],
+				}),
+			);
+	}
+
+	// The call target for the functions added in account v2, which v1 doesn't have.
+	#latestPackage(builder: string): string {
+		const latest = this.#config.accountPackageIdLatest;
+		if (!latest) {
+			throw new Error(
+				`@mysten/deepbook-v3/account: ${builder} calls a function added in account v2, and this ` +
+					'config has no `accountPackageIdLatest` (the network still runs account v1).',
+			);
+		}
+		return latest;
 	}
 
 	/**
@@ -200,7 +290,9 @@ export class AccountContract {
 	 */
 	loadAccount(params: { wrapperId: string }) {
 		return (tx: Transaction): TransactionResult =>
-			tx.add(account.loadAccount({ config: this.#config, arguments: { self: params.wrapperId } }));
+			tx.add(
+				account.loadAccount({ config: this.#callConfig, arguments: { self: params.wrapperId } }),
+			);
 	}
 
 	/**
@@ -217,7 +309,7 @@ export class AccountContract {
 			);
 			return tx.add(
 				account.balance({
-					config: this.#config,
+					config: this.#callConfig,
 					typeArguments: [params.coinType],
 					arguments: { self: acct },
 				}),

@@ -6,9 +6,10 @@
  * Predict's per-account state, stored as an app-data slot on a shared `Account`
  * (the `account` package).
  *
- * This is Predict's account-local state: open positions and sticky builder-code
- * attribution. USDC/PLP custody lives in `Account`. The `PredictApp` witness
- * namespaces this slot, so only Predict writes it.
+ * This is Predict's account-local state: open positions and a sticky builder code.
+ * The sticky code no longer affects fees: a trade names its builder and fee itself
+ * (`expiry_market::admit_mint_with_builder`). USDC/PLP custody lives in `Account`.
+ * The `PredictApp` witness namespaces this slot, so only Predict writes it.
  *
  * Position mutations are package-internal. Builder-code configuration accepts an
  * account `Auth`; the account package decides which owner or authorized
@@ -135,8 +136,10 @@ export interface SetBuilderCodeOptions {
 	};
 }
 /**
- * Set sticky builder-code attribution for future trades using valid account auth.
- * Owner auth and authorized-app auth both satisfy the account borrow boundary.
+ * Set the sticky builder code using valid account auth. Owner auth and
+ * authorized-app auth both satisfy the account borrow boundary. Kept for
+ * compatibility: it no longer affects fees, since a trade names its builder and
+ * fee itself.
  */
 export function setBuilderCode(options: SetBuilderCodeOptions) {
 	const packageAddress =
@@ -164,7 +167,10 @@ export interface UnsetBuilderCodeOptions {
 		predictPackageId?: string;
 	};
 }
-/** Clear sticky builder-code attribution using valid owner or authorized-app auth. */
+/**
+ * Clear the sticky builder code using valid owner or authorized-app auth. Kept for
+ * compatibility: the code no longer affects fees.
+ */
 export function unsetBuilderCode(options: UnsetBuilderCodeOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';

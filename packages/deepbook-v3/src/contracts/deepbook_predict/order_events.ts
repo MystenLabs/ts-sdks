@@ -55,8 +55,9 @@ export const OrderMinted = new MoveStruct({
 		/** Separate inventory-impact charge escrowed for live-close rebates. */
 		inventory_impact_charge: U64,
 		/**
-		 * Builder credited for `builder_fee`; `none` when no builder fee was paid
-		 * (attribution follows the fee — applied once, in the emit helper).
+		 * Builder code the order named, credited with `builder_fee`; `none` when the order
+		 * named none. Recorded even at a zero fee, so attribution covers apps that charge
+		 * nothing.
 		 */
 		builder_code_id: bcs.option(bcs.Address),
 		/** Referrer recorded on the minting account, independent of the fee paid. */
@@ -99,8 +100,9 @@ export const LiveOrderRedeemed = new MoveStruct({
 		/** Separate inventory-impact rebate paid from its isolated escrow. */
 		inventory_impact_rebate: U64,
 		/**
-		 * Builder credited for `builder_fee`; `none` when no builder fee was paid
-		 * (attribution follows the fee — applied once, in the emit helper).
+		 * Builder code the order named, credited with `builder_fee`; `none` when the order
+		 * named none. Recorded even at a zero fee, so attribution covers apps that charge
+		 * nothing.
 		 */
 		builder_code_id: bcs.option(bcs.Address),
 		onchain_timestamp_ms: U64,

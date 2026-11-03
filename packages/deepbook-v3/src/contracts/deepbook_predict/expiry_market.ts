@@ -23,6 +23,12 @@
  * the settled payout need only the receipt. The queue itself, its escrow, its
  * policy, and its events live in the companion.
  *
+ * A trade that pays a builder names its code and fee per contract
+ * (`builder_code::BuilderFee`). `admit_mint_with_builder` and
+ * `admit_sell_with_builder` cap the fee at `protocol_config::builder_fee_cap` and
+ * record the code and the capped fee in the receipt, and the fill charges what the
+ * receipt records. The plain admissions name no builder and charge none.
+ *
  * Mainnet USDC is a regulated coin: Sui aborts a transaction that sends it to an
  * address on its deny list, or to anyone while it is globally paused. So the fill,
  * the fee routing, and the settled payout read `sui::deny_list` first and never
@@ -139,10 +145,18 @@ export const OrderReceipt = new MoveStruct({
 		higher_tick: U64,
 		/** The exact mint quantity, or the sell's close quantity. */
 		quantity: U64,
+		/**
+		 * A mint's premium cap. A sell never uses it, so a sell admitted with a builder
+		 * keeps its capped builder fee per contract here.
+		 */
 		max_premium: U64,
 		min_quantity: U64,
 		max_probability: U64,
 		min_probability: U64,
+		/**
+		 * A sell's proceeds floor. A mint never uses it, so a mint admitted with a builder
+		 * keeps its capped builder fee per contract here.
+		 */
 		min_proceeds: U64,
 		/** Earliest Pyth generation time the order may price at. */
 		tau_ms: U64,
@@ -1001,7 +1015,8 @@ export interface QuoteMintForAccountOptions {
 }
 /**
  * `quote_mint` for the wrapper's account: `max_premium` is capped at the account's
- * balance and the account's builder fee is charged.
+ * balance. No builder fee, matching the enqueue calls that name no builder:
+ * `quote_mint_with_builder_fee` at a zero fee.
  */
 export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 	const packageAddress =
@@ -1045,6 +1060,77 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 			),
 		});
 }
+export interface QuoteMintWithBuilderFeeArguments {
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	exactQuantity: RawTransactionArgument<boolean>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+}
+export interface QuoteMintWithBuilderFeeOptions {
+	package?: string;
+	arguments: QuoteMintWithBuilderFeeArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * `quote_mint_for_account` for an order that names a builder: charges
+ * `builder_fee_per_contract`, in FLOAT_SCALING of the $1 payout, capped at
+ * `protocol_config::builder_fee_cap` as admission caps it. Prices and gates like
+ * `quote_mint`. For SDK and devInspect previews of the `_with_builder` enqueue
+ * calls.
+ */
+export function quoteMintWithBuilderFee(options: QuoteMintWithBuilderFeeOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'bool',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'wrapper',
+		'config',
+		'pricer',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'exactQuantity',
+		'builderFeePerContract',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'quote_mint_with_builder_fee',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface QuoteMintExactCostForAccountArguments {
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
@@ -1066,8 +1152,9 @@ export interface QuoteMintExactCostForAccountOptions {
 /**
  * Quote the largest mint whose all-in cost fits `min(max_cost, account  balance)`,
  * at least `min_quantity`, for the wrapper's account, priced like a queued
- * exact-cost fill at the clock. Charges the account's builder fee, and otherwise
- * prices and gates like `quote_mint`.
+ * exact-cost fill at the clock. No builder fee, matching the enqueue calls that
+ * name no builder: `quote_mint_exact_cost_with_builder_fee` at a zero fee.
+ * Otherwise prices and gates like `quote_mint`.
  */
 export function quoteMintExactCostForAccount(options: QuoteMintExactCostForAccountOptions) {
 	const packageAddress =
@@ -1099,6 +1186,73 @@ export function quoteMintExactCostForAccount(options: QuoteMintExactCostForAccou
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'quote_mint_exact_cost_for_account',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface QuoteMintExactCostWithBuilderFeeArguments {
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+}
+export interface QuoteMintExactCostWithBuilderFeeOptions {
+	package?: string;
+	arguments: QuoteMintExactCostWithBuilderFeeArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * `quote_mint_exact_cost_for_account` for an order that names a builder: the
+ * budget search fits `builder_fee_per_contract`, in FLOAT_SCALING of the $1 payout
+ * and capped at `protocol_config::builder_fee_cap`, inside the budget. For SDK and
+ * devInspect previews of `enqueue_exact_cost_with_builder`.
+ */
+export function quoteMintExactCostWithBuilderFee(options: QuoteMintExactCostWithBuilderFeeOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'wrapper',
+		'config',
+		'pricer',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+		'builderFeePerContract',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'quote_mint_exact_cost_with_builder_fee',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -1166,6 +1320,35 @@ export function receiptInfo(options: ReceiptInfoOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'receipt_info',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BuilderFeePerContractArguments {
+	receipt: TransactionArgument;
+}
+export interface BuilderFeePerContractOptions {
+	package?: string;
+	arguments: BuilderFeePerContractArguments | [receipt: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the capped builder fee per contract an admitted order pays at its fill,
+ * which the fill charges to the code the receipt records: `0` for an order that
+ * names no builder and for an open receipt. For the order-flow companion's reads
+ * and SDK previews of a waiting order.
+ */
+export function builderFeePerContract(options: BuilderFeePerContractOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['receipt'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'builder_fee_per_contract',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -1534,7 +1717,7 @@ export interface QuoteCloseArguments {
 	pricer: TransactionArgument;
 	receipt: TransactionArgument;
 	closeQuantity: RawTransactionArgument<number | bigint>;
-	builderCodeId: RawTransactionArgument<string | null>;
+	BuilderCodeId: RawTransactionArgument<string | null>;
 }
 export interface QuoteCloseOptions {
 	package?: string;
@@ -1545,7 +1728,7 @@ export interface QuoteCloseOptions {
 				pricer: TransactionArgument,
 				receipt: TransactionArgument,
 				closeQuantity: RawTransactionArgument<number | bigint>,
-				builderCodeId: RawTransactionArgument<string | null>,
+				BuilderCodeId: RawTransactionArgument<string | null>,
 		  ];
 	config?: {
 		predictPackageId?: string;
@@ -1553,13 +1736,14 @@ export interface QuoteCloseOptions {
 }
 /**
  * Quote an early sell of `close_quantity` of an open receipt's position at a
- * market-bound `Pricer` and the clock, charging `builder_code_id`'s builder fee:
- * the close a sell fill prices, without the trader's floors. `proceeds` is before
- * the order fee. Changes nothing. Aborts on the pricer binding (`EWrongPricer`),
- * another market's receipt (`EWrongMarket`), a receipt that is not open
- * (`EWrongStage`), `now >= expiry` (`EInvalidOrderTiming`), or a close that cannot
- * be priced (`EOrderFailsLimits`). Public for the order-flow companion's sell
- * preview and SDK reads.
+ * market-bound `Pricer` and the clock: the close a sell fill prices, without the
+ * trader's floors. `proceeds` is before the order fee. No builder fee, matching
+ * the sell enqueue that names no builder, whatever `_builder_code_id` names;
+ * `quote_close_with_builder_fee` quotes one that does. Changes nothing. Aborts on
+ * the pricer binding (`EWrongPricer`), another market's receipt (`EWrongMarket`),
+ * a receipt that is not open (`EWrongStage`), `now >= expiry`
+ * (`EInvalidOrderTiming`), or a close that cannot be priced (`EOrderFailsLimits`).
+ * Public for the order-flow companion's sell preview and SDK reads.
  */
 export function quoteClose(options: QuoteCloseOptions) {
 	const packageAddress =
@@ -1572,13 +1756,65 @@ export function quoteClose(options: QuoteCloseOptions) {
 		'0x1::option::Option<0x2::object::ID>',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['market', 'pricer', 'receipt', 'closeQuantity', 'builderCodeId'];
+	const parameterNames = ['market', 'pricer', 'receipt', 'closeQuantity', 'BuilderCodeId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'quote_close',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface QuoteCloseWithBuilderFeeArguments {
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	receipt: TransactionArgument;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+}
+export interface QuoteCloseWithBuilderFeeOptions {
+	package?: string;
+	arguments: QuoteCloseWithBuilderFeeArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * `quote_close` for a sell that names a builder: charges
+ * `builder_fee_per_contract`, in FLOAT_SCALING of the $1 payout, capped at
+ * `protocol_config::builder_fee_cap` and then at the redeem value left after the
+ * trading fee, as the fill charges it. Public for the order-flow companion's sell
+ * preview and SDK reads.
+ */
+export function quoteCloseWithBuilderFee(options: QuoteCloseWithBuilderFeeOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null, null, 'u64', 'u64', '0x2::clock::Clock'] satisfies (
+		string | null
+	)[];
+	const parameterNames = [
+		'market',
+		'config',
+		'pricer',
+		'receipt',
+		'closeQuantity',
+		'builderFeePerContract',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'quote_close_with_builder_fee',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface MintExactQuantityArguments {
@@ -1803,8 +2039,7 @@ export interface RedeemLiveOptions {
 }
 /**
  * Retired by delayed execution: always aborts `EDelayedExecutionRequired`. Early
- * sells of queue-held positions go through the order-flow companion; account-held
- * positions exit through `redeem_settled` after settlement.
+ * sells of queue-held positions go through the order-flow companion.
  */
 export function redeemLive(options: RedeemLiveOptions) {
 	const packageAddress =
@@ -1849,11 +2084,11 @@ export function redeemLive(options: RedeemLiveOptions) {
 		});
 }
 export interface RedeemSettledArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	orderId: RawTransactionArgument<number | bigint>;
+	Market: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
+	Auth: TransactionArgument;
+	Config?: RawTransactionArgument<string>;
+	OrderId: RawTransactionArgument<number | bigint>;
 }
 export interface RedeemSettledOptions {
 	package?: string;
@@ -1864,11 +2099,10 @@ export interface RedeemSettledOptions {
 	};
 }
 /**
- * Redeem a settled order you hold account authority over.
- *
- * The market must be settled already; this flow does not run live pricing.
- * Explicit owner auth remains available when Predict app automation is
- * deauthorized; another authorized app may also supply valid account auth.
+ * Retired by delayed execution: always aborts `EDelayedExecutionRequired`. A
+ * queued fill never enters the account; the order-flow companion pays its Open
+ * record at settlement. Positions the immediate mints left in accounts must be
+ * redeemed through an older package before the watermark bump.
  */
 export function redeemSettled(options: RedeemSettledOptions) {
 	const packageAddress =
@@ -1882,7 +2116,7 @@ export function redeemSettled(options: RedeemSettledOptions) {
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['market', 'wrapper', 'auth', 'config', 'orderId'];
+	const parameterNames = ['Market', 'Wrapper', 'Auth', 'Config', 'OrderId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1891,7 +2125,7 @@ export function redeemSettled(options: RedeemSettledOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1899,11 +2133,11 @@ export function redeemSettled(options: RedeemSettledOptions) {
 		});
 }
 export interface RedeemSettledPermissionlessArguments {
-	market: RawTransactionArgument<string>;
-	accountRegistry: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	orderId: RawTransactionArgument<number | bigint>;
+	Market: RawTransactionArgument<string>;
+	AccountRegistry: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
+	OrderId: RawTransactionArgument<number | bigint>;
 }
 export interface RedeemSettledPermissionlessOptions {
 	package?: string;
@@ -1914,15 +2148,8 @@ export interface RedeemSettledPermissionlessOptions {
 	};
 }
 /**
- * Redeem a settled order without account-owner authority, as an allowlisted
- * keeper.
- *
- * Despite the name, only a sender admin has added through
- * `protocol_config::add_settled_redeem_keeper` may call this; the allowlist starts
- * empty. The payout still goes to the order's account. This keeper path uses
- * Predict app-auth from the account registry, so `deauthorize_app<PredictApp>`
- * also disables it. Owners can still use `redeem_settled` with owner auth to
- * redeem their own settled positions.
+ * Retired with `redeem_settled`: always aborts `EDelayedExecutionRequired`. The
+ * settled-redeem keeper allowlist on `ProtocolConfig` no longer gates any call.
  */
 export function redeemSettledPermissionless(options: RedeemSettledPermissionlessOptions) {
 	const packageAddress =
@@ -1936,7 +2163,7 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['market', 'accountRegistry', 'wrapper', 'config', 'orderId'];
+	const parameterNames = ['Market', 'AccountRegistry', 'Wrapper', 'Config', 'OrderId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1945,7 +2172,7 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -2210,6 +2437,122 @@ export function admitMint<W extends BcsType<any>>(options: AdmitMintOptions<W>) 
 			typeArguments: options.typeArguments,
 		});
 }
+export interface AdmitMintWithBuilderArguments<W extends BcsType<any>> {
+	W: RawTransactionArgument<W>;
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	account: TransactionArgument;
+	propbookRegistry?: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	builder: TransactionArgument;
+	kind: RawTransactionArgument<number>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+	budget: RawTransactionArgument<number | bigint>;
+	orderFee: RawTransactionArgument<number | bigint>;
+	sviMaxAgeMs: RawTransactionArgument<number | bigint>;
+	channel: RawTransactionArgument<number>;
+	tauMs: RawTransactionArgument<number | bigint>;
+	deadlineMs: RawTransactionArgument<number | bigint>;
+}
+export interface AdmitMintWithBuilderOptions<W extends BcsType<any>> {
+	package?: string;
+	arguments: AdmitMintWithBuilderArguments<W>;
+	config?: {
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * `admit_mint` for an order that may name a builder. `builder` is the code the
+ * trade pays and its fee per contract, or none, which admits exactly as
+ * `admit_mint` does. Admission caps the fee at `protocol_config::builder_fee_cap`,
+ * records the code and the capped fee in the receipt, and prices the order's own
+ * limits at the clock with that fee. The fill charges the recorded fee, so a later
+ * cap change does not reach the order. Aborts as `admit_mint` does, and, for an
+ * order that names a builder, `EBuilderFeeCutoverNotReached` until the version
+ * watermark retires every version whose fill charges the legacy fee instead
+ * (`constants::builder_fee_version!()`).
+ */
+export function admitMintWithBuilder<W extends BcsType<any>>(
+	options: AdmitMintWithBuilderOptions<W>,
+) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		`${options.typeArguments[0]}`,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u8',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u8',
+		'u64',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'W',
+		'market',
+		'config',
+		'account',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'builder',
+		'kind',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxPremium',
+		'minQuantity',
+		'maxProbability',
+		'budget',
+		'orderFee',
+		'sviMaxAgeMs',
+		'channel',
+		'tauMs',
+		'deadlineMs',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'admit_mint_with_builder',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
+		});
+}
 export interface AdmitSellArguments<W extends BcsType<any>> {
 	W: RawTransactionArgument<W>;
 	market: RawTransactionArgument<string>;
@@ -2242,7 +2585,7 @@ export interface AdmitSellOptions<W extends BcsType<any>> {
 /**
  * Admit an early sell of `close_quantity` of an open receipt's position: the
  * receipt moves to the sell stage in place, with the sell's request, the account's
- * current owner and builder code, a fresh volatility snapshot, τ, the deadline,
+ * current owner and no builder code, a fresh volatility snapshot, τ, the deadline,
  * and no price. The companion escrows `order_fee` and owns the minimum-sell
  * checks.
  *
@@ -2304,6 +2647,109 @@ export function admitSell<W extends BcsType<any>>(options: AdmitSellOptions<W>) 
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'admit_sell',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface AdmitSellWithBuilderArguments<W extends BcsType<any>> {
+	W: RawTransactionArgument<W>;
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	account: TransactionArgument;
+	receipt: TransactionArgument;
+	propbookRegistry?: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	builder: TransactionArgument;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+	orderFee: RawTransactionArgument<number | bigint>;
+	sviMaxAgeMs: RawTransactionArgument<number | bigint>;
+	channel: RawTransactionArgument<number>;
+	tauMs: RawTransactionArgument<number | bigint>;
+	deadlineMs: RawTransactionArgument<number | bigint>;
+}
+export interface AdmitSellWithBuilderOptions<W extends BcsType<any>> {
+	package?: string;
+	arguments: AdmitSellWithBuilderArguments<W>;
+	config?: {
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * `admit_sell` for a sell that may name a builder. `builder` is the code the sell
+ * pays and its fee per contract, or none, which admits exactly as `admit_sell`
+ * does. Admission caps the fee at `protocol_config::builder_fee_cap`, records the
+ * code in the receipt in place of the mint's along with the capped fee, and prices
+ * the close's floors at the clock with that fee. The fill charges the recorded
+ * fee. Aborts as `admit_sell` does, and, for a sell that names a builder,
+ * `EBuilderFeeCutoverNotReached` until the version watermark reaches
+ * `constants::builder_fee_version!()`.
+ */
+export function admitSellWithBuilder<W extends BcsType<any>>(
+	options: AdmitSellWithBuilderOptions<W>,
+) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		`${options.typeArguments[0]}`,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u8',
+		'u64',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'W',
+		'market',
+		'config',
+		'account',
+		'receipt',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'builder',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+		'orderFee',
+		'sviMaxAgeMs',
+		'channel',
+		'tauMs',
+		'deadlineMs',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'admit_sell_with_builder',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

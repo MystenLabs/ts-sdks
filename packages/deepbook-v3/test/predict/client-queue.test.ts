@@ -214,8 +214,8 @@ describe('queued mints', () => {
 	test.each([
 		['not-live', { watermark: 3n }],
 		['not-live', { orderFlowEnabled: false }],
-		['retired', { deskWatermark: 2n }],
-		['retired', { watermark: 5n }],
+		['retired', { deskWatermark: 3n }],
+		['retired', { watermark: 6n }],
 		['paused', { frozen: true }],
 		['paused', { tradingPaused: true }],
 		['paused', { mintPaused: true }],
@@ -231,6 +231,16 @@ describe('queued mints', () => {
 		expect(
 			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
 		).toBe(code);
+	});
+
+	test('the Version 5 watermarks (Predict 5, desk 2) still queue', async () => {
+		// The batch that opens builder fees moves both floors to the code constants these bindings
+		// compile, so this SDK must keep queuing there, not report its own code retired.
+		const s = scenario({ ...spare(10_000_000_000n), watermark: 5n, deskWatermark: 2n });
+		const { pc } = client(s);
+		expect(
+			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
+		).toBe('none');
 	});
 
 	test('preflight refuses an order whose τ lands past the cutoff', async () => {
@@ -386,8 +396,8 @@ describe('reads', () => {
 		['frozen', { frozen: true }, 'paused', 'paused'],
 		['watermark not raised', { watermark: 3n }, 'not-live', 'not-live'],
 		['order flow not allowlisted', { orderFlowEnabled: false }, 'not-live', 'not-live'],
-		['the desk floor retired this companion', { deskWatermark: 2n }, 'retired', 'retired'],
-		['a Predict upgrade retired the code this SDK calls', { watermark: 5n }, 'retired', 'retired'],
+		['the desk floor retired this companion', { deskWatermark: 3n }, 'retired', 'retired'],
+		['a Predict upgrade retired the code this SDK calls', { watermark: 6n }, 'retired', 'retired'],
 		['the account at its cap', { waitingOrders: 5n }, 'account-cap', 'account-cap'],
 	] as [string, Partial<QueueScenario>, string | null, string | null][])(
 		'read.queue acceptance matches the builder gates: %s',

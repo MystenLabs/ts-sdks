@@ -29,6 +29,7 @@ import { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../../contr
 import * as desk from '../../contracts/deepbook_predict_orders/desk.js';
 import { OrderView as OrderViewBcs } from '../../contracts/deepbook_predict_orders/order_queue.js';
 import * as queue from '../../contracts/deepbook_predict_orders/queue.js';
+import { quoteRedeemOpen as quoteRedeemOpenCall } from '../bindings/queue.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseOptionalU64, parseU64LE } from './parse.js';
 
@@ -400,7 +401,7 @@ export async function quoteRedeemOpen(
 	const tx = new Transaction();
 	const pricer = tx.add(loadLivePricer(config, args));
 	tx.add(
-		queue.quoteRedeemOpen({
+		quoteRedeemOpenCall({
 			config,
 			arguments: {
 				queue: queueIdOf(config, args),

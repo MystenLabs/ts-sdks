@@ -465,10 +465,44 @@ export function oldestUnfinishedTauMs(options: OldestUnfinishedTauMsOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface BuilderFeePerContractArguments {
+	queue: RawTransactionArgument<string>;
+	recordId: RawTransactionArgument<number | bigint>;
+}
+export interface BuilderFeePerContractOptions {
+	package?: string;
+	arguments:
+		| BuilderFeePerContractArguments
+		| [queue: RawTransactionArgument<string>, recordId: RawTransactionArgument<number | bigint>];
+	config?: {
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Return the builder fee per contract `record_id`'s order pays at its fill, in
+ * FLOAT_SCALING of the $1 payout: the capped fee its receipt records, or `0` for a
+ * missing record, a record holding no receipt or an open one, and an order that
+ * names no builder. For SDK and devInspect reads of a waiting order.
+ */
+export function builderFeePerContract(options: BuilderFeePerContractOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['queue', 'recordId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'builder_fee_per_contract',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface QuoteRedeemOpenArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	recordId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
@@ -480,7 +514,7 @@ export interface QuoteRedeemOpenOptions {
 		| [
 				queue: RawTransactionArgument<string>,
 				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
+				Wrapper: RawTransactionArgument<string>,
 				pricer: TransactionArgument,
 				recordId: RawTransactionArgument<number | bigint>,
 				closeQuantity: RawTransactionArgument<number | bigint>,
@@ -491,12 +525,13 @@ export interface QuoteRedeemOpenOptions {
 }
 /**
  * Quote an early sell of `close_quantity` from the Open record `record_id` at a
- * live `Pricer`, with the wrapper account's builder code, through Predict's
- * `quote_close`: the close a queued sell fills, with the trading fee at the clock
- * instead of a committed tick. `proceeds` is before the order fee. Changes
- * nothing. Aborts `ERecordNotOpen` for a missing or non-Open record, and otherwise
- * as `quote_close` does. Does not check that the account owns the record. For SDK
- * and devInspect pricing before `enqueue_redeem_open`.
+ * live `Pricer` through Predict's `quote_close`: the close a queued sell fills,
+ * with the trading fee at the clock instead of a committed tick. No builder fee,
+ * matching `enqueue_redeem_open`; `quote_redeem_open_with_builder_fee` quotes a
+ * sell that names a builder. `proceeds` is before the order fee. Changes nothing.
+ * Aborts `ERecordNotOpen` for a missing or non-Open record, and otherwise as
+ * `quote_close` does. Does not check that the account owns the record. For SDK and
+ * devInspect pricing before `enqueue_redeem_open`.
  */
 export function quoteRedeemOpen(options: QuoteRedeemOpenOptions) {
 	const packageAddress =
@@ -506,13 +541,77 @@ export function quoteRedeemOpen(options: QuoteRedeemOpenOptions) {
 	const argumentsTypes = [null, null, null, null, 'u64', 'u64', '0x2::clock::Clock'] satisfies (
 		string | null
 	)[];
-	const parameterNames = ['queue', 'market', 'wrapper', 'pricer', 'recordId', 'closeQuantity'];
+	const parameterNames = ['queue', 'market', 'Wrapper', 'pricer', 'recordId', 'closeQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'queue',
 			function: 'quote_redeem_open',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface QuoteRedeemOpenWithBuilderFeeArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+}
+export interface QuoteRedeemOpenWithBuilderFeeOptions {
+	package?: string;
+	arguments: QuoteRedeemOpenWithBuilderFeeArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `quote_redeem_open` for a sell that names a builder, through Predict's
+ * `quote_close_with_builder_fee`: charges `builder_fee_per_contract`, in
+ * FLOAT_SCALING of the $1 payout, capped at `protocol_config::builder_fee_cap` and
+ * then at the redeem value left after the trading fee, as the fill charges it.
+ * Changes nothing and aborts like `quote_redeem_open`. For SDK and devInspect
+ * pricing before `enqueue_redeem_open_with_builder`.
+ */
+export function quoteRedeemOpenWithBuilderFee(options: QuoteRedeemOpenWithBuilderFeeOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'config',
+		'pricer',
+		'recordId',
+		'closeQuantity',
+		'builderFeePerContract',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'quote_redeem_open_with_builder_fee',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CreateAndShareArguments {
@@ -659,6 +758,106 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 			),
 		});
 }
+export interface EnqueueExactQuantityWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueExactQuantityWithBuilderArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_quantity` for an order that names a builder: `code` is the
+ * builder code the trade pays and `builder_fee_per_contract` its fee per contract,
+ * in FLOAT_SCALING of the $1 payout. Predict caps the fee at
+ * `protocol_config::builder_fee_cap`, records it in the order's receipt, and
+ * prices the order's limits with it, and the fill pays `quantity * fee`, rounded
+ * down, to the code. Refuses orders like `enqueue_exact_quantity`. Returns the new
+ * record ID.
+ */
+export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWithBuilderOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_quantity_with_builder',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactAmountArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -738,6 +937,102 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 			package: packageAddress,
 			module: 'queue',
 			function: 'enqueue_exact_amount',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactAmountWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueExactAmountWithBuilderArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_amount` for an order that names a builder, charging the capped
+ * `builder_fee_per_contract` to `code` like `enqueue_exact_quantity_with_builder`.
+ * The fee is inside the `max_cost` withdrawal cap. Returns the new record ID.
+ */
+export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBuilderOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_amount_with_builder',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -839,6 +1134,100 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 			),
 		});
 }
+export interface EnqueueExactCostWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueExactCostWithBuilderArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_cost` for an order that names a builder, charging the capped
+ * `builder_fee_per_contract` to `code` like `enqueue_exact_quantity_with_builder`.
+ * The fill sizes the order so the fee fits inside `max_cost`. Returns the new
+ * record ID.
+ */
+export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilderOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_cost_with_builder',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueRedeemOpenArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -925,6 +1314,103 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 			package: packageAddress,
 			module: 'queue',
 			function: 'enqueue_redeem_open',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueRedeemOpenWithBuilderArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenWithBuilderOptions {
+	package?: string;
+	arguments: EnqueueRedeemOpenWithBuilderArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_redeem_open` for a sell that names a builder: `code` is the builder
+ * code the sell pays and `builder_fee_per_contract` its fee per contract, in
+ * FLOAT_SCALING of the $1 payout. Predict caps the fee at
+ * `protocol_config::builder_fee_cap`, records it in the order's receipt, and
+ * checks `min_proceeds` with it, and the fill pays `close_quantity * fee`, rounded
+ * down, to the code, capped at the redeem value left after the trading fee.
+ * Refuses sells like `enqueue_redeem_open`. Returns the new record ID.
+ */
+export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuilderOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'code',
+		'builderFeePerContract',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_redeem_open_with_builder',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

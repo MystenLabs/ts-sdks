@@ -9,9 +9,14 @@ import { Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import * as generatedExpiryMarket from '../../src/contracts/deepbook_predict/expiry_market.js';
 import * as generatedProtocolConfig from '../../src/contracts/deepbook_predict/protocol_config.js';
+import * as generatedQueue from '../../src/contracts/deepbook_predict_orders/queue.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
-import { toGeneratedConfig } from '../../src/predict/config/generated.js';
-import { expiryMarketMoveCalls, protocolConfigMoveCalls } from '../../src/predict/index.js';
+import { toGeneratedConfig, toOrdersConfig } from '../../src/predict/config/generated.js';
+import {
+	expiryMarketMoveCalls,
+	protocolConfigMoveCalls,
+	queueMoveCalls,
+} from '../../src/predict/index.js';
 
 const config = toGeneratedConfig(TESTNET_CONFIG);
 const MARKET = '0x' + 'cd'.repeat(32);
@@ -186,6 +191,135 @@ describe('retired bindings keep their shipped argument keys', () => {
 						config,
 						arguments: { AdminCap: ADMIN_CAP, Enabled: false },
 					}),
+				),
+			),
+		);
+	});
+
+	test('the Version 5 renames: settled redeems, quote_close and quote_redeem_open', () => {
+		const QUEUE = '0x' + 'bb'.repeat(32);
+		const ordersConfig = toOrdersConfig(TESTNET_CONFIG);
+		const REGISTRY = '0x' + '99'.repeat(32);
+		const cases: [shipped: Add, generated: Add][] = [
+			[
+				(tx, auth) =>
+					tx.add(
+						expiryMarketMoveCalls.redeemSettled({
+							config,
+							arguments: { market: MARKET, wrapper: WRAPPER, auth, orderId: 3n },
+						}),
+					),
+				(tx, auth) =>
+					tx.add(
+						generatedExpiryMarket.redeemSettled({
+							config,
+							arguments: { Market: MARKET, Wrapper: WRAPPER, Auth: auth, OrderId: 3n },
+						}),
+					),
+			],
+			[
+				(tx) =>
+					tx.add(
+						expiryMarketMoveCalls.redeemSettledPermissionless({
+							config,
+							arguments: {
+								market: MARKET,
+								accountRegistry: REGISTRY,
+								wrapper: WRAPPER,
+								orderId: 4n,
+							},
+						}),
+					),
+				(tx) =>
+					tx.add(
+						generatedExpiryMarket.redeemSettledPermissionless({
+							config,
+							arguments: {
+								Market: MARKET,
+								AccountRegistry: REGISTRY,
+								Wrapper: WRAPPER,
+								OrderId: 4n,
+							},
+						}),
+					),
+			],
+			[
+				(tx, auth, pricer) =>
+					tx.add(
+						expiryMarketMoveCalls.quoteClose({
+							config,
+							arguments: {
+								market: MARKET,
+								pricer,
+								receipt: auth,
+								closeQuantity: 5n,
+								builderCodeId: null,
+							},
+						}),
+					),
+				(tx, auth, pricer) =>
+					tx.add(
+						generatedExpiryMarket.quoteClose({
+							config,
+							arguments: {
+								market: MARKET,
+								pricer,
+								receipt: auth,
+								closeQuantity: 5n,
+								BuilderCodeId: null,
+							},
+						}),
+					),
+			],
+			[
+				(tx, _auth, pricer) =>
+					tx.add(
+						queueMoveCalls.quoteRedeemOpen({
+							config: ordersConfig,
+							arguments: {
+								queue: QUEUE,
+								market: MARKET,
+								wrapper: WRAPPER,
+								pricer,
+								recordId: 6n,
+								closeQuantity: 7n,
+							},
+						}),
+					),
+				(tx, _auth, pricer) =>
+					tx.add(
+						generatedQueue.quoteRedeemOpen({
+							config: ordersConfig,
+							arguments: {
+								queue: QUEUE,
+								market: MARKET,
+								Wrapper: WRAPPER,
+								pricer,
+								recordId: 6n,
+								closeQuantity: 7n,
+							},
+						}),
+					),
+			],
+		];
+		for (const [shipped, generated] of cases) {
+			expect(built(shipped)).toBe(built(generated));
+		}
+	});
+
+	test('a positional tuple passes through unchanged', () => {
+		// Only for calls with no config-injected argument: a generated binding that injects one
+		// spreads its arguments into an object, so neither form takes a tuple there.
+		expect(
+			built((tx, auth, pricer) =>
+				tx.add(
+					expiryMarketMoveCalls.quoteClose({ config, arguments: [MARKET, pricer, auth, 5n, null] }),
+				),
+			),
+		).toBe(
+			built((tx, auth, pricer) =>
+				tx.add(
+					generatedExpiryMarket.quoteClose({ config, arguments: [MARKET, pricer, auth, 5n, null] }),
 				),
 			),
 		);

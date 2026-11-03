@@ -23,6 +23,12 @@
  * the settled payout need only the receipt. The queue itself, its escrow, its
  * policy, and its events live in the companion.
  *
+ * A trade that pays a builder names its code and fee per contract
+ * (`builder_code::BuilderFee`). `admit_mint_with_builder` and
+ * `admit_sell_with_builder` cap the fee at `protocol_config::builder_fee_cap` and
+ * record the code and the capped fee in the receipt, and the fill charges what the
+ * receipt records. The plain admissions name no builder and charge none.
+ *
  * Mainnet USDC is a regulated coin: Sui aborts a transaction that sends it to an
  * address on its deny list, or to anyone while it is globally paused. So the fill,
  * the fee routing, and the settled payout read `sui::deny_list` first and never
@@ -61,10 +67,18 @@ export const OrderReceipt = new MoveStruct({
 		higher_tick: U64,
 		/** The exact mint quantity, or the sell's close quantity. */
 		quantity: U64,
+		/**
+		 * A mint's premium cap. A sell never uses it, so a sell admitted with a builder
+		 * keeps its capped builder fee per contract here.
+		 */
 		max_premium: U64,
 		min_quantity: U64,
 		max_probability: U64,
 		min_probability: U64,
+		/**
+		 * A sell's proceeds floor. A mint never uses it, so a mint admitted with a builder
+		 * keeps its capped builder fee per contract here.
+		 */
 		min_proceeds: U64,
 		/** Earliest Pyth generation time the order may price at. */
 		tau_ms: U64,

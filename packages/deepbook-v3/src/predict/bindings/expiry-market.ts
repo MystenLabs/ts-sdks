@@ -125,3 +125,90 @@ export function redeemLive(options: RedeemLiveOptions) {
 		arguments: renameArguments(options.arguments, TRADE_KEYS),
 	});
 }
+
+// Predict v5 underscore-prefixed the parameters of three more functions: `redeem_settled` and
+// `redeem_settled_permissionless` retired, and `quote_close` ignores its builder code since
+// builder fees moved to each trade (`quote_close_with_builder_fee` quotes one). Their shipped keys
+// are kept here like the immediate trades'.
+const SETTLED_KEYS = {
+	market: 'Market',
+	wrapper: 'Wrapper',
+	auth: 'Auth',
+	config: 'Config',
+	accountRegistry: 'AccountRegistry',
+	orderId: 'OrderId',
+} as const;
+
+type Positional<Options extends { arguments: unknown }> = Extract<
+	Options['arguments'],
+	readonly unknown[]
+>;
+
+export interface RedeemSettledArguments {
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	config?: RawTransactionArgument<string>;
+	orderId: RawTransactionArgument<number | bigint>;
+}
+export interface RedeemSettledOptions extends Omit<generated.RedeemSettledOptions, 'arguments'> {
+	arguments: RedeemSettledArguments | Positional<generated.RedeemSettledOptions>;
+}
+/**
+ * @deprecated Retired by delayed execution in Predict v5: it always aborts
+ * `EDelayedExecutionRequired`. A queued fill never enters the account; the order-flow package pays
+ * its Open record at settlement. A network whose Predict call target is still v4 runs it as before.
+ */
+export function redeemSettled(options: RedeemSettledOptions) {
+	return generated.redeemSettled({
+		...options,
+		arguments: renameArguments(options.arguments, SETTLED_KEYS),
+	});
+}
+
+export interface RedeemSettledPermissionlessArguments {
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	orderId: RawTransactionArgument<number | bigint>;
+}
+export interface RedeemSettledPermissionlessOptions extends Omit<
+	generated.RedeemSettledPermissionlessOptions,
+	'arguments'
+> {
+	arguments:
+		RedeemSettledPermissionlessArguments | Positional<generated.RedeemSettledPermissionlessOptions>;
+}
+/**
+ * @deprecated Retired with `redeem_settled` in Predict v5: it always aborts
+ * `EDelayedExecutionRequired`. A network whose Predict call target is still v4 runs it as before.
+ */
+export function redeemSettledPermissionless(options: RedeemSettledPermissionlessOptions) {
+	return generated.redeemSettledPermissionless({
+		...options,
+		arguments: renameArguments(options.arguments, SETTLED_KEYS),
+	});
+}
+
+export interface QuoteCloseArguments {
+	market: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	receipt: TransactionArgument;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	builderCodeId: RawTransactionArgument<string | null>;
+}
+export interface QuoteCloseOptions extends Omit<generated.QuoteCloseOptions, 'arguments'> {
+	arguments: QuoteCloseArguments | Positional<generated.QuoteCloseOptions>;
+}
+/**
+ * The close a sell fill prices, without the trader's floors. From Predict v5 it quotes a sell that
+ * names no builder, whatever `builderCodeId` names; `quoteCloseWithBuilderFee` quotes one that
+ * does. Changes nothing.
+ */
+export function quoteClose(options: QuoteCloseOptions) {
+	return generated.quoteClose({
+		...options,
+		arguments: renameArguments(options.arguments, { builderCodeId: 'BuilderCodeId' }),
+	});
+}

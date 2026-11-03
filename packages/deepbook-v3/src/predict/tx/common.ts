@@ -15,6 +15,7 @@ export function accountContract(cfg: PredictConfig): AccountContract {
 	return new AccountContract({
 		accountPackageId: cfg.packages.account,
 		accountRegistry: cfg.objects.accountRegistry,
+		accountPackageIdLatest: cfg.packages.accountLatest,
 	});
 }
 
@@ -81,11 +82,12 @@ export function withAuth<Options extends AuthCallOptions>(
 // The derivation must agree with on-chain `derive_address`, so it is owned in one place:
 // `@mysten/deepbook-v3/account`. This projects Predict's config onto that contract.
 export function deriveAccountWrapperIdFrom(
-	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,
+	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageIdV1'>,
 	owner: string,
 ): string {
+	// The original ID: the key type's defining package, whatever account version runs.
 	return new AccountContract({
-		accountPackageId: config.accountPackageId,
+		accountPackageId: config.accountPackageIdV1,
 		accountRegistry: config.accountRegistry,
 	}).deriveAccountWrapperId(owner);
 }
@@ -105,12 +107,12 @@ const AccountKey = bcs.struct('AccountKey', { pos0: bcs.Address });
  * by it, and `queue::waiting_orders` takes it.
  */
 export function deriveAccountIdFrom(
-	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,
+	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageIdV1'>,
 	owner: string,
 ): string {
 	return deriveObjectID(
 		config.accountRegistry,
-		`${config.accountPackageId}::account_registry::AccountKey`,
+		`${config.accountPackageIdV1}::account_registry::AccountKey`,
 		AccountKey.serialize({ pos0: owner }).toBytes(),
 	);
 }

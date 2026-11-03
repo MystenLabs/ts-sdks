@@ -38,16 +38,20 @@ export const DELAYED_EXECUTION_VERSION = 4n;
  * Predict's `constants::current_version` of the package these bindings were generated from. Every
  * version-gated Predict call checks `chk_version`, which aborts `EPackageVersionDisabled` once
  * `ProtocolConfig.version_watermark` is above it, so a higher watermark retires the Predict code
- * this SDK calls. Bump it with Predict when regenerating.
+ * this SDK calls. Bump it with Predict when regenerating. Like `DELAYED_EXECUTION_VERSION` it is the
+ * code's version constant, which follows the Mainnet package number (5 ships as Mainnet v5 and runs
+ * as Testnet package v8), never the Testnet package number.
  */
-export const PREDICT_PACKAGE_VERSION = 4n;
+export const PREDICT_PACKAGE_VERSION = 5n;
 
 /**
  * `desk::current_version` of the order-flow package these bindings were generated from. The desk's
  * version floor retires older companion code, so a floor above it means the package this SDK calls
- * aborts `EPackageVersionDisabled`. Bump it with the companion when regenerating.
+ * aborts `EPackageVersionDisabled`. Bump it with the companion when regenerating. It follows the
+ * Mainnet package number (2 ships as Mainnet v2 and runs as Testnet package v3), never the Testnet
+ * package number.
  */
-export const ORDER_FLOW_PACKAGE_VERSION = 1n;
+export const ORDER_FLOW_PACKAGE_VERSION = 2n;
 
 /** `queue::phase_*`: what `settle_step` returns, the phase the next call runs. */
 export const SETTLE_PHASE = Object.freeze({

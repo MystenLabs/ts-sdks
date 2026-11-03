@@ -161,6 +161,10 @@ export const OrderFlowKey = new MoveTuple({
 	name: `${$moduleName}::OrderFlowKey<phantom W>`,
 	fields: [bcs.bool()],
 });
+export const BuilderFeeCapKey = new MoveTuple({
+	name: `${$moduleName}::BuilderFeeCapKey`,
+	fields: [bcs.bool()],
+});
 export interface IdArguments {
 	config?: RawTransactionArgument<string>;
 }
@@ -356,6 +360,43 @@ export function feeIncentiveSubsidyRate(options: FeeIncentiveSubsidyRateOptions)
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'fee_incentive_subsidy_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface BuilderFeeCapArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface BuilderFeeCapOptions {
+	package?: string;
+	arguments?: BuilderFeeCapArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the builder fee cap: the most a trade's builder fee can charge per
+ * contract, in FLOAT_SCALING of a contract's $1 payout. Admission charges a
+ * trade's named fee capped at this value. `public` for SDK and devInspect reads,
+ * so an app can show the fee a trade will actually pay.
+ */
+export function builderFeeCap(options: BuilderFeeCapOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'builder_fee_cap',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -1694,6 +1735,50 @@ export function setFeeIncentiveSubsidyRate(options: SetFeeIncentiveSubsidyRateOp
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_fee_incentive_subsidy_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetBuilderFeeCapArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	cap: RawTransactionArgument<number | bigint>;
+}
+export interface SetBuilderFeeCapOptions {
+	package?: string;
+	arguments: SetBuilderFeeCapArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the builder fee cap: the most a trade's builder fee can charge per contract,
+ * in FLOAT_SCALING of a contract's $1 payout, from `0` up to the whole payout. A
+ * trade that names a higher fee pays the cap. Read when an order is admitted, so
+ * the new cap applies to the next order on every market, and an order already
+ * queued keeps the fee it was admitted with. `0` stops builder fees.
+ *
+ * Not gated on the valuation flag, matching `set_fee_incentive_subsidy_rate`:
+ * nothing in the flush reads the cap, and a builder fee leaves with the trader's
+ * own payment, never market cash.
+ */
+export function setBuilderFeeCap(options: SetBuilderFeeCapOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'cap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_builder_fee_cap',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

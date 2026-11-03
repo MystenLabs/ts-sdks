@@ -200,3 +200,51 @@ describe('generated layout', () => {
 		expect(parsed.account.account_id).toBe(accountValue.account_id);
 	});
 });
+
+describe('receiveCoin / receiveCoinAtAccountId (account v2)', () => {
+	const LATEST = '0x' + '33'.repeat(32);
+	const COIN = '0x' + 'c0'.repeat(32);
+	const upgraded = new AccountContract({
+		accountPackageId: PKG,
+		accountRegistry: REGISTRY,
+		accountPackageIdLatest: LATEST,
+	});
+
+	test.each([
+		['receiveCoin', 'receive_coin'],
+		['receiveCoinAtAccountId', 'receive_coin_at_account_id'],
+	] as const)('%s calls the latest package with the wrapper and the coin', (builder, fn) => {
+		const tx = new Transaction();
+		const wrapperId = upgraded.deriveAccountWrapperId(OWNER);
+		tx.add(upgraded[builder]({ wrapperId, coin: COIN, coinType: COIN_TYPE }));
+		expect(targets(tx)).toEqual([`${LATEST}::account::${fn}`]);
+		expect(call(tx, 0).typeArguments).toEqual([COIN_TYPE]);
+		expect(argObjectId(tx, 0, 0)).toBe(normalizeSuiAddress(wrapperId));
+		expect(argObjectId(tx, 0, 1)).toBe(normalizeSuiAddress(COIN));
+	});
+
+	test('every builder calls the latest package once the config records one', () => {
+		// A PTB can't call account at an older version than another package in it links.
+		const tx = new Transaction();
+		tx.add(upgraded.createAccount());
+		tx.add(upgraded.generateAuth());
+		tx.add(upgraded.depositFunds({ wrapperId: COIN, coin: tx.object(COIN), coinType: COIN_TYPE }));
+		tx.add(upgraded.withdrawFunds({ wrapperId: COIN, amount: 1n, coinType: COIN_TYPE }));
+		tx.add(upgraded.balance({ owner: OWNER, coinType: COIN_TYPE }));
+		for (const target of targets(tx)) expect(target.startsWith(`${LATEST}::`)).toBe(true);
+	});
+
+	test('derivation keeps the original package id, so the wrapper address does not move', () => {
+		// The key type's defining package is the original id on chain, whatever version runs.
+		expect(upgraded.deriveAccountWrapperId(OWNER)).toBe(account.deriveAccountWrapperId(OWNER));
+	});
+
+	test.each(['receiveCoin', 'receiveCoinAtAccountId'] as const)(
+		'%s refuses a config still at account v1',
+		(builder) => {
+			expect(() => account[builder]({ wrapperId: OWNER, coin: COIN, coinType: COIN_TYPE })).toThrow(
+				/accountPackageIdLatest/,
+			);
+		},
+	);
+});
