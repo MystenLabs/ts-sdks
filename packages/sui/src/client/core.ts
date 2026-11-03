@@ -170,8 +170,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	/**
 	 * Verifies a personal message or transaction signature on the node; see the top-level
 	 * `client.verifySignature`. `valid: false` means invalid, malformed or not authorized for
-	 * `address`; network and protocol errors and a node that didn't apply a requested alias check
-	 * throw.
+	 * `address`; network and protocol errors throw.
 	 */
 	abstract verifySignature(
 		options: SuiClientTypes.VerifySignatureOptions,

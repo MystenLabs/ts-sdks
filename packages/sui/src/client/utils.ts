@@ -703,9 +703,6 @@ export function pageBase(): string | undefined {
 		return undefined;
 	}
 }
-export const ADDRESS_ALIAS_CHECK_NOT_APPLIED =
-	'The node did not apply the address alias check. Use a node that supports address alias ' +
-	'checks, or pass `checkAddressAliases: false` to accept only signatures from the address itself.';
 
 /** The `verifySignature` reason for a signature that can't be parsed. */
 export const MALFORMED_SIGNATURE = 'Cannot parse signature';

@@ -1251,8 +1251,7 @@ export namespace SuiClientTypes {
 		address?: string;
 		/**
 		 * Accept a signature from any of `address`'s current address aliases, not only from `address`
-		 * itself. Defaults to `true`; ignored without `address`. Throws if the node did not apply the
-		 * check.
+		 * itself. Defaults to `true`; ignored without `address`.
 		 */
 		checkAddressAliases?: boolean;
 	}

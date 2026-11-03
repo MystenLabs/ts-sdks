@@ -67,7 +67,7 @@ export async function isValidSignature(
  * Whether `signature` is a valid signature over the personal message `message` (a string is UTF-8
  * encoded, as in `client.verifySignature`). Returns `false`
  * for an invalid signature, or one from a signer not authorized for `address`. Throws for a network
- * error, a node that did not apply the address alias check, or a zkLogin signature offline.
+ * error, or a zkLogin signature offline.
  * `checkAddressAliases` is ignored without `address`.
  *
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.
@@ -86,7 +86,7 @@ export async function isValidPersonalMessageSignature(
 /**
  * Whether `signature` is a valid signature over the transaction bytes. Returns `false` for an
  * invalid signature, or one from a signer not authorized for `address`. Throws for a network error,
- * a node that did not apply the address alias check, or a zkLogin signature offline.
+ * or a zkLogin signature offline.
  * `checkAddressAliases` is ignored without `address`.
  *
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.

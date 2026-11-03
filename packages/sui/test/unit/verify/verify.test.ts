@@ -155,17 +155,20 @@ describe('GrpcCoreClient.verifySignature', () => {
 	}
 	const options = { personalMessage: 'hello', signature: 'AA==', address: '0x1' };
 
-	it('checks aliases by default and throws when the node did not apply the check', async () => {
-		const core = grpcCore({ isValid: true });
-		await expect(core.verifySignature(options)).rejects.toThrow(
-			'The node did not apply the address alias check',
-		);
-		expect(
-			await grpcCore({ isValid: true, addressAliasesChecked: true }).verifySignature(options),
-		).toEqual({ valid: true });
+	it('checks aliases by default', async () => {
+		const verifySignature = vi.fn().mockResolvedValue({ response: { isValid: true } });
+		const client = {
+			signatureVerificationService: { verifySignature },
+		} as unknown as SuiGrpcClient;
+		const core = new GrpcCoreClient({ client, base: client, network: 'localnet' });
+		expect(await core.verifySignature(options)).toEqual({ valid: true });
 		expect(await core.verifySignature({ ...options, checkAddressAliases: false })).toEqual({
 			valid: true,
 		});
+		expect(verifySignature.mock.calls.map(([request]) => request.checkAddressAliases)).toEqual([
+			true,
+			false,
+		]);
 	});
 
 	it('maps an invalid signature', async () => {

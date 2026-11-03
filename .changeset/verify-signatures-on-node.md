@@ -7,7 +7,7 @@ message and transaction signatures are verified by the node. To verify a signatu
 `client.verifySignature`; the helpers remain for offline verification or when you need the signer's
 public key. When `client.verifySignature` or a helper with a client is given an `address`, the
 signer may be `address` or one of its current address aliases (`checkAddressAliases`, default
-`true`), and the call throws if the node didn't apply that check. Pass `checkAddressAliases: false`
+`true`). Pass `checkAddressAliases: false`
 for a strict signer-equals-address check. `offline: true` verifies locally and can't verify zkLogin
 signatures. The raw-bytes `verifySignature` export from `@mysten/sui/verify` and `isValidSignature`
 now require `offline: true`. `verifyPersonalMessageSignature` and

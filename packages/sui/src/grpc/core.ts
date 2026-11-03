@@ -54,7 +54,6 @@ import {
 import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import {
-	ADDRESS_ALIAS_CHECK_NOT_APPLIED,
 	decodeSignature,
 	isMockedGasObjectId,
 	MALFORMED_SIGNATURE,
@@ -886,11 +885,6 @@ export class GrpcCoreClient extends CoreClient {
 				return { valid: false, reason };
 			}
 			throw error;
-		}
-
-		// Nodes that predate `check_address_aliases` ignore it and check `address` alone.
-		if (checkAddressAliases && response.addressAliasesChecked !== true) {
-			throw new Error(ADDRESS_ALIAS_CHECK_NOT_APPLIED);
 		}
 
 		return response.isValid

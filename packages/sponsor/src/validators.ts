@@ -153,8 +153,7 @@ export function onlyAddressBalanceGas(): Validator {
  *
  * A signature that's malformed, invalid, or from a signer that isn't the sender
  * or one of its aliases is reported as `USER_SIGNATURE_INVALID`. An
- * environmental failure (a network error or the node not applying the address
- * alias check) propagates as `ANALYSIS_FAILED`, so it is never mislabeled as a
+ * environmental failure (such as a network error) propagates as `ANALYSIS_FAILED`, so it is never mislabeled as a
  * bad signature.
  *
  * Reads `bytes` and `data`, plus the sponsor-injected `userSignatures` and
