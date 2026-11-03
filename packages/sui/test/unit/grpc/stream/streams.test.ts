@@ -899,11 +899,10 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			const retry = { initialDelay: 60_000, jitter: 0 };
 			const frames = await take(l.client().streamEvents({ retry, onStatus }), 2);
 			expect(eventIds(frames)).toEqual(['3:0', '4:0']);
-			// Gap recovery pages from the committed progress to the indexed tip, not to the live
-			// progress cursor; the first live item then replays up to its own position.
+			// Gap recovery pages from the committed progress up to the new subscription's entry watermark.
 			const [gap] = l.requestsTo('ListEvents');
 			expect(gap.options?.after).toEqual(mark('a'));
-			expect(gap.options?.before).toBeUndefined();
+			expect(gap.options?.before).toEqual(mark('b'));
 			// Progress was committed, so the reconnect only pauses briefly despite the long backoff.
 			expect(log).toContain('Retrying(1,250)');
 		});
