@@ -14,8 +14,8 @@
  * observations use separate stores because the verifier exposes distinct batch and
  * value types. The registry creates and binds both stores atomically from one
  * base-asset input. An SVI store also derives its series ids from an admin-set
- * provider model, so the admin chooses which of the provider's SVI surfaces the
- * store accepts and serves.
+ * provider model and decimals, so the admin chooses which of the provider's SVI
+ * surfaces the store accepts and serves, and at what scale.
  */
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
@@ -97,6 +97,10 @@ export const SviModelKey = new MoveTuple({
 	name: `${$moduleName}::SviModelKey`,
 	fields: [bcs.bool()],
 });
+export const SviDecimalsKey = new MoveTuple({
+	name: `${$moduleName}::SviDecimalsKey`,
+	fields: [bcs.bool()],
+});
 /**
  * Emitted only for observations that were stored, so its presence means the series
  * advanced.
@@ -136,6 +140,14 @@ export const BlockScholesSVIModelSet = new MoveStruct({
 		propbook_underlying_id: bcs.u32(),
 		propbook_oracle_id: bcs.Address,
 		svi_model: bcs.string(),
+	},
+});
+export const BlockScholesSVIDecimalsSet = new MoveStruct({
+	name: `${$moduleName}::BlockScholesSVIDecimalsSet`,
+	fields: {
+		propbook_underlying_id: bcs.u32(),
+		propbook_oracle_id: bcs.Address,
+		svi_decimals: bcs.u8(),
 	},
 });
 export const BlockScholesBatchIngested = new MoveStruct({
@@ -299,6 +311,30 @@ export function sviModel(options: SviModelOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SviDecimalsArguments {
+	store: RawTransactionArgument<string>;
+}
+export interface SviDecimalsOptions {
+	package?: string;
+	arguments: SviDecimalsArguments | [store: RawTransactionArgument<string>];
+}
+/**
+ * Returns the decimals this store's SVI series ids derive from and its SVI rows
+ * are scaled at: `a`, `b`, `rho`, `m`, and `sigma` are each `value / 10^decimals`.
+ * For relayer subscription construction and for readers interpreting `svi` rows.
+ */
+export function sviDecimals(options: SviDecimalsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['store'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'svi_decimals',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface SpotSidArguments {
 	store: RawTransactionArgument<string>;
 }
@@ -353,8 +389,8 @@ export interface SviSidOptions {
 		| [store: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
 }
 /**
- * Returns one canonical SVI series id, under the store's current model, for
- * external subscription construction.
+ * Returns one canonical SVI series id, under the store's current model and
+ * decimals, for external subscription construction.
  */
 export function sviSid(options: SviSidOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';

@@ -197,10 +197,10 @@ describe('sessions deployment ids', () => {
 	// package was told apart from the version retired by DBU-746.
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
-		// Sessions v5 from the Version 5 rehearsal, relinked to Predict v8, predict_orders v3 and
-		// account v2 (DBU-1117).
+		// Sessions v6 from the P-33 SVI-decimals pass, relinked to Predict v9, predict_orders v4 and
+		// Propbook v3 (DBU-1152).
 		expect(cfg.sessionsPackageId).toBe(
-			'0x13108df3e049a45ef396e49477b50fea157e7b9994ab835e72d3726855a9d651',
+			'0x8b3e5c2a5aa9c9bb65c87869802deffce4302ca850dc75a0a49429193251ba18',
 		);
 		expect(cfg.sessionsPackageIdV1).toBe(
 			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',

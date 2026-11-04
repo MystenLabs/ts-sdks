@@ -23,6 +23,13 @@
  * order's committed Pyth tick. The `try_*` reads price exactly as `up_price` and
  * `range_price` do, and return `none` where those abort, so an order-flow fill
  * never aborts on a surface.
+ *
+ * A Propbook SVI store signs its parameters at the decimals the admin set on it,
+ * `9` or `18`. Every load prices `a` and `b` at 1e18 either way, exactly when the
+ * store is at 18. A receipt's snapshot keeps them at 1e9, so an admission at 18
+ * also records the full-precision tuple in its market's SVI cache, a dynamic field
+ * this module keeps on the market's UID (`SviKey`), and the fill prices from that
+ * entry when it still holds it.
  */
 
 import { MoveStruct } from '../../../utils/index.js';

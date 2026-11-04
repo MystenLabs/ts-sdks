@@ -120,12 +120,12 @@ export const ProtocolConfig = new MoveStruct({
 		valuation_in_progress: bcs.bool(),
 		/**
 		 * True ONLY while the atomic snapshot stage is open — set by `open_snap` at
-		 * `start_pool_valuation` and cleared by `end_snapshot` at
-		 * `seal_valuation_snapshot`. Both live in one PTB (the `SnapshotStage` hot potato
-		 * forces it), so this can never be observed across transactions: it blocks only a
-		 * trade the keeper composes INTO its own snapshot PTB, where a mid-stamp cash move
-		 * would skew the figures the seal freezes. The resumable valuation stage after the
-		 * seal leaves it false, so trading stays live.
+		 * `start_pool_valuation` and cleared by `end_snap` at `seal_valuation_snapshot`.
+		 * Both live in one PTB (the `SnapshotStage` hot potato forces it), so this can
+		 * never be observed across transactions: it blocks only a trade the keeper
+		 * composes INTO its own snapshot PTB, where a mid-stamp cash move would skew the
+		 * figures the seal freezes. The resumable valuation stage after the seal leaves it
+		 * false, so trading stays live.
 		 */
 		snapshot_in_progress: bcs.bool(),
 		/**
@@ -532,7 +532,7 @@ export interface IsFlushOperatorOptions {
 }
 /**
  * Whether `operator` may call `plp::finish_flush`. For SDK, keeper, and devInspect
- * reads; `finish_flush` gates through `chk_operator`.
+ * reads; `finish_flush` gates through `chk_op`.
  */
 export function isFlushOperator(options: IsFlushOperatorOptions) {
 	const packageAddress =

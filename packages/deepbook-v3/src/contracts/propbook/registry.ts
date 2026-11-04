@@ -639,3 +639,51 @@ export function setBlockScholesSviModel(options: SetBlockScholesSviModelOptions)
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SetBlockScholesSviDecimalsArguments {
+	sviStore: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	sviDecimals: RawTransactionArgument<number>;
+}
+export interface SetBlockScholesSviDecimalsOptions {
+	package?: string;
+	arguments:
+		| SetBlockScholesSviDecimalsArguments
+		| [
+				sviStore: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				sviDecimals: RawTransactionArgument<number>,
+		  ];
+}
+/**
+ * Admin-set the decimals `svi_store` derives its accepted and served SVI series
+ * ids from, `9` or `18`.
+ *
+ * The provider signs SVI parameters at the decimals a relayer subscribes with, and
+ * the series id hashes them, so a store accepts and serves one scale at a time,
+ * for every expiry at once. A store whose decimals were never set uses `9`, and
+ * the store must be at the running package version. After a change, a batch signed
+ * at any other decimals aborts as a foreign series, so a relayer must resubscribe
+ * at the new decimals. Decimals never used on this store read `none` until their
+ * first signed observation lands; decimals set back serve their last stored rows
+ * again, which consumers accept for as long as those rows are within their
+ * freshness windows. Stored rows carry no scale, so a consumer must read
+ * `svi_decimals` with each row: one that assumes `9` would read an `18`-decimal
+ * row as a value `1e9` times too large. A consumer linked to a package version
+ * before the decimals existed reads through that version, and the `9`-decimal rows
+ * until they age out, except in a transaction that also calls this version or
+ * later, directly or through a package linked to it: Sui then runs one Propbook
+ * version for the whole transaction, and the consumer reads the current decimals'
+ * rows.
+ */
+export function setBlockScholesSviDecimals(options: SetBlockScholesSviDecimalsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
+	const parameterNames = ['sviStore', 'AdminCap', 'sviDecimals'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'set_block_scholes_svi_decimals',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
