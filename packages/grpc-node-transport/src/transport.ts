@@ -172,6 +172,36 @@ const CONNECTION_DROPPED = 'Connection dropped';
 // text (`build/src/subchannel-call.js`), so the status is read from it for the shared HTTP rules.
 const HTTP_STATUS = /^Received HTTP status code (\d{3})$/;
 
+/** The gRPC-web transport's code for an HTTP error status, so both transports report the same. */
+function httpStatusToGrpc(status: number): GrpcStatusCode {
+	switch (status) {
+		case 400:
+			return GrpcStatusCode.INVALID_ARGUMENT;
+		case 401:
+			return GrpcStatusCode.UNAUTHENTICATED;
+		case 403:
+			return GrpcStatusCode.PERMISSION_DENIED;
+		case 404:
+			return GrpcStatusCode.NOT_FOUND;
+		case 409:
+			return GrpcStatusCode.ABORTED;
+		case 412:
+			return GrpcStatusCode.FAILED_PRECONDITION;
+		case 429:
+			return GrpcStatusCode.RESOURCE_EXHAUSTED;
+		case 499:
+			return GrpcStatusCode.CANCELLED;
+		case 501:
+			return GrpcStatusCode.UNIMPLEMENTED;
+		case 503:
+			return GrpcStatusCode.UNAVAILABLE;
+		case 504:
+			return GrpcStatusCode.DEADLINE_EXCEEDED;
+		default:
+			return GrpcStatusCode.UNKNOWN;
+	}
+}
+
 function reasonMessage(reason: unknown): string {
 	if (typeof reason === 'string') return reason;
 
@@ -233,7 +263,10 @@ function toRpcError(
 		);
 		if (reset || dropped) markConnectionLost(rpcError);
 		const httpStatus = HTTP_STATUS.exec(details ?? '')?.[1];
-		if (httpStatus) markHttpStatus(rpcError, Number(httpStatus));
+		if (httpStatus) {
+			markHttpStatus(rpcError, Number(httpStatus));
+			rpcError.code = statusName(httpStatusToGrpc(Number(httpStatus)));
+		}
 		// The same message would be sent or arrive again on retry, so it is not retryable.
 		if (
 			code === (GrpcStatusCode.RESOURCE_EXHAUSTED as number) &&

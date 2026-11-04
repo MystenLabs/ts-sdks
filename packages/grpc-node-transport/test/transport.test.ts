@@ -624,6 +624,39 @@ describe('GrpcNodeTransport', () => {
 		});
 
 		it.each([
+			[400, 'INVALID_ARGUMENT'],
+			[401, 'UNAUTHENTICATED'],
+			[403, 'PERMISSION_DENIED'],
+			[404, 'NOT_FOUND'],
+			[405, 'UNKNOWN'],
+			[409, 'ABORTED'],
+			[412, 'FAILED_PRECONDITION'],
+			[429, 'RESOURCE_EXHAUSTED'],
+			[499, 'CANCELLED'],
+			[500, 'UNKNOWN'],
+			[501, 'UNIMPLEMENTED'],
+			[502, 'UNKNOWN'],
+			[503, 'UNAVAILABLE'],
+			[504, 'DEADLINE_EXCEEDED'],
+		])('codes a proxy HTTP %i %s, as the gRPC-web transport does', async (status, code) => {
+			const proxy = await startHttpErrorServer(status);
+			const rejecting = new GrpcNodeTransport({ baseUrl: proxy.baseUrl });
+			try {
+				const proxied = new SuiGrpcClient({ network: 'localnet', transport: rejecting });
+				const error = await proxied.ledgerService
+					.getServiceInfo({})
+					.response.catch((reason: unknown) => reason);
+
+				expect(error).toBeInstanceOf(RpcError);
+				expect((error as RpcError).code).toBe(code);
+				expect((error as RpcError).message).toBe(`Received HTTP status code ${status}`);
+			} finally {
+				rejecting.close();
+				await proxy.stop();
+			}
+		});
+
+		it.each([
 			[405, 'fatal', []],
 			[413, 'fatal', []],
 			[429, 'retry', ['RateLimited', 'RateLimited', 'RateLimited']],
