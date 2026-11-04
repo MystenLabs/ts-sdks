@@ -290,7 +290,8 @@ export namespace SuiClientTypes {
 		/**
 		 * `retentionLimit`: a read toward genesis stopped at the oldest checkpoint the server
 		 * retains, because older history has been pruned. GraphQL transaction and event streams
-		 * can't see where the server's history starts, so they report `genesis` there too.
+		 * can't see where the server's history starts: reading pruned history retries the server's
+		 * error as `ServerError` instead.
 		 */
 		reason: 'checkpointBound' | 'cursorBound' | 'indexedTip' | 'genesis' | 'retentionLimit';
 		/** Last delivered position, if there is one. */

@@ -245,8 +245,7 @@ async function resolvePackage(
 	return normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package);
 }
 
-// Checked before any MVR request: a non-string would otherwise fail later with a `TypeError`, which
-// streams cannot tell apart from an MVR network failure.
+// Checked before any MVR request, so a non-string fails with a clear message, not a `TypeError`.
 function assertStrings(filter: Record<string, unknown>, fields: string[]) {
 	for (const field of fields) {
 		const value = filter[field];
