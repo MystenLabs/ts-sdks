@@ -23,9 +23,16 @@
  * order's committed Pyth tick. The `try_*` reads price exactly as `up_price` and
  * `range_price` do, and return `none` where those abort, so an order-flow fill
  * never aborts on a surface.
+ *
+ * A Propbook SVI store signs its parameters at the decimals the admin set on it,
+ * `9` or `18`. Every load prices `a` and `b` at 1e18 either way, exactly when the
+ * store is at 18. A receipt's snapshot keeps them at 1e9, so an admission at 18
+ * also records the full-precision tuple in its market's SVI cache, a dynamic field
+ * this module keeps on the market's UID (`SviKey`), and the fill prices from that
+ * entry when it still holds it.
  */
 
-import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import { MoveStruct, MoveTuple, normalizeMoveArguments } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { U64, U128 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
@@ -60,10 +67,10 @@ export const VolSnapshot = new MoveStruct({
 export const PricingSVI = new MoveStruct({
 	name: `${$moduleName}::PricingSVI`,
 	fields: {
-		/** Rolled-down SVI `a`, magnitude at 1e18, sign in `a_is_negative`. */
+		/** SVI `a`, magnitude at 1e18, sign in `a_is_negative`. */
 		a_magnitude: U128,
 		a_is_negative: bcs.bool(),
-		/** Rolled-down SVI `b`, at 1e18. */
+		/** SVI `b`, at 1e18. */
 		b: U128,
 		rho: i64.I64,
 		m: i64.I64,
@@ -123,6 +130,7 @@ export const RawSVI = new MoveStruct({
 		sigma: U64,
 	},
 });
+export const SviKey = new MoveTuple({ name: `${$moduleName}::SviKey`, fields: [bcs.bool()] });
 export interface UpPriceArguments {
 	pricer: TransactionArgument;
 	strike: TransactionArgument;

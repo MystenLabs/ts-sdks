@@ -22,17 +22,17 @@ test('all shared object IDs are well-formed', () => {
 test('Testnet records delayed execution', () => {
 	// Testnet's v5 rollout (DBU-887) introduced the delayed-execution types, and the relink to
 	// Propbook v2 (DBU-1027) moved the call targets: predict_orders v2 and predict_math v2. The
-	// cadence-table upgrade (DBU-1109) moved Predict to v7, and the Version 5 rehearsal (DBU-1117)
-	// to v8 with predict_orders v3. The delayed-execution type origin stays v5, and predict_orders'
+	// cadence-table upgrade (DBU-1109) moved Predict to v7, the Version 5 rehearsal (DBU-1117) to
+	// v8 with predict_orders v3, and the P-33 SVI-decimals pass (DBU-1152) to v9 with orders v4. The delayed-execution type origin stays v5, and predict_orders'
 	// events stay typed by its v1 original ID.
 	expect(TESTNET_CONFIG.packages.predict).toBe(
-		'0x7fc9677ddefd072c414c6dee981ca04017244087cd45b8386ce7844fb66838ce',
+		'0x481215e20e09c01350dd6f7803425566e4f854e44283af026c7304c41eb85f81',
 	);
 	expect(TESTNET_CONFIG.packages.predictDelayedExecution).toBe(
 		'0x0654ecbed7c0f2645d9de7cb6cf08e65c2ee05cdbb39a415f17a6bd1cd92e267',
 	);
 	expect(TESTNET_CONFIG.packages.predictOrders).toBe(
-		'0xc5869f5bc0514da9df93e7aee491045cfcdf6a3d1e436bc337241d6ef75289ae',
+		'0xcd6ff112fbe45f5d0fbf581628dde4cf2ef58ea169a496ad2aa18983cf1e289b',
 	);
 	expect(TESTNET_CONFIG.packages.predictOrdersV1).toBe(
 		'0xd723ddef890bff70bd492cd384c913b5e7daeb6e8900cb3a5606546ac4f3907f',
