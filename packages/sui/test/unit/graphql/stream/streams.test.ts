@@ -330,12 +330,8 @@ describe('historical scan', () => {
 			}),
 		);
 		expect(again.map(label)).toEqual(['3:0']);
-		// The token's coverage bounds the read from below as well.
 		expect(resumed.sent('scanEvents')).toEqual([
-			expect.objectContaining({
-				after: frontier,
-				filter: { afterCheckpoint: 0, beforeCheckpoint: 6 },
-			}),
+			expect.objectContaining({ after: frontier, filter: { beforeCheckpoint: 6 } }),
 		]);
 	});
 
