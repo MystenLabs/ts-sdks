@@ -10,7 +10,7 @@ import { bcs } from '../../../src/bcs/index.js';
 import { GENESIS_TRANSACTION_GZIP_BASE64 } from './fixtures/genesis-transaction.js';
 
 // BCS `TransactionData` of system transactions captured from a `sui start --force-regenesis
-// --epoch-duration-ms 15000` localnet on the pinned `testnet-v1.82.1` image, keyed by digest.
+// --epoch-duration-ms 15000` localnet on the `testnet-v1.82.1` image, keyed by digest.
 const FIXTURES = {
 	// EtjisPKCjzHU2919Y8k7uGgPEpbnehMN2MXLuTGrgoC4
 	CONSENSUS_COMMIT_PROLOGUE_V4:
