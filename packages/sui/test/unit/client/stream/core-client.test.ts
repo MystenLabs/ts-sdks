@@ -99,6 +99,7 @@ describe('CoreClient ledger streams', () => {
 		['transactions', { affectedAddress: '0x1', function: '0x2::coin' }, 'at most one of'],
 		['transactions', { function: '0x2::a::b::c' }, 'Invalid function filter'],
 		['transactions', { sender: 'alice' }, 'Invalid sender filter "alice"'],
+		['transactions', { sender: '' }, 'Invalid sender filter ""'],
 		['transactions', { affectedObject: '0x' + '1'.repeat(65) }, 'Invalid affectedObject filter'],
 		['transactions', { function: 'alice::coin' }, '"alice" is not a package address'],
 		['events', { sender: 123 }, 'Invalid sender filter'],

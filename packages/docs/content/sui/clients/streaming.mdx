@@ -252,8 +252,8 @@ item at or past the chain tip when the stream started, so a quiet filter catchin
 
 Checkpoints (`frame.checkpoint.timestampMs`) and transactions (`timestampMs` and `checkpoint` on
 `frame.transaction.Transaction ?? frame.transaction.FailedTransaction`) carry their checkpoint's
-timestamp, so `Date.now() - timestampMs` is their lag. The transaction fields are typed
-`number | null` and `string | null`, but are always set on streamed transactions:
+timestamp, so `Date.now() - timestampMs` is their lag. On streamed transactions `checkpoint` is a
+`string`; `timestampMs` is typed `number | null` but is always set:
 
 ```typescript
 for await (const frame of client.streamTransactions({ filter })) {

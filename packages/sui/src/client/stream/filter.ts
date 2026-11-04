@@ -34,7 +34,7 @@ export function validateStreamFilter(request: LedgerStreamRequest): void {
 function assertAddresses<Filter extends object>(filter: Filter, fields: (keyof Filter & string)[]) {
 	for (const field of fields) {
 		const value = filter[field];
-		if (typeof value === 'string' && !isValidSuiAddress(normalizeSuiAddress(value))) {
+		if (typeof value === 'string' && !isAddress(value)) {
 			throw new Error(`Invalid ${field} filter "${value}": expected a Sui address`);
 		}
 	}
@@ -45,7 +45,12 @@ function assertPackage<Filter extends object>(filter: Filter, field: keyof Filte
 	const value = filter[field];
 	if (typeof value !== 'string') return;
 	const pkg = value.split('::')[0];
-	if (!hasMvrName(pkg) && !isValidSuiAddress(normalizeSuiAddress(pkg))) {
+	if (!hasMvrName(pkg) && !isAddress(pkg)) {
 		throw new Error(`Invalid ${field} filter "${value}": "${pkg}" is not a package address`);
 	}
+}
+
+/** A short or full address; an empty string would normalize to 0x0. */
+function isAddress(value: string): boolean {
+	return value !== '' && isValidSuiAddress(normalizeSuiAddress(value));
 }

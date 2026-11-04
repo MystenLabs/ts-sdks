@@ -160,5 +160,5 @@ and decoded pure inputs are best-effort. `dryRunFromSimulation` similarly builds
 - A `maxResponseMessageBytes` option on `SuiGrpcClient` and `GrpcWebFetchTransport` caps each
   response message that stream reads accept (64 MiB by default).
 - `SuiGraphQLClient.subscribe` runs GraphQL subscriptions; `subscriptionUrl` sets their endpoint.
-- Resumable checkpoint, transaction, and event streams on `SuiGrpcClient` and `SuiGraphQLClient`,
-  and typed GraphQL subscriptions. See [Resumable ledger streams](/sui/clients/streaming).
+- Resumable checkpoint, transaction, and event streams on `SuiGrpcClient` and `SuiGraphQLClient`.
+  See [Resumable ledger streams](/sui/clients/streaming).
