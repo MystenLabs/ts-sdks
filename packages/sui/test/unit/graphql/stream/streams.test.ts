@@ -607,25 +607,6 @@ describe('resumable empty passes', () => {
 			{ $kind: 'Complete', completion: { resumeToken: token(frames[0]) } },
 		]);
 	});
-
-	// Older servers can answer an empty window with `hasNextPage: true` and the cursor they were
-	// sent.
-	it('ends the window at an empty page that repeats the cursor it was sent', async () => {
-		const [anchor] = await followTokens('events', [event(1)]);
-		const server = fakeGraphQL({ tip: 5 }).on(
-			'scanEvents',
-			page('events', [], { more: true, cursor: event(1).cursor }),
-		);
-		const frames = await collect(
-			stream(server.client, 'events', {
-				start: { resumeToken: anchor },
-				end: { checkpoint: 3 },
-				frames: { completion: true },
-			}),
-		);
-		expect(frames.map(label)).toEqual(['Complete']);
-		expect(server.sent('scanEvents')).toHaveLength(1);
-	});
 });
 
 describe('polling', () => {

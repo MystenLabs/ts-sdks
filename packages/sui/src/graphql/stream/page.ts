@@ -38,12 +38,7 @@ export async function fetchGraphQLPage<Node>(
 	const { pageInfo } = page;
 	const more = descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage;
 	const cursor = descending ? pageInfo.startCursor : pageInfo.endCursor;
-	// Server quirk: an empty window can report more pages while returning the cursor it was sent.
-	const stalled = edges.length === 0 && cursor !== null && cursor === (descending ? before : after);
-	const next = {
-		more: more && !stalled,
-		cursor: cursor === null ? undefined : cursorBytes(cursor),
-	};
+	const next = { more, cursor: cursor === null ? undefined : cursorBytes(cursor) };
 	return {
 		items: pageItems(
 			edges.map((edge) => pageItem(family, edge)),
