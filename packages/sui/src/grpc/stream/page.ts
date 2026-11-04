@@ -18,6 +18,7 @@ import {
 	type GrpcItem,
 	type ListFrame,
 	type ListRequest,
+	watermarkPosition,
 } from './families.js';
 
 const U64_MAX = (1n << 64n) - 1n;
@@ -95,7 +96,7 @@ async function* listItems(
 		return { next: { more: false }, notIndexed: true };
 	}
 	return {
-		next: { more, cursor: watermark?.cursor },
+		next: { more, cursor: watermark?.cursor, position: watermarkPosition(watermark) },
 		covered: order === 'ascending' ? checkpoint : undefined,
 		// Without a lower bound, a descending read stops at the oldest checkpoint the server keeps.
 		retainedFrom:

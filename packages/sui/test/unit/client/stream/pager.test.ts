@@ -18,6 +18,8 @@ import {
 	type StreamPosition,
 } from '../../../../src/client/stream/position.js';
 
+import { cursorOf, fakeAdapter, type FakeItem, itemId, Ledger } from './fake-ledger.js';
+
 const bytes = (label: string) => new TextEncoder().encode(label);
 const item = (checkpoint: bigint, index: bigint): StreamPosition =>
 	itemPosition(checkpoint, { cursor: bytes(`${checkpoint}:${index}`), transactionIndex: index });
@@ -444,5 +446,80 @@ describe('readPages', () => {
 
 		const before = await read(quiet({ viewedAt: 1n }).adapter, pass);
 		expect(delivered(before.events)).toEqual(['Boundary@3']);
+	});
+});
+
+describe('cuts inside a checkpoint', () => {
+	/** mulberry32 */
+	function random(seed: number) {
+		let state = seed >>> 0;
+		return (below: number) => {
+			state = (state + 0x6d2b79f5) >>> 0;
+			let t = state;
+			t = Math.imul(t ^ (t >>> 15), t | 1);
+			t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+			return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * below);
+		};
+	}
+	const key = (checkpoint: bigint, index: number) => checkpoint * 1000n + BigInt(index);
+
+	it('commits the position an empty page reports', async () => {
+		const at = boundaryPosition(7n, { cursor: bytes('7:2'), transactionIndex: 3n });
+		const { adapter } = scripted([
+			page([], { more: true, cursor: bytes('7:2'), position: at }),
+			page([item(8n, 0n)], { more: false }, { viewedAt: 9n }),
+		]);
+		const { events } = await read(adapter, { order: 'ascending', start: { checkpoint: 1n } });
+		expect(events.find((event) => event.$kind === 'Progress')).toMatchObject({
+			position: { kind: 'Boundary', checkpoint: 7n, transactionIndex: 3n },
+		});
+	});
+
+	it('reads exactly the items between random boundaries, in both orders', async () => {
+		for (let seed = 1; seed <= 300; seed++) {
+			const rng = random(seed);
+			const counts = Array.from({ length: 6 }, () => rng(4));
+			const ledger = new Ledger(counts);
+			// The boundary before item `index` of `checkpoint`; `index` may be past its last item.
+			const cut = () => {
+				const checkpoint = rng(counts.length + 1);
+				const index = rng((counts[checkpoint] ?? 0) + 1);
+				return { checkpoint: BigInt(checkpoint), index };
+			};
+			const [low, high] = [cut(), cut()].sort((a, b) =>
+				Number(key(a.checkpoint, a.index) - key(b.checkpoint, b.index)),
+			);
+			// A cursor resumes past it in traversal order: ascending after the item before the cut,
+			// descending before the item at it.
+			const boundary = (at: typeof low, order: 'ascending' | 'descending') =>
+				boundaryPosition(at.checkpoint, {
+					transactionIndex: BigInt(at.index),
+					cursor: cursorOf({
+						checkpoint: at.checkpoint,
+						index: order === 'ascending' ? at.index - 1 : at.index,
+					}),
+				});
+			const expected = ledger.items
+				.filter((item) => {
+					const k = key(item.checkpoint, item.index);
+					return k >= key(low.checkpoint, low.index) && k < key(high.checkpoint, high.index);
+				})
+				.map(itemId);
+			for (const order of ['ascending', 'descending'] as const) {
+				const adapter = fakeAdapter(ledger, { pageSize: 1 + rng(3) });
+				const [start, end] = order === 'ascending' ? [low, high] : [high, low];
+				const { events, result } = await read(adapter as never, {
+					order,
+					start: { position: boundary(start, order) },
+					end: { position: boundary(end, order) },
+				});
+				const delivered = events.flatMap((event) =>
+					event.$kind === 'Item' ? [itemId(event.item as unknown as FakeItem)] : [],
+				);
+				const context = `seed ${seed}, ${order}`;
+				expect(delivered, context).toEqual(order === 'ascending' ? expected : expected.reverse());
+				expect(result.complete, context).toBe(true);
+			}
+		}
 	});
 });

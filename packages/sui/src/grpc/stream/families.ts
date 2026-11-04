@@ -4,12 +4,7 @@
 import type { MethodInfo, ServiceType } from '@protobuf-ts/runtime-rpc';
 
 import type { ItemFrame, StreamFamily, StreamPosition } from '../../client/stream/index.js';
-import {
-	boundaryPosition,
-	itemPosition,
-	progressPosition,
-	SuiStreamError,
-} from '../../client/stream/index.js';
+import { boundaryPosition, itemPosition, SuiStreamError } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import {
 	CHECKPOINT_READ_MASK_PATHS,
@@ -168,20 +163,34 @@ export function framePosition(
 	frame: { watermark?: Watermark },
 	item: GrpcItem | undefined,
 ): StreamPosition {
-	const { watermark } = frame;
+	const position = watermarkPosition(frame.watermark);
+	if (!item) return position;
+	const { checkpoint, ...indexes } = itemCoordinates(item);
+	return itemPosition(checkpoint, {
+		...indexes,
+		cursor: frame.watermark!.cursor!,
+		coverage: position.coverage,
+	});
+}
+
+/** The resume point a watermark reports, as the boundary at its `cursor_position`. */
+export function watermarkPosition(watermark: Watermark | undefined): StreamPosition {
 	if (!watermark?.cursor?.length) {
 		throw new SuiStreamError('Protocol', 'Ledger response is missing its watermark cursor');
 	}
-	const fields = {
+	const at = watermark.cursorPosition;
+	if (at?.checkpoint === undefined) {
+		throw new SuiStreamError('Protocol', 'Ledger watermark is missing its cursor position');
+	}
+	return boundaryPosition(at.checkpoint, {
 		cursor: watermark.cursor,
+		transactionIndex: at.transactionIndex ?? (at.eventIndex ? 0n : null),
+		eventIndex: at.eventIndex ?? null,
 		coverage:
 			watermark.checkpoint === undefined
-				? ({ $kind: 'Unknown' } as const)
-				: ({ $kind: 'Through', checkpoint: watermark.checkpoint } as const),
-	};
-	if (!item) return progressPosition(watermark.cursor, fields);
-	const { checkpoint, ...indexes } = itemCoordinates(item);
-	return itemPosition(checkpoint, { ...fields, ...indexes });
+				? { $kind: 'Unknown' }
+				: { $kind: 'Through', checkpoint: watermark.checkpoint },
+	});
 }
 
 function sequenceNumber(item: GrpcItem): bigint {

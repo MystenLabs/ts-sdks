@@ -20,8 +20,9 @@
  *    fails with `HistoryUnavailable`; this is checked on every page, since retention can move
  *    between them. A server that has not indexed the point the page resumes from ends the pass
  *    incomplete, so the caller retries later instead of skipping items.
- * 3. Deliver items until one reaches the end. While more pages remain, an empty page's cursor is
- *    progress, and the cursor must advance.
+ * 3. Deliver items until one reaches the end. While more pages remain, an empty page's end is
+ *    progress, at the position the adapter reports or else at its cursor, and the cursor must
+ *    advance.
  * 4. After the last page, the pass commits the boundary after what it covered, so a quiet range
  *    still moves its resume point, unless it resumed from a progress cursor it cannot place. It is
  *    complete once the index has reached the end.
@@ -37,6 +38,7 @@ import {
 	boundCoverage,
 	CoverageTracker,
 	indexedThrough,
+	insideCheckpoint,
 	nextUncovered,
 	progressPosition,
 	reachesEnd,
@@ -162,10 +164,12 @@ export async function* readPages<Item>(
 			const sent = ascending ? request.after : request.before;
 			if (sent && sameBytes(sent, cursor)) throw protocol('Pagination did not advance');
 			if (empty) {
-				const raw = progressPosition(cursor, {
-					coverage: through(pageEnd.covered),
-					indexedCheckpoint: page.viewedAt ?? null,
-				});
+				const raw =
+					pageEnd.next.position ??
+					progressPosition(cursor, {
+						coverage: through(pageEnd.covered),
+						indexedCheckpoint: page.viewedAt ?? null,
+					});
 				yield { $kind: 'Progress', position: advance(raw) };
 			}
 			yield { $kind: 'Page', end: 'limit', coverage };
@@ -177,19 +181,19 @@ export async function* readPages<Item>(
 		const reached = pageEnd.covered ?? page.viewedAt;
 		const complete = target === null || reached === undefined || reached >= target;
 		// Commit the boundary after what was covered, so a quiet range moves its resume point and a
-		// finished range resumes as empty. A descending pass has covered down to a checkpoint end.
-		let boundary: bigint | undefined;
+		// finished range resumes as empty. A descending pass has covered down to a boundary end.
+		let raw: StreamPosition | undefined;
 		if (ascending && !request.before && !unplaced(resumesFrom)) {
-			boundary = boundaryAfter(reached, request, endCut);
-		} else if (!ascending && endCut?.kind === 'Boundary') boundary = endCut.checkpoint!;
-		if (boundary !== undefined) {
-			// Kept where it fits, so a regressing watermark is still caught.
-			const covered = pageEnd.covered !== undefined && pageEnd.covered < boundary;
-			const raw = boundaryPosition(boundary, {
-				coverage: covered ? through(pageEnd.covered) : { $kind: 'Unknown' },
-			});
-			yield { $kind: 'Progress', position: advance(raw) };
-		}
+			const boundary = boundaryAfter(reached, request, endCut);
+			if (boundary !== undefined) {
+				// Kept where it fits, so a regressing watermark is still caught.
+				const covered = pageEnd.covered !== undefined && pageEnd.covered < boundary;
+				raw = boundaryPosition(boundary, {
+					coverage: covered ? through(pageEnd.covered) : { $kind: 'Unknown' },
+				});
+			}
+		} else if (!ascending && endCut?.kind === 'Boundary') raw = endCut;
+		if (raw) yield { $kind: 'Progress', position: advance(raw) };
 		yield {
 			$kind: 'Page',
 			end: complete && (end || !ascending) ? 'bound' : 'indexedTip',
@@ -218,11 +222,15 @@ function narrow(
 	resumes: boolean,
 ) {
 	const { kind, cursor, checkpoint } = cut;
-	if (cursor && kind !== 'Boundary' && (resumes || checkpoint === null)) request[side] = cursor;
+	const inside = insideCheckpoint(cut);
+	// A plain boundary resumes by checkpoint alone.
+	if (cursor && (kind !== 'Boundary' || inside) && (resumes || checkpoint === null)) {
+		request[side] = cursor;
+	}
 	if (checkpoint === null) return;
-	// Other items of an item's checkpoint can lie on either side of it.
+	// Other items of the cut's checkpoint can lie on either side of it.
 	if (side === 'after') request.range.start = checkpoint;
-	else request.range.end = kind === 'Item' ? checkpoint + 1n : checkpoint;
+	else request.range.end = inside ? checkpoint + 1n : checkpoint;
 }
 
 /** A checkpoint is delivered whole, so a cut at one is the boundary on its far side. */
@@ -249,14 +257,14 @@ function unplaced(position: StreamPosition | undefined): boolean {
 
 /**
  * The boundary after everything an exhausted ascending page covered, within the range and never
- * past an end item, whose checkpoint may hold more items.
+ * past an end inside a checkpoint, which may hold more items.
  */
 function boundaryAfter(
 	reached: bigint | undefined,
 	{ range }: PageRequest,
 	endCut: StreamPosition | undefined,
 ): bigint | undefined {
-	const limit = endCut?.kind === 'Item' ? endCut.checkpoint! : range.end;
+	const limit = endCut && insideCheckpoint(endCut) ? endCut.checkpoint! : range.end;
 	let boundary = reached === undefined ? limit : reached + 1n;
 	if (boundary === undefined) return undefined;
 	if (limit !== undefined && boundary > limit) boundary = limit;

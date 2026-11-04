@@ -168,7 +168,11 @@ export class FakeLedger implements RpcTransport {
 				frames: [
 					{
 						checkpoint: { sequenceNumber: checkpoint },
-						watermark: { cursor: at(Number(checkpoint)), checkpoint },
+						watermark: {
+							cursor: at(Number(checkpoint)),
+							checkpoint,
+							cursorPosition: { checkpoint: checkpoint + 1n },
+						},
 						end: { reason: GrpcTypes.QueryEndReason.ITEM_LIMIT },
 					},
 				],
@@ -339,19 +343,43 @@ export function event(
 		watermark: {
 			cursor: at(checkpoint, index),
 			checkpoint: covered === null || covered < 0 ? undefined : BigInt(covered),
+			// Ascending: just past the item.
+			cursorPosition: {
+				checkpoint: BigInt(checkpoint),
+				transactionIndex: BigInt(options.transactionIndex ?? 0),
+				eventIndex: index + 1,
+			},
 		},
 		end: options.end ? { reason: QueryEndReason[options.end] } : undefined,
 	};
 }
 
-/** A progress frame; `covered` is its watermark checkpoint. */
+/** A ledger position: a checkpoint, or `[checkpoint, transactionIndex, eventIndex]`. */
+export type At = number | [number, number, number?];
+
+export function ledgerPosition(position: At): GrpcTypes.LedgerPosition {
+	if (typeof position === 'number') return { checkpoint: BigInt(position) };
+	const [checkpoint, transactionIndex, eventIndex] = position;
+	return { checkpoint: BigInt(checkpoint), transactionIndex: BigInt(transactionIndex), eventIndex };
+}
+
+/**
+ * A progress frame at `position`; `covered` is its watermark checkpoint. The position defaults to
+ * the boundary after `covered`.
+ */
 export function progress(
 	cursor: Uint8Array,
 	covered?: number,
 	end?: Reason,
+	position: At | undefined = covered === undefined ? undefined : covered + 1,
 ): GrpcTypes.ListEventsResponse {
+	if (position === undefined) throw new Error('A progress frame needs a position');
 	return {
-		watermark: { cursor, checkpoint: covered === undefined ? undefined : BigInt(covered) },
+		watermark: {
+			cursor,
+			checkpoint: covered === undefined ? undefined : BigInt(covered),
+			cursorPosition: ledgerPosition(position),
+		},
 		end: end ? { reason: QueryEndReason[end] } : undefined,
 	};
 }
@@ -412,7 +440,13 @@ export function servingFloor(floor: number, ...items: Frame[]): Script {
 	return {
 		frames: [
 			...items,
-			{ watermark: { cursor: mark(`floor-${floor}`), checkpoint: BigInt(floor) } },
+			{
+				watermark: {
+					cursor: mark(`floor-${floor}`),
+					checkpoint: BigInt(floor),
+					cursorPosition: { checkpoint: BigInt(floor) },
+				},
+			},
 		],
 		end: belowEarliest(floor),
 	};
@@ -425,7 +459,11 @@ export function checkpointFrame(
 ): GrpcTypes.ListCheckpointsResponse {
 	return {
 		checkpoint: checkpointMessage(checkpoint),
-		watermark: { cursor: at(checkpoint), checkpoint: BigInt(checkpoint) },
+		watermark: {
+			cursor: at(checkpoint),
+			checkpoint: BigInt(checkpoint),
+			cursorPosition: { checkpoint: BigInt(checkpoint + 1) },
+		},
 		end: end ? { reason: QueryEndReason[end] } : undefined,
 	};
 }

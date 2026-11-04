@@ -309,9 +309,11 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.floorReads).toBe(0);
 		});
 
-		/** A token from an empty descending page, whose cursor has no known checkpoint. */
-		async function uncoveredEnd(): Promise<SuiClientTypes.StreamBound> {
-			const source = ledger().list('ListEvents', [progress(mark('p'), undefined, 'SCAN_LIMIT')]);
+		/** A token from an empty descending page that stopped inside checkpoint 50. */
+		async function watermarkEnd(): Promise<SuiClientTypes.StreamBound> {
+			const source = ledger().list('ListEvents', [
+				progress(mark('p'), undefined, 'SCAN_LIMIT', [50, 2]),
+			]);
 			const [frame] = await take(
 				source.client().streamEvents({
 					order: 'descending',
@@ -325,7 +327,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 
 		it('waits for a future range whose empty scan reports no checkpoint', async () => {
 			const l = ledger().tip(90);
-			l.list('ListEvents', [progress(mark('tip'), undefined, 'LEDGER_TIP')], () => {
+			l.list('ListEvents', [progress(mark('tip'), undefined, 'LEDGER_TIP', 100)], () => {
 				// The index reaches the end before the poll.
 				l.tip(109);
 				return { frames: [event(100), ended('CHECKPOINT_BOUND', 109)] };
@@ -348,7 +350,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			l.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], () => {
 				// Retention passes the cursor between pages, so the scan below it is empty.
 				l.retainedFrom(95);
-				return { frames: [progress(mark('floor'), undefined, 'CHECKPOINT_BOUND')] };
+				return { frames: [progress(mark('floor'), undefined, 'CHECKPOINT_BOUND', 90)] };
 			});
 			const frames = await collect(
 				l.client().streamEvents({
@@ -422,8 +424,8 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				expect(l.floorReads).toBe(0);
 			});
 
-			it('fails a read whose low end is a cursor below the floor', async () => {
-				const end = await uncoveredEnd();
+			it('fails a read whose low end is a watermark below the floor', async () => {
+				const end = await watermarkEnd();
 				const l = ledger()
 					.retainedFrom(87)
 					.list('ListEvents', [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })], {
@@ -432,7 +434,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					});
 				await expect(descending(l, end)).rejects.toMatchObject({ code: 'HistoryUnavailable' });
 				const [, request] = l.requestsTo('ListEvents');
-				expect(request.options?.after).toBeDefined();
+				expect(request.startCheckpoint).toBe(50n);
 				expect(l.floorReads).toBe(0);
 			});
 
@@ -483,7 +485,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			});
 
 			it('polls a page past the tip without a floor read', async () => {
-				const end = await uncoveredEnd();
+				const end = await watermarkEnd();
 				const rejected = Array.from({ length: 3 }, () => ({
 					frames: [],
 					end: aboveLatest(89),
@@ -500,7 +502,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			});
 		});
 
-		describe('ending at a progress token without coverage', () => {
+		describe('ending at a watermark token inside a checkpoint', () => {
 			const read = (l: FakeLedger, options: SuiClientTypes.StreamOptions) =>
 				collect(l.client().streamEvents({ pollInterval: 1, retry: noDelay, ...options } as never));
 			const first = [event(90, 0, { covered: null, end: 'ITEM_LIMIT' })];
@@ -516,16 +518,16 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				const frames = await read(l, {
 					order: 'descending',
 					start: { checkpoint: 90 },
-					end: await uncoveredEnd(),
+					end: await watermarkEnd(),
 				});
 				expect(eventIds(frames)).toEqual(['90:0', '89:0']);
-				// Each later pass resumes before the delivered item, still bounded only by the cursor.
+				// Each later pass resumes before the delivered item, down to the watermark's checkpoint.
 				const requests = l.requestsTo('ListEvents');
 				expect(requests).toHaveLength(pages.length + 1);
 				for (const request of requests.slice(1)) {
 					expect(request.options?.before).toEqual(at(90));
-					expect(request.options?.after).toEqual(mark('p'));
-					expect(request.startCheckpoint).toBeUndefined();
+					expect(request.options?.after).toBeUndefined();
+					expect(request.startCheckpoint).toBe(50n);
 				}
 			});
 
@@ -535,7 +537,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			] as [string, Script, 'polls' | 'pruned'][])(
 				'%s when resuming a saved token',
 				async (_, rejected, outcome) => {
-					const end = await uncoveredEnd();
+					const end = await watermarkEnd();
 					const saved = ledger().list('ListEvents', first);
 					const [frame] = await take(
 						saved.client().streamEvents({ order: 'descending', start: { checkpoint: 90 }, end }),
@@ -548,7 +550,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					} else {
 						expect(eventIds(await resumed)).toEqual(['89:0']);
 					}
-					expect(l.requestsTo('ListEvents')[0].options?.after).toEqual(mark('p'));
+					expect(l.requestsTo('ListEvents')[0].startCheckpoint).toBe(50n);
 					expect(l.requestsTo('ListEvents')).toHaveLength(outcome === 'pruned' ? 1 : 2);
 					expect(l.floorReads).toBe(0);
 				},
@@ -593,7 +595,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 
 		it('subscribes at once after an empty catch-up at the tip', async () => {
 			const l = ledger()
-				.list('ListEvents', [progress(mark('tip'), undefined, 'LEDGER_TIP')], [cursorBound])
+				.list('ListEvents', [progress(mark('tip'), undefined, 'LEDGER_TIP', 5)], [cursorBound])
 				.subscribe('SubscribeEvents', [event(5)]);
 			const frames = await take(l.client().streamEvents({ start: { checkpoint: 5 } }), 1);
 			expect(eventIds(frames)).toEqual(['5:0']);
@@ -702,18 +704,23 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			]);
 		});
 
-		it('bounds a gap after live progress by its coverage, so it can poll past the index', async () => {
+		it('resumes a gap after live progress inside a checkpoint by its cursor, polling past the index', async () => {
 			const l = ledger()
 				.retainedFrom(1)
 				.subscribe(
 					'SubscribeEvents',
-					{ frames: [progress(mark('a'), 4)], end: new RpcError('reset', 'UNAVAILABLE') },
+					{
+						frames: [progress(mark('a'), 4, undefined, [5, 1])],
+						end: new RpcError('reset', 'UNAVAILABLE'),
+					},
 					[event(6)],
 				)
-				.list('ListEvents', { frames: [], end: aboveLatest(4) }, [event(5), cursorBound]);
+				.list('ListEvents', { frames: [], end: aboveLatest(4) }, [
+					event(5, 0, { transactionIndex: 2 }),
+					cursorBound,
+				]);
 			const frames = await take(l.client().streamEvents({ retry: noDelay, pollInterval: 1 }), 2);
 			expect(eventIds(frames)).toEqual(['5:0', '6:0']);
-			// The poll keeps the cursor, which can lie inside the checkpoint after the coverage.
 			const [ahead, poll] = l.requestsTo('ListEvents');
 			for (const request of [ahead, poll]) {
 				expect(request.startCheckpoint).toBe(5n);
@@ -772,10 +779,11 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			const retry = { initialDelay: 60_000, jitter: 0 };
 			const frames = await take(l.client().streamEvents({ retry, onStatus }), 2);
 			expect(eventIds(frames)).toEqual(['3:0', '4:0']);
-			// Gap recovery pages from the committed progress up to the new subscription's entry watermark.
+			// Gap recovery pages from the committed watermark to the new subscription's entry watermark.
 			const [gap] = l.requestsTo('ListEvents');
-			expect(gap.options?.after).toEqual(mark('a'));
-			expect(gap.options?.before).toEqual(mark('b'));
+			expect([gap.startCheckpoint, gap.endCheckpoint]).toEqual([3n, 4n]);
+			expect(gap.options?.after).toBeUndefined();
+			expect(gap.options?.before).toBeUndefined();
 			// Progress was committed, so the reconnect only pauses briefly despite the long backoff.
 			expect(log).toContain('Retrying(1,250)');
 		});
@@ -1034,9 +1042,10 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		});
 
 		it('resumes from the unchanged opaque cursor bytes', async () => {
+			const frame = event(1, 0, { end: 'ITEM_LIMIT' });
 			const odd = {
-				...event(1, 0, { end: 'ITEM_LIMIT' }),
-				watermark: { cursor: new Uint8Array([255, 0, 7]) },
+				...frame,
+				watermark: { ...frame.watermark, cursor: new Uint8Array([255, 0, 7]) },
 			};
 			const l = ledger().list('ListEvents', [odd]);
 			const [saved] = await take(
@@ -1077,7 +1086,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				.list(
 					'ListEvents',
 					[event(100, 0, { covered: null, end: 'ITEM_LIMIT' })],
-					[progress(mark('p'), undefined, 'SCAN_LIMIT')],
+					[progress(mark('p'), undefined, 'SCAN_LIMIT', [100, 3])],
 					{ frames: [], end: new RpcError('lost', 'UNAVAILABLE') },
 					[ended('LEDGER_TIP', 100)],
 					[cursorBound],
@@ -1103,7 +1112,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			const l = ledger().list(
 				'ListEvents',
 				[event(0, 0, { covered: null, end: 'ITEM_LIMIT' })],
-				[progress(mark('g'), undefined, 'SCAN_LIMIT')],
+				[progress(mark('g'), undefined, 'SCAN_LIMIT', [0, 4])],
 			);
 			const frames = await take(
 				l.client().streamEvents({
@@ -1518,6 +1527,27 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					),
 				).rejects.toBe(failure);
 				expect(l.requestsTo('ListEvents')).toHaveLength(stage === 'history' ? 1 : 2);
+			},
+		);
+
+		const unplaced = { watermark: { cursor: mark('w'), checkpoint: 4n } };
+		it.each([
+			['a subscription entry watermark', [[ended('LEDGER_TIP', 1)]], [unplaced]],
+			['a page end', [[{ ...unplaced, end: { reason: QueryEndReason.LEDGER_TIP } }]], []],
+		])(
+			'fails %s without a cursor position as a protocol error, without retrying',
+			async (_, pages, live) => {
+				const l = ledger()
+					.list('ListEvents', ...pages)
+					.subscribe('SubscribeEvents', { frames: live, end: 'complete' });
+				await expect(
+					collect(l.client().streamEvents({ start: { checkpoint: 1 }, retry: noDelay })),
+				).rejects.toMatchObject({
+					code: 'Protocol',
+					message: expect.stringContaining('cursor position'),
+				});
+				expect(l.requestsTo('ListEvents')).toHaveLength(1);
+				expect(l.requestsTo('SubscribeEvents')).toHaveLength(live.length);
 			},
 		);
 

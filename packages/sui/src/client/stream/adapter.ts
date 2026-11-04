@@ -45,8 +45,11 @@ export interface PageItem<Item> {
 
 /** What a page reports once its items are read. */
 export interface PageEnd {
-	/** `cursor` continues the scan where the page stopped: `after` ascending, `before` descending. */
-	next: { more: boolean; cursor?: Uint8Array };
+	/**
+	 * `cursor` continues the scan where the page stopped: `after` ascending, `before` descending.
+	 * `position` is that point, where the server reports it.
+	 */
+	next: { more: boolean; cursor?: Uint8Array; position?: StreamPosition };
 	/** Ascending: every match through this checkpoint is in this page or an earlier one. */
 	covered?: bigint;
 	/**
