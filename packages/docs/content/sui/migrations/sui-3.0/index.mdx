@@ -90,6 +90,11 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   `Transaction` values yourself, such as test mocks.
 - **Move abort locations no longer include `function`.** `location.function` is deprecated and is no
   longer set; use `location.functionName`.
+- **Execution error names match across transports.** Errors decoded from BCS effects, including
+  GraphQL's, now report `InvalidBcsBytes`, `InvalidUsageOfPureArgument`,
+  `ConsensusObjectOperationNotAllowed` and `PackageIdDoesNotMatch` (previously `InvalidBCSBytes`,
+  `InvalidUsageOfPureArg`, `SharedObjectOperationNotAllowed` and `PackageIDDoesNotMatch`), as gRPC
+  does. Update code that matches on the old names.
 - **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.** Build the mask
   with `transactionReadMaskPaths(include)` from `@mysten/sui/grpc`.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
