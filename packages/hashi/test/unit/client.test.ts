@@ -982,11 +982,7 @@ describe('HashiClient', () => {
 		const SPENT_POOL_ID = '0x' + 'a2'.repeat(32);
 		const TABLE_ID = '0x' + 'a3'.repeat(32);
 
-		/** `ObjectError` not-found shape without `reason`: `.code === "notExists"`. */
-		const notExistsError = () => Object.assign(new Error('not found'), { code: 'notExists' });
-		/** gRPC not-found shape: plain `Error` with `Object <id> not found` message. */
-		const grpcNotFoundError = (id = '0x' + '00'.repeat(32)) => new Error(`Object ${id} not found`);
-		const notFoundError = notExistsError;
+		const notFoundError = () => Object.assign(new Error('not found'), { reason: 'notFound' });
 
 		/** BCS-encoded BitcoinState with known Bag/Table IDs. */
 		function mockBitcoinStateContent() {
@@ -1141,22 +1137,6 @@ describe('HashiClient', () => {
 			).rejects.toThrow('internal server error');
 		});
 
-		it("treats gRPC 'Object <id> not found' plain Errors as misses", async () => {
-			mockFetchBitcoinState();
-			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
-				objects: [grpcNotFoundError(), grpcNotFoundError()],
-			} as never);
-
-			const result = await client.hashi.view.findUsedUtxos([
-				{ txid: '0x' + 'ab'.repeat(32), vout: 0 },
-			]);
-			expect(result[0]).toMatchObject({
-				inActivePool: false,
-				inSpentPool: false,
-				isUsed: false,
-			});
-		});
-
 		it("treats an ObjectError with reason 'notFound' as a miss", async () => {
 			mockFetchBitcoinState();
 			const objectErrorNotFound = () =>
@@ -1192,7 +1172,7 @@ describe('HashiClient', () => {
 			).rejects.toThrow('internal server error');
 		});
 
-		it("rethrows a plain Error whose message isn't the gRPC not-found pattern", async () => {
+		it('rethrows a plain Error without a notFound reason', async () => {
 			mockFetchBitcoinState();
 			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
 				objects: [new Error('internal server error'), notFoundError()],
@@ -1805,7 +1785,7 @@ describe('HashiClient', () => {
 			} as never);
 
 			vi.spyOn(DepositRequest, 'get').mockRejectedValueOnce(
-				Object.assign(new Error('not found'), { code: 'notExists' }),
+				Object.assign(new Error('not found'), { reason: 'notFound' }),
 			);
 
 			const result = await client.hashi.view.depositStatus('test-digest');
@@ -1843,7 +1823,7 @@ describe('HashiClient', () => {
 			} as never);
 
 			vi.spyOn(WithdrawalRequest, 'get').mockRejectedValueOnce(
-				Object.assign(new Error('not found'), { code: 'notExists' }),
+				Object.assign(new Error('not found'), { reason: 'notFound' }),
 			);
 
 			const result = await client.hashi.view.withdrawalStatus('test-digest');
