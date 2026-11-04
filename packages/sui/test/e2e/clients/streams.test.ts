@@ -1393,7 +1393,7 @@ describe('ledger streams', () => {
 			expect(end.end?.reason).toBe(QueryEndReason.CURSOR_BOUND);
 			expect(end.event).toBeUndefined();
 			// The terminal watermark is the bound itself.
-			expect(end.watermark?.cursor).toEqual(cursor);
+			expect(end.watermark?.cursorPosition).toEqual(firstFrame.watermark!.cursorPosition);
 			const gapKeys = gap.filter((frame) => frame.event).map((frame) => eventKey(frame.event));
 			// History before the cursor and live delivery from it meet exactly.
 			expect(gapKeys).toEqual([`${before.digest}:0`, `${before.digest}:1`]);
@@ -1603,10 +1603,6 @@ describe('ledger streams', () => {
 			);
 			expect(resumed.event.transactionDigest).toBe(digest);
 		});
-
-		// Covered by unit tests: localnet never prunes and starts after genesis is indexed.
-		it.skip('reports pruned history as HistoryUnavailable', () => {});
-		it.skip('waits for the first indexed checkpoint on a new chain', () => {});
 	});
 
 	describe('GraphQL protocol assumptions', () => {
@@ -1784,10 +1780,5 @@ describe('ledger streams', () => {
 			await rejection;
 			await stream.return(undefined);
 		});
-	});
-
-	describe('GraphQL history limits', () => {
-		// Covered by unit tests: localnet never prunes.
-		it.skip('reports a descending read to genesis on a pruned server as HistoryUnavailable', () => {});
 	});
 });
