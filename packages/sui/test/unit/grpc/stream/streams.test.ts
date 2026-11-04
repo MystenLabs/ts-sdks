@@ -1248,7 +1248,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		const objectType = '0x2::coin::Coin<0x2::sui::SUI>';
 		const include = { transactions: { effects: true, objectTypes: true } } as const;
 
-		/** A checkpoint with a successful and a failed transaction; types only in its object set. */
+		/** A checkpoint with a successful and a failed transaction. */
 		function withTransactions(checkpoint: number): GrpcTypes.Checkpoint {
 			const transaction = (index: number, success: boolean): GrpcTypes.ExecutedTransaction => ({
 				digest: `tx-${checkpoint}-${index}`,
@@ -1270,13 +1270,14 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					dependencies: [],
 					unchangedConsensusObjects: [],
 					unchangedLoadedRuntimeObjects: [],
-					changedObjects: [{ objectId, inputVersion: 1n, outputVersion: BigInt(checkpoint) }],
+					changedObjects: [
+						{ objectId, inputVersion: 1n, outputVersion: BigInt(checkpoint), objectType },
+					],
 				},
 			});
 			return {
 				...checkpointMessage(checkpoint),
 				transactions: [transaction(0, true), transaction(1, false)],
-				objects: { objects: [{ objectId, version: BigInt(checkpoint), objectType }] },
 			};
 		}
 
@@ -1311,7 +1312,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					'sequence_number',
 					'transactions.digest',
 					'transactions.effects',
-					'objects.objects.object_type',
+					'transactions.effects.changed_objects.object_type',
 				]),
 			);
 
@@ -1328,7 +1329,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			]);
 		});
 
-		it('reads the changed-object versions object types need without effects', async () => {
+		it('reads changed-object types without effects', async () => {
 			const pages = [
 				{ checkpoint: withTransactions(5), watermark: { cursor: mark('5'), checkpoint: 5n } },
 				ended('CHECKPOINT_BOUND', 5),
@@ -1348,12 +1349,8 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(paths).not.toContain('transactions.effects');
 			expect(paths).toEqual(
 				expect.arrayContaining([
-					'objects.objects.object_id',
-					'objects.objects.version',
-					'objects.objects.object_type',
 					'transactions.effects.changed_objects.object_id',
-					'transactions.effects.changed_objects.input_version',
-					'transactions.effects.changed_objects.output_version',
+					'transactions.effects.changed_objects.object_type',
 				]),
 			);
 		});

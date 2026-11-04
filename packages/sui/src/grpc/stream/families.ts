@@ -84,11 +84,7 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		// With included transactions, the checkpoint frame carries every one of them.
 		readMask: (include) =>
 			include
-				? [
-						...CHECKPOINT_READ_MASK_PATHS,
-						...transactionReadMaskPaths(include, 'transactions.'),
-						...(include.objectTypes ? CHECKPOINT_OBJECT_TYPE_PATHS : []),
-					]
+				? [...CHECKPOINT_READ_MASK_PATHS, ...transactionReadMaskPaths(include, 'transactions.')]
 				: CHECKPOINT_READ_MASK_PATHS,
 		item: (frame) => frame.checkpoint && { $kind: 'Checkpoint', checkpoint: frame.checkpoint },
 		// A checkpoint is positioned by its sequence number alone; streams resume after it by number.
@@ -116,35 +112,6 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		position: framePosition,
 	},
 };
-
-const CHECKPOINT_OBJECT_TYPE_PATHS = [
-	'objects.objects.object_id',
-	'objects.objects.version',
-	'objects.objects.object_type',
-	// The fallback below matches changed objects by version, which `effects` alone would select.
-	'transactions.effects.changed_objects.input_version',
-	'transactions.effects.changed_objects.output_version',
-];
-
-/**
- * Servers without sui#28345 leave `changed_objects.object_type` unset in checkpoint reads, so the
- * types are filled from the checkpoint's object set by id and version.
- */
-function fillCheckpointObjectTypes(checkpoint: Checkpoint) {
-	const types = new Map<string, string>();
-	for (const object of checkpoint.objects?.objects ?? []) {
-		if (object.objectId && object.objectType) {
-			types.set(`${object.objectId}@${object.version}`, object.objectType);
-		}
-	}
-	for (const transaction of checkpoint.transactions) {
-		for (const change of transaction.effects?.changedObjects ?? []) {
-			change.objectType ??=
-				types.get(`${change.objectId}@${change.outputVersion}`) ??
-				types.get(`${change.objectId}@${change.inputVersion}`);
-		}
-	}
-}
 
 /** A generated method by name; its messages share the fields `ListRequest` and friends name. */
 function streamingMethod<I extends object, O extends object>(
@@ -247,7 +214,6 @@ export function mapGrpcItem(
 		case 'Checkpoint': {
 			const checkpoint = parseGrpcCheckpoint(item.checkpoint, 'Checkpoint stream');
 			if (!include) return { $kind: 'Checkpoint', checkpoint };
-			if (include.objectTypes) fillCheckpointObjectTypes(item.checkpoint);
 			const transactions = item.checkpoint.transactions.map((transaction) =>
 				parseTransaction(transaction, include, 'Checkpoint stream'),
 			);
