@@ -106,18 +106,23 @@ function requestBody(options: {
 	});
 }
 
-/** Resolves `url` against the page, as `fetch` does; `null` when it isn't a URL. */
-function resolveUrl(url: string): URL | null {
+/**
+ * The URL `fetch` would request: an absolute URL unchanged, a relative one resolved against the
+ * page; `null` when it can't be resolved. Absolute URLs skip `URL`, which React Native's built-in
+ * implementation would alter, and only `href` is read for the same reason.
+ */
+function resolveUrl(url: string): string | null {
+	const trimmed = url.trim();
+	if (/^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed;
 	try {
-		return new URL(url, pageBase());
+		return new URL(trimmed, pageBase()).href;
 	} catch {
 		return null;
 	}
 }
 
-// Only `href` is read: React Native's built-in `URL` lacks the other accessors and setters.
 function deriveSubscriptionUrl(url: string) {
-	const href = resolveUrl(url)?.href ?? url;
+	const href = resolveUrl(url) ?? url;
 	const suffixIndex = href.search(/[?#]/);
 	const path = suffixIndex === -1 ? href : href.slice(0, suffixIndex);
 	const suffix = suffixIndex === -1 ? '' : href.slice(suffixIndex);
@@ -266,12 +271,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
 		const resolved = resolveUrl(url);
 		try {
-			return await this.#fetch(resolved?.href ?? url, init);
+			return await this.#fetch(resolved ?? url, init);
 		} catch (cause) {
 			init.signal?.throwIfAborted();
 			if (!(cause instanceof TypeError)) throw cause;
 			// Fetch rejects a non-http(s) URL the same way every time, so retrying can't help.
-			if (!/^https?:/i.test(resolved?.href ?? '')) {
+			if (!/^https?:/i.test(resolved ?? '')) {
 				throw new SuiGraphQLRequestError('GraphQL request URL is not an http(s) URL', { cause });
 			}
 			throw new SuiGraphQLRequestError('GraphQL network request failed', {

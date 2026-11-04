@@ -99,7 +99,7 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   with `transactionReadMaskPaths(include)` from `@mysten/sui/grpc`.
 - **`SuiGraphQLClient` throws `SuiGraphQLRequestError` for network failures.** Network failures and
   response bodies that can't be read now throw `SuiGraphQLRequestError` instead of the underlying
-  `fetch` error. Its `retryable` property says whether retrying can help.
+  `fetch` error, which is its `cause`. Its `retryable` property says whether retrying can help.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see

@@ -183,6 +183,33 @@ describe('GraphQL subscribe', () => {
 		}
 	});
 
+	it('sends absolute URLs unchanged, whatever the URL implementation does to them', async () => {
+		// React Native's built-in URL appends a slash to the href, even after a query string.
+		const NativeURL = URL;
+		class AppendingURL extends NativeURL {
+			override get href() {
+				return `${super.href}/`;
+			}
+		}
+		vi.stubGlobal('URL', AppendingURL);
+		try {
+			const fetch = vi.fn(async () => sse(['event: complete\n\n']).response);
+			const client = new SuiGraphQLClient({
+				url: 'https://example.com/graphql?key=x',
+				network: 'unknown',
+				fetch,
+			});
+			await client.query({ query: '{ value }', variables: {} }).catch(() => {});
+			await collect(client.subscribe({ query: 'subscription { value }', variables: {} }));
+			expect(fetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
+				'https://example.com/graphql?key=x',
+				'https://example.com/graphql/subscriptions?key=x',
+			]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('does not retry a URL fetch cannot request', async () => {
 		for (const url of ['example.com/graphql', 'localhost:9000/graphql']) {
 			const client = new SuiGraphQLClient({
