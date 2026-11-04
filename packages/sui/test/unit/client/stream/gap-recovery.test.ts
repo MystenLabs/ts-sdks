@@ -424,3 +424,47 @@ describe('S6: gap recovery properties', () => {
 		},
 	);
 });
+
+describe('a quiet filtered follow', () => {
+	const heartbeats = ['15', '20', '25', '30', '35', '40'];
+
+	/** Reads a follow whose filter never matches until a token covers 40. */
+	async function follow(how: 'checkpoint' | 'token' | 'reconnect') {
+		const ledger = ledgerWith(40, 10, () => 0);
+		let start: { checkpoint: number } | { resumeToken: string } = { checkpoint: 5 };
+		if (how === 'token') {
+			const earlier = ledgerWith(40, 8, () => 0);
+			const [frame] = await take(
+				stream(fakeAdapter(earlier), { start, frames: { progress: true } }),
+				1,
+			);
+			start = { resumeToken: tokenOf(frame) };
+		}
+		// The entry watermark after 10, then a heartbeat every 5 quiet checkpoints.
+		const live: LiveScript[] =
+			how === 'reconnect'
+				? [
+						{ events: subscription(ledger, 11, 20, 5), end: new LostConnection() },
+						{ events: subscription(ledger, 21, 40, 5), end: 'hang' },
+					]
+				: [{ events: subscription(ledger, 11, 40, 5), end: 'hang' }];
+		const adapter = fakeAdapter(ledger, { live });
+		return untilCovered(stream(adapter, { start, frames: { progress: true } }), 39);
+	}
+
+	it.each(['checkpoint', 'token', 'reconnect'] as const)(
+		'yields progress at every heartbeat when started from a %s',
+		async (how) => {
+			const frames = await follow(how);
+			expect(frames.every((frame) => frame.$kind === 'Progress')).toBe(true);
+			const covered = frames.map((frame) => frame.$kind === 'Progress' && frame.coveredCheckpoint);
+			expect(covered).toEqual(expect.arrayContaining(heartbeats));
+			expect(covered.slice(-heartbeats.length)).toEqual(heartbeats);
+			// Each token moves forward.
+			const positions = frames.map(positionOfFrame);
+			for (let i = 1; i < positions.length; i++) {
+				expect(comparePositions(positions[i], positions[i - 1])).toBe(1);
+			}
+		},
+	);
+});
