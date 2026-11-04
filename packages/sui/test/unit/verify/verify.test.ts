@@ -5,6 +5,7 @@ import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
+import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { GrpcCoreClient } from '../../../src/grpc/core.js';
 import type { SuiGrpcClient } from '../../../src/grpc/client.js';
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
@@ -203,5 +204,25 @@ describe('GrpcCoreClient.verifySignature', () => {
 		await expect(rejecting('invalid message').verifySignature(options)).rejects.toThrow(
 			'invalid message',
 		);
+	});
+});
+
+describe('verifySignature without a verdict', () => {
+	const options = { personalMessage: 'hello', signature: 'AA==', address: '0x1' };
+
+	it('throws on gRPC when the response has no isValid', async () => {
+		const client = {
+			signatureVerificationService: {
+				verifySignature: vi.fn().mockResolvedValue({ response: {} }),
+			},
+		} as unknown as SuiGrpcClient;
+		const core = new GrpcCoreClient({ client, base: client, network: 'localnet' });
+		await expect(core.verifySignature(options)).rejects.toThrow('verdict');
+	});
+
+	it('throws on GraphQL when verifySignature is null', async () => {
+		const client = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
+		client.query = vi.fn(async () => ({ data: { verifySignature: null } })) as never;
+		await expect(client.core.verifySignature(options)).rejects.toThrow('verdict');
 	});
 });

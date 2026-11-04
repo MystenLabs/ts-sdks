@@ -881,9 +881,11 @@ export class GraphQLCoreClient extends CoreClient {
 		}
 		handleGraphQLErrors(errors);
 
-		return data?.verifySignature?.success
-			? { valid: true }
-			: { valid: false, reason: 'Signature is not valid' };
+		const success = data?.verifySignature?.success;
+		if (typeof success !== 'boolean') {
+			throw new Error('The node returned no signature verification verdict');
+		}
+		return success ? { valid: true } : { valid: false, reason: 'Signature is not valid' };
 	}
 
 	async verifyZkLoginSignature(

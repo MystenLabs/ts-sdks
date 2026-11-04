@@ -887,6 +887,9 @@ export class GrpcCoreClient extends CoreClient {
 			throw error;
 		}
 
+		if (typeof response.isValid !== 'boolean') {
+			throw new Error('The node returned no signature verification verdict');
+		}
 		return response.isValid
 			? { valid: true }
 			: { valid: false, reason: response.reason ?? 'Signature is not valid' };
