@@ -33,6 +33,7 @@ describe('gRPC frames as stream positions', () => {
 		['inside a checkpoint', { checkpoint: 5n, transactionIndex: 2n, eventIndex: 0 }, 2n, 0],
 		['at a checkpoint start', { checkpoint: 5n, transactionIndex: 0n, eventIndex: 0 }, null, null],
 		['at a checkpoint start without indexes', { checkpoint: 5n }, null, null],
+		['with an event index and no transaction index', { checkpoint: 5n, eventIndex: 3 }, 0n, 3],
 	])(
 		'places a frame without an item at its cursor position %s',
 		(_, at, transactionIndex, eventIndex) => {

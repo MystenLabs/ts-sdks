@@ -151,7 +151,8 @@ export function watermarkPosition(watermark: Watermark | undefined): StreamPosit
 	}
 	return boundaryPosition(at.checkpoint, {
 		cursor: watermark.cursor,
-		transactionIndex: at.transactionIndex ?? (at.eventIndex ? 0n : null),
+		// Unset indexes read as 0, as on the server.
+		transactionIndex: at.transactionIndex ?? 0n,
 		eventIndex: at.eventIndex ?? null,
 		coverage:
 			watermark.checkpoint === undefined
