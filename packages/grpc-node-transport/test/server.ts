@@ -163,7 +163,11 @@ export async function startServer() {
 							digest,
 							summary: { epoch: 1n, timestamp: { seconds: BigInt(i), nanos: 0 } },
 						},
-						watermark: { cursor: cursor(i), checkpoint: BigInt(i) },
+						watermark: {
+							cursor: cursor(i),
+							checkpoint: BigInt(i),
+							cursorPosition: { checkpoint: BigInt(i + 1) },
+						},
 					}),
 				);
 				stats.written++;
@@ -183,7 +187,11 @@ export async function startServer() {
 			if (end !== undefined) {
 				call.write(
 					ListCheckpointsResponse.create({
-						watermark: { cursor: cursor(end), checkpoint: BigInt(end - 1) },
+						watermark: {
+							cursor: cursor(end),
+							checkpoint: BigInt(end - 1),
+							cursorPosition: { checkpoint: BigInt(end) },
+						},
 						end: { reason: QueryEndReason.CHECKPOINT_BOUND },
 					}),
 				);
