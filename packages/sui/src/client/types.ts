@@ -244,13 +244,27 @@ export namespace SuiClientTypes {
 
 	export interface StreamTransactionFrame<Include extends TransactionInclude = {}> {
 		$kind: 'Transaction';
-		transaction: TransactionResult<Include>;
+		transaction: StreamedTransactionResult<Include>;
 		resumeToken: StreamResumeToken;
 	}
 
+	/** A streamed transaction is always checkpointed, so its `checkpoint` is always set. */
+	export type StreamedTransactionResult<Include extends TransactionInclude = {}> =
+		| {
+				$kind: 'Transaction';
+				Transaction: Transaction<Include> & { checkpoint: string };
+				FailedTransaction?: never;
+		  }
+		| {
+				$kind: 'FailedTransaction';
+				Transaction?: never;
+				FailedTransaction: Transaction<Include> & { checkpoint: string };
+		  };
+
 	export interface StreamEventFrame {
 		$kind: 'Event';
-		event: EventEntry;
+		/** A streamed event's `checkpoint` is always set. */
+		event: EventEntry & { checkpoint: string };
 		resumeToken: StreamResumeToken;
 	}
 

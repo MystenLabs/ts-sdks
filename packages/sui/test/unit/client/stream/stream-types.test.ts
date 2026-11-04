@@ -60,6 +60,16 @@ describe('stream types', () => {
 		>().toEqualTypeOf<T.StreamCheckpointFrame<{ transactions: {} }> | T.StreamProgressFrame>();
 	});
 
+	it('always sets the checkpoint of streamed events and transactions', () => {
+		expectTypeOf<T.StreamEventFrame['event']['checkpoint']>().toEqualTypeOf<string>();
+		type Result = T.StreamTransactionFrame['transaction'];
+		expectTypeOf<NonNullable<Result['Transaction']>['checkpoint']>().toEqualTypeOf<string>();
+		expectTypeOf<NonNullable<Result['FailedTransaction']>['checkpoint']>().toEqualTypeOf<string>();
+		// Listed ones can still lack it.
+		expectTypeOf<T.EventEntry['checkpoint']>().toEqualTypeOf<string | null>();
+		expectTypeOf<T.Transaction['checkpoint']>().toEqualTypeOf<string | null>();
+	});
+
 	it('requires exactly one input bound without a discriminator', () => {
 		expectTypeOf<{ checkpoint: string }>().toExtend<T.StreamStart>();
 		expectTypeOf<{ resumeToken: string }>().toExtend<T.StreamStart>();
