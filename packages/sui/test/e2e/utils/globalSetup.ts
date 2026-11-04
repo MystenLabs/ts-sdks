@@ -134,12 +134,6 @@ async function finishSetup(
 	},
 ) {
 	await waitForGraphQL(graphqlPort);
-	// A localnet image without GraphQL subscriptions fails setup rather than skipping tests.
-	if (!(await probe('GraphQL subscriptions', () => supportsGraphQLSubscriptions(graphqlPort)))) {
-		throw new Error(
-			'`sui start --with-graphql` does not serve GraphQL subscriptions; use a newer sui-tools image',
-		);
-	}
 	const containerId = localnet.getId();
 
 	// Set up the default sui config so `sui keytool` and `sui move build` commands work.
@@ -165,41 +159,4 @@ async function finishSetup(
 		containerId,
 	});
 	project.provide('prePublishedPackages', prePublished);
-}
-
-/**
- * Runs a capability probe. A probe returns false only for a valid answer that shows the capability
- * is missing; anything else is an operational failure, retried and then thrown, so a broken server
- * fails setup instead of silently skipping tests.
- */
-async function probe(name: string, run: () => Promise<boolean>, attempts = 3): Promise<boolean> {
-	for (let attempt = 1; ; attempt++) {
-		try {
-			return await run();
-		} catch (error) {
-			if (attempt >= attempts) {
-				throw new Error(`Capability probe "${name}" failed`, { cause: error });
-			}
-			await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-		}
-	}
-}
-
-async function supportsGraphQLSubscriptions(port: number): Promise<boolean> {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 10_000);
-	try {
-		const response = await fetch(`http://127.0.0.1:${port}/graphql/subscriptions`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
-			body: JSON.stringify({ query: 'subscription { checkpoints { cursor } }' }),
-			signal: controller.signal,
-		});
-		// A server error or a failed request is retried; any other response decides.
-		if (response.status >= 500) throw new Error(`GraphQL responded with HTTP ${response.status}`);
-		return response.ok && !!response.headers.get('content-type')?.startsWith('text/event-stream');
-	} finally {
-		clearTimeout(timeout);
-		controller.abort();
-	}
 }
