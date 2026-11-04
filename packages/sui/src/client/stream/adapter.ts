@@ -121,7 +121,8 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	readonly anchorsAtLiveTip: boolean;
 	/**
 	 * true: `subscribe(from)` backfills after `from` and then goes live. false: subscriptions start
-	 * at the live tip, so the core pages history first and replays the gap before the first event.
+	 * at the live tip, so the core pages history first and replays the gap before the first event;
+	 * every live event then has a checkpoint, which places the end of that gap.
 	 */
 	readonly resumesSubscriptions: boolean;
 

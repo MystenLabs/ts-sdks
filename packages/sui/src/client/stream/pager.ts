@@ -178,11 +178,6 @@ export async function* readPages<Item>(
 		let boundary: bigint | undefined;
 		if (ascending && !request.before && !unplaced(resumesFrom)) {
 			boundary = boundaryAfter(reached, request, endCut);
-			// A start covered past a lagging server's tip: a boundary there would claim less.
-			const started = nextUncovered(boundCoverage(start, family));
-			if (boundary !== undefined && started !== undefined && boundary < started) {
-				boundary = undefined;
-			}
 		} else if (!ascending && endCut?.kind === 'Boundary') boundary = endCut.checkpoint!;
 		if (boundary !== undefined) {
 			// Kept where it fits, so a regressing watermark is still caught.
