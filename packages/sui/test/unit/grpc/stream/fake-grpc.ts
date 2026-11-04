@@ -361,10 +361,7 @@ export function ended(reason: Reason, covered: number): GrpcTypes.ListEventsResp
 	return progress(mark(`end-${covered}`), covered, reason);
 }
 
-/**
- * An OUT_OF_RANGE error with the `ErrorInfo` a server marks it with in `grpc-status-details-bin`.
- * Older servers send it without one.
- */
+/** An OUT_OF_RANGE error with the `ErrorInfo` a server marks it with in `grpc-status-details-bin`. */
 export function outOfRange(
 	reason: 'BELOW_EARLIEST_AVAILABLE' | 'ABOVE_LATEST_AVAILABLE',
 	metadata: Record<string, string>,

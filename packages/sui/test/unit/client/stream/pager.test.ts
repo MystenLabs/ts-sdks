@@ -106,18 +106,6 @@ describe('readPages', () => {
 			},
 		],
 		[
-			'a progress start by cursor, from the first checkpoint it does not cover',
-			'events',
-			{
-				start: {
-					position: progressPosition(bytes('f'), {
-						coverage: { $kind: 'Through', checkpoint: 19n },
-					}),
-				},
-			},
-			{ range: { start: 20n }, after: bytes('f') },
-		],
-		[
 			'an end item by its checkpoint',
 			'events',
 			{

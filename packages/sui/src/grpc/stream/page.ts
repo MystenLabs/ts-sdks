@@ -75,16 +75,8 @@ async function* listItems(
 			) {
 				return { next: { more: false }, retainedFrom: BigInt(floor) };
 			}
-			throw pruned;
 		}
-		// Older servers send OUT_OF_RANGE without a marker.
-		const rejection = await classifyOutOfRange(request, retainedFrom);
-		if (rejection === 'pruned') throw pruned;
-		return {
-			next: { more: false },
-			notIndexed: true,
-			mayBePruned: rejection === 'unknown' ? pruned : undefined,
-		};
+		throw pruned;
 	} finally {
 		await call.return();
 	}
@@ -183,28 +175,6 @@ function queryEnd(reason: QueryEndReason | undefined, item: GrpcItem | undefined
 		throw protocol('Unexpected item on terminal query frame');
 	}
 	return reason;
-}
-
-/**
- * For a server that does not mark OUT_OF_RANGE. It reports one for a starting cursor past its
- * index, such as one from a server further ahead, and for an explicit low end (a start checkpoint
- * or an `after` cursor) below its retention floor. A read whose low end has a checkpoint at or
- * above the floor was not pruned; the floor is checked rather than the tip, which can pass the
- * cursor before it is read. A low end that is a cursor without a checkpoint is pruned when the
- * floor has passed everything left to read, and is otherwise unknown.
- */
-async function classifyOutOfRange(
-	{ order, range, unread, after, before, signal }: PageRequest,
-	retainedFrom: (signal: AbortSignal) => Promise<bigint>,
-): Promise<'notIndexed' | 'pruned' | 'unknown'> {
-	if (!(order === 'ascending' ? after : before)) return 'pruned';
-	// Only an `after` cursor makes a descending read's open low end explicit.
-	if (order === 'descending' && range.start === undefined && !after) return 'notIndexed';
-	// Ascending, the oldest checkpoint left to read; descending, the low end or the newest one left.
-	const needed = order === 'ascending' ? (unread ?? range.start) : (range.start ?? unread);
-	if (needed === undefined) return 'unknown';
-	if (needed < (await retainedFrom(signal))) return 'pruned';
-	return order === 'ascending' || range.start !== undefined ? 'notIndexed' : 'unknown';
 }
 
 /** The `ErrorInfo` a server marks a ledger OUT_OF_RANGE with, if any. */
