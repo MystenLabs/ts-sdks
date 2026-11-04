@@ -253,12 +253,22 @@ export function mapGrpcItem(
 			);
 			return { $kind: 'Checkpoint', checkpoint: { ...checkpoint, transactions } };
 		}
+		// Positioning the item already required its checkpoint.
 		case 'Transaction':
 			return {
 				$kind: 'Transaction',
-				transaction: parseTransaction(item.transaction, include, 'Transaction stream'),
+				transaction: parseTransaction(
+					item.transaction,
+					include,
+					'Transaction stream',
+				) as SuiClientTypes.StreamedTransactionResult,
 			};
 		case 'Event':
-			return { $kind: 'Event', event: parseGrpcEvent(item.event, 'Event stream') };
+			return {
+				$kind: 'Event',
+				event: parseGrpcEvent(item.event, 'Event stream') as SuiClientTypes.EventEntry & {
+					checkpoint: string;
+				},
+			};
 	}
 }
