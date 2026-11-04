@@ -552,9 +552,10 @@ Common event filter mappings:
 | `MoveEventModule` | `eventType: 'package::module'`        |
 | `MoveEventType`   | `eventType: 'package::module::Event'` |
 
-`emitModule` matches the package version that emitted the event, so after an upgrade it needs the
-new version's ID. Filter by `eventType` to match events from every version: a type keeps the ID of
-the package version that defined it, so only a type added in an upgrade carries that upgrade's ID.
+`emitModule` matches the package version and module of the transaction's Move call that emitted the
+event, so after an upgrade it needs the new version's ID. Filter by `eventType` to match events from
+every version: a type keeps the ID of the package version that defined it, so only a type added in
+an upgrade carries that upgrade's ID.
 
 Event fields map as follows:
 
