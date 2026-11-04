@@ -159,3 +159,4 @@ and decoded pure inputs are best-effort. `dryRunFromSimulation` similarly builds
 - A `listCheckpoints` method for paging through checkpoints.
 - A `maxResponseMessageBytes` option on `SuiGrpcClient` and `GrpcWebFetchTransport` caps each
   response message that stream reads accept (64 MiB by default).
+- `SuiGraphQLClient.subscribe` runs GraphQL subscriptions; `subscriptionUrl` sets their endpoint.
