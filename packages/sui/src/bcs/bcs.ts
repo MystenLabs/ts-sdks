@@ -131,6 +131,7 @@ const SharedObjectRefStruct = bcs.struct('SharedObjectRef', {
  */
 export const SharedObjectRef = SharedObjectRefStruct.transform({
 	name: 'SharedObjectRef',
+	validate: ({ mutable }) => bcs.bool().validate(mutable),
 	input: ({
 		mutable,
 		mutability,

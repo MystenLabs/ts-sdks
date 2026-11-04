@@ -188,6 +188,11 @@ describe('system transaction BCS', () => {
 		).toBe(2);
 	});
 
+	it.each(['false', undefined, 1])('rejects a shared object mutable of %o', (mutable) => {
+		const ref = { objectId: ACCUMULATOR_ROOT, initialSharedVersion: '1' };
+		expect(() => bcs.SharedObjectRef.serialize({ ...ref, mutable: mutable as never })).toThrow();
+	});
+
 	it('decodes the accumulator field object types and party owners at their Rust indices', () => {
 		expect(bcs.MoveObjectType.parse(new Uint8Array([4]))).toEqual({
 			$kind: 'SuiBalanceAccumulatorField',
