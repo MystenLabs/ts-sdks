@@ -172,7 +172,8 @@ const { valid, reason } = await client.verifySignature({
 ```
 
 `valid` is `false` when the signature is invalid or malformed, or its signer isn't authorized for
-`address`, and `reason` says why. The call throws for network errors.
+`address`, and `reason` says why. `reason` is for logs: its text differs between gRPC and GraphQL,
+so don't match on it. The call throws for network errors.
 
 Without `address`, any valid signature passes, so always pass it when checking a signature for an
 account, and use `address` as the account's identity.

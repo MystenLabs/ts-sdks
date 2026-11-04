@@ -100,22 +100,10 @@ await dAppKit.signPersonalMessage({ message: jsonMessage });
 
 ## Verifying on your server
 
-Verify the signature on your server with a client and the account's address:
-
-```typescript
-import { fromBase64 } from '@mysten/sui/utils';
-
-const { valid } = await client.verifySignature({
-	personalMessage: fromBase64(result.bytes),
-	signature: result.signature,
-	address: account.address,
-});
-```
-
-Build the message on your server with your domain, the account address, a single-use nonce and an
-expiry, and verify the message you issued. A signature from an address alias is valid for every
-account that lists that alias, so the address in the message ties it to one account. Use `address`
-as the user's identity. See
+Verify the signature on your server against the challenge message your server issued and stored, not
+the bytes or address the client sends back. Build that message with your domain, the account
+address, a single-use nonce and an expiry. A signature from an address alias is valid for every
+account that lists that alias, so the address in the message ties it to one account. See
 [Sign-in with a personal message](/sui/cryptography#sign-in-with-a-personal-message) for the server
 steps, and [Verifying locally](/sui/cryptography#verifying-locally) to verify offline or get the
 signer's public key.

@@ -1272,7 +1272,7 @@ export namespace SuiClientTypes {
 
 	export interface VerifySignatureResponse {
 		valid: boolean;
-		/** Why verification failed, as reported by the node. */
+		/** Why verification failed, for logs. The text differs by transport, so don't match on it. */
 		reason?: string;
 	}
 

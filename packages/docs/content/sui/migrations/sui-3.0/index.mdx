@@ -135,8 +135,8 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 - **`CoreClient` has a new abstract `verifySignature` method.** Custom `CoreClient` subclasses, such
   as test mocks, need to implement it.
 - **`@mysten-incubation/sponsor`'s `userSignatureMatchesSender` verifies signatures on the node.**
-  It accepts signatures from the sender's address aliases. If the node can't be reached or doesn't
-  apply the address alias check, the validator fails with `ANALYSIS_FAILED`.
+  It accepts signatures from the sender's address aliases. If the node can't be reached, the
+  validator fails with `ANALYSIS_FAILED`.
 - **`@mysten/seal`'s `SessionKey.setPersonalMessageSignature` checks the signer.** The signature
   must come from the session key's address or one of its address aliases; a valid signature from any
   other account is rejected with `InvalidPersonalMessageSignatureError`.

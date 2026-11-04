@@ -65,9 +65,8 @@ export async function isValidSignature(
 
 /**
  * Whether `signature` is a valid signature over the personal message `message` (a string is UTF-8
- * encoded, as in `client.verifySignature`). Returns `false`
- * for an invalid signature, or one from a signer not authorized for `address`. Throws for a network
- * error, or a zkLogin signature offline.
+ * encoded, as in `client.verifySignature`). Returns `false` for an invalid signature, or one from a
+ * signer not authorized for `address`. Throws for a network error, or a zkLogin signature offline.
  * `checkAddressAliases` is ignored without `address`.
  *
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.
@@ -86,8 +85,7 @@ export async function isValidPersonalMessageSignature(
 /**
  * Whether `signature` is a valid signature over the transaction bytes. Returns `false` for an
  * invalid signature, or one from a signer not authorized for `address`. Throws for a network error,
- * or a zkLogin signature offline.
- * `checkAddressAliases` is ignored without `address`.
+ * or a zkLogin signature offline. `checkAddressAliases` is ignored without `address`.
  *
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.
  */
@@ -117,9 +115,8 @@ export async function verifySignature(
 
 /**
  * Verifies a personal message signature and returns the signer's public key. A string `message` is
- * UTF-8 encoded, as in `client.verifySignature`. Throws if the
- * signature is invalid or its signer is not authorized for `address`, and for the errors listed on
- * {@link isValidPersonalMessageSignature}. The returned key may belong to one of `address`'s
+ * UTF-8 encoded, as in `client.verifySignature`. Throws if the signature is invalid or its signer is
+ * not authorized for `address`, and for the errors listed on {@link isValidPersonalMessageSignature}. The returned key may belong to one of `address`'s
  * aliases, so use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
  *
  * Pass `address` when checking a signature for an account; without it, any valid signature passes.
