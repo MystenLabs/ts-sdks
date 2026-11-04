@@ -442,8 +442,9 @@ type, while `pkg::mod::Wrapped<0x2::sui::SUI>` matches only that instantiation.
 `emitModule` matches the package version whose code emitted the event, not the package ID in the
 event's type. After a package upgrade, new events come from the new version's ID while their types
 keep the original ID, so `emitModule` with the original ID returns nothing for them. To follow a
-package across upgrades, filter by `eventType`, which uses the original package ID and matches every
-version.
+package across upgrades, filter by `eventType`. A type keeps the ID of the package version that
+defined it, so a type from the original package matches events from every version, while a type
+added in an upgrade carries that upgrade's ID.
 
 Both filters resolve [MVR](#move-registry-names) names automatically. Both methods take a `limit`
 and an `order`, can be limited to a range of checkpoints, and page through history with the cursors
