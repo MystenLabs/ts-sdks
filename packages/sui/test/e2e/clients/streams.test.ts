@@ -1538,14 +1538,8 @@ describe('ledger streams', () => {
 				await listEvents('grpc', { filter, startCheckpoint: start.checkpoint }),
 			);
 			expect(reader.frames.at(-1)?.event.transactionDigest).toBe(after.digest);
-			// A progress cursor can't be ordered against an item cursor, so an empty gap may be read.
-			const recovering = log.log.find(({ status }) => status.$kind === 'Recovering');
-			const live = log.log.find(({ status }) => status.$kind === 'Live');
-			if (recovering) {
-				const gap = log.log.slice(log.log.indexOf(recovering) + 1, log.log.indexOf(live!));
-				expect(gap.every(({ status }) => status.$kind === 'Page')).toBe(true);
-				expect(live?.frames).toBe(recovering.frames);
-			}
+			// The subscription's first frame is placed behind history's end, so there is no gap to read.
+			expect(log.kinds()).not.toContain('Recovering');
 			expect(log.kinds()).toContain('Live');
 			expect(log.kinds()).not.toContain('Retrying');
 		});
