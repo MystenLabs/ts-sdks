@@ -194,6 +194,21 @@ describe('readPages', () => {
 		expect(requests[0].before).toBeUndefined();
 	});
 
+	it('completes, without committing past it, when an empty page ends beyond the end', async () => {
+		const past = boundaryPosition(5n, { cursor: bytes('5:3'), transactionIndex: 3n });
+		const { adapter } = scripted([
+			page([], { more: true, cursor: bytes('5:3'), position: past }),
+			page([item(6n, 0n)], { more: false }),
+		]);
+		const { events, result } = await read(adapter, {
+			order: 'ascending',
+			start: { checkpoint: 5n },
+			end: { position: item(5n, 2n) },
+		});
+		expect(events.filter((event) => event.$kind === 'Progress')).toEqual([]);
+		expect(result.complete).toBe(true);
+	});
+
 	it('commits an empty page cursor as progress', async () => {
 		const { adapter } = scripted([
 			page([], { more: true, cursor: bytes('quiet') }, { viewedAt: 8n }),

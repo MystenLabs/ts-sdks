@@ -170,6 +170,10 @@ export async function* readPages<Item>(
 						coverage: through(pageEnd.covered),
 						indexedCheckpoint: page.viewedAt ?? null,
 					});
+				if (endCut && reachesEnd(raw, endCut, order)) {
+					yield { $kind: 'Page', end: 'bound', coverage };
+					return { complete: true, retentionLimit: false };
+				}
 				yield { $kind: 'Progress', position: advance(raw) };
 			}
 			yield { $kind: 'Page', end: 'limit', coverage };

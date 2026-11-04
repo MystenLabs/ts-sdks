@@ -218,7 +218,7 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		])('rejects %s', async (_, pages, message) => {
 			const l = ledger().list('ListEvents', ...pages);
 			await expect(
-				collect(l.client().streamEvents({ start: { checkpoint: 1 }, end: { checkpoint: 4 } })),
+				collect(l.client().streamEvents({ start: { checkpoint: 1 }, end: { checkpoint: 6 } })),
 			).rejects.toMatchObject({ code: 'Protocol', message: expect.stringContaining(message) });
 		});
 
