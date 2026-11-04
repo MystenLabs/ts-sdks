@@ -360,8 +360,8 @@ export class GrpcNodeTransport implements PullServerStreamingTransport {
 		this.#client.close();
 	}
 
-	// `@grpc/grpc-js` throws when a call starts on a closed channel.
-	#startError(
+	// After `close()`, grpc-js fails a call as it starts or, while it waits for the connection, later.
+	#callError(
 		error: unknown,
 		method: MethodInfo,
 		signal: AbortSignal | undefined,
@@ -404,7 +404,7 @@ export class GrpcNodeTransport implements PullServerStreamingTransport {
 					toGrpcMetadata(options.meta),
 					callOptions(options),
 					(error, value) => {
-						if (error) fail(toRpcError(error, method, signal, 'unary'));
+						if (error) fail(this.#callError(error, method, signal, 'unary'));
 						else if (value !== undefined) response.resolvePending(value);
 					},
 				);
@@ -424,7 +424,7 @@ export class GrpcNodeTransport implements PullServerStreamingTransport {
 					trailers.resolvePending(fromGrpcMetadata(result.metadata));
 				});
 			} catch (error) {
-				fail(this.#startError(error, method, signal, 'unary'));
+				fail(this.#callError(error, method, signal, 'unary'));
 			}
 		}
 
@@ -522,7 +522,7 @@ export class GrpcNodeTransport implements PullServerStreamingTransport {
 				// Emitted before `status` for any status other than OK.
 				stream.on('error', (error) => {
 					if (state.over || state.server) return;
-					const rpcError = toRpcError(error, method, signal, 'stream');
+					const rpcError = this.#callError(error, method, signal, 'stream');
 					state.server = { error: rpcError };
 					headers.rejectPending(rpcError);
 					notify();
@@ -534,7 +534,7 @@ export class GrpcNodeTransport implements PullServerStreamingTransport {
 					notify();
 				});
 			} catch (error) {
-				fail(this.#startError(error, method, signal, 'stream'));
+				fail(this.#callError(error, method, signal, 'stream'));
 			}
 		}
 

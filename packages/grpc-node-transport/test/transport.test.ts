@@ -598,6 +598,40 @@ describe('GrpcNodeTransport', () => {
 			expect(timers()).toBeLessThanOrEqual(before);
 		});
 
+		it('surfaces a stream closed while its call waits for the connection once', async () => {
+			const fresh = new GrpcNodeTransport({ baseUrl: server.baseUrl });
+			const pulls: string[] = [];
+			const split = splitTransport(transport, fresh, pulls);
+			const closing: PullServerStreamingTransport = {
+				...split,
+				[PULL_SERVER_STREAMING]: (method, input, options) => {
+					const call = split[PULL_SERVER_STREAMING](method, input, options);
+					fresh.close();
+					return call;
+				},
+			};
+			const streams = new SuiGrpcClient({ network: 'localnet', transport: closing });
+			const error = await drain(
+				streams.streamCheckpoints({
+					start: { checkpoint: '10' },
+					end: { checkpoint: '15' },
+					retry: { initialDelay: 0, maxDelay: 0, jitter: 0, maxAttempts: 3 },
+				}),
+			).catch((reason: unknown) => reason);
+
+			expect(error).toMatchObject({ code: 'UNAVAILABLE' });
+			expect(pulls).toEqual(['ListCheckpoints']);
+		});
+
+		it('reports a unary call closed while it waits for the connection as closed', async () => {
+			const fresh = new GrpcNodeTransport({ baseUrl: server.baseUrl });
+			const call = fresh.unary(client.ledgerService.methods[0] as never, {}, fresh.mergeOptions());
+			fresh.close();
+			const error = await call.response.catch((reason: unknown) => reason);
+			expect(error).toMatchObject({ code: 'UNAVAILABLE' });
+			expect((error as Error).message).toBe('The transport was closed');
+		});
+
 		it('surfaces a request over grpc.max_send_message_length without retrying', async () => {
 			const small = new GrpcNodeTransport({
 				baseUrl: server.baseUrl,
