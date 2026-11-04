@@ -10,6 +10,7 @@ import { parseTransactionEffects } from '../../../src/grpc/core.js';
 import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import { UnchangedConsensusObject_UnchangedConsensusObjectKind as UnchangedKind } from '../../../src/grpc/proto/sui/rpc/v2/effects.js';
 import {
+	CommandArgumentError_CommandArgumentErrorKind as CommandArgumentKind,
 	ExecutionError_ExecutionErrorKind as ErrorKind,
 	PackageUpgradeError_PackageUpgradeErrorKind as UpgradeKind,
 	TypeArgumentError_TypeArgumentErrorKind as TypeArgumentKind,
@@ -264,6 +265,8 @@ describe('execution error names', () => {
 	const objectId = normalizeSuiAddress('0x7');
 	const errors = [
 		{
+			name: 'ObjectTooBig',
+
 			bcs: { MoveObjectTooBig: { objectSize: 10n, maxObjectSize: 5n } },
 			grpc: {
 				kind: ErrorKind.OBJECT_TOO_BIG,
@@ -271,6 +274,8 @@ describe('execution error names', () => {
 			},
 		},
 		{
+			name: 'EffectsTooLarge',
+
 			bcs: { EffectsTooLarge: { currentSize: 10n, maxSize: 5n } },
 			grpc: {
 				kind: ErrorKind.EFFECTS_TOO_LARGE,
@@ -278,6 +283,8 @@ describe('execution error names', () => {
 			},
 		},
 		{
+			name: 'TypeArgumentError',
+
 			bcs: { TypeArgumentError: { argumentIdx: 1, kind: { ConstraintNotSatisfied: true } } },
 			grpc: {
 				kind: ErrorKind.TYPE_ARGUMENT_ERROR,
@@ -288,6 +295,8 @@ describe('execution error names', () => {
 			},
 		},
 		{
+			name: 'PackageUpgradeError',
+
 			bcs: { PackageUpgradeError: { upgradeError: { IncompatibleUpgrade: true } } },
 			grpc: {
 				kind: ErrorKind.PACKAGE_UPGRADE_ERROR,
@@ -298,6 +307,8 @@ describe('execution error names', () => {
 			},
 		},
 		{
+			name: 'CoinTypeGlobalPause',
+
 			bcs: { CoinTypeGlobalPause: { coinType: '0x2::sui::SUI' } },
 			grpc: {
 				kind: ErrorKind.COIN_TYPE_GLOBAL_PAUSE,
@@ -308,6 +319,8 @@ describe('execution error names', () => {
 			},
 		},
 		{
+			name: 'CongestedObjects',
+
 			bcs: { ExecutionCancelledDueToSharedObjectCongestion: { congested_objects: [objectId] } },
 			grpc: {
 				kind: ErrorKind.EXECUTION_CANCELED_DUE_TO_CONSENSUS_OBJECT_CONGESTION,
@@ -315,52 +328,105 @@ describe('execution error names', () => {
 			},
 		},
 		{
+			name: 'CircularObjectOwnership',
+
 			bcs: { CircularObjectOwnership: { object: objectId } },
 			grpc: {
 				kind: ErrorKind.CIRCULAR_OBJECT_OWNERSHIP,
 				errorDetails: { oneofKind: 'objectId', objectId },
 			},
 		},
+		{
+			name: 'InvalidBcsBytes',
+			bcs: { CommandArgumentError: { argIdx: 1, kind: { InvalidBCSBytes: true } } },
+			grpc: {
+				kind: ErrorKind.COMMAND_ARGUMENT_ERROR,
+				errorDetails: {
+					oneofKind: 'commandArgumentError',
+					commandArgumentError: { argument: 1, kind: CommandArgumentKind.INVALID_BCS_BYTES },
+				},
+			},
+		},
+		{
+			name: 'InvalidUsageOfPureArgument',
+			bcs: { CommandArgumentError: { argIdx: 1, kind: { InvalidUsageOfPureArg: true } } },
+			grpc: {
+				kind: ErrorKind.COMMAND_ARGUMENT_ERROR,
+				errorDetails: {
+					oneofKind: 'commandArgumentError',
+					commandArgumentError: {
+						argument: 1,
+						kind: CommandArgumentKind.INVALID_USAGE_OF_PURE_ARGUMENT,
+					},
+				},
+			},
+		},
+		{
+			name: 'ConsensusObjectOperationNotAllowed',
+			bcs: { CommandArgumentError: { argIdx: 1, kind: { SharedObjectOperationNotAllowed: true } } },
+			grpc: {
+				kind: ErrorKind.COMMAND_ARGUMENT_ERROR,
+				errorDetails: {
+					oneofKind: 'commandArgumentError',
+					commandArgumentError: {
+						argument: 1,
+						kind: CommandArgumentKind.CONSENSUS_OBJECT_OPERATION_NOT_ALLOWED,
+					},
+				},
+			},
+		},
+		{
+			name: 'PackageIdDoesNotMatch',
+			bcs: {
+				PackageUpgradeError: {
+					upgradeError: { PackageIDDoesNotMatch: { packageId: objectId, ticketId: objectId } },
+				},
+			},
+			grpc: {
+				kind: ErrorKind.PACKAGE_UPGRADE_ERROR,
+				errorDetails: {
+					oneofKind: 'packageUpgradeError',
+					packageUpgradeError: { kind: UpgradeKind.PACKAGE_ID_DOES_NOT_MATCH },
+				},
+			},
+		},
 	];
 
-	it.each(errors)(
-		'match BCS from gRPC for $grpc.errorDetails.oneofKind',
-		({ bcs: error, grpc }) => {
-			const fromBcs = parseTransactionEffectsBcs(
-				bcs.TransactionEffects.serialize({
-					V2: {
-						status: { Failure: { error: error as never, command: null } },
-						executedEpoch: 1n,
-						gasUsed: {
-							computationCost: 1n,
-							storageCost: 1n,
-							storageRebate: 0n,
-							nonRefundableStorageFee: 0n,
-						},
-						transactionDigest: digest,
-						gasObjectIndex: null,
-						eventsDigest: null,
-						dependencies: [],
-						lamportVersion: 2n,
-						changedObjects: [],
-						unchangedConsensusObjects: [],
-						auxDataDigest: null,
+	it.each(errors)('match BCS from gRPC for $name', ({ bcs: error, grpc }) => {
+		const fromBcs = parseTransactionEffectsBcs(
+			bcs.TransactionEffects.serialize({
+				V2: {
+					status: { Failure: { error: error as never, command: null } },
+					executedEpoch: 1n,
+					gasUsed: {
+						computationCost: 1n,
+						storageCost: 1n,
+						storageRebate: 0n,
+						nonRefundableStorageFee: 0n,
 					},
-				}).toBytes(),
-			);
-			const fromGrpc = parseTransactionEffects({
-				effects: {
-					status: { success: false, error: grpc as never },
-					changedObjects: [],
+					transactionDigest: digest,
+					gasObjectIndex: null,
+					eventsDigest: null,
 					dependencies: [],
-					unchangedLoadedRuntimeObjects: [],
+					lamportVersion: 2n,
+					changedObjects: [],
 					unchangedConsensusObjects: [],
+					auxDataDigest: null,
 				},
-			});
+			}).toBytes(),
+		);
+		const fromGrpc = parseTransactionEffects({
+			effects: {
+				status: { success: false, error: grpc as never },
+				changedObjects: [],
+				dependencies: [],
+				unchangedLoadedRuntimeObjects: [],
+				unchangedConsensusObjects: [],
+			},
+		});
 
-			const { message: _bcsMessage, ...expected } = fromBcs.status.error!;
-			const { message: _grpcMessage, ...actual } = fromGrpc!.status.error!;
-			expect(actual).toEqual(expected);
-		},
-	);
+		const { message: _bcsMessage, ...expected } = fromBcs.status.error!;
+		const { message: _grpcMessage, ...actual } = fromGrpc!.status.error!;
+		expect(actual).toEqual(expected);
+	});
 });

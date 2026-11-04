@@ -112,6 +112,18 @@ function formatErrorMessage($kind: string, data: unknown): string {
 	return $kind;
 }
 
+// BCS names that the gRPC enum renamed; the unified names are gRPC's.
+const GRPC_ERROR_NAMES: Record<string, string> = {
+	InvalidBCSBytes: 'InvalidBcsBytes',
+	InvalidUsageOfPureArg: 'InvalidUsageOfPureArgument',
+	SharedObjectOperationNotAllowed: 'ConsensusObjectOperationNotAllowed',
+	PackageIDDoesNotMatch: 'PackageIdDoesNotMatch',
+};
+
+function renamed(name: string): string {
+	return GRPC_ERROR_NAMES[name] ?? name;
+}
+
 function parseBcsExecutionError(failure: {
 	error: BcsExecutionFailureStatus;
 	command: string | null;
@@ -222,7 +234,7 @@ function parseBcsExecutionError(failure: {
 				command,
 				CommandArgumentError: {
 					argument: error.CommandArgumentError.argIdx,
-					name: error.CommandArgumentError.kind.$kind,
+					name: renamed(error.CommandArgumentError.kind.$kind),
 				},
 			};
 
@@ -244,7 +256,7 @@ function parseBcsExecutionError(failure: {
 				message: formatErrorMessage('PackageUpgradeError', error.PackageUpgradeError),
 				command,
 				PackageUpgradeError: {
-					name: upgradeError.$kind,
+					name: renamed(upgradeError.$kind),
 					packageId:
 						upgradeError.$kind === 'UnableToFetchPackage'
 							? upgradeError.UnableToFetchPackage.packageId
