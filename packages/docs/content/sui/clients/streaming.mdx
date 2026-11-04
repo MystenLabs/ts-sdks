@@ -305,11 +305,12 @@ retried and the eleventh ends the stream, even with other failures between them:
 full server, which clears, and a per-item limit, which recurs on every attempt.
 
 `reason` says why. `Disconnected` (a connection broke or a live feed ended) is routine on long-lived
-streams, and `NotIndexed` is expected briefly near the tip and on new networks; alert on those only
-if they persist. `Network`, `RateLimited`, `Timeout`, `Unavailable`, `SlowConsumer` and
-`ServerError` can point at a problem. GraphQL reports a lagging subscriber or a server-side
-interruption as `ServerError`, where gRPC reports `SlowConsumer` or `Disconnected`. A server's
-`RESOURCE_EXHAUSTED` is `RateLimited` on gRPC and `ServerError` on GraphQL.
+streams, `NotIndexed` is expected briefly near the tip and on new networks, and `Timeout` (the
+server's `DEADLINE_EXCEEDED`) is expected during heavy catch-up on busy public nodes; alert on those
+only if they persist. `Network`, `RateLimited`, `Unavailable`, `SlowConsumer` and `ServerError` can
+point at a problem. GraphQL reports a lagging subscriber or a server-side interruption as
+`ServerError`, where gRPC reports `SlowConsumer` or `Disconnected`. A server's `RESOURCE_EXHAUSTED`
+is `RateLimited` on gRPC and `ServerError` on GraphQL.
 
 Retries don't bound waiting: a stream waiting for the index or for a sparse filter to match can stay
 quiet indefinitely. Use a signal to bound the total time:
