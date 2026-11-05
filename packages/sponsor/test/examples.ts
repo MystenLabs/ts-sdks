@@ -47,7 +47,7 @@ const sponsor = createSponsor({
 	validate: [defaults(), gasBudget({ max: 50_000_000n }), allowedPackages(['0xabc'])],
 });
 
-// Skip simulation; `validSender()` still reads the sponsor's on-chain aliases.
+// Skip simulation.
 const sponsorWithoutSimulation = createSponsor({
 	signer,
 	client,

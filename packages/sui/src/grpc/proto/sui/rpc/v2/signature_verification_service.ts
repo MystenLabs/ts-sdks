@@ -51,6 +51,21 @@ export interface VerifySignatureRequest {
 	 * @generated from protobuf field: repeated sui.rpc.v2.ActiveJwk jwks = 4;
 	 */
 	jwks: ActiveJwk[];
+	// The epoch to use
+	// optional uint64 epoch = 5;
+
+	/**
+	 * Optional. If true, `address` is required and the signature must be from a
+	 * member of `address`'s current `AddressAliases` set rather than from
+	 * `address` itself. An address with no `AddressAliases` set is its own only
+	 * alias.
+	 *
+	 * Servers that predate this field ignore it, so clients must check
+	 * `address_aliases_checked` in the response.
+	 *
+	 * @generated from protobuf field: optional bool check_address_aliases = 6;
+	 */
+	checkAddressAliases?: boolean;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.VerifySignatureResponse
@@ -68,6 +83,13 @@ export interface VerifySignatureResponse {
 	 * @generated from protobuf field: optional string reason = 2;
 	 */
 	reason?: string;
+	/**
+	 * Set to true when the server applied `check_address_aliases`, whether or
+	 * not the signature is valid. Unset by servers that predate it.
+	 *
+	 * @generated from protobuf field: optional bool address_aliases_checked = 3;
+	 */
+	addressAliasesChecked?: boolean;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class VerifySignatureRequest$Type extends MessageType<VerifySignatureRequest> {
@@ -83,6 +105,7 @@ class VerifySignatureRequest$Type extends MessageType<VerifySignatureRequest> {
 				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ActiveJwk,
 			},
+			{ no: 6, name: 'check_address_aliases', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
 		]);
 	}
 }
@@ -96,6 +119,13 @@ class VerifySignatureResponse$Type extends MessageType<VerifySignatureResponse> 
 		super('sui.rpc.v2.VerifySignatureResponse', [
 			{ no: 1, name: 'is_valid', kind: 'scalar', opt: true, T: 8 /*ScalarType.BOOL*/ },
 			{ no: 2, name: 'reason', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 3,
+				name: 'address_aliases_checked',
+				kind: 'scalar',
+				opt: true,
+				T: 8 /*ScalarType.BOOL*/,
+			},
 		]);
 	}
 }

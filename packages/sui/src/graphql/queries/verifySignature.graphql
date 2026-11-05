@@ -1,0 +1,17 @@
+query verifySignature(
+	$message: Base64!
+	$signature: Base64!
+	$intentScope: IntentScope!
+	$author: SuiAddress!
+	$checkAddressAliases: Boolean
+) {
+	verifySignature(
+		message: $message
+		signature: $signature
+		intentScope: $intentScope
+		author: $author
+		checkAddressAliases: $checkAddressAliases
+	) {
+		success
+	}
+}
