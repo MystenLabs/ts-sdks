@@ -113,6 +113,9 @@ query listTransactions(
 
 fragment TRANSACTION_FIELDS on Transaction {
 	digest
+	sender {
+		address
+	}
 	transactionJson @include(if: $includeTransaction)
 	transactionBcs @include(if: $includeBcs)
 	signatures {
