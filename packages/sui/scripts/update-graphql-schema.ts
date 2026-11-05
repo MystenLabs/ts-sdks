@@ -1,47 +1,48 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { execSync } from 'child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { minifyIntrospection, outputIntrospectionFile } from 'gql.tada/internal';
+import { buildSchema, introspectionFromSchema } from 'graphql';
 
-const res = await fetch(
-	'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-indexer-alt-graphql/schema.graphql',
-);
-
-if (!res.ok) {
-	throw new Error(`Failed to fetch schema`);
-}
-
-const schemaContent = await res.text();
-const generatedDir = resolve(import.meta.dirname, '../src/graphql/generated');
-
-await mkdir(generatedDir, { recursive: true });
-await writeFile(resolve(generatedDir, 'schema.graphql'), schemaContent);
-
-await writeFile(
-	resolve(generatedDir, 'tsconfig.tada.json'),
-	`{
-    "compilerOptions": {
-        "plugins": [
-            {
-                "name": "@0no-co/graphqlsp",
-                "schema": "./schema.graphql",
-                "tadaOutputLocation": "src/graphql/generated/tada-env.ts"
-            }
-        ]
-    }
-}
-`,
-);
-
-execSync(`pnpm gql.tada generate-output -c ${resolve(generatedDir, 'tsconfig.tada.json')}`, {
-	stdio: 'inherit',
+const { values } = parseArgs({
+	options: {
+		schema: { type: 'string' },
+	},
 });
 
+const source =
+	values.schema ??
+	'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-indexer-alt-graphql/schema.graphql';
+const schemaContent = await loadSchema(source);
+const schema = buildSchema(schemaContent);
+const subscriptions = schema.getSubscriptionType()?.getFields();
+for (const field of ['checkpoints', 'transactions', 'events']) {
+	if (!subscriptions?.[field]) {
+		throw new Error(
+			`GraphQL schema ${source} is missing Subscription.${field}; no files were updated`,
+		);
+	}
+}
+
+// Call gql.tada's serializer directly: its CLI's tsconfig loader needs compiler APIs that
+// TypeScript 7 lacks.
+const introspection = outputIntrospectionFile(
+	minifyIntrospection(introspectionFromSchema(schema)),
+	{
+		fileType: '.ts',
+	},
+);
+const generatedDir = resolve(import.meta.dirname, '../src/graphql/generated');
+const outputs = new Map<string, string>([
+	[resolve(generatedDir, 'schema.graphql'), schemaContent],
+	[resolve(generatedDir, 'tada-env.ts'), introspection],
+]);
+
 const schemaDir = resolve(import.meta.dirname, '../src/graphql/schema');
-await mkdir(schemaDir, { recursive: true });
-await writeFile(
+outputs.set(
 	resolve(schemaDir, 'index.ts'),
 	`// Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -62,3 +63,17 @@ export const graphql = initGraphQLTada<{
 }>();
 `,
 );
+
+// Every output is built before anything is written, so a rejected schema leaves files untouched.
+await mkdir(generatedDir, { recursive: true });
+await mkdir(schemaDir, { recursive: true });
+for (const [path, content] of outputs) await writeFile(path, content);
+console.log(`Updated GraphQL schema and types from ${source}`);
+
+async function loadSchema(source: string): Promise<string> {
+	if (!/^https?:\/\//.test(source)) return readFile(resolve(source), 'utf8');
+	const response = await fetch(source);
+	if (!response.ok)
+		throw new Error(`Failed to fetch GraphQL schema: ${response.status} ${response.statusText}`);
+	return response.text();
+}
