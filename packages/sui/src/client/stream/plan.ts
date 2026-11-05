@@ -365,25 +365,24 @@ export function compareBounds(
 	const comparison = comparePositions(first, last);
 	if (comparison === undefined) return undefined;
 	const ordered = comparison * (order === 'ascending' ? 1 : -1);
-	// (c, n) is the same point as c + 1 when checkpoint c has n items, so they aren't reversed.
-	if (ordered > 0 && (sameBoundary(first, last) || sameBoundary(last, first))) return 0;
+	// Points inside a checkpoint can't be told apart without its item counts: (c, n) may be c + 1.
+	if (ordered > 0 && mayCoincide(first, last)) return 0;
 	return ordered;
 }
 
 /**
- * Whether `inside` can be the same boundary as `next`, the start of the next unit: (c, t) and c + 1
- * when checkpoint c has t transactions, or (c, t, e) and (c, t + 1) when transaction t has e events.
+ * Whether two positions may name one point: both inside one checkpoint, or a boundary inside c and
+ * the boundary before c + 1.
  */
-function sameBoundary(inside: StreamPosition, next: StreamPosition): boolean {
-	if (inside.kind !== 'Boundary' || next.kind !== 'Boundary' || !insideCheckpoint(inside)) {
-		return false;
-	}
-	if (!insideCheckpoint(next)) return next.checkpoint === inside.checkpoint! + 1n;
+function mayCoincide(a: StreamPosition, b: StreamPosition): boolean {
+	if (!insideCheckpoint(a) && !insideCheckpoint(b)) return false;
+	if (a.checkpoint === b.checkpoint) return insideCheckpoint(a) && insideCheckpoint(b);
+	const [low, high] = a.checkpoint! < b.checkpoint! ? [a, b] : [b, a];
 	return (
-		next.checkpoint === inside.checkpoint &&
-		!!inside.eventIndex &&
-		!next.eventIndex &&
-		next.transactionIndex === inside.transactionIndex! + 1n
+		high.checkpoint === low.checkpoint! + 1n &&
+		high.kind === 'Boundary' &&
+		!insideCheckpoint(high) &&
+		low.kind === 'Boundary'
 	);
 }
 

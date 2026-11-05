@@ -210,21 +210,30 @@ describe('option errors', () => {
 	);
 
 	it.each(['ascending', 'descending'] as const)(
-		'treats a boundary inside a transaction and the next transaction as possibly equal, %s',
+		'reads a start after the end within one checkpoint as an empty %s range',
 		(order) => {
 			const cursor = new Uint8Array([1]);
-			// Just before event (4, 2, 3) is just before transaction (4, 3) when transaction 2 has three events.
-			const inside = {
-				position: boundaryPosition(4n, { cursor, transactionIndex: 2n, eventIndex: 3 }),
+			// (5, 0, 2) and (5, 2) are the same point when transaction 1 has no events; only the
+			// event counts, which the SDK doesn't have, would tell.
+			const event = {
+				position: boundaryPosition(5n, { cursor, transactionIndex: 0n, eventIndex: 2 }),
 			};
-			const next = { position: boundaryPosition(4n, { cursor, transactionIndex: 3n }) };
-			const [start, end] = order === 'ascending' ? [next, inside] : [inside, next];
+			const later = { position: boundaryPosition(5n, { cursor, transactionIndex: 2n }) };
+			const [start, end] = order === 'ascending' ? [later, event] : [event, later];
 			expect(compareBounds(start, end, order)).toBe(0);
 			expect(compareBounds(end, start, order)).toBe(-1);
-			// Two transactions on, events of transaction 3 lie between them.
-			const later = { position: boundaryPosition(4n, { cursor, transactionIndex: 4n }) };
-			const [from, to] = order === 'ascending' ? [later, inside] : [inside, later];
-			expect(compareBounds(from, to, order)).toBe(1);
+		},
+	);
+
+	it.each(['ascending', 'descending'] as const)(
+		'still rejects a %s start a checkpoint past the end',
+		(order) => {
+			const inside = {
+				position: boundaryPosition(4n, { cursor: new Uint8Array([1]), transactionIndex: 3n }),
+			};
+			const past = { position: boundaryPosition(6n) };
+			const [start, end] = order === 'ascending' ? [past, inside] : [inside, past];
+			expect(compareBounds(start, end, order)).toBe(1);
 		},
 	);
 
