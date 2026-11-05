@@ -209,6 +209,25 @@ describe('option errors', () => {
 		},
 	);
 
+	it.each(['ascending', 'descending'] as const)(
+		'treats a boundary inside a transaction and the next transaction as possibly equal, %s',
+		(order) => {
+			const cursor = new Uint8Array([1]);
+			// Just before event (4, 2, 3) is just before transaction (4, 3) when transaction 2 has three events.
+			const inside = {
+				position: boundaryPosition(4n, { cursor, transactionIndex: 2n, eventIndex: 3 }),
+			};
+			const next = { position: boundaryPosition(4n, { cursor, transactionIndex: 3n }) };
+			const [start, end] = order === 'ascending' ? [next, inside] : [inside, next];
+			expect(compareBounds(start, end, order)).toBe(0);
+			expect(compareBounds(end, start, order)).toBe(-1);
+			// Two transactions on, events of transaction 3 lie between them.
+			const later = { position: boundaryPosition(4n, { cursor, transactionIndex: 4n }) };
+			const [from, to] = order === 'ascending' ? [later, inside] : [inside, later];
+			expect(compareBounds(from, to, order)).toBe(1);
+		},
+	);
+
 	it('rejects reversed bounds after resolving them', async () => {
 		const later = await tokenAt({ start: { checkpoint: 8 } }, 1, { live: [] });
 		const earlier = await followToken();

@@ -370,14 +370,20 @@ export function compareBounds(
 	return ordered;
 }
 
-/** Whether `inside`, a boundary within a checkpoint, can be the boundary `next` before the next one. */
+/**
+ * Whether `inside` can be the same boundary as `next`, the start of the next unit: (c, t) and c + 1
+ * when checkpoint c has t transactions, or (c, t, e) and (c, t + 1) when transaction t has e events.
+ */
 function sameBoundary(inside: StreamPosition, next: StreamPosition): boolean {
+	if (inside.kind !== 'Boundary' || next.kind !== 'Boundary' || !insideCheckpoint(inside)) {
+		return false;
+	}
+	if (!insideCheckpoint(next)) return next.checkpoint === inside.checkpoint! + 1n;
 	return (
-		insideCheckpoint(inside) &&
-		inside.kind === 'Boundary' &&
-		next.kind === 'Boundary' &&
-		!insideCheckpoint(next) &&
-		next.checkpoint === inside.checkpoint! + 1n
+		next.checkpoint === inside.checkpoint &&
+		!!inside.eventIndex &&
+		!next.eventIndex &&
+		next.transactionIndex === inside.transactionIndex! + 1n
 	);
 }
 

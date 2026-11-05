@@ -89,6 +89,11 @@ const transaction = result.Transaction ?? result.FailedTransaction;
 console.log(transaction.digest, result.protoJson);
 ```
 
+The stream methods take a `grpcFilter`: a native `TransactionFilter` or `EventFilter` from the
+generated types, for predicates the shared `filter` can't express. On `streamTransactions` and
+`streamEvents` it replaces `filter`, and the two can't be passed together. On `streamCheckpoints` it
+streams only checkpoints that contain a matching transaction.
+
 ## Transport options
 
 By default, `SuiGrpcClient` uses `GrpcWebFetchTransport`, which works in browsers and Node.js
