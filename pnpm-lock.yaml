@@ -1212,9 +1212,6 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2(typescript@7.0.2)
     devDependencies:
-      '@0no-co/graphqlsp':
-        specifier: ^1.17.3
-        version: 1.17.3(graphql@17.0.2)(typescript@7.0.2)
       '@graphql-codegen/add':
         specifier: ^7.1.0
         version: 7.1.0(graphql@17.0.2)
