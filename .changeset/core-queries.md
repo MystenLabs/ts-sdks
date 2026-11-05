@@ -17,3 +17,7 @@ Expand the Core API queries:
 - `doGasSelection` is an option of `simulateTransaction` on every client.
 - `EventEntry.checkpoint` is always set, and `listEvents` throws when the server omits a required
   event field such as the checkpoint, package, module, sender, type, transaction digest or index.
+- Add `listCheckpoints` to the Core API and as a top-level method on `SuiGrpcClient` and
+  `SuiGraphQLClient`. It pages through checkpoint summaries with the same `limit`, `order`, cursor
+  and checkpoint range options as `listTransactions`. Custom `CoreClient` subclasses must implement
+  it.

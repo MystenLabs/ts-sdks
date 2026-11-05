@@ -94,7 +94,7 @@ documents them in full, with options, include flags, and response shapes.
 | Dynamic fields | `listDynamicFields`, `getDynamicField`, `getDynamicObjectField`                            |
 | Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`  |
 | Simulation     | `simulateTransaction`                                                                      |
-| History        | `listTransactions`, `listEvents`                                                           |
+| History        | `listTransactions`, `listEvents`, `listCheckpoints`                                        |
 | Move           | `getMoveFunction`                                                                          |
 | Names          | `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr`                               |
 | Network        | `getReferenceGasPrice`, `getCurrentSystemState`, `getProtocolConfig`, `getChainIdentifier` |
@@ -173,6 +173,7 @@ function describeOwner(owner: SuiClientTypes.ObjectOwner) {
 | `TransactionEffects`   | Detailed effects from transaction execution                                              |
 | `Event`                | Emitted event from a transaction                                                         |
 | `EventEntry`           | Queried event with its ledger position                                                   |
+| `Checkpoint`           | Checkpoint summary: sequence number, digest, epoch, and timestamp (`timestampMs`)        |
 | `TransactionFilter`    | Filter for transaction queries                                                           |
 | `EventFilter`          | Filter for event queries                                                                 |
 | `ObjectOwner`          | Union of all owner types                                                                 |
