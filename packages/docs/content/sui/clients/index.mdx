@@ -39,10 +39,10 @@ A client is how your code reads from and writes to the Sui network. There are tw
 and they implement the same API (the same method names, options, and response shapes), so the choice
 is about which transport suits your application, not about which features you get.
 
-| Client                                     | Choose it for                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| [`SuiGrpcClient`](/sui/clients/grpc)       | The default. Reads from a full node, and the only client with real-time subscriptions |
-| [`SuiGraphQLClient`](/sui/clients/graphql) | Reads from the indexer, and custom queries written against the GraphQL schema         |
+| Client                                     | Choose it for                                                                 |
+| ------------------------------------------ | ----------------------------------------------------------------------------- |
+| [`SuiGrpcClient`](/sui/clients/grpc)       | The default. Reads from a full node                                           |
+| [`SuiGraphQLClient`](/sui/clients/graphql) | Reads from the indexer, and custom queries written against the GraphQL schema |
 
 Both are fully supported primary choices. Pick `SuiGrpcClient` if you have no particular reason to
 prefer one, and `SuiGraphQLClient` when your application wants to query the GraphQL schema directly.

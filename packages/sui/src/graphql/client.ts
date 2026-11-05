@@ -20,7 +20,12 @@ import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { abortableAsyncGenerator } from '../utils/abort.js';
-import { isRetryableStatus, SuiGraphQLRequestError } from './errors.js';
+import {
+	isRetryableStatus,
+	markConnectionLost,
+	markNetworkFailure,
+	SuiGraphQLRequestError,
+} from './errors.js';
 import { readGraphQLSSE } from './subscribe.js';
 
 export { SuiGraphQLRequestError } from './errors.js';
@@ -60,6 +65,8 @@ export type GraphQLSubscriptionOptions<
 		 * @default 16 * 1024 * 1024
 		 */
 		maxMessageSize?: number;
+		/** Called once the server accepts the subscription, before the first result. */
+		onOpen?: () => void;
 	};
 
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
@@ -219,10 +226,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			body = await res.text();
 		} catch (cause) {
 			options.signal?.throwIfAborted();
-			throw new SuiGraphQLRequestError('GraphQL response body could not be read', {
-				retryable: true,
-				cause,
-			});
+			throw markConnectionLost(
+				new SuiGraphQLRequestError('GraphQL response body could not be read', {
+					retryable: true,
+					cause,
+				}),
+			);
 		}
 		// Invalid JSON is a protocol error, not a transport failure, so it is not retryable.
 		return JSON.parse(body);
@@ -251,6 +260,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 					signal,
 				},
 			);
+			if (response.ok) options.onOpen?.();
 			yield* readGraphQLSSE<Result>(
 				response,
 				signal,
@@ -285,10 +295,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			if (resolved === null ? !this.#customFetch : !/^https?:/i.test(resolved)) {
 				throw new SuiGraphQLRequestError('GraphQL request URL is not an http(s) URL', { cause });
 			}
-			throw new SuiGraphQLRequestError('GraphQL network request failed', {
-				retryable: true,
-				cause,
-			});
+			throw markNetworkFailure(
+				new SuiGraphQLRequestError('GraphQL network request failed', {
+					retryable: true,
+					cause,
+				}),
+			);
 		}
 	}
 
@@ -506,6 +518,41 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		input: SuiClientTypes.ListCheckpointsOptions,
 	): Promise<SuiClientTypes.ListCheckpointsResponse> {
 		return this.core.listCheckpoints(input);
+	}
+
+	/**
+	 * Streams checkpoints in ledger order, resumable from any frame's `resumeToken`, following new
+	 * checkpoints by default.
+	 */
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include, Frames>> {
+		return this.core.streamCheckpoints(input);
+	}
+
+	/**
+	 * Streams transactions matching `filter` in ledger order, resumable from any frame's
+	 * `resumeToken`.
+	 */
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include, Frames>> {
+		return this.core.streamTransactions(input);
+	}
+
+	/**
+	 * Streams events matching `filter` in ledger order, resumable from any frame's `resumeToken`.
+	 */
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		input?: SuiClientTypes.StreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
+		return this.core.streamEvents(input);
 	}
 
 	getMoveFunction(

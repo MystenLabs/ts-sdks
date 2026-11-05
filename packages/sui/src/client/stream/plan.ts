@@ -24,6 +24,9 @@ import {
 	type TokenRange,
 } from './token.js';
 
+/** Milliseconds between polls when `pollInterval` isn't set. */
+export const DEFAULT_POLL_INTERVAL = 1000;
+
 /**
  * Stream planning. Everything before `planStream` makes no request, so option and token errors
  * surface before any retryable failure; `planStream` reads the indexed tip at most once.
@@ -114,7 +117,7 @@ export function resolveTraversal(
 		}
 	}
 
-	const pollInterval = options.pollInterval ?? 1000;
+	const pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
 	if (!(pollInterval > 0 && Number.isFinite(pollInterval))) {
 		throw new SuiStreamError('InvalidOptions', 'pollInterval must be a positive number');
 	}
