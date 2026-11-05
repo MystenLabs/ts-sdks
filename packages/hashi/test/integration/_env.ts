@@ -169,13 +169,6 @@ export async function btcRpc<T = unknown>(
 
 /**
  * Fetches a Sui address's balance of a given coin type via the gRPC client.
- *
- * Uses gRPC `state.getBalance` rather than JSON-RPC `suix_getBalance` so a
- * read issued immediately after a `signAndExecuteTransaction` returns the
- * post-tx state. The JSON-RPC indexer can lag a committed checkpoint by a
- * few hundred milliseconds on localnet — long enough for the previous
- * implementation to fail withdrawal-lifecycle's "balance dropped after
- * requestWithdrawal" assertion (PR #11 run 25099701367).
  */
 export async function fetchCoinBalance(
 	client: ExtendedHashiClient,
