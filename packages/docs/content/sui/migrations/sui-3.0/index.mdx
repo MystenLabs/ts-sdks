@@ -68,6 +68,8 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   - Set the new required `sender` field on `SuiClientTypes.Transaction` values.
   - Give `SuiClientTypes.TransactionData` values a `kind` and the `$kind` discriminants described
     below.
+  - Make `listDynamicFields` generic over its `include` option, like `getObjects`. Loops that pass a
+    page's cursor back in may need a `SuiClientTypes.ListDynamicFieldsResponse` annotation.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
@@ -170,3 +172,4 @@ return transactionBlockResponseFromExecution(result.Transaction ?? result.Failed
 - `SuiGraphQLClient.subscribe` runs GraphQL subscriptions; `subscriptionUrl` sets their endpoint.
 - Resumable checkpoint, transaction, and event streams on `SuiGrpcClient` and `SuiGraphQLClient`.
   See [Resumable ledger streams](/sui/clients/streaming).
+- `listDynamicFields({ include: { value: true } })` returns each field's value with the listing.

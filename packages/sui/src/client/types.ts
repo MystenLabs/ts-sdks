@@ -291,7 +291,9 @@ export namespace SuiClientTypes {
 			options: ListOwnedObjectsOptions<Include>,
 		) => Promise<ListOwnedObjectsResponse<Include>>;
 		listCoins: (options: ListCoinsOptions) => Promise<ListCoinsResponse>;
-		listDynamicFields: (options: ListDynamicFieldsOptions) => Promise<ListDynamicFieldsResponse>;
+		listDynamicFields: <Include extends DynamicFieldInclude = {}>(
+			options: ListDynamicFieldsOptions<Include>,
+		) => Promise<ListDynamicFieldsResponse<Include>>;
 		getDynamicField: (options: GetDynamicFieldOptions) => Promise<GetDynamicFieldResponse>;
 	}
 
@@ -367,10 +369,18 @@ export namespace SuiClientTypes {
 		cursor?: string | null;
 	}
 
-	export interface ListDynamicFieldsOptions extends CoreClientMethodOptions {
+	export interface DynamicFieldInclude {
+		/** Include each field's `value`. */
+		value?: boolean;
+	}
+
+	export interface ListDynamicFieldsOptions<
+		Include extends DynamicFieldInclude = {},
+	> extends CoreClientMethodOptions {
 		parentId: string;
 		limit?: number;
 		cursor?: string | null;
+		include?: Include & DynamicFieldInclude;
 	}
 
 	export interface GetDynamicFieldOptions extends CoreClientMethodOptions {
@@ -443,24 +453,35 @@ export namespace SuiClientTypes {
 		balance: string;
 	}
 
-	export type DynamicFieldEntry = {
+	export type DynamicFieldEntry<Include extends DynamicFieldInclude = {}> = {
+		/** ID of the `0x2::dynamic_field::Field` object. */
 		fieldId: string;
+		/** Type of the `0x2::dynamic_field::Field` object. */
 		type: string;
 		name: DynamicFieldName;
+		/**
+		 * Type of the value. For dynamic object fields, `listDynamicFields` reports the child object's
+		 * type and `getDynamicField` reports `0x2::object::ID`.
+		 */
 		valueType: string;
+		/**
+		 * The field's value; `value.type` always equals `valueType`. For dynamic object fields,
+		 * `listDynamicFields` returns the child object's BCS-encoded content and `getDynamicField`
+		 * the child's ID.
+		 */
+		value: Include extends { value: true } ? DynamicFieldValue : undefined;
 	} & ({ $kind: 'DynamicField'; childId?: never } | { $kind: 'DynamicObject'; childId: string });
 
-	export type DynamicField = DynamicFieldEntry & {
-		value: DynamicFieldValue;
+	export type DynamicField = DynamicFieldEntry<{ value: true }> & {
 		version: string;
 		digest: string;
 		previousTransaction: string | null;
 	};
 
-	export interface ListDynamicFieldsResponse {
+	export interface ListDynamicFieldsResponse<out Include extends DynamicFieldInclude = {}> {
 		hasNextPage: boolean;
 		cursor: string | null;
-		dynamicFields: DynamicFieldEntry[];
+		dynamicFields: DynamicFieldEntry<Include>[];
 	}
 
 	export interface GetDynamicFieldResponse {
