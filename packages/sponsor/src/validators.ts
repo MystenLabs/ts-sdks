@@ -1,8 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi } from '@mysten/sui/client';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { bcs } from '@mysten/sui/bcs';
+import { ObjectError, type ClientWithCoreApi } from '@mysten/sui/client';
+import { deriveObjectID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { isValidTransactionSignature } from '@mysten/sui/verify';
 import {
 	analyze,
@@ -77,28 +78,77 @@ export function defaults(): Validator[] {
 	];
 }
 
+/** `0x2::address_alias::AddressAliases`: its UID and a `VecSet<address>`. */
+const AddressAliases = bcs.struct('AddressAliases', {
+	id: bcs.Address,
+	aliases: bcs.struct('VecSet', { contents: bcs.vector(bcs.Address) }),
+});
+
+/**
+ * The gas owner's on-chain alias set (`0x2::address_alias`), derived from the
+ * shared `AddressAliasState` at `0xa`. An address with no alias object is only
+ * its own alias. Swap for `client.core.getAddressAliases` once it ships.
+ */
+const gasOwnerAliases = createAnalyzer({
+	cacheKey: 'sponsor:gasOwnerAliases@1',
+	dependencies: { data: analyzers.data },
+	analyze:
+		(options: { client: ClientWithCoreApi }) =>
+		async ({ data }) => {
+			if (!data.gasData.owner) return { result: [] as string[] };
+			const objectId = deriveObjectID(
+				'0xa',
+				'0x2::address_alias::AliasKey',
+				bcs.Address.serialize(data.gasData.owner).toBytes(),
+			);
+			const {
+				objects: [object],
+			} = await options.client.core.getObjects({
+				objectIds: [objectId],
+				include: { content: true },
+			});
+			if (object instanceof ObjectError && object.reason === 'notFound') {
+				return { result: [] as string[] };
+			}
+			// Any other read failure throws, so `validSender` fails closed as `ANALYSIS_FAILED`.
+			if (object instanceof Error) throw object;
+			return { result: AddressAliases.parse(object.content).aliases.contents };
+		},
+});
+
 /**
  * Validate the transaction's sender. Two explicit checks:
  *
  * - **Set** — reject an unset sender (`SENDER_UNSET`). An unset sender would
  *   otherwise normalize to the zero address and slip past the next check.
- * - **Not the sponsor** — reject when the sender is the gas owner (sponsor)
- *   (`SENDER_IS_SPONSOR`); there's no legitimate reason to sponsor your own
- *   transaction, and allowing it lets a caller drain the sponsor's gas.
+ * - **Not the sponsor** — reject when the sender is the gas owner (sponsor) or
+ *   any address in the gas owner's on-chain alias set (`SENDER_IS_SPONSOR`).
+ *   There's no legitimate reason to sponsor your own transaction, and allowing
+ *   it lets a caller drain the sponsor's gas. Aliases matter because the
+ *   sponsor's one signature also satisfies a sender in its alias set, letting a
+ *   caller spend that address's assets.
  *
- * Part of {@link defaults}. Reads only `data`.
+ * Part of {@link defaults}. Reads `data` and loads the gas owner's alias object
+ * through `client`; a failed load is `ANALYSIS_FAILED`, never a pass.
  */
 export function validSender(): Validator {
 	return createAnalyzer({
-		dependencies: { data: analyzers.data },
+		dependencies: { data: analyzers.data, gasOwnerAliases },
 		analyze:
 			() =>
-			({ data }) => {
+			({ data, gasOwnerAliases }) => {
 				if (!data.sender) {
 					return reject({ code: 'SENDER_UNSET', message: 'Transaction must have a sender set.' });
 				}
-				if (normalizeSuiAddress(data.sender) === normalizeSuiAddress(data.gasData.owner ?? '')) {
+				const sender = normalizeSuiAddress(data.sender);
+				if (sender === normalizeSuiAddress(data.gasData.owner ?? '')) {
 					return reject({ code: 'SENDER_IS_SPONSOR', message: 'Sender cannot be the sponsor.' });
+				}
+				if (gasOwnerAliases.some((alias) => normalizeSuiAddress(alias) === sender)) {
+					return reject({
+						code: 'SENDER_IS_SPONSOR',
+						message: "Sender cannot be in the sponsor's address alias set.",
+					});
 				}
 				return pass;
 			},

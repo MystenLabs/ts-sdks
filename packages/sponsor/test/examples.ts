@@ -47,8 +47,8 @@ const sponsor = createSponsor({
 	validate: [defaults(), gasBudget({ max: 50_000_000n }), allowedPackages(['0xabc'])],
 });
 
-// Offline-only signing: validate already-built bytes (no dry-run, no network).
-const offlineSponsor = createSponsor({
+// Skip simulation; `validSender()` still reads the sponsor's on-chain aliases.
+const sponsorWithoutSimulation = createSponsor({
 	signer,
 	client,
 	validate: [validSender(), gasCoinNotUsed()],
@@ -253,6 +253,6 @@ export type _Examples = [
 	typeof inspect,
 	typeof callAuthSponsor,
 	typeof sponsorWithDelay,
-	typeof offlineSponsor,
+	typeof sponsorWithoutSimulation,
 	ClientWithCoreApi,
 ];
