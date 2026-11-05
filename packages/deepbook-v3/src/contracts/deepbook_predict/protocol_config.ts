@@ -6,16 +6,15 @@
  * Protocol-wide configuration and flow gates for Predict.
  *
  * This shared object owns the admin-tunable config structs, the fee-incentive
- * subsidy, live-target, and lifetime-cap rates, the trading pause gate, the
- * protocol-wide emergency freeze, the version watermark (reaching
+ * subsidy, live-target, and lifetime-cap rates, the fee-band template, the trading
+ * pause gate, the protocol-wide emergency freeze, the version watermark (reaching
  * `constants::cutover_version!()` is also the delayed-execution cutover), the
- * allowlists of keepers that may redeem settled orders without owner auth, of
- * operators that may finish an LP flush, and of the order-flow companion witness
- * types that may drive the order-flow primitives, and the full-pool valuation
- * in-flight state (flag + flush ordinal, held across the transactions a flush
- * spans; keeper/config flows gate on it, trading flows read it only to discard
- * stale stamps lazily). Flow modules decide which gates apply before they mutate
- * expiry, oracle, pool, or account state.
+ * allowlists of operators that may finish an LP flush and of the order-flow
+ * companion witness types that may drive the order-flow primitives, and the
+ * full-pool valuation in-flight state (flag + flush ordinal, held across the
+ * transactions a flush spans; keeper/config flows gate on it, trading flows read
+ * it only to discard stale stamps lazily). Flow modules decide which gates apply
+ * before they mutate expiry, oracle, pool, or account state.
  */
 
 import {
@@ -163,6 +162,10 @@ export const OrderFlowKey = new MoveTuple({
 });
 export const BuilderFeeCapKey = new MoveTuple({
 	name: `${$moduleName}::BuilderFeeCapKey`,
+	fields: [bcs.bool()],
+});
+export const FeeBandsKey = new MoveTuple({
+	name: `${$moduleName}::FeeBandsKey`,
 	fields: [bcs.bool()],
 });
 export interface IdArguments {
@@ -652,6 +655,47 @@ export function setTemplateBaseFee(options: SetTemplateBaseFeeOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_template_base_fee',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetTemplateFeeBandsArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	bands: RawTransactionArgument<Array<number | bigint>>;
+}
+export interface SetTemplateFeeBandsOptions {
+	package?: string;
+	arguments: SetTemplateFeeBandsArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Replace the fee-band template snapshotted by newly created expiry markets: flat
+ * `[low, high, multiplier]` triples, in FLOAT_SCALING. A trade whose contract
+ * price is in `[low, high)` pays its trading fee times the multiplier. Empty
+ * clears the template. Markets already created keep their copy.
+ */
+export function setTemplateFeeBands(options: SetTemplateFeeBandsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
+		string | null
+	)[];
+	const parameterNames = ['config', 'AdminCap', 'bands'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_template_fee_bands',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -1379,9 +1423,9 @@ export function setFrozen(options: SetFrozenOptions) {
 		});
 }
 export interface AddSettledRedeemKeeperArguments {
-	config?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
-	keeper: RawTransactionArgument<string>;
+	Keeper: RawTransactionArgument<string>;
 }
 export interface AddSettledRedeemKeeperOptions {
 	package?: string;
@@ -1392,14 +1436,14 @@ export interface AddSettledRedeemKeeperOptions {
 	};
 }
 /**
- * Allow `keeper` to call `expiry_market::redeem_settled_permissionless`.
- * Admin-only and version-gated. Aborts if `keeper` is already allowed.
+ * Retired with `redeem_settled_permissionless`, the only call the keeper allowlist
+ * gated. Always aborts `ESettledRedeemRetired`.
  */
 export function addSettledRedeemKeeper(options: AddSettledRedeemKeeperOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'keeper'];
+	const parameterNames = ['Config', 'AdminCap', 'Keeper'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1408,7 +1452,7 @@ export function addSettledRedeemKeeper(options: AddSettledRedeemKeeperOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1416,9 +1460,9 @@ export function addSettledRedeemKeeper(options: AddSettledRedeemKeeperOptions) {
 		});
 }
 export interface RemoveSettledRedeemKeeperArguments {
-	config?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
-	keeper: RawTransactionArgument<string>;
+	Keeper: RawTransactionArgument<string>;
 }
 export interface RemoveSettledRedeemKeeperOptions {
 	package?: string;
@@ -1429,16 +1473,14 @@ export interface RemoveSettledRedeemKeeperOptions {
 	};
 }
 /**
- * Revoke `keeper`'s access to `expiry_market::redeem_settled_permissionless`.
- * Admin-only. Bypasses the version gate, like the registry's cap revocations, so
- * revocation stays available under the emergency freeze and from a package version
- * below the runtime floor. Aborts if `keeper` is not allowed.
+ * Retired with `redeem_settled_permissionless`, the only call the keeper allowlist
+ * gated. Always aborts `ESettledRedeemRetired`.
  */
 export function removeSettledRedeemKeeper(options: RemoveSettledRedeemKeeperOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'keeper'];
+	const parameterNames = ['Config', 'AdminCap', 'Keeper'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1447,7 +1489,7 @@ export function removeSettledRedeemKeeper(options: RemoveSettledRedeemKeeperOpti
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,

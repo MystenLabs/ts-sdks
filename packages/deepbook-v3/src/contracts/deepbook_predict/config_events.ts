@@ -23,6 +23,13 @@ export const StrikeExposureTemplateConfigUpdated = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const FeeBandsUpdated = new MoveStruct({
+	name: `${$moduleName}::FeeBandsUpdated`,
+	fields: {
+		bands: bcs.vector(U64),
+		onchain_timestamp_ms: U64,
+	},
+});
 export const PricingConfigUpdated = new MoveStruct({
 	name: `${$moduleName}::PricingConfigUpdated`,
 	fields: {
@@ -139,6 +146,10 @@ export const MarketCreated = new MoveStruct({
 		backing_buffer_lambda: U64,
 		base_fee: U64,
 		min_fee: U64,
+		/**
+		 * The market's own mint entry band: the template's, or narrower when the
+		 * lifecycle-cap holder narrowed it at creation.
+		 */
 		min_entry_probability: U64,
 		max_entry_probability: U64,
 		expiry_fee_window_ms: U64,
