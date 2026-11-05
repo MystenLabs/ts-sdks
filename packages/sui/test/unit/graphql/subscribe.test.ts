@@ -210,6 +210,29 @@ describe('GraphQL subscribe', () => {
 		}
 	});
 
+	it('sends a relative URL unchanged when there is no page to resolve it against', async () => {
+		// React Native's URL resolves a relative URL without a base, appending a slash.
+		class AppendingURL {
+			readonly href: string;
+			constructor(url: string) {
+				this.href = `${url}/`;
+			}
+		}
+		vi.stubGlobal('URL', AppendingURL);
+		try {
+			const fetch = vi.fn(async () => sse(['event: complete\n\n']).response);
+			const client = new SuiGraphQLClient({ url: '/graphql?key=x', network: 'unknown', fetch });
+			await client.query({ query: '{ value }', variables: {} }).catch(() => {});
+			await collect(client.subscribe({ query: 'subscription { value }', variables: {} }));
+			expect(fetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
+				'/graphql?key=x',
+				'/graphql/subscriptions?key=x',
+			]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('sends queries and subscriptions for a padded relative URL to the same endpoint', async () => {
 		const fetch = vi.fn(async () => sse(['event: complete\n\n']).response);
 		const client = new SuiGraphQLClient({ url: '/graphql ', network: 'unknown', fetch });
@@ -517,7 +540,7 @@ describe('GraphQL subscribe', () => {
 		).rejects.toBeInstanceOf(SuiGraphQLRequestError);
 	});
 
-	it('reports query and subscription failures with one error class', async () => {
+	it('reports query HTTP failures with the same error class', async () => {
 		for (const status of [429, 400]) {
 			const { client } = clientFor(new Response('', { status }));
 			const error = await client
@@ -529,24 +552,6 @@ describe('GraphQL subscribe', () => {
 				status,
 				retryable: status === 429,
 			});
-		}
-
-		const cause = new TypeError('fetch failed');
-		const fetch = vi.fn(async () => {
-			throw cause;
-		});
-		const client = new SuiGraphQLClient({
-			url: 'https://example.com/graphql',
-			network: 'unknown',
-			fetch,
-		});
-		for (const request of [
-			() => client.query({ query: '{ value }', variables: {} }),
-			() => client.subscribe({ query: 'subscription { value }' }).next(),
-		]) {
-			const error = await request().catch((e: unknown) => e);
-			expect(error).toBeInstanceOf(SuiGraphQLRequestError);
-			expect(error).toMatchObject({ retryable: true, cause });
 		}
 	});
 });

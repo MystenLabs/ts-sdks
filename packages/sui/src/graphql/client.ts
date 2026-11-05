@@ -108,14 +108,16 @@ function requestBody(options: {
 
 /**
  * The URL `fetch` would request: an absolute URL unchanged, a relative one resolved against the
- * page; `null` when it can't be resolved. Absolute URLs skip `URL`, which React Native's built-in
- * implementation would alter, and only `href` is read for the same reason.
+ * page; `null` without a page or when it can't be resolved. Only a relative URL with a page goes
+ * through `URL`, which React Native's built-in implementation alters, and only `href` is read.
  */
 function resolveUrl(url: string): string | null {
 	const trimmed = url.trim();
 	if (/^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed;
+	const base = pageBase();
+	if (base === undefined) return null;
 	try {
-		return new URL(trimmed, pageBase()).href;
+		return new URL(trimmed, base).href;
 	} catch {
 		return null;
 	}
