@@ -26,7 +26,6 @@ describe('Core API - Name Service', () => {
 		// Note: SuiNS is not configured on localnet, so we expect specific behavior
 		// gRPC throws "SuiNS not configured for this network"
 		// GraphQL returns no data (Missing response data)
-		// JSON RPC returns undefined instead of null
 
 		testWithAllClients('should handle name service request', async (client) => {
 			try {

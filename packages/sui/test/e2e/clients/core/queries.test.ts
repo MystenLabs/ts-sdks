@@ -9,10 +9,11 @@ import {
 	createTestWithAllClients,
 	getRandomAddresses,
 } from '../../utils/setup.js';
+import type { ClientKind } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import type { SuiClientTypes } from '../../../../src/client/index.js';
 
-const EXCLUDE: Array<'jsonrpc' | 'grpc' | 'graphql'> = [];
+const EXCLUDE: ClientKind[] = [];
 
 describe('Core API - Queries', () => {
 	let toolbox: TestToolbox;
@@ -34,11 +35,7 @@ describe('Core API - Queries', () => {
 	}
 
 	function normalizeEvents(result: SuiClientTypes.ListEventsResponse) {
-		return {
-			...stripCursors(result),
-			// JSON-RPC does not expose checkpoint information for queried events
-			events: result.events.map((event) => ({ ...event, checkpoint: null })),
-		};
+		return stripCursors(result);
 	}
 
 	beforeAll(async () => {
@@ -83,7 +80,6 @@ describe('Core API - Queries', () => {
 		await vi.waitFor(
 			async () => {
 				for (const [kind, client] of [
-					['jsonrpc', toolbox.jsonRpcClient],
 					['grpc', toolbox.grpcClient],
 					['graphql', toolbox.graphqlClient],
 				] as const) {
@@ -105,12 +101,10 @@ describe('Core API - Queries', () => {
 
 	describe('listTransactions', () => {
 		it('all clients return same data: no filter', async () => {
-			// The fullnode JSON-RPC index orders transactions within a checkpoint by local
-			// execution order rather than checkpoint order, so only the other transports agree
 			await toolbox.expectAllClientsReturnSameData(
 				(client) => client.core.listTransactions({ limit: 3 }),
 				stripCursors,
-				{ exclude: [...EXCLUDE, 'jsonrpc'] },
+				{ exclude: EXCLUDE },
 			);
 		});
 
@@ -240,7 +234,6 @@ describe('Core API - Queries', () => {
 		it('all clients return same data: polling for new transactions', async () => {
 			const clients = (
 				[
-					['jsonrpc', toolbox.jsonRpcClient],
 					['grpc', toolbox.grpcClient],
 					['graphql', toolbox.graphqlClient],
 				] as const
@@ -402,8 +395,6 @@ describe('Core API - Queries', () => {
 		});
 
 		it('all clients return same data: event checkpoints', async () => {
-			// JSON-RPC cannot provide checkpoint information for queried events, so
-			// checkpoint parity only applies to the other transports
 			await toolbox.expectAllClientsReturnSameData(
 				async (client) => {
 					const result = await client.core.listEvents({
@@ -413,13 +404,13 @@ describe('Core API - Queries', () => {
 					return result.events.map((event) => event.checkpoint);
 				},
 				undefined,
-				{ exclude: [...EXCLUDE, 'jsonrpc'] },
+				{ exclude: EXCLUDE },
 			);
 		});
 
 		testWithAllClients(
 			'should list events with ledger positions',
-			async (client, kind) => {
+			async (client) => {
 				const result = await client.core.listEvents({
 					filter: { eventType: `${packageId}::test_objects::ObjectCreated` },
 				});
@@ -435,11 +426,7 @@ describe('Core API - Queries', () => {
 					expect(event.bcs).toBeInstanceOf(Uint8Array);
 					expect(event.eventIndex).toBe(0);
 
-					if (kind === 'jsonrpc') {
-						expect(event.checkpoint).toBeNull();
-					} else {
-						expect(event.checkpoint).toMatch(/^\d+$/);
-					}
+					expect(event.checkpoint).toMatch(/^\d+$/);
 				}
 			},
 			{ skip: EXCLUDE },
@@ -534,7 +521,7 @@ describe('Core API - Queries', () => {
 						{ exclude: EXCLUDE },
 					);
 
-					const { events } = await toolbox.jsonRpcClient.core.listEvents({
+					const { events } = await toolbox.graphqlClient.core.listEvents({
 						filter: { sender: address },
 					});
 					expect(events.map((event) => event.eventIndex)).toEqual([0, 1]);

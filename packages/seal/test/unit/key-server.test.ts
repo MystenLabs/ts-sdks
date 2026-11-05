@@ -3,7 +3,6 @@
 
 import { fromBase64 } from '@mysten/bcs';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bcs } from '@mysten/sui/bcs';
 
@@ -28,7 +27,7 @@ const keyType = 0;
 const url = 'https://seal-key-server-testnet-1.mystenlabs.com';
 const name = 'mysten-testnet-v1-1';
 
-// Helper to create mock SuiClient for V2 servers.
+// Helper to create a mock Sui client for V2 servers.
 function createMockV2Client(
 	objectId: string,
 	firstVersion: number,
@@ -168,7 +167,7 @@ describe('key-server tests', () => {
 				objectIds: [id],
 				client: new SuiGrpcClient({
 					network: 'testnet',
-					baseUrl: getJsonRpcFullnodeUrl('testnet'),
+					baseUrl: 'https://fullnode.testnet.sui.io:443',
 				}),
 				configs: new Map(),
 			});

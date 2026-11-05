@@ -567,7 +567,7 @@ describe('Multisig address creation:', () => {
 			const multisig = publicKey.combinePartialSignatures([sig1.signature, zkLoginSig]);
 
 			await expect(verifyTransactionSignature(txBytes, multisig)).rejects.toThrow(
-				'A Sui Client (GRPC, GraphQL, or JSON RPC) is required to verify zkLogin signatures',
+				'A Sui Client (gRPC or GraphQL) is required to verify zkLogin signatures',
 			);
 		});
 

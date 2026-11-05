@@ -28,7 +28,7 @@ describe('Core API - Clever Errors', () => {
 	describe('MoveAbort error structure', () => {
 		testWithAllClients(
 			'should return MoveAbort with location info via simulation',
-			async (client, kind) => {
+			async (client) => {
 				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
@@ -42,15 +42,15 @@ describe('Core API - Clever Errors', () => {
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
-				const coins = await toolbox.jsonRpcClient.getCoins({
+				const coins = await toolbox.grpcClient.core.listCoins({
 					owner: address,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
 					{
-						objectId: coins.data[0].coinObjectId,
-						version: coins.data[0].version,
-						digest: coins.data[0].digest,
+						objectId: coins.objects[0].objectId,
+						version: coins.objects[0].version,
+						digest: coins.objects[0].digest,
 					},
 				]);
 
@@ -80,17 +80,14 @@ describe('Core API - Clever Errors', () => {
 					expect(moveAbort.location?.module).toBe('test_objects');
 					expect(moveAbort.location?.functionName).toBe('abort_with_clever_error');
 
-					// cleverError with constantName is only available in gRPC and GraphQL
-					if (kind !== 'jsonrpc') {
-						expect(moveAbort.cleverError?.constantName).toBe('ETestCleverError');
-					}
+					expect(moveAbort.cleverError?.constantName).toBe('ETestCleverError');
 				}
 			},
 		);
 
 		testWithAllClients(
 			'executed transaction should return MoveAbort with location info',
-			async (client, kind) => {
+			async (client) => {
 				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
@@ -104,8 +101,9 @@ describe('Core API - Clever Errors', () => {
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
-				// Use jsonRpcClient for building to avoid gRPC/GraphQL simulation catching the abort
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				// The client-side resolver skips simulation once a gas budget is set, so the abort
+				// is only observed on execution
+				const bytes = await tx.build({ client: toolbox.clientResolverGrpcClient });
 				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
@@ -137,10 +135,7 @@ describe('Core API - Clever Errors', () => {
 					expect(moveAbort.location?.module).toBe('test_objects');
 					expect(moveAbort.location?.functionName).toBe('abort_with_clever_error');
 
-					// cleverError with constantName is only available in gRPC and GraphQL
-					if (kind !== 'jsonrpc') {
-						expect(moveAbort.cleverError?.constantName).toBe('ETestCleverError');
-					}
+					expect(moveAbort.cleverError?.constantName).toBe('ETestCleverError');
 				}
 			},
 		);
@@ -149,7 +144,7 @@ describe('Core API - Clever Errors', () => {
 	describe('Error message formatting', () => {
 		testWithAllClients(
 			'should include location info in error message for aborting transaction',
-			async (client, kind) => {
+			async (client) => {
 				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
@@ -163,15 +158,15 @@ describe('Core API - Clever Errors', () => {
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
-				const coins = await toolbox.jsonRpcClient.getCoins({
+				const coins = await toolbox.grpcClient.core.listCoins({
 					owner: address,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
 					{
-						objectId: coins.data[0].coinObjectId,
-						version: coins.data[0].version,
-						digest: coins.data[0].digest,
+						objectId: coins.objects[0].objectId,
+						version: coins.objects[0].version,
+						digest: coins.objects[0].digest,
 					},
 				]);
 
@@ -200,66 +195,60 @@ describe('Core API - Clever Errors', () => {
 					expect(error.message).toContain('test_objects');
 					expect(error.message).toContain('abort_with_clever_error');
 
-					// cleverError message formatting is only available in gRPC and GraphQL
-					if (kind !== 'jsonrpc') {
-						expect(error.message).toContain('ETestCleverError');
-					}
+					expect(error.message).toContain('ETestCleverError');
 				}
 			},
 		);
 	});
 
 	describe('raw abort', () => {
-		testWithAllClients(
-			'raw abort should not have cleverError.constantName',
-			async (client, _kind) => {
-				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
-				const tx = new Transaction();
-				tx.moveCall({
-					target: `${packageId}::test_objects::abort_always`,
-					arguments: [],
-				});
+		testWithAllClients('raw abort should not have cleverError.constantName', async (client) => {
+			const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::abort_always`,
+				arguments: [],
+			});
 
-				// Manually configure gas to bypass resolution failures
-				tx.setSender(address);
-				tx.setGasOwner(address);
-				tx.setGasBudget(50_000_000);
-				tx.setGasPrice(1000);
+			// Manually configure gas to bypass resolution failures
+			tx.setSender(address);
+			tx.setGasOwner(address);
+			tx.setGasBudget(50_000_000);
+			tx.setGasPrice(1000);
 
-				const coins = await toolbox.jsonRpcClient.getCoins({
-					owner: address,
-					coinType: SUI_TYPE_ARG,
-				});
-				tx.setGasPayment([
-					{
-						objectId: coins.data[0].coinObjectId,
-						version: coins.data[0].version,
-						digest: coins.data[0].digest,
-					},
-				]);
+			const coins = await toolbox.grpcClient.core.listCoins({
+				owner: address,
+				coinType: SUI_TYPE_ARG,
+			});
+			tx.setGasPayment([
+				{
+					objectId: coins.objects[0].objectId,
+					version: coins.objects[0].version,
+					digest: coins.objects[0].digest,
+				},
+			]);
 
-				const bytes = await tx.build({});
+			const bytes = await tx.build({});
 
-				const result = await client.core.simulateTransaction({
-					transaction: bytes,
-					include: { effects: true },
-				});
+			const result = await client.core.simulateTransaction({
+				transaction: bytes,
+				include: { effects: true },
+			});
 
-				expect(result.$kind).toBe('FailedTransaction');
-				const error = result.FailedTransaction!.status.error;
-				expect(error?.$kind).toBe('MoveAbort');
+			expect(result.$kind).toBe('FailedTransaction');
+			const error = result.FailedTransaction!.status.error;
+			expect(error?.$kind).toBe('MoveAbort');
 
-				if (error?.$kind === 'MoveAbort') {
-					// Raw abort with literal value (42) should not have a clever error constant name
-					expect(error.MoveAbort.cleverError?.constantName).toBeUndefined();
-					// Should have abort code 42
-					expect(error.MoveAbort.abortCode).toBe('42');
-					// Should have location info
-					expect(error.MoveAbort.location?.module).toBe('test_objects');
-					expect(error.MoveAbort.location?.functionName).toBe('abort_always');
-				}
-			},
-		);
+			if (error?.$kind === 'MoveAbort') {
+				// Raw abort with literal value (42) should not have a clever error constant name
+				expect(error.MoveAbort.cleverError?.constantName).toBeUndefined();
+				// Should have abort code 42
+				expect(error.MoveAbort.abortCode).toBe('42');
+				// Should have location info
+				expect(error.MoveAbort.location?.module).toBe('test_objects');
+				expect(error.MoveAbort.location?.functionName).toBe('abort_always');
+			}
+		});
 	});
 
 	describe('All clients return same error message', () => {
@@ -276,15 +265,15 @@ describe('Core API - Clever Errors', () => {
 			tx.setGasBudget(50_000_000);
 			tx.setGasPrice(1000);
 
-			const coins = await toolbox.jsonRpcClient.getCoins({
+			const coins = await toolbox.grpcClient.core.listCoins({
 				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 			tx.setGasPayment([
 				{
-					objectId: coins.data[0].coinObjectId,
-					version: coins.data[0].version,
-					digest: coins.data[0].digest,
+					objectId: coins.objects[0].objectId,
+					version: coins.objects[0].version,
+					digest: coins.objects[0].digest,
 				},
 			]);
 
@@ -315,20 +304,17 @@ describe('Core API - Clever Errors', () => {
 	describe('SimulationError during transaction build', () => {
 		testWithAllClients(
 			'build() should throw SimulationError with clever error info when simulation fails',
-			async (client, kind) => {
+			async (client) => {
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_with_clever_error`,
 					arguments: [],
 				});
 				tx.setSender(testAddress);
-				// Set empty gas payment to disable gas coin selection.
-				// For gRPC/GraphQL, also set gas budget so doGasSelection is fully disabled
-				// and the simulation returns structured effects even when the transaction aborts.
-				// For JSON-RPC, leave budget unset so setGasBudget's simulation catches the error.
-				if (kind !== 'jsonrpc') {
-					tx.setGasBudget(50_000_000);
-				}
+				// Set empty gas payment to disable gas coin selection, and set gas budget so
+				// doGasSelection is fully disabled and the simulation returns structured effects
+				// even when the transaction aborts.
+				tx.setGasBudget(50_000_000);
 				tx.setGasPayment([]);
 
 				const buildError = await tx.build({ client }).catch((e) => e);
@@ -336,15 +322,9 @@ describe('Core API - Clever Errors', () => {
 				expect(buildError).toBeInstanceOf(SimulationError);
 
 				const normalized = normalizeAddress(buildError.message);
-				if (kind === 'jsonrpc') {
-					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 163)"`,
-					);
-				} else {
-					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 163)"`,
-					);
-				}
+				expect(normalized).toMatchInlineSnapshot(
+					`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 163)"`,
+				);
 
 				// Should have structured executionError attached
 				const executionError = buildError.executionError;
@@ -355,27 +335,22 @@ describe('Core API - Clever Errors', () => {
 					expect(executionError.MoveAbort.location?.module).toBe('test_objects');
 					expect(executionError.MoveAbort.location?.functionName).toBe('abort_with_clever_error');
 
-					// gRPC and GraphQL get clever error constant name via structured effects
-					if (kind !== 'jsonrpc') {
-						expect(executionError.MoveAbort.cleverError?.constantName).toBe('ETestCleverError');
-					}
+					expect(executionError.MoveAbort.cleverError?.constantName).toBe('ETestCleverError');
 				}
 			},
 		);
 
 		testWithAllClients(
 			'build() should throw SimulationError with raw abort info',
-			async (client, kind) => {
+			async (client) => {
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_always`,
 					arguments: [],
 				});
 				tx.setSender(testAddress);
-				// For gRPC/GraphQL, set budget to disable gas selection; JSON-RPC catches via setGasBudget
-				if (kind !== 'jsonrpc') {
-					tx.setGasBudget(50_000_000);
-				}
+				// Set budget to disable gas selection
+				tx.setGasBudget(50_000_000);
 				tx.setGasPayment([]);
 
 				const buildError = await tx.build({ client }).catch((e) => e);
@@ -404,17 +379,15 @@ describe('Core API - Clever Errors', () => {
 	describe('SimulationError during signAndExecuteTransaction', () => {
 		testWithAllClients(
 			'signAndExecuteTransaction should throw SimulationError with structured error data',
-			async (client, kind) => {
+			async (client) => {
 				const { keypair } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::abort_with_clever_error`,
 					arguments: [],
 				});
-				// For gRPC/GraphQL, set budget to disable gas selection; JSON-RPC catches via setGasBudget
-				if (kind !== 'jsonrpc') {
-					tx.setGasBudget(50_000_000);
-				}
+				// Set budget to disable gas selection
+				tx.setGasBudget(50_000_000);
 				tx.setGasPayment([]);
 
 				const executeError = await client.core
@@ -427,15 +400,9 @@ describe('Core API - Clever Errors', () => {
 				expect(executeError).toBeInstanceOf(SimulationError);
 
 				const normalized = normalizeAddress(executeError.message);
-				if (kind === 'jsonrpc') {
-					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, abort code: 0, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 163)"`,
-					);
-				} else {
-					expect(normalized).toMatchInlineSnapshot(
-						`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 163)"`,
-					);
-				}
+				expect(normalized).toMatchInlineSnapshot(
+					`"Transaction resolution failed: MoveAbort in 1st command, 'ETestCleverError': Test clever error message, in '0x<PACKAGE>::test_objects::abort_with_clever_error' (line 163)"`,
+				);
 
 				const executionError = executeError.executionError;
 				expect(executionError?.$kind).toBe('MoveAbort');

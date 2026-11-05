@@ -21,8 +21,8 @@ describe('MultiSig with zklogin signature', () => {
 	it('Execute tx with multisig with 1 sig and 1 zkLogin sig combined', async () => {
 		// Get current epoch to generate a valid zkLogin signature with appropriate max epoch
 		const tempToolbox = await setup();
-		const epoch = await tempToolbox.jsonRpcClient.getLatestSuiSystemState();
-		const currentEpoch = Number(epoch.epoch);
+		const { systemState } = await tempToolbox.grpcClient.core.getCurrentSystemState();
+		const currentEpoch = Number(systemState.epoch);
 		const maxEpoch = currentEpoch + 10;
 
 		// Generate a zkLogin signature dynamically using sui keytool
@@ -75,8 +75,8 @@ describe('MultiSig with zklogin signature', () => {
 		tx.setSenderIfNotSet(multisigAddr);
 		const coin = tx.splitCoins(tx.gas, [1]);
 		tx.transferObjects([coin], DEFAULT_RECIPIENT);
-		const client = toolbox.jsonRpcClient;
-		const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+		const client = toolbox.grpcClient;
+		const bytes = await tx.build({ client });
 
 		// sign with the single keypair.
 		const singleSig = (await kp.signTransaction(bytes)).signature;
@@ -100,16 +100,17 @@ describe('MultiSig with zklogin signature', () => {
 
 		// combine to multisig and execute the transaction.
 		const signature = multiSigPublicKey.combinePartialSignatures([singleSig, zkLoginSig]);
-		const result = await client.executeTransactionBlock({
-			transactionBlock: bytes,
-			signature,
-			options: { showEffects: true },
+		const result = await client.core.executeTransaction({
+			transaction: bytes,
+			signatures: [signature],
+			include: { effects: true },
 		});
-		await client.waitForTransaction({ digest: result.digest });
+		await client.core.waitForTransaction({ result });
 
 		// check the execution result and digest.
+		expect(result.$kind).toEqual('Transaction');
 		const localDigest = await tx.getDigest({ client });
-		expect(localDigest).toEqual(result.digest);
-		expect(result.effects?.status.status).toEqual('success');
+		expect(localDigest).toEqual(result.Transaction!.digest);
+		expect(result.Transaction!.effects.status.success).toBe(true);
 	});
 });

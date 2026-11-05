@@ -53,7 +53,7 @@ export class PredictMoveError extends Error {
 //     fullnode from the clever-error bits of the abort code and surfaced by the gRPC
 //     (`grpc/core.ts` parseMoveAbort) and GraphQL transports. Only a clever-error abort
 //     carries one, and Predict's plain `u64` constants never do, so ABORT_NAMES names
-//     those. JSON-RPC surfaces no `constantName` at all.
+//     those.
 export interface MoveAbortError {
 	MoveAbort?: {
 		abortCode?: string | number | bigint;

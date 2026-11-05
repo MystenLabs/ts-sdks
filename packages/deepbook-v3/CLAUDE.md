@@ -159,19 +159,6 @@ const priceInfoObjects = await client.deepbook.getPriceInfoObjects(priceUpdateTx
 Gets order book depth for a price range. Uses vectors internally but works because the Move function
 handles vector creation on-chain, not in PTB.
 
-## SuiGrpcClient API Notes
-
-When using the new gRPC client (replacing JSON-RPC):
-
-| Old (JSON-RPC)                   | New (gRPC)                          |
-| -------------------------------- | ----------------------------------- |
-| `client.getCoins({ owner })`     | `client.listCoins({ owner })`       |
-| `coins.data`                     | `coins.objects`                     |
-| `coin.coinObjectId`              | `coin.objectId`                     |
-| `client.getObject({ id })`       | `client.getObject({ objectId })`    |
-| `result.data`                    | `{ object } = result` (destructure) |
-| `signAndExecuteTransactionBlock` | `signAndExecuteTransaction`         |
-
 ## Testing
 
 ```bash

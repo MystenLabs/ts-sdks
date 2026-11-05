@@ -50,6 +50,6 @@
 		"@mysten/bcs": "workspace:^"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "workspace:^"
+		"@mysten/sui": "workspace:^3.0.0"
 	}
 }

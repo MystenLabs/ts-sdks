@@ -1,25 +1,24 @@
 ---
 name: fix-client-bug
-description: Fix bugs or add features in the @mysten/sui client layer (gRPC, JSON-RPC, GraphQL). Ensures all three transport implementations stay in sync.
+description: Fix bugs or add features in the @mysten/sui client layer (gRPC, GraphQL). Ensures both transport implementations stay in sync.
 user-invocable: true
 allowed-tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Fix Client Bug / Add Client Feature
 
-Use this workflow when making changes to Core API methods in `packages/sui/src/`. The key architectural constraint is that the three transport implementations (gRPC, JSON-RPC, GraphQL) must always produce identical results for the same Core API call.
+Use this workflow when making changes to Core API methods in `packages/sui/src/`. The key architectural constraint is that the two transport implementations (gRPC, GraphQL) must always produce identical results for the same Core API call.
 
 ## Phase 1: Read Before Writing
 
 1. Identify the affected Core API method(s) in `packages/sui/src/client/core.ts`.
 2. Read the shared return types in `packages/sui/src/client/types.ts`.
-3. Read **all three** transport implementations of the method:
+3. Read **both** transport implementations of the method:
    - `packages/sui/src/grpc/core.ts`
-   - `packages/sui/src/jsonRpc/core.ts`
    - `packages/sui/src/graphql/core.ts`
 4. If the method is implemented in the abstract `CoreClient` (not abstract), check whether the bug is in the shared logic or in a method it delegates to.
 
-Do not stop after reading one implementation. A bug in one transport very often exists in a different form in the others.
+Do not stop after reading one implementation. A bug in one transport very often exists in a different form in the other.
 
 ## Phase 2: Update Types
 
@@ -29,7 +28,7 @@ If the change affects the return type in `src/client/types.ts`:
 - Extract named types for array items rather than using inline anonymous objects.
 - Use explicit return type annotations in the mapping functions (e.g., `(item): SuiClientTypes.SomeType => { ... }`) to catch type mismatches at the implementation site.
 
-## Phase 3: Update All Three Implementations
+## Phase 3: Update Both Implementations
 
 ### gRPC (`src/grpc/core.ts`)
 
@@ -41,11 +40,6 @@ If the change affects the return type in `src/client/types.ts`:
 - If new data is needed from the API, edit the `.graphql` query file in `src/graphql/queries/`.
 - Regenerate types: `pnpm --filter @mysten/sui codegen:graphql`
 - This updates `src/graphql/generated/queries.ts` with new typed document nodes.
-
-### JSON-RPC (`src/jsonRpc/core.ts`)
-
-- JSON-RPC response shapes often differ from unified types. Check what the RPC actually returns.
-- Some data must be derived rather than mapped directly. Utilities in `src/utils/` (e.g., `deriveDynamicFieldID`, `normalizeStructTag`) may be needed.
 
 ## Phase 4: Add E2E Tests
 

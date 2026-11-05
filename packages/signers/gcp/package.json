@@ -51,7 +51,7 @@
 		"asn1-ts": "^11.1.0"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "workspace:^"
+		"@mysten/sui": "workspace:^3.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "^26.2.0",

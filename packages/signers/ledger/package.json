@@ -49,7 +49,7 @@
 		"@mysten/ledgerjs-hw-app-sui": "workspace:^"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "workspace:^"
+		"@mysten/sui": "workspace:^3.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "^26.2.0",

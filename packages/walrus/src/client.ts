@@ -2130,7 +2130,7 @@ export class WalrusClient {
 
 	#getActiveCommittee() {
 		// Scoped by scheme — `#cache` is shared across clients on the same
-		// `SuiClient`, so a mixed-scheme caller mustn't see another's URLs.
+		// Sui client, so a mixed-scheme caller mustn't see another's URLs.
 		return this.#cache.read(['getActiveCommittee', this.#storageNodeUrlScheme], async () => {
 			const stakingState = await this.stakingState();
 			return this.#getCommittee(stakingState.committee);

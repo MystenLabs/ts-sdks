@@ -21,7 +21,7 @@ describe('Core API - Protocol Config', () => {
 					// Normalize attributes: filter out null values since some transports
 					// include keys with null values and others omit them entirely. Also drop
 					// the known `gasless_allowed_token_types` exception on this image: gRPC
-					// exposes the list, while JSON-RPC and GraphQL omit it. Keep comparing all
+					// exposes the list, while GraphQL omits it. Keep comparing all
 					// other attributes so new discrepancies fail this test.
 					const filteredAttributes: Record<string, string | null> = {};
 					for (const [key, value] of Object.entries(data.protocolConfig.attributes)) {
