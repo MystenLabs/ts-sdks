@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
+import { toBase64 } from '@mysten/bcs';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { GrpcCoreClient } from '../../../src/grpc/core.js';
+import { BadRequest } from '../../../src/grpc/proto/google/rpc/error_details.js';
+import { Status } from '../../../src/grpc/proto/google/rpc/status.js';
 import type { SuiGrpcClient } from '../../../src/grpc/client.js';
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import {
@@ -184,26 +187,57 @@ describe('GrpcCoreClient.verifySignature', () => {
 		});
 	});
 
-	it('reports a signature the node or client cannot parse as invalid', async () => {
-		function rejecting(message: string) {
-			const verifySignature = vi.fn().mockRejectedValue(new RpcError(message, 'INVALID_ARGUMENT'));
-			const client = {
-				signatureVerificationService: { verifySignature },
-			} as unknown as SuiGrpcClient;
-			return new GrpcCoreClient({ client, base: client, network: 'localnet' });
-		}
+	// Captured from a localnet `VerifySignature` call with a 3-byte signature.
+	const SIGNATURE_VIOLATION =
+		'CAMSfmludmFsaWQgc2lnbmF0dXJlOiBlcnJvciBjb252ZXJ0aW5nIGZyb20gcHJvdG9idWY6IGZpZWxkOiBiY3MgcmVhc29uOiBGSUVMRF9JTlZBTElEIGRlc2NyaXB0aW9uOiBtaXNzaW5nIHNpZ25hdHVyZSBzY2hlbWUgZmxhZxq4AQoWL2dvb2dsZS5ycGMuQmFkUmVxdWVzdBKdAQqaAQoJc2lnbmF0dXJlEn5pbnZhbGlkIHNpZ25hdHVyZTogZXJyb3IgY29udmVydGluZyBmcm9tIHByb3RvYnVmOiBmaWVsZDogYmNzIHJlYXNvbjogRklFTERfSU5WQUxJRCBkZXNjcmlwdGlvbjogbWlzc2luZyBzaWduYXR1cmUgc2NoZW1lIGZsYWcaDUZJRUxEX0lOVkFMSUQ';
+	const MESSAGE_VIOLATION = base64Status(
+		BadRequest.toBinary({
+			fieldViolations: [
+				{ field: 'message', description: 'invalid signature: not BCS', reason: 'FIELD_INVALID' },
+			],
+		}),
+	);
 
-		expect(await rejecting('invalid signature: bad length').verifySignature(options)).toEqual({
+	function base64Status(badRequest: Uint8Array) {
+		return toBase64(
+			Status.toBinary({
+				code: 3,
+				message: 'rejected',
+				details: [{ typeUrl: '/google.rpc.BadRequest', value: badRequest }],
+			}),
+		);
+	}
+
+	function rejecting(message: string, details?: string) {
+		const meta: Record<string, string> = details ? { 'grpc-status-details-bin': details } : {};
+		const verifySignature = vi
+			.fn()
+			.mockRejectedValue(new RpcError(message, 'INVALID_ARGUMENT', meta));
+		const client = {
+			signatureVerificationService: { verifySignature },
+		} as unknown as SuiGrpcClient;
+		return new GrpcCoreClient({ client, base: client, network: 'localnet' });
+	}
+
+	it('reports a signature field violation as an invalid signature', async () => {
+		expect(await rejecting('anything', SIGNATURE_VIOLATION).verifySignature(options)).toEqual({
 			valid: false,
-			reason: 'invalid signature: bad length',
+			reason:
+				'invalid signature: error converting from protobuf: field: bcs reason: FIELD_INVALID description: missing signature scheme flag',
 		});
 		expect(await grpcCore({}).verifySignature({ ...options, signature: 'not base64!' })).toEqual({
 			valid: false,
 			reason: 'Cannot parse signature',
 		});
-		await expect(rejecting('invalid message').verifySignature(options)).rejects.toThrow(
-			'invalid message',
-		);
+	});
+
+	it.each([
+		['a violation of another field', MESSAGE_VIOLATION],
+		['status text alone', undefined],
+	])('throws for %s', async (_, details) => {
+		await expect(
+			rejecting('invalid signature: bad length', details).verifySignature(options),
+		).rejects.toThrow('invalid signature: bad length');
 	});
 });
 
@@ -224,5 +258,35 @@ describe('verifySignature without a verdict', () => {
 		const client = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
 		client.query = vi.fn(async () => ({ data: { verifySignature: null } })) as never;
 		await expect(client.core.verifySignature(options)).rejects.toThrow('verdict');
+	});
+});
+
+describe('GraphQLCoreClient.verifySignature errors', () => {
+	const options = { personalMessage: 'hello', signature: 'AA==', address: '0x1' };
+
+	function rejecting(message: string) {
+		const client = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
+		client.query = vi.fn(async () => ({
+			data: { verifySignature: null },
+			errors: [{ message, path: ['verifySignature'], locations: [], extensions: {} }],
+		})) as never;
+		return client.core;
+	}
+
+	it.each([
+		'Verification failed: NotAnAlias',
+		'Verification failed: Invalid signature',
+		'Cannot parse signature',
+	])('reports %s as an invalid signature', async (message) => {
+		expect(await rejecting(message).verifySignature(options)).toEqual({
+			valid: false,
+			reason: message,
+		});
+	});
+
+	it('throws for any other error on the field', async () => {
+		await expect(
+			rejecting('Failed to deserialize TransactionData from bytes').verifySignature(options),
+		).rejects.toThrow('Failed to deserialize TransactionData from bytes');
 	});
 });

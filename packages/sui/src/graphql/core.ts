@@ -869,7 +869,8 @@ export class GraphQLCoreClient extends CoreClient {
 		});
 
 		// An invalid or unparseable signature (including a signer outside the alias set) is reported
-		// as an error on the field; anything else is a request or server failure.
+		// as an error on the field; anything else is a request or server failure. The server gives
+		// these errors no code, so they are matched by message.
 		const failure = errors?.find(
 			(error) =>
 				error.path?.[0] === 'verifySignature' &&

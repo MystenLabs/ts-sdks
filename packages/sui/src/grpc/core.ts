@@ -61,6 +61,8 @@ import {
 	transactionBytesHaveEmptyGasPayment,
 } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import { BadRequest } from './proto/google/rpc/error_details.js';
+import { Status } from './proto/google/rpc/status.js';
 import type { VerifySignatureResponse } from './proto/sui/rpc/v2/signature_verification_service.js';
 import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
@@ -73,6 +75,7 @@ import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
 import type { Event } from './proto/sui/rpc/v2/event.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
+import { base64decode } from '@protobuf-ts/runtime';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import {
@@ -108,25 +111,29 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
 }
 
-// The node rejects a signature it can't parse as INVALID_ARGUMENT with a `signature` field
-// violation, whose description becomes the status text.
+/** The reason a node gave for rejecting a signature it can't parse: a `signature` field violation. */
 function unparseableSignatureReason(error: unknown): string | null {
 	if (typeof error !== 'object' || error === null) return null;
 
-	const { code, message } = error as { code?: unknown; message?: unknown };
-	if (code !== GrpcStatusCode[GrpcStatusCode.INVALID_ARGUMENT] || typeof message !== 'string') {
-		return null;
-	}
+	const { code, meta } = error as { code?: unknown; meta?: Record<string, unknown> };
+	if (code !== GrpcStatusCode[GrpcStatusCode.INVALID_ARGUMENT]) return null;
 
-	const text = hasDecodedStatusMessage(error) ? message : safeDecodeURIComponent(message);
-	return text.startsWith('invalid signature:') ? text : null;
-}
-
-function safeDecodeURIComponent(value: string) {
+	const details = meta?.['grpc-status-details-bin'];
+	const encoded = Array.isArray(details) ? details[0] : details;
+	if (typeof encoded !== 'string') return null;
 	try {
-		return decodeURIComponent(value);
+		// Servers send type URLs with no host (`/google.rpc.BadRequest`), which `Any.contains` rejects.
+		const detail = Status.fromBinary(base64decode(encoded)).details.find(
+			({ typeUrl }) => typeUrl.slice(typeUrl.lastIndexOf('/') + 1) === BadRequest.typeName,
+		);
+		const violation =
+			detail &&
+			BadRequest.fromBinary(detail.value).fieldViolations.find(
+				({ field }) => field === 'signature',
+			);
+		return violation ? violation.description || 'Invalid signature' : null;
 	} catch {
-		return value;
+		return null;
 	}
 }
 
