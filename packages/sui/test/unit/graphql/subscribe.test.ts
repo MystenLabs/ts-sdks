@@ -229,6 +229,27 @@ describe('GraphQL subscribe', () => {
 		}
 	});
 
+	it.each(['ftp://example.com/graphql', 'data:text/plain,graphql'])(
+		'does not retry an absolute non-http(s) URL %s, even with a custom fetch',
+		async (url) => {
+			const client = new SuiGraphQLClient({
+				url,
+				network: 'unknown',
+				fetch: async () => {
+					throw new TypeError('fetch failed');
+				},
+			});
+			for (const request of [
+				() => client.query({ query: '{ value }', variables: {} }),
+				() => client.subscribe({ query: 'subscription { value }' }).next(),
+			]) {
+				const error = await request().catch((e: unknown) => e);
+				expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+				expect(error).toMatchObject({ retryable: false });
+			}
+		},
+	);
+
 	it('does not retry a URL the global fetch cannot request', async () => {
 		for (const url of ['example.com/graphql', 'localhost:9000/graphql', '/graphql']) {
 			const client = new SuiGraphQLClient({ url, network: 'unknown' });

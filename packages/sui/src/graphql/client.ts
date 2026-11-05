@@ -268,7 +268,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 	/**
 	 * `fetch` that reports network failures (a `TypeError`) as a `SuiGraphQLRequestError`, retryable
-	 * unless the global fetch was given a URL that isn't http(s).
+	 * unless the URL isn't http(s) (a relative URL counts as one only without a custom fetch).
 	 */
 	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
 		const resolved = resolveUrl(url);
@@ -277,9 +277,9 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		} catch (cause) {
 			init.signal?.throwIfAborted();
 			if (!(cause instanceof TypeError)) throw cause;
-			// The global fetch rejects a non-http(s) URL the same way every time, so retrying can't
-			// help. A custom fetch may handle other URLs, so its failures stay retryable.
-			if (!this.#customFetch && !/^https?:/i.test(resolved ?? '')) {
+			// A non-http(s) URL fails the same way every time, so retrying can't help. A relative URL
+			// the page can't resolve is left to a custom fetch, which may resolve it itself.
+			if (resolved === null ? !this.#customFetch : !/^https?:/i.test(resolved)) {
 				throw new SuiGraphQLRequestError('GraphQL request URL is not an http(s) URL', { cause });
 			}
 			throw new SuiGraphQLRequestError('GraphQL network request failed', {
