@@ -60,6 +60,7 @@ describe('Session key tests', () => {
 		const certificateSigner = await verifyPersonalMessageSignature(
 			sessionWithAliasSigner.getPersonalMessage(),
 			certificate.signature,
+			{ offline: true },
 		);
 		expect(certificateSigner.toSuiAddress()).toBe(kp2.getPublicKey().toSuiAddress());
 	});

@@ -166,7 +166,9 @@ describe('secp256r1-keypair', () => {
 		expect(await keypair.getPublicKey().verifyTransaction(bytes, serializedSignature)).toEqual(
 			true,
 		);
-		expect(!!(await verifyTransactionSignature(bytes, serializedSignature))).toEqual(true);
+		expect(
+			!!(await verifyTransactionSignature(bytes, serializedSignature, { offline: true })),
+		).toEqual(true);
 	});
 
 	it('signs PersonalMessages', async () => {
@@ -178,6 +180,8 @@ describe('secp256r1-keypair', () => {
 		expect(
 			await keypair.getPublicKey().verifyPersonalMessage(message, serializedSignature),
 		).toEqual(true);
-		expect(!!(await verifyPersonalMessageSignature(message, serializedSignature))).toEqual(true);
+		expect(
+			!!(await verifyPersonalMessageSignature(message, serializedSignature, { offline: true })),
+		).toEqual(true);
 	});
 });

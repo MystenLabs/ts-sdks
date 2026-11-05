@@ -1,13 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase64 } from '@mysten/utils';
+import { fromBase64, toBase64 } from '@mysten/utils';
 
 import { bcs } from '../bcs/index.js';
 import { ExecutionStatus } from '../bcs/effects.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { MOCKED_GAS_OBJECT_ID } from '../utils/constants.js';
-import { normalizeSuiAddress } from '../utils/sui-types.js';
+import { isValidSuiAddress, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { SuiClientTypes } from './types.js';
 
 const ordinalRules = new Intl.PluralRules('en-US', { type: 'ordinal' });
@@ -691,5 +691,52 @@ function parseTransactionEffectsV2({
 			},
 		),
 		auxiliaryDataDigest: effects.auxDataDigest,
+	};
+}
+
+/** The `verifySignature` reason for a signature that can't be parsed. */
+export const MALFORMED_SIGNATURE = 'Cannot parse signature';
+
+/** The bytes of a Base64 signature, or `null` when it isn't valid Base64. */
+export function decodeSignature(signature: string): Uint8Array | null {
+	try {
+		return fromBase64(signature);
+	} catch {
+		return null;
+	}
+}
+
+/** The message, intent scope and alias check that `verifySignature` options resolve to. */
+export function resolveVerifySignatureOptions(options: SuiClientTypes.VerifySignatureOptions) {
+	const address = normalizeSuiAddress(options.address);
+	if (!isValidSuiAddress(address)) {
+		throw new Error(`Invalid Sui address: ${options.address}`);
+	}
+	const checkAddressAliases = options.checkAddressAliases ?? true;
+
+	if (options.transaction) {
+		try {
+			bcs.TransactionData.parse(options.transaction);
+		} catch (cause) {
+			throw new Error('Invalid transaction bytes', { cause });
+		}
+		return {
+			intentScope: 'TransactionData' as const,
+			message: options.transaction,
+			address,
+			checkAddressAliases,
+		};
+	}
+	if (options.personalMessage === undefined) {
+		throw new Error('Pass the signed `personalMessage` or `transaction` to verify a signature');
+	}
+	return {
+		intentScope: 'PersonalMessage' as const,
+		message:
+			typeof options.personalMessage === 'string'
+				? new TextEncoder().encode(options.personalMessage)
+				: options.personalMessage,
+		address,
+		checkAddressAliases,
 	};
 }
