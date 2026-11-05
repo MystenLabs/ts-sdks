@@ -974,20 +974,16 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(l.requestsTo('ListEvents')).toHaveLength(1);
 		});
 
-		it('rejects a live item token as the start of a range that excludes its checkpoint', async () => {
+		it('reads a live item token start with an end at its own checkpoint as an empty range', async () => {
 			const l = ledger().subscribe('SubscribeEvents', [event(2)]);
 			const [saved] = await take(l.client().streamEvents(), 1);
-			await expect(
-				collect(
-					l.client().streamEvents({
-						start: { resumeToken: saved.resumeToken },
-						end: { checkpoint: 2 },
-					}),
-				),
-			).rejects.toMatchObject({
-				code: 'InvalidOptions',
-				message: expect.stringContaining('reversed'),
-			});
+			const frames = await collect(
+				l.client().streamEvents({
+					start: { resumeToken: saved.resumeToken },
+					end: { checkpoint: 2 },
+				}),
+			);
+			expect(frames).toEqual([]);
 			expect(l.requestsTo('ListEvents')).toHaveLength(0);
 		});
 

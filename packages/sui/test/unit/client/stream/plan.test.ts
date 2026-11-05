@@ -225,6 +225,15 @@ describe('option errors', () => {
 		},
 	);
 
+	it('reads a start inside checkpoint 6 and an end at checkpoint 6 as an empty range', () => {
+		// (6, 1) is checkpoint 6's start when its transaction 0 has no events.
+		const start = {
+			position: boundaryPosition(6n, { cursor: new Uint8Array([1]), transactionIndex: 1n }),
+		};
+		expect(compareBounds(start, { checkpoint: 6n }, 'ascending')).toBe(0);
+		expect(compareBounds({ checkpoint: 5n }, start, 'descending')).toBe(0);
+	});
+
 	it.each(['ascending', 'descending'] as const)(
 		'still rejects a %s start a checkpoint past the end',
 		(order) => {

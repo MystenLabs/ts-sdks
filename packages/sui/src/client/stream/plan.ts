@@ -371,18 +371,18 @@ export function compareBounds(
 }
 
 /**
- * Whether two positions may name one point: both inside one checkpoint, or a boundary inside c and
- * the boundary before c + 1.
+ * Whether two positions may name one point: both in one checkpoint, or a boundary inside c and the
+ * boundary before c + 1.
  */
 function mayCoincide(a: StreamPosition, b: StreamPosition): boolean {
-	if (!insideCheckpoint(a) && !insideCheckpoint(b)) return false;
-	if (a.checkpoint === b.checkpoint) return insideCheckpoint(a) && insideCheckpoint(b);
+	if (a.checkpoint === b.checkpoint) return true;
 	const [low, high] = a.checkpoint! < b.checkpoint! ? [a, b] : [b, a];
 	return (
 		high.checkpoint === low.checkpoint! + 1n &&
 		high.kind === 'Boundary' &&
 		!insideCheckpoint(high) &&
-		low.kind === 'Boundary'
+		low.kind === 'Boundary' &&
+		insideCheckpoint(low)
 	);
 }
 
