@@ -595,7 +595,7 @@ describe('offline-only validation (no client calls)', () => {
 	function offlineSponsor() {
 		return createSponsor({
 			signer: sponsorKey,
-			client: offlineClient,
+			client: {} as ClientWithCoreApi,
 			validate: [onlySenderWithdrawals()],
 		});
 	}
