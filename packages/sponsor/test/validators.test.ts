@@ -1,10 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi } from '@mysten/sui/client';
+import { bcs } from '@mysten/sui/bcs';
+import { ObjectError, type ClientWithCoreApi } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { describe, expect, it } from 'vitest';
+import { deriveObjectID, normalizeSuiAddress } from '@mysten/sui/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ValidationIssue, Validator } from '../src/validation.js';
 import {
@@ -109,29 +110,90 @@ describe('onlySenderWithdrawals', () => {
 });
 
 describe('validSender', () => {
+	const sponsor = normalizeSuiAddress('0x5');
+	const signer = normalizeSuiAddress('0x6');
+
+	function senderData(sender: string | null, owner: string) {
+		return dataFor((tx) => {
+			if (sender) tx.setSender(sender);
+			tx.setGasOwner(owner);
+		});
+	}
+
 	it('rejects when the sender is unset', async () => {
-		const data = dataFor((tx) => tx.setGasOwner(normalizeSuiAddress('0x5')));
-		expect((await run(validSender(), { data })).map((i) => i.code)).toEqual(['SENDER_UNSET']);
+		const data = dataFor((tx) => tx.setGasOwner(sponsor));
+		expect((await run(validSender(), { data, gasOwnerAliases: [] })).map((i) => i.code)).toEqual([
+			'SENDER_UNSET',
+		]);
 	});
 
 	it('rejects when the sender is the gas owner (sponsor)', async () => {
-		const data = dataFor((tx) => {
-			tx.setSender(normalizeSuiAddress('0x5'));
-			tx.setGasOwner(normalizeSuiAddress('0x5'));
-		});
-		expect((await run(validSender(), { data })).map((i) => i.code)).toEqual(['SENDER_IS_SPONSOR']);
+		const data = senderData(sponsor, sponsor);
+		expect((await run(validSender(), { data, gasOwnerAliases: [] })).map((i) => i.code)).toEqual([
+			'SENDER_IS_SPONSOR',
+		]);
+	});
+
+	it("rejects when the sender is in the sponsor's alias set", async () => {
+		const data = senderData('0x6', sponsor);
+		expect(
+			(await run(validSender(), { data, gasOwnerAliases: [sponsor, signer] })).map((i) => i.code),
+		).toEqual(['SENDER_IS_SPONSOR']);
 	});
 
 	it('allows a distinct sender and sponsor', async () => {
-		const data = dataFor((tx) => {
-			tx.setSender(normalizeSuiAddress('0xa'));
-			tx.setGasOwner(normalizeSuiAddress('0xb'));
-		});
-		expect(await run(validSender(), { data })).toEqual([]);
+		const data = senderData(normalizeSuiAddress('0xa'), normalizeSuiAddress('0xb'));
+		expect(await run(validSender(), { data, gasOwnerAliases: [signer] })).toEqual([]);
 	});
 
-	it('reads only `data`', () => {
-		expect(Object.keys(validSender().dependencies)).toEqual(['data']);
+	describe("loading the sponsor's alias set", () => {
+		const aliasObjectId = deriveObjectID(
+			'0xa',
+			'0x2::address_alias::AliasKey',
+			bcs.Address.serialize(sponsor).toBytes(),
+		);
+
+		async function load(object: unknown) {
+			const getObjects = vi.fn().mockResolvedValue({ objects: [object] });
+			const client = { core: { getObjects } } as unknown as ClientWithCoreApi;
+			const loader = validSender().dependencies.gasOwnerAliases as Validator;
+			const output = await loader.analyze(
+				{ client },
+				new Transaction(),
+			)({
+				data: senderData(signer, sponsor),
+			});
+			return { getObjects, output };
+		}
+
+		it('reads the alias object derived from the gas owner', async () => {
+			const content = bcs
+				.struct('AddressAliases', {
+					id: bcs.Address,
+					aliases: bcs.struct('VecSet', { contents: bcs.vector(bcs.Address) }),
+				})
+				.serialize({ id: aliasObjectId, aliases: { contents: [sponsor, signer] } })
+				.toBytes();
+			const { getObjects, output } = await load({ objectId: aliasObjectId, content });
+			expect(getObjects).toHaveBeenCalledWith({
+				objectIds: [aliasObjectId],
+				include: { content: true },
+			});
+			expect(output).toEqual({ result: [sponsor, signer] });
+		});
+
+		it('treats a missing alias object as no aliases', async () => {
+			const { output } = await load(
+				new ObjectError('notFound', 'not found', { reason: 'notFound' }),
+			);
+			expect(output).toEqual({ result: [] });
+		});
+
+		it('fails closed when the alias object cannot be read', async () => {
+			await expect(load(new ObjectError('unknown', 'node unavailable'))).rejects.toThrow(
+				'node unavailable',
+			);
+		});
 	});
 });
 
