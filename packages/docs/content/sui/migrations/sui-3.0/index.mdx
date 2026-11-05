@@ -97,6 +97,9 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   does. Update code that matches on the old names.
 - **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.** Build the mask
   with `transactionReadMaskPaths(include)` from `@mysten/sui/grpc`.
+- **`SuiGraphQLClient` throws `SuiGraphQLRequestError` for network failures.** Network failures and
+  response bodies that can't be read now throw `SuiGraphQLRequestError` instead of the underlying
+  `fetch` error, which is its `cause`. Its `retryable` property says whether retrying can help.
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
@@ -156,3 +159,4 @@ and decoded pure inputs are best-effort. `dryRunFromSimulation` similarly builds
 - A `listCheckpoints` method for paging through checkpoints.
 - A `maxResponseMessageBytes` option on `SuiGrpcClient` and `GrpcWebFetchTransport` caps each
   response message that stream reads accept (64 MiB by default).
+- `SuiGraphQLClient.subscribe` runs GraphQL subscriptions; `subscriptionUrl` sets their endpoint.
