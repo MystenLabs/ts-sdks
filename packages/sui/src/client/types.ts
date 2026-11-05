@@ -492,6 +492,14 @@ export namespace SuiClientTypes {
 		 * Defaults to `true` (checks enabled).
 		 */
 		checksEnabled?: boolean;
+		/**
+		 * Whether the server selects the sender's real gas payment during simulation. When
+		 * disabled, a transaction without gas coins may be simulated with a mocked gas coin
+		 * (reported as `gasPaymentMocked`). Ignored when `checksEnabled` is `false`.
+		 *
+		 * @default `true` when the gas payment is set to `[]`, otherwise `false`
+		 */
+		doGasSelection?: boolean;
 	}
 
 	/** Query methods */
