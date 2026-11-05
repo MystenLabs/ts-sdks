@@ -210,13 +210,28 @@ describe('GraphQL subscribe', () => {
 		}
 	});
 
-	it('does not retry a URL fetch cannot request', async () => {
-		for (const url of ['example.com/graphql', 'localhost:9000/graphql']) {
-			const client = new SuiGraphQLClient({
-				url,
-				network: 'unknown',
-				fetch: (input, init) => globalThis.fetch(input, init),
-			});
+	it('retries network failures of a relative URL with a custom fetch', async () => {
+		const cause = new TypeError('fetch failed');
+		const client = new SuiGraphQLClient({
+			url: '/graphql',
+			network: 'unknown',
+			fetch: async () => {
+				throw cause;
+			},
+		});
+		for (const request of [
+			() => client.query({ query: '{ value }', variables: {} }),
+			() => client.subscribe({ query: 'subscription { value }' }).next(),
+		]) {
+			const error = await request().catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(SuiGraphQLRequestError);
+			expect(error).toMatchObject({ retryable: true, cause });
+		}
+	});
+
+	it('does not retry a URL the global fetch cannot request', async () => {
+		for (const url of ['example.com/graphql', 'localhost:9000/graphql', '/graphql']) {
+			const client = new SuiGraphQLClient({ url, network: 'unknown' });
 			for (const request of [
 				() => client.query({ query: '{ value }', variables: {} }),
 				() => client.subscribe({ query: 'subscription { value }' }).next(),

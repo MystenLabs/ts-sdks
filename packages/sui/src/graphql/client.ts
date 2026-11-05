@@ -161,6 +161,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
+	#customFetch: boolean;
 	core: GraphQLCoreClient;
 	get mvr(): SuiClientTypes.MvrMethods {
 		return this.core.mvr;
@@ -173,7 +174,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	constructor({
 		url,
 		subscriptionUrl,
-		fetch: fetchFn = fetch,
+		fetch: fetchFn,
 		headers = {},
 		queries = {} as Queries,
 		network,
@@ -186,7 +187,8 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		this.#subscriptionUrl = subscriptionUrl;
 		this.#queries = queries;
 		this.#headers = headers;
-		this.#fetch = (...args) => fetchFn(...args);
+		this.#customFetch = fetchFn !== undefined;
+		this.#fetch = (...args) => (fetchFn ?? fetch)(...args);
 		this.core = new GraphQLCoreClient({
 			graphqlClient: this,
 			mvr,
@@ -266,7 +268,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 	/**
 	 * `fetch` that reports network failures (a `TypeError`) as a `SuiGraphQLRequestError`, retryable
-	 * unless the URL isn't http(s).
+	 * unless the global fetch was given a URL that isn't http(s).
 	 */
 	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
 		const resolved = resolveUrl(url);
@@ -275,8 +277,9 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		} catch (cause) {
 			init.signal?.throwIfAborted();
 			if (!(cause instanceof TypeError)) throw cause;
-			// Fetch rejects a non-http(s) URL the same way every time, so retrying can't help.
-			if (!/^https?:/i.test(resolved ?? '')) {
+			// The global fetch rejects a non-http(s) URL the same way every time, so retrying can't
+			// help. A custom fetch may handle other URLs, so its failures stay retryable.
+			if (!this.#customFetch && !/^https?:/i.test(resolved ?? '')) {
 				throw new SuiGraphQLRequestError('GraphQL request URL is not an http(s) URL', { cause });
 			}
 			throw new SuiGraphQLRequestError('GraphQL network request failed', {
