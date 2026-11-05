@@ -130,7 +130,10 @@ describe('package publication and type origins', () => {
 		[TESTNET_CONFIG.packages.predictMath!, 2n, PREDICT_MATH_V1],
 		[TESTNET_ACCOUNT.accountPackageIdLatest!, 2n, TESTNET_ACCOUNT.accountPackageId],
 	])('latest package %s is version %s of %s', async (packageId, version, originalId) => {
-		const { response } = await client.movePackageService.getPackage({ packageId });
+		const { response } = await client.movePackageService.getPackage({
+			packageId,
+			selector: { oneofKind: undefined },
+		});
 		expect(response.package?.version).toBe(version);
 		expect(response.package?.originalId).toBe(originalId);
 	});
@@ -245,7 +248,10 @@ test.each([
 	[TESTNET_PREDICT.packages.predictV1, 'expiry_market'],
 	[getSessionsConfig('testnet').sessionsPackageIdV1!, 'sessions'],
 ])('v1 %s still exists but does not expose the new budget mint', async (packageId, moduleName) => {
-	const { response } = await client.movePackageService.getPackage({ packageId });
+	const { response } = await client.movePackageService.getPackage({
+		packageId,
+		selector: { oneofKind: undefined },
+	});
 	expect(response.package?.version).toBe(1n);
 	const functions = response.package?.modules
 		.find((module) => module.name === moduleName)
