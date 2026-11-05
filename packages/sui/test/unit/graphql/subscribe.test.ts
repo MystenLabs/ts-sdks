@@ -298,7 +298,7 @@ describe('GraphQL subscribe', () => {
 		}
 	});
 
-	it('retries an absolute URL when reading the page location throws', async () => {
+	it('retries a relative URL with a custom fetch when reading the page location throws', async () => {
 		// Deno run without `--location` throws on any read of `location`.
 		Object.defineProperty(globalThis, 'location', {
 			configurable: true,
@@ -311,11 +311,7 @@ describe('GraphQL subscribe', () => {
 			const fetch = vi.fn(async () => {
 				throw cause;
 			});
-			const client = new SuiGraphQLClient({
-				url: 'https://example.com/graphql',
-				network: 'unknown',
-				fetch,
-			});
+			const client = new SuiGraphQLClient({ url: '/graphql', network: 'unknown', fetch });
 			for (const request of [
 				() => client.query({ query: '{ value }', variables: {} }),
 				() => client.subscribe({ query: 'subscription { value }' }).next(),
@@ -325,8 +321,8 @@ describe('GraphQL subscribe', () => {
 				expect(error).toMatchObject({ retryable: true, cause });
 			}
 			expect(fetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
-				'https://example.com/graphql',
-				'https://example.com/graphql/subscriptions',
+				'/graphql',
+				'/graphql/subscriptions',
 			]);
 		} finally {
 			delete (globalThis as { location?: unknown }).location;
