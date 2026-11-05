@@ -64,7 +64,7 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 ### Core API
 
 - **Custom `CoreClient` subclasses and hand-built mocks need updating:**
-  - Implement the new abstract `listCheckpoints` method.
+  - Implement the new abstract `listCheckpoints` and `verifySignature` methods.
   - Set the new required `sender` field on `SuiClientTypes.Transaction` values.
   - Give `SuiClientTypes.TransactionData` values a `kind` and the `$kind` discriminants described
     below.
@@ -128,7 +128,30 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 - **`SuiGraphQLClient` checks `url` when it is constructed.** It must be an absolute http(s) URL or
   a path starting with `/`; anything else throws.
 
+### Signature verification
+
+- **The `@mysten/sui/verify` personal message and transaction functions need a `client` or
+  `offline: true`.** Pass a client to verify on the node, or `offline: true` to verify locally. See
+  [Online or offline](/sui/cryptography#online-or-offline) for which to choose. To verify on the
+  node without loading keypair code, use
+  `client.verifySignature({ personalMessage, signature, address })` instead.
+  - With a client, a signature from one of `address`'s
+    [address aliases](/sui/cryptography#address-aliases) is valid. Pass `checkAddressAliases: false`
+    to accept only the address's own key.
+  - Offline verification ignores address aliases, so it rejects a valid signature from an alias. It
+    throws for zkLogin signatures.
+- **The deprecated `verifyZkLoginSignature` checks address aliases.** It accepts a signature from
+  one of `address`'s address aliases, and rejects one from a key the account removed from its
+  aliases.
+
 ## Other packages
+
+- **`@mysten-incubation/sponsor`'s `userSignatureMatchesSender` verifies signatures on the node.**
+  It accepts signatures from the sender's address aliases. If the node can't be reached, the
+  validator fails with `ANALYSIS_FAILED`.
+- **`@mysten/seal`'s `SessionKey.setPersonalMessageSignature` now checks the signer.** The signature
+  must come from the session key's address or one of its address aliases; a valid signature from any
+  other account is rejected with `InvalidPersonalMessageSignatureError`.
 
 `@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`. If
 your code names legacy response types such as `SuiTransactionBlockResponse`, import them from the
@@ -177,3 +200,6 @@ The legacy types are in the `SuiJsonRpcTypes` namespace of `@mysten/wallet-stand
   See [Resumable ledger streams](/sui/clients/streaming).
 - `client.core.listDynamicFields({ include: { value: true } })` returns each field's value with the
   listing, on every client.
+- `verifySignature`, which verifies a personal message or transaction signature on the node and
+  checks address aliases, and `getAddressAliases`. `verifyZkLoginSignature` is deprecated in favor
+  of `verifySignature`.

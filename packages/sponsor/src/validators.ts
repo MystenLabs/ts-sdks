@@ -1,10 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs } from '@mysten/sui/bcs';
-import { ObjectError, type ClientWithCoreApi } from '@mysten/sui/client';
-import { deriveObjectID, normalizeSuiAddress } from '@mysten/sui/utils';
-import { isValidTransactionSignature } from '@mysten/sui/verify';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 import {
 	analyze,
 	analyzers,
@@ -78,77 +76,27 @@ export function defaults(): Validator[] {
 	];
 }
 
-/** `0x2::address_alias::AddressAliases`: its UID and a `VecSet<address>`. */
-const AddressAliases = bcs.struct('AddressAliases', {
-	id: bcs.Address,
-	aliases: bcs.struct('VecSet', { contents: bcs.vector(bcs.Address) }),
-});
-
-/**
- * The gas owner's on-chain alias set (`0x2::address_alias`), derived from the
- * shared `AddressAliasState` at `0xa`. An address with no alias object is only
- * its own alias. Swap for `client.core.getAddressAliases` once it ships.
- */
-const gasOwnerAliases = createAnalyzer({
-	cacheKey: 'sponsor:gasOwnerAliases@1',
-	dependencies: { data: analyzers.data },
-	analyze:
-		(options: { client: ClientWithCoreApi }) =>
-		async ({ data }) => {
-			if (!data.gasData.owner) return { result: [] as string[] };
-			const objectId = deriveObjectID(
-				'0xa',
-				'0x2::address_alias::AliasKey',
-				bcs.Address.serialize(data.gasData.owner).toBytes(),
-			);
-			const {
-				objects: [object],
-			} = await options.client.core.getObjects({
-				objectIds: [objectId],
-				include: { content: true },
-			});
-			if (object instanceof ObjectError && object.reason === 'notFound') {
-				return { result: [] as string[] };
-			}
-			// Any other read failure throws, so `validSender` fails closed as `ANALYSIS_FAILED`.
-			if (object instanceof Error) throw object;
-			return { result: AddressAliases.parse(object.content).aliases.contents };
-		},
-});
-
 /**
  * Validate the transaction's sender. Two explicit checks:
  *
  * - **Set** — reject an unset sender (`SENDER_UNSET`). An unset sender would
  *   otherwise normalize to the zero address and slip past the next check.
- * - **Not the sponsor** — reject when the sender is the gas owner (sponsor) or
- *   any address in the gas owner's on-chain alias set (`SENDER_IS_SPONSOR`).
- *   There's no legitimate reason to sponsor your own transaction, and allowing
- *   it lets a caller drain the sponsor's gas. Aliases matter because the
- *   sponsor's one signature also satisfies a sender in its alias set, letting a
- *   caller spend that address's assets.
+ * - **Not the sponsor** — reject when the sender is the gas owner
+ *   (`SENDER_IS_SPONSOR`). The sponsor never pays for its own transactions.
  *
- * Part of {@link defaults}. Reads `data` and loads the gas owner's alias object
- * through `client`; a failed load is `ANALYSIS_FAILED`, never a pass.
+ * Part of {@link defaults}. Reads `data`.
  */
 export function validSender(): Validator {
 	return createAnalyzer({
-		dependencies: { data: analyzers.data, gasOwnerAliases },
+		dependencies: { data: analyzers.data },
 		analyze:
 			() =>
-			({ data, gasOwnerAliases }) => {
+			({ data }) => {
 				if (!data.sender) {
 					return reject({ code: 'SENDER_UNSET', message: 'Transaction must have a sender set.' });
 				}
-				const sender = normalizeSuiAddress(data.sender);
-				if (sender === normalizeSuiAddress(data.gasData.owner ?? '')) {
+				if (normalizeSuiAddress(data.sender) === normalizeSuiAddress(data.gasData.owner ?? '')) {
 					return reject({ code: 'SENDER_IS_SPONSOR', message: 'Sender cannot be the sponsor.' });
-				}
-				if (gasOwnerAliases.some((alias) => normalizeSuiAddress(alias) === sender)) {
-					return reject({
-						code: 'SENDER_IS_SPONSOR',
-						message: "Sender cannot be in the sponsor's address alias set.",
-					});
 				}
 				return pass;
 			},
@@ -189,28 +137,25 @@ export function onlyAddressBalanceGas(): Validator {
 }
 
 /**
- * Verify that the supplied user signature(s) match the transaction's sender —
- * each is cryptographically valid over the transaction bytes *and* its public
- * key resolves to `sender`. The sponsor injects the user signature(s) it was
- * given, so this checks them ahead of time: a mismatched signature is caught
- * before the sponsor co-signs, rather than only being rejected at execution.
- * Passes when no user signature was supplied (the sponsor-builds flow, where the
- * user signs the returned bytes afterward).
+ * Verify that the supplied user signature(s) match the transaction's sender:
+ * each is a valid signature over the transaction bytes from the sender or one of
+ * its address aliases, checked by the client's node. The sponsor injects the
+ * user signature(s) it was given, so this checks them ahead of time: a
+ * mismatched signature is caught before the sponsor co-signs, rather than only
+ * being rejected at execution. Passes when no user signature was supplied (the
+ * sponsor-builds flow, where the user signs the returned bytes afterward).
  *
- * **Every** supplied signature must be the sender's, not just one:
- * `signTransaction` attaches all of them to execution, so a signature that isn't
- * the sender's would be rejected on-chain *after* the sponsor already signed.
+ * **Every** supplied signature must be valid for the sender, not just one:
+ * `signTransaction` attaches all of them to execution, so an invalid one would
+ * be rejected on-chain *after* the sponsor already signed.
  *
- * A signature that's malformed, cryptographically invalid, or from a different
- * signer is reported as `USER_SIGNATURE_INVALID` (a clear policy decline). Only a
- * genuine *environmental* failure during verification (e.g. a zkLogin JWK/epoch
- * lookup over the client throwing) propagates as `ANALYSIS_FAILED` — a network
- * blip is never mislabeled as a bad signature. This split is exactly what
- * `isValidTransactionSignature` provides: `false` for an invalid signature, but a
- * throw for an environmental failure.
+ * A signature that's malformed, invalid, or from a signer that isn't the sender
+ * or one of its aliases is reported as `USER_SIGNATURE_INVALID`. An
+ * environmental failure (such as a network error) propagates as
+ * `ANALYSIS_FAILED`, so it is never mislabeled as a bad signature.
  *
  * Reads `bytes` and `data`, plus the sponsor-injected `userSignatures` and
- * `client` (used to verify zkLogin signatures).
+ * `client` (which verifies the signatures).
  */
 export function userSignatureMatchesSender(): Validator {
 	return createAnalyzer({
@@ -228,12 +173,12 @@ export function userSignatureMatchesSender(): Validator {
 						message: 'Cannot verify a user signature: the transaction has no sender.',
 					});
 				}
-				const sender = normalizeSuiAddress(data.sender);
 
 				for (const signature of signatures) {
-					const valid = await isValidTransactionSignature(bytes, signature, {
-						address: sender,
-						client: options.client,
+					const { valid } = await options.client.core.verifySignature({
+						transaction: bytes,
+						signature,
+						address: data.sender,
 					});
 					if (!valid) {
 						return reject({

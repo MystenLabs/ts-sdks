@@ -47,16 +47,18 @@ import {
 	ResolveNameServiceAddressDocument,
 	ResolveTransactionDocument,
 	SimulateTransactionDocument,
-	VerifyZkLoginSignatureDocument,
-	ZkLoginIntentScope,
+	IntentScope,
+	VerifySignatureDocument,
 } from './generated/queries.js';
 import { ObjectError, SimulationError, TransactionError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import {
+	decodeSignature,
 	formatMoveAbortMessage,
 	isMockedGasObjectId,
 	parseTransactionEffectsBcs,
+	resolveVerifySignatureOptions,
 	transactionBytesHaveEmptyGasPayment,
 } from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
@@ -848,29 +850,47 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	async verifyZkLoginSignature(
-		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
-		const intentScope =
-			options.intentScope === 'TransactionData'
-				? ZkLoginIntentScope.TransactionData
-				: ZkLoginIntentScope.PersonalMessage;
+	async verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		const { intentScope, message, address, checkAddressAliases } =
+			resolveVerifySignatureOptions(options);
+		const signature = decodeSignature(options.signature);
+		if (!signature) {
+			return { valid: false, reason: 'Cannot parse signature' };
+		}
 
-		const { data } = await this.#graphqlClient.query({
-			query: VerifyZkLoginSignatureDocument,
+		const { data, errors } = await this.#graphqlClient.query({
+			query: VerifySignatureDocument,
 			signal: options.signal,
 			variables: {
-				bytes: options.bytes,
-				signature: options.signature,
-				intentScope,
-				author: options.address,
+				message: toBase64(message),
+				signature: toBase64(signature),
+				intentScope:
+					intentScope === 'TransactionData'
+						? IntentScope.TransactionData
+						: IntentScope.PersonalMessage,
+				author: address,
+				checkAddressAliases,
 			},
 		});
 
-		return {
-			success: data?.verifyZkLoginSignature?.success ?? false,
-			errors: [],
-		};
+		// The server reports an invalid signature, including a signer outside the alias set, as bad
+		// user input on the field; transaction bytes are checked before the request.
+		const failure = errors?.find(
+			(error) =>
+				error.path?.[0] === 'verifySignature' && error.extensions?.code === 'BAD_USER_INPUT',
+		);
+		if (failure) {
+			return { valid: false, reason: failure.message };
+		}
+		handleGraphQLErrors(errors);
+
+		const success = data?.verifySignature?.success;
+		if (typeof success !== 'boolean') {
+			throw new Error('The node returned no signature verification verdict');
+		}
+		return success ? { valid: true } : { valid: false, reason: 'Signature is not valid' };
 	}
 
 	async defaultNameServiceName(
@@ -1073,6 +1093,7 @@ export type GraphQLResponseErrors = Array<{
 	message: string;
 	locations?: { line: number; column: number }[];
 	path?: (string | number)[];
+	extensions?: { code?: unknown };
 }>;
 
 function mapDisplay(

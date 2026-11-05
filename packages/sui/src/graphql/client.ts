@@ -365,6 +365,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.getDynamicField(input);
 	}
 
+	getAddressAliases(
+		input: SuiClientTypes.GetAddressAliasesOptions,
+	): Promise<SuiClientTypes.GetAddressAliasesResponse> {
+		return this.core.getAddressAliases(input);
+	}
+
 	getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = {}>(
 		input: SuiClientTypes.GetDynamicObjectFieldOptions<Include>,
 	): Promise<SuiClientTypes.GetDynamicObjectFieldResponse<Include>> {
@@ -432,6 +438,16 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.resolveTransactionPlugin();
 	}
 
+	verifySignature(
+		input: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		return this.core.verifySignature(input);
+	}
+
+	/**
+	 * @deprecated Use `verifySignature`. This method accepts signatures from the address's aliases,
+	 * like `verifySignature` does by default.
+	 */
 	verifyZkLoginSignature(
 		input: SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {

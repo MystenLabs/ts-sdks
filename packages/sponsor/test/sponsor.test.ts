@@ -1,11 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ObjectError, type ClientWithCoreApi, type SuiClientTypes } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction, TransactionDataBuilder } from '@mysten/sui/transactions';
 import { normalizeSuiAddress, toBase58, toBase64 } from '@mysten/sui/utils';
-import { verifyTransactionSignature } from '@mysten/sui/verify';
+import { isValidTransactionSignature, verifyTransactionSignature } from '@mysten/sui/verify';
 import { describe, expect, it } from 'vitest';
 
 import { analyze, createAnalyzer } from '../src/index.js';
@@ -36,15 +36,10 @@ const fakeGasPayment = [
 	},
 ];
 
-// A sponsor with no alias object: the one lookup `validSender` makes.
-const getObjects = async () => ({
-	objects: [new ObjectError('notFound', 'not found', { reason: 'notFound' })],
-});
-
-// These tests exercise build + signing with `validSender` alone, so the only
-// client call is its alias lookup; anything else throws.
+// These tests exercise build + signing with `validSender` alone, which makes no
+// client calls; any call throws.
 const offline = { validate: [validSender()] };
-const offlineClient = { core: { getObjects } } as unknown as ClientWithCoreApi;
+const offlineClient = {} as ClientWithCoreApi;
 
 /** A fully-resolved transaction that builds without a client. */
 function resolvedTransaction({ sender, sponsor }: { sender: string; sponsor: string }) {
@@ -78,6 +73,7 @@ describe('Sponsor.signTransaction', () => {
 		expect(result.digest).toBe(TransactionDataBuilder.getDigestFromBytes(result.bytes));
 
 		const pk = await verifyTransactionSignature(result.bytes, result.sponsorSignature, {
+			offline: true,
 			address: sponsor.address,
 		});
 		expect(normalizeSuiAddress(pk.toSuiAddress())).toBe(sponsor.address);
@@ -245,7 +241,7 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 			sponsor: sponsorKey.toSuiAddress(),
 		});
 		tx.moveCall({ target: '0x2::address_alias::add', arguments: [tx.pure.address('0xbad')] });
-		// Just enough client for the simulation, epoch and alias lookups in `defaults()`.
+		// Just enough client for the simulation and epoch lookups in `defaults()`.
 		const client = {
 			core: {
 				simulateTransaction: async () => ({
@@ -253,7 +249,6 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 					Transaction: { effects: { status: { success: true, error: null } } },
 				}),
 				getCurrentSystemState: async () => ({ systemState: { epoch: '100' } }),
-				getObjects,
 			},
 		} as unknown as ClientWithCoreApi;
 		const sponsor = createSponsor({ signer: sponsorKey, client });
@@ -471,7 +466,6 @@ describe('Sponsor.signAndExecuteTransaction', () => {
 					executeArgs = options;
 					return { $kind: 'Transaction', Transaction: { digest: 'digest', events } };
 				},
-				getObjects,
 			},
 		} as unknown as ClientWithCoreApi;
 
@@ -622,13 +616,29 @@ describe('offline-only validation (no client calls)', () => {
 });
 
 describe('userSignatureMatchesSender', () => {
+	// Stands in for the node: no address aliases, so the signer must be `address` itself.
+	const client = {
+		core: {
+			verifySignature: async (options: {
+				transaction: Uint8Array;
+				signature: string;
+				address: string;
+			}) => ({
+				valid: await isValidTransactionSignature(options.transaction, options.signature, {
+					offline: true,
+					address: options.address,
+				}),
+			}),
+		},
+	} as unknown as ClientWithCoreApi;
+
 	function withValidator() {
 		const sponsorKey = new Ed25519Keypair();
 		return {
 			sponsorKey,
 			sponsor: createSponsor({
 				signer: sponsorKey,
-				client: offlineClient,
+				client,
 				validate: [userSignatureMatchesSender()],
 			}),
 		};
