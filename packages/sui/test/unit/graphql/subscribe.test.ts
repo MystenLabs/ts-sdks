@@ -210,6 +210,17 @@ describe('GraphQL subscribe', () => {
 		}
 	});
 
+	it('sends queries and subscriptions for a padded relative URL to the same endpoint', async () => {
+		const fetch = vi.fn(async () => sse(['event: complete\n\n']).response);
+		const client = new SuiGraphQLClient({ url: '/graphql ', network: 'unknown', fetch });
+		await client.query({ query: '{ value }', variables: {} }).catch(() => {});
+		await collect(client.subscribe({ query: 'subscription { value }', variables: {} }));
+		expect(fetch.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
+			'/graphql',
+			'/graphql/subscriptions',
+		]);
+	});
+
 	it('retries network failures of a relative URL with a custom fetch', async () => {
 		const cause = new TypeError('fetch failed');
 		const client = new SuiGraphQLClient({
@@ -378,13 +389,13 @@ describe('GraphQL subscribe', () => {
 	});
 
 	it.each([
-		['malformed JSON', 'event: next\ndata: {\n\n', false],
-		['error event', 'event: error\ndata: failed\n\n', false],
-	])('reports %s distinctly from normal completion', async (_, body, retryable) => {
+		['malformed JSON', 'event: next\ndata: {\n\n'],
+		['error event', 'event: error\ndata: failed\n\n'],
+	])('reports %s distinctly from normal completion', async (_, body) => {
 		const { client } = clientFor(sse([body]).response);
 		await expect(
 			collect(client.subscribe({ query: 'subscription { value }', variables: {} })),
-		).rejects.toMatchObject({ name: 'SuiGraphQLRequestError', retryable });
+		).rejects.toMatchObject({ name: 'SuiGraphQLRequestError', retryable: false });
 	});
 
 	it('bounds an unterminated message and accumulated data lines', async () => {

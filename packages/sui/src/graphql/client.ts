@@ -122,7 +122,7 @@ function resolveUrl(url: string): string | null {
 }
 
 function deriveSubscriptionUrl(url: string) {
-	const href = resolveUrl(url) ?? url;
+	const href = resolveUrl(url) ?? url.trim();
 	const suffixIndex = href.search(/[?#]/);
 	const path = suffixIndex === -1 ? href : href.slice(0, suffixIndex);
 	const suffix = suffixIndex === -1 ? '' : href.slice(suffixIndex);
@@ -268,12 +268,13 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 	/**
 	 * `fetch` that reports network failures (a `TypeError`) as a `SuiGraphQLRequestError`, retryable
-	 * unless the URL isn't http(s) (a relative URL counts as one only without a custom fetch).
+	 * unless the URL isn't http(s). A relative URL the page can't resolve counts as one only without
+	 * a custom fetch.
 	 */
 	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
 		const resolved = resolveUrl(url);
 		try {
-			return await this.#fetch(resolved ?? url, init);
+			return await this.#fetch(resolved ?? url.trim(), init);
 		} catch (cause) {
 			init.signal?.throwIfAborted();
 			if (!(cause instanceof TypeError)) throw cause;

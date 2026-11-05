@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * A transport or protocol failure of a GraphQL query or subscription. GraphQL errors delivered in
- * a response body are returned in `errors` instead.
+ * A transport failure of a GraphQL query or subscription, or a malformed subscription response.
+ * GraphQL errors delivered in a response body are returned in `errors` instead.
  */
 export class SuiGraphQLRequestError extends Error {
 	/** The HTTP status, when the server responded with a non-2xx status. */
