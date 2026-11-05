@@ -72,7 +72,6 @@ import {
 	resolveTransactionFilter,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
-import { hasDecodedStatusMessage } from './transport.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -89,11 +88,8 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
-	// the status text and leave other RESOURCE_EXHAUSTED failures alone. A transport this package did
-	// not build leaves `grpc-message` encoded, hence the second form.
-	if (message === 'name has expired') return true;
-
-	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
+	// the status text. A transport this package did not build leaves `grpc-message` encoded.
+	return message === 'name has expired' || message === 'name%20has%20expired';
 }
 
 export class GrpcCoreClient extends CoreClient {
