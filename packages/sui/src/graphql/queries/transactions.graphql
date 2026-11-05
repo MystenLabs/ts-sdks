@@ -98,6 +98,9 @@ query listTransactions(
 			startCursor
 			endCursor
 		}
+		edges {
+			cursor
+		}
 		nodes {
 			...TRANSACTION_FIELDS
 		}
