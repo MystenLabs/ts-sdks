@@ -13,16 +13,14 @@ keywords:
   - '@mysten/sui'
 questions:
   - Which Sui client should I use?
-  - 'What is the difference between gRPC, GraphQL, and JSON-RPC clients?'
+  - What is the difference between the gRPC and GraphQL clients?
   - How do I create a Sui client in TypeScript?
 answer: >-
-  The Sui SDK offers three client types: SuiGrpcClient (recommended, fastest), SuiGraphQLClient
-  (flexible queries), and SuiJsonRpcClient (legacy). All share the Core API interface for common
-  operations.
+  The Sui SDK offers two client types: SuiGrpcClient (recommended, fastest) and SuiGraphQLClient
+  (flexible queries). Both share the Core API interface for common operations.
 goal:
   description: >-
-    Reader can choose and configure the right Sui client (gRPC, GraphQL, or JSON-RPC) for their use
-    case
+    Reader can choose and configure the right Sui client (gRPC or GraphQL) for their use case
   requires:
     - has_frontmatter:
         - title
@@ -51,8 +49,8 @@ prefer one, and `SuiGraphQLClient` when your application wants to query the Grap
 Because they share an API, moving between them is mostly a matter of changing the constructor.
 
 <Callout type="info">
-	JSON-RPC is deprecated. See the [migration guide](/sui/migrations/sui-2.0/json-rpc-migration) if
-	you maintain existing JSON-RPC code.
+	The JSON-RPC client was removed in `@mysten/sui` 3.0. See the [3.0 migration
+	guide](/sui/migrations/sui-3.0) if you are moving existing JSON-RPC code.
 </Callout>
 
 ## Quick start
