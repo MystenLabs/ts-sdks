@@ -95,12 +95,14 @@ Two things the defaults **don't** do, by design — handle them at your service 
 
 Keep `defaults()` unless you're deliberately replacing those checks.
 
-For **offline-only signing** — no dry-run — use validators that read only `data` (no
-`transactionResponse`). Nothing depends on simulation, so the sponsor never simulates:
+To **skip simulation**, use validators that don't depend on `transactionResponse`:
 
 ```ts
 createSponsor({ signer, client, validate: [validSender(), gasCoinNotUsed()] });
 ```
+
+`validSender()` still reads the sponsor's on-chain alias object and rejects the transaction if that
+lookup fails, so this configuration requires network access.
 
 ## What `transaction` is
 
