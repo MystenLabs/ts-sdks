@@ -659,57 +659,20 @@ export class GrpcCoreClient extends CoreClient {
 				filter: toGrpcTransactionFilter(filter),
 				startCheckpoint: range.start,
 				endCheckpoint: range.end,
-				// Request one extra item as lookahead: the server reports its item limit as reached
-				// without scanning past it, so an exact-limit final page is otherwise
-				// indistinguishable from one with more results
+				// Request one extra item as lookahead (see collectListPage)
 				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
 			},
 			{ abort: options.signal },
 		);
 
-		const transactions: SuiClientTypes.TransactionResult<Include>[] = [];
-		let startCursor: string | null = null;
-		let endCursor: string | null = null;
-		let frontier: string | null = null;
-		let end: QueryEnd | undefined;
-		let sawLookaheadItem = false;
+		const { items, ...page } = await collectListPage(
+			call.responses,
+			pagination.limit,
+			(frame) => frame.transaction,
+			(transaction) => parseGrpcTransactionResponse(transaction, { include: options.include }),
+		);
 
-		for await (const frame of call.responses) {
-			if (frame.watermark?.cursor) {
-				frontier = toBase64(frame.watermark.cursor);
-			}
-			if (frame.transaction) {
-				if (transactions.length >= pagination.limit) {
-					sawLookaheadItem = true;
-				} else {
-					startCursor ??= frontier;
-					endCursor = frontier;
-					transactions.push(
-						parseGrpcTransactionResponse(frame.transaction, { include: options.include }),
-					);
-				}
-			}
-			if (frame.end) {
-				end = frame.end;
-			}
-		}
-
-		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
-		// its own maximum, so the filled page is still evidence of a possible next page
-		const hasNextPage =
-			sawLookaheadItem ||
-			end?.reason === QueryEndReason.SCAN_LIMIT ||
-			end?.reason === QueryEndReason.ITEM_LIMIT;
-
-		return {
-			transactions,
-			hasNextPage,
-			startCursor,
-			// Scans that stopped early without filling the page continue from the scan frontier
-			// (so already-scanned positions are not revisited), full pages continue after the last
-			// returned item, and terminal pages have no positions to continue from
-			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
-		};
+		return { transactions: items, ...page };
 	}
 
 	async listEvents(
@@ -738,76 +701,88 @@ export class GrpcCoreClient extends CoreClient {
 				filter: toGrpcEventFilter(filter),
 				startCheckpoint: range.start,
 				endCheckpoint: range.end,
-				// Request one extra item as lookahead: the server reports its item limit as reached
-				// without scanning past it, so an exact-limit final page is otherwise
-				// indistinguishable from one with more results
+				// Request one extra item as lookahead (see collectListPage)
 				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
 			},
 			{ abort: options.signal },
 		);
 
-		const events: SuiClientTypes.EventEntry[] = [];
-		let startCursor: string | null = null;
-		let endCursor: string | null = null;
-		let frontier: string | null = null;
-		let end: QueryEnd | undefined;
-		let sawLookaheadItem = false;
-
-		for await (const frame of call.responses) {
-			if (frame.watermark?.cursor) {
-				frontier = toBase64(frame.watermark.cursor);
-			}
-			if (frame.event) {
-				if (events.length >= pagination.limit) {
-					sawLookaheadItem = true;
-				} else {
-					startCursor ??= frontier;
-					endCursor = frontier;
-					const event = frame.event;
-					if (
-						!event.packageId ||
-						!event.module ||
-						!event.sender ||
-						!event.eventType ||
-						!event.transactionDigest ||
-						event.eventIndex == null
-					) {
-						throw new Error('listEvents response is missing expected event fields');
-					}
-					events.push({
-						packageId: normalizeSuiAddress(event.packageId),
-						module: event.module,
-						sender: normalizeSuiAddress(event.sender),
-						eventType: normalizeStructTag(event.eventType),
-						bcs: event.contents?.value ?? new Uint8Array(),
-						json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
-						checkpoint: event.checkpoint?.toString() ?? null,
-						transactionDigest: event.transactionDigest,
-						eventIndex: event.eventIndex,
-					});
+		const { items, ...page } = await collectListPage(
+			call.responses,
+			pagination.limit,
+			(frame) => frame.event,
+			(event): SuiClientTypes.EventEntry => {
+				if (
+					!event.packageId ||
+					!event.module ||
+					!event.sender ||
+					!event.eventType ||
+					!event.transactionDigest ||
+					event.eventIndex == null
+				) {
+					throw new Error('listEvents response is missing expected event fields');
 				}
-			}
-			if (frame.end) {
-				end = frame.end;
-			}
-		}
+				return {
+					packageId: normalizeSuiAddress(event.packageId),
+					module: event.module,
+					sender: normalizeSuiAddress(event.sender),
+					eventType: normalizeStructTag(event.eventType),
+					bcs: event.contents?.value ?? new Uint8Array(),
+					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+					checkpoint: event.checkpoint?.toString() ?? null,
+					transactionDigest: event.transactionDigest,
+					eventIndex: event.eventIndex,
+				};
+			},
+		);
 
-		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
-		// its own maximum, so the filled page is still evidence of a possible next page
-		const hasNextPage =
-			sawLookaheadItem ||
-			end?.reason === QueryEndReason.SCAN_LIMIT ||
-			end?.reason === QueryEndReason.ITEM_LIMIT;
+		return { events: items, ...page };
+	}
 
-		return {
-			events,
-			hasNextPage,
-			startCursor,
-			// Scans that stopped early without filling the page continue from the scan frontier
-			// (so already-scanned positions are not revisited), full pages continue after the last
-			// returned item, and terminal pages have no positions to continue from
-			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
-		};
+	async listCheckpoints(
+		options: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse> {
+		const pagination = resolvePagination(options);
+		const range = resolveCheckpointRange(options);
+		const call = this.#client.ledgerService.listCheckpoints(
+			{
+				readMask: {
+					paths: ['sequence_number', 'digest', 'summary.epoch', 'summary.timestamp'],
+				},
+				startCheckpoint: range.start,
+				endCheckpoint: range.end,
+				// Request one extra item as lookahead (see collectListPage)
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
+			},
+			{ abort: options.signal },
+		);
+
+		const { items, ...page } = await collectListPage(
+			call.responses,
+			pagination.limit,
+			(frame) => frame.checkpoint,
+			(checkpoint): SuiClientTypes.Checkpoint => {
+				const timestamp = checkpoint.summary?.timestamp;
+				if (
+					checkpoint.sequenceNumber == null ||
+					!checkpoint.digest ||
+					checkpoint.summary?.epoch == null ||
+					!timestamp
+				) {
+					throw new Error('listCheckpoints response is missing expected checkpoint fields');
+				}
+				return {
+					sequenceNumber: checkpoint.sequenceNumber.toString(),
+					digest: checkpoint.digest,
+					epoch: checkpoint.summary.epoch.toString(),
+					timestampMs: Number(
+						timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000)),
+					),
+				};
+			},
+		);
+
+		return { checkpoints: items, ...page };
 	}
 
 	async verifyZkLoginSignature(
@@ -1054,6 +1029,71 @@ export class GrpcCoreClient extends CoreClient {
 			return await next();
 		};
 	}
+}
+
+/**
+ * Collects one page from a streaming ledger query (listTransactions, listEvents,
+ * listCheckpoints) that was sent with a limit of `limit + 1`. The extra item is a lookahead:
+ * the server reports its item limit as reached without scanning past it, so an exact-limit
+ * final page is otherwise indistinguishable from one with more results.
+ */
+async function collectListPage<
+	Frame extends { watermark?: { cursor?: Uint8Array }; end?: QueryEnd },
+	Item,
+	Result,
+>(
+	responses: AsyncIterable<Frame>,
+	limit: number,
+	pick: (frame: Frame) => Item | undefined,
+	map: (item: Item) => Result,
+): Promise<{
+	items: Result[];
+	hasNextPage: boolean;
+	startCursor: string | null;
+	endCursor: string | null;
+}> {
+	const items: Result[] = [];
+	let startCursor: string | null = null;
+	let endCursor: string | null = null;
+	let frontier: string | null = null;
+	let end: QueryEnd | undefined;
+	let sawLookaheadItem = false;
+
+	for await (const frame of responses) {
+		if (frame.watermark?.cursor) {
+			frontier = toBase64(frame.watermark.cursor);
+		}
+		const item = pick(frame);
+		if (item) {
+			if (items.length >= limit) {
+				sawLookaheadItem = true;
+			} else {
+				startCursor ??= frontier;
+				endCursor = frontier;
+				items.push(map(item));
+			}
+		}
+		if (frame.end) {
+			end = frame.end;
+		}
+	}
+
+	// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+	// its own maximum, so the filled page is still evidence of a possible next page
+	const hasNextPage =
+		sawLookaheadItem ||
+		end?.reason === QueryEndReason.SCAN_LIMIT ||
+		end?.reason === QueryEndReason.ITEM_LIMIT;
+
+	return {
+		items,
+		hasNextPage,
+		startCursor,
+		// Scans that stopped early without filling the page continue from the scan frontier
+		// (so already-scanned positions are not revisited), full pages continue after the last
+		// returned item, and terminal pages have no positions to continue from
+		endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
+	};
 }
 
 function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): QueryOptions {
