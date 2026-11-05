@@ -30,7 +30,7 @@ const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
 
 /** Compute a gas budget from gasUsed effects data. */
-export function computeGasBudget(
+function computeGasBudget(
 	gasUsed: { computationCost: string; storageCost: string; storageRebate: string },
 	gasPrice: bigint | string = 1n,
 ): string {
@@ -171,7 +171,7 @@ async function setGasBudget(
 		include: { effects: true },
 		// The empty payment above is a placeholder for budget estimation, not a real address
 		// balance payment, so the server must simulate with a mocked gas coin rather than
-		// selecting gas. gRPC and GraphQL support this option, and JSON-RPC always mocks gas.
+		// selecting gas.
 		doGasSelection: false,
 	} as SuiClientTypes.SimulateTransactionOptions<{ effects: true }> & { doGasSelection: boolean });
 

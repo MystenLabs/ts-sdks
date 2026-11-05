@@ -131,10 +131,7 @@ describe.skipIf(!isLocalnet())('HashiClient withdrawal lifecycle (localnet)', ()
 		);
 		expect(evt).toBeDefined();
 
-		// The gRPC client (`@mysten/sui/grpc`) surfaces parsed Move event
-		// data under `event.json`, not the JSON-RPC-era `event.parsedJson`.
-		// Mixing the two silently returns undefined and looks like the
-		// event was malformed.
+		// Parsed Move event data is under `event.json`.
 		const parsed = (evt as unknown as { json?: { request_id?: string } }).json;
 		if (!parsed?.request_id) {
 			throw new Error(`WithdrawalRequested missing request_id: ${JSON.stringify(evt)}`);

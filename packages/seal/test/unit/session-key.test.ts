@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { SessionKey } from '../../src/session-key.js';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 describe('Session key tests', () => {
@@ -14,7 +13,7 @@ describe('Session key tests', () => {
 		const kp = Ed25519Keypair.generate();
 		const suiClient = new SuiGrpcClient({
 			network: 'testnet',
-			baseUrl: getJsonRpcFullnodeUrl('testnet'),
+			baseUrl: 'https://fullnode.testnet.sui.io:443',
 		});
 		const sessionKey = await SessionKey.create({
 			address: kp.getPublicKey().toSuiAddress(),

@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import path from 'path';
-import type {
-	DevInspectResults,
-	SuiObjectChangePublished,
-	SuiTransactionBlockResponse,
-} from '@mysten/sui/jsonRpc';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import { FaucetRateLimitError, getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import type { ContainerRuntimeClient } from 'testcontainers';
@@ -20,14 +17,15 @@ import type { KioskClient } from '../../src/index.js';
 import { KioskTransaction } from '../../src/index.js';
 
 const DEFAULT_FAUCET_URL = process.env.FAUCET_URL ?? getFaucetHost('localnet');
-const DEFAULT_FULLNODE_URL = process.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
+const DEFAULT_FULLNODE_URL = process.env.FULLNODE_URL ?? 'http://127.0.0.1:9000';
+const DEFAULT_GRAPHQL_URL = process.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: SuiJsonRpcClient;
+	client: SuiGrpcClient;
 	configPath: string;
 
-	constructor(keypair: Ed25519Keypair, client: SuiJsonRpcClient, configPath: string) {
+	constructor(keypair: Ed25519Keypair, client: SuiGrpcClient, configPath: string) {
 		this.keypair = keypair;
 		this.client = client;
 		this.configPath = configPath;
@@ -36,17 +34,22 @@ export class TestToolbox {
 	address() {
 		return this.keypair.getPublicKey().toSuiAddress();
 	}
-
-	public async getActiveValidators() {
-		return (await this.client.getLatestSuiSystemState()).activeValidators;
-	}
 }
 
-export function getClient(): SuiJsonRpcClient {
-	return new SuiJsonRpcClient({
+const graphqlClient = new SuiGraphQLClient({
+	network: 'localnet',
+	url: DEFAULT_GRAPHQL_URL,
+});
+
+export function getClient(): SuiGrpcClient {
+	const client = new SuiGrpcClient({
 		network: 'localnet',
-		url: DEFAULT_FULLNODE_URL,
+		baseUrl: DEFAULT_FULLNODE_URL,
 	});
+	// The pinned localnet image's gRPC server does not implement `listEvents`, which Kiosk uses to
+	// find transfer policies, so serve it from the localnet GraphQL endpoint.
+	client.core.listEvents = (options) => graphqlClient.core.listEvents(options);
+	return client;
 }
 
 // TODO: expose these testing utils from @mysten/sui
@@ -105,21 +108,11 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 	// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
 	tx.transferObjects([cap], tx.pure.address(toolbox.address()));
 
-	const { digest } = await toolbox.client.signAndExecuteTransaction({
-		transaction: tx,
-		signer: toolbox.keypair,
-	});
+	const publishTxn = await executeTransaction(toolbox, tx);
 
-	const publishTxn = await toolbox.client.waitForTransaction({
-		digest: digest,
-		options: { showObjectChanges: true, showEffects: true },
-	});
-
-	expect(publishTxn.effects?.status.status).toEqual('success');
-
-	const packageId = ((publishTxn.objectChanges?.filter(
-		(a) => a.type === 'published',
-	) as SuiObjectChangePublished[]) ?? [])[0]?.packageId.replace(/^(0x)(0+)/, '0x') as string;
+	const packageId = publishTxn.effects.changedObjects
+		.find((change) => change.outputState === 'PackageWrite')
+		?.objectId.replace(/^(0x)(0+)/, '0x') as string;
 
 	expect(packageId).toBeTypeOf('string');
 
@@ -183,22 +176,28 @@ export async function createPersonalKiosk(toolbox: TestToolbox, kioskClient: Kio
 	await executeTransaction(toolbox, tx);
 }
 
-function getCreatedObjectIdByType(res: SuiTransactionBlockResponse, type: string): string {
-	return res.objectChanges?.filter(
-		(x) => x.type === 'created' && x.objectType.endsWith(type),
-		//@ts-ignore-next-line
-	)[0].objectId;
+type ExecutedTransaction = SuiClientTypes.Transaction<{
+	effects: true;
+	events: true;
+	objectTypes: true;
+}>;
+
+function getCreatedObjectIdByType(res: ExecutedTransaction, type: string): string {
+	const created = res.effects.changedObjects.find(
+		(change) =>
+			change.idOperation === 'Created' && res.objectTypes[change.objectId]?.endsWith(type),
+	);
+	expect(created).toBeDefined();
+	return created!.objectId;
 }
 
 export async function getPublisherObject(toolbox: TestToolbox): Promise<string> {
-	const res = await toolbox.client.getOwnedObjects({
-		filter: {
-			StructType: '0x2::package::Publisher',
-		},
+	const res = await toolbox.client.core.listOwnedObjects({
+		type: '0x2::package::Publisher',
 		owner: toolbox.address(),
 	});
 
-	const publisherObj = res.data[0].data?.objectId;
+	const publisherObj = res.objects[0]?.objectId;
 	expect(publisherObj).not.toBeUndefined();
 
 	return publisherObj ?? '';
@@ -207,31 +206,22 @@ export async function getPublisherObject(toolbox: TestToolbox): Promise<string> 
 export async function executeTransaction(
 	toolbox: TestToolbox,
 	tx: Transaction,
-): Promise<SuiTransactionBlockResponse> {
-	const resp = await toolbox.client.signAndExecuteTransaction({
+): Promise<ExecutedTransaction> {
+	const result = await toolbox.client.core.signAndExecuteTransaction({
 		signer: toolbox.keypair,
 		transaction: tx,
-		options: {
-			showEffects: true,
-			showEvents: true,
-			showObjectChanges: true,
-		},
+		include: { effects: true, events: true, objectTypes: true },
 	});
-	await toolbox.client.waitForTransaction({
-		digest: resp.digest,
-	});
-	expect(resp.effects?.status.status).toEqual('success');
-	return resp;
-}
-
-export async function devInspectTransaction(
-	toolbox: TestToolbox,
-	tx: Transaction,
-): Promise<DevInspectResults> {
-	return await toolbox.client.devInspectTransactionBlock({
-		transactionBlock: tx,
-		sender: toolbox.address(),
-	});
+	if (result.$kind !== 'Transaction') {
+		throw new Error(
+			`Transaction failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+		);
+	}
+	await Promise.all([
+		toolbox.client.core.waitForTransaction({ result }),
+		graphqlClient.core.waitForTransaction({ result }),
+	]);
+	return result.Transaction;
 }
 
 const SUI_TOOLS_CONTAINER_ID = inject('suiToolsContainerId');

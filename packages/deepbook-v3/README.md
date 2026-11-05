@@ -118,8 +118,7 @@ Notes that bite in practice:
   grant live again at once — it pauses sessions, it does not kill them.
 - Listing grants goes through `deriveSessionsFieldId(owner)` → fetch → `decodeSessions`. Pass the
   whole field object's contents, not the inner value. Fetch it through the core API, and ask for
-  content explicitly — JSON-RPC is gone from public fullnodes, and without `include` the response
-  carries no bytes:
+  content explicitly; without `include` the response carries no bytes:
 
   ```ts
   const { object } = await client.core.getObject({ objectId, include: { content: true } });

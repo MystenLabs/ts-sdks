@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { toBase58 } from '@mysten/bcs';
 import { Transaction } from '../../../src/transactions/Transaction.js';
+import { SuiGrpcClient } from '../../../src/grpc/client.js';
 import {
 	grpcTransactionToTransactionData,
 	transactionDataToGrpcTransaction,
@@ -600,5 +601,34 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 				/Allowed proposers must not be empty/,
 			);
 		});
+	});
+});
+
+describe('untyped pure inputs', () => {
+	it('fails to build a transaction with an untyped pure input', async () => {
+		const tx = Transaction.from(
+			JSON.stringify({
+				version: 2,
+				sender: '0x1',
+				expiration: null,
+				gasData: { budget: null, price: null, owner: null, payment: null },
+				inputs: [{ UnresolvedPure: { value: 5 } }],
+				commands: [
+					{
+						MoveCall: {
+							package: '0x2',
+							module: 'example',
+							function: 'run',
+							typeArguments: [],
+							arguments: [{ Input: 0 }],
+						},
+					},
+				],
+			}),
+		);
+		const client = new SuiGrpcClient({ network: 'localnet', baseUrl: 'http://127.0.0.1:1' });
+		await expect(tx.build({ client })).rejects.toThrow(
+			'Invalid input: untyped pure values are not supported',
+		);
 	});
 });
