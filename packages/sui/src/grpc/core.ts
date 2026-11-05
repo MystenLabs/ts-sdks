@@ -53,8 +53,17 @@ import {
 } from '../client/transaction-resolver.js';
 import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
-import { isMockedGasObjectId, transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
+import {
+	decodeSignature,
+	isMockedGasObjectId,
+	MALFORMED_SIGNATURE,
+	resolveVerifySignatureOptions,
+	transactionBytesHaveEmptyGasPayment,
+} from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import { BadRequest } from './proto/google/rpc/error_details.js';
+import { Status } from './proto/google/rpc/status.js';
+import type { VerifySignatureResponse } from './proto/sui/rpc/v2/signature_verification_service.js';
 import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
@@ -66,6 +75,7 @@ import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
 import type { Event } from './proto/sui/rpc/v2/event.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
+import { base64decode } from '@protobuf-ts/runtime';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import {
@@ -99,6 +109,32 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (message === 'name has expired') return true;
 
 	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
+}
+
+/** The reason a node gave for rejecting a signature it can't parse: a `signature` field violation. */
+function unparseableSignatureReason(error: unknown): string | null {
+	if (typeof error !== 'object' || error === null) return null;
+
+	const { code, meta } = error as { code?: unknown; meta?: Record<string, unknown> };
+	if (code !== GrpcStatusCode[GrpcStatusCode.INVALID_ARGUMENT]) return null;
+
+	const details = meta?.['grpc-status-details-bin'];
+	const encoded = Array.isArray(details) ? details[0] : details;
+	if (typeof encoded !== 'string') return null;
+	try {
+		// Servers send type URLs with no host (`/google.rpc.BadRequest`), which `Any.contains` rejects.
+		const detail = Status.fromBinary(base64decode(encoded)).details.find(
+			({ typeUrl }) => typeUrl.slice(typeUrl.lastIndexOf('/') + 1) === BadRequest.typeName,
+		);
+		const violation =
+			detail &&
+			BadRequest.fromBinary(detail.value).fieldViolations.find(
+				({ field }) => field === 'signature',
+			);
+		return violation ? violation.description || 'Invalid signature' : null;
+	} catch {
+		return null;
+	}
 }
 
 /** Ledger streams call the transport directly to read responses on demand. Internal. */
@@ -816,6 +852,54 @@ export class GrpcCoreClient extends CoreClient {
 		);
 
 		return { checkpoints: items, ...page };
+	}
+
+	async verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		const { intentScope, message, address, checkAddressAliases } =
+			resolveVerifySignatureOptions(options);
+		const signature = decodeSignature(options.signature);
+		if (!signature) {
+			return { valid: false, reason: MALFORMED_SIGNATURE };
+		}
+
+		let response: VerifySignatureResponse;
+		try {
+			({ response } = await this.#client.signatureVerificationService.verifySignature(
+				{
+					message: {
+						name: intentScope,
+						// A personal message is sent as a BCS `vector<u8>`, transaction data as-is.
+						value:
+							intentScope === 'PersonalMessage'
+								? bcs.byteVector().serialize(message).toBytes()
+								: message,
+					},
+					signature: {
+						bcs: { value: signature },
+						signature: { oneofKind: undefined },
+					},
+					address,
+					checkAddressAliases,
+					jwks: [],
+				},
+				{ abort: options.signal },
+			));
+		} catch (error) {
+			const reason = unparseableSignatureReason(error);
+			if (reason) {
+				return { valid: false, reason };
+			}
+			throw error;
+		}
+
+		if (typeof response.isValid !== 'boolean') {
+			throw new Error('The node returned no signature verification verdict');
+		}
+		return response.isValid
+			? { valid: true }
+			: { valid: false, reason: response.reason ?? 'Signature is not valid' };
 	}
 
 	async verifyZkLoginSignature(
