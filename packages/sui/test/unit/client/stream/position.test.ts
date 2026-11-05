@@ -30,6 +30,9 @@ const unordered = (checkpoint: bigint, id: string) =>
 	itemPosition(checkpoint, { cursor: cursor(id), itemId: id });
 const progress = (coverage: Coverage = unknown) => progressPosition(cursor('p'), { coverage });
 const genesis = boundaryPosition(0n);
+/** The boundary just before key (checkpoint, transactionIndex, eventIndex). */
+const at = (checkpoint: bigint, transactionIndex: bigint, eventIndex: number | null = null) =>
+	boundaryPosition(checkpoint, { cursor: cursor('b'), transactionIndex, eventIndex });
 
 describe('stream positions', () => {
 	it.each([
@@ -54,6 +57,24 @@ describe('stream positions', () => {
 			boundaryPosition(4n),
 			0,
 		],
+		['a boundary inside a checkpoint before the item with its key', at(3n, 1n), item(3n, 1n), -1],
+		['a boundary inside a checkpoint after an earlier item', at(3n, 1n), item(3n, 0n), 1],
+		['an event boundary by event index', at(3n, 0n, 2), item(3n, 0n, 1), 1],
+		[
+			'a boundary inside a checkpoint after its plain boundary',
+			at(3n, 1n),
+			boundaryPosition(3n),
+			1,
+		],
+		['boundaries inside a checkpoint', at(3n, 1n, 0), at(3n, 1n, 2), -1],
+		// (3, 5) after the last transaction of 3 is the point (4); ordering never says otherwise.
+		['the end of a checkpoint and the next boundary', at(3n, 5n), boundaryPosition(4n), -1],
+		[
+			'a boundary inside a checkpoint and an unordered item',
+			at(3n, 1n),
+			unordered(3n, 'a'),
+			undefined,
+		],
 		['progress, whatever its cursor', progress(), progress(), undefined],
 		['progress and an item', progress(), item(3n), undefined],
 	] as const)('compares %s', (_, a, b, expected) => {
@@ -65,6 +86,7 @@ describe('stream positions', () => {
 		['reported coverage', progress(through(7n)), 'events', through(7n)],
 		['genesis', genesis, 'events', { $kind: 'None' }],
 		['a boundary', boundaryPosition(6n), 'checkpoints', through(5n)],
+		['a boundary inside a checkpoint', at(6n, 2n), 'events', through(5n)],
 		['an event item', item(5n), 'events', through(4n)],
 		['an item at genesis', item(0n), 'events', { $kind: 'None' }],
 		['a checkpoint item', item(5n), 'checkpoints', through(5n)],
@@ -76,6 +98,7 @@ describe('stream positions', () => {
 	it.each([
 		['an item', item(5n), 5n],
 		['a boundary', boundaryPosition(6n), 5n],
+		['a boundary inside a checkpoint', at(6n, 2n), 6n],
 		['progress', progressPosition(cursor('p'), { indexedCheckpoint: 9n }), 9n],
 	] as const)('finds the checkpoint a server must index to resume from %s', (_, value, indexed) => {
 		expect(indexedThrough(value)).toBe(indexed);
@@ -85,7 +108,8 @@ describe('stream positions', () => {
 		for (const value of [
 			item(3n, 2n, 1),
 			unordered(3n, 'digest:0'),
-			boundaryPosition(1n << 64n, { cursor: cursor('end') }),
+			boundaryPosition(1n << 64n),
+			at(4n, 2n, 1),
 			genesis,
 			progressPosition(cursor('p'), { coverage: through(4n), indexedCheckpoint: 5n }),
 		]) {
@@ -97,13 +121,32 @@ describe('stream positions', () => {
 		['an empty cursor', progressPosition(new Uint8Array())],
 		['progress without a cursor', { ...progress(), cursor: null }],
 		['progress with a checkpoint', { ...progress(), checkpoint: 1n }],
-		['a boundary with item coordinates', boundaryPosition(2n, { transactionIndex: 1n })],
+		['a boundary with an item id', { ...boundaryPosition(2n), itemId: 'a' }],
+		['progress with item coordinates', { ...progress(), transactionIndex: 1n }],
+		['a boundary with zero indexes', { ...boundaryPosition(2n), transactionIndex: 0n }],
+		[
+			'a boundary inside a checkpoint covering a later one',
+			{ ...at(2n, 1n), coverage: through(3n) },
+		],
 		['a boundary covering its own checkpoint', boundaryPosition(2n, { coverage: through(2n) })],
 		['an item covering a later checkpoint', itemPosition(2n, { coverage: through(3n) })],
 		['an event index without a transaction index', itemPosition(1n, { eventIndex: 0 })],
 		['an indexed checkpoint on an item', itemPosition(1n, { indexedCheckpoint: 1n })],
 	])('rejects %s', (_, value) => {
 		expect(() => validatePosition(value)).toThrow(SuiStreamError);
+	});
+
+	it.each([
+		['a boundary inside a checkpoint', at(2n, 1n)],
+		['one that covers its checkpoint, as (c, n) can', { ...at(2n, 3n), coverage: through(2n) }],
+	])('accepts %s', (_, value) => {
+		expect(() => validatePosition(value)).not.toThrow();
+	});
+
+	it('normalizes a boundary with zero indexes to the plain boundary', () => {
+		expect(at(4n, 0n, 0)).toEqual(boundaryPosition(4n));
+		expect(at(4n, 0n)).toEqual(boundaryPosition(4n));
+		expect(at(4n, 0n, 1)).toMatchObject({ transactionIndex: 0n, eventIndex: 1 });
 	});
 
 	it('accepts arbitrary cursor bytes', () => {
@@ -120,6 +163,18 @@ describe('stream positions', () => {
 		expect(reachesEnd(value, item(2n, 1n), 'ascending')).toBe(ascending);
 		expect(reachesEnd(value, item(2n, 1n), 'descending')).toBe(descending);
 	});
+
+	it.each([
+		['the item at its key', item(2n, 1n), true, false],
+		['an earlier item', item(2n, 0n), false, true],
+		['a later checkpoint', item(3n, 0n), true, false],
+	] as const)(
+		'decides whether %s reaches a boundary end inside a checkpoint',
+		(_, value, asc, desc) => {
+			expect(reachesEnd(value, at(2n, 1n), 'ascending')).toBe(asc);
+			expect(reachesEnd(value, at(2n, 1n), 'descending')).toBe(desc);
+		},
+	);
 
 	it('rejects positions that move backwards within one call', () => {
 		expect(() => assertAdvancing(item(3n), item(2n), 'ascending')).toThrow('regressed');

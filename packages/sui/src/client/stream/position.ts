@@ -19,13 +19,19 @@ import { SuiStreamError } from './errors.js';
  * - `Item`: a delivered item, in `checkpoint`. Its place within the checkpoint is
  *   `transactionIndex`/`eventIndex` where reported, else only `itemId` identifies it.
  * - `Boundary`: just before `checkpoint`, with nothing of it delivered. Genesis is the boundary
- *   before checkpoint 0. Without a cursor, it resumes by checkpoint.
- * - `Progress`: a cursor reported without a checkpoint, such as an empty page's end or a
- *   subscription's progress. Its coordinates are unknown.
+ *   before checkpoint 0. It resumes by checkpoint. With `transactionIndex` (and for events
+ *   `eventIndex`), it sits just before that key within the checkpoint instead, and resumes by its
+ *   cursor. Different boundaries can name one point: after the last of `n` transactions in `c`,
+ *   (c, n) and (c + 1) are the same.
+ * - `Progress`: a cursor reported without a checkpoint, such as a GraphQL empty page's end or
+ *   subscription progress. Its coordinates are unknown. gRPC never reports one.
  *
- * Ordering (`comparePositions`) uses coordinates only. Positions without them, or two items of one
- * checkpoint without reported places, are unordered; within one stream a later commit supersedes
- * an earlier one, so unordered positions are committed in arrival order.
+ * Ordering (`comparePositions`) uses coordinates only, lexicographically by key, with unset
+ * indexes counting as 0 and a boundary before the item with its key. Equivalent boundaries can
+ * compare unequal, so ordering never decides that two positions are the same point. Positions
+ * without coordinates, or two items of one checkpoint without reported places, are unordered;
+ * within one stream a later commit supersedes an earlier one, so unordered positions are committed
+ * in arrival order.
  *
  * Coverage (`positionCoverage`) is ascending: what the server reported at the position, else what
  * its kind implies. A checkpoint item covers its checkpoint, a transaction or event item only the
@@ -121,12 +127,24 @@ export function itemPosition(
 	return { ...EMPTY, ...fields, kind: 'Item', checkpoint };
 }
 
-/** The boundary just before `checkpoint`. */
+/**
+ * The boundary just before `checkpoint`, or with indexes, just before that key within it. Zero
+ * indexes are the plain boundary before `checkpoint`, which resumes without a cursor.
+ */
 export function boundaryPosition(
 	checkpoint: bigint,
 	fields: Partial<Omit<StreamPosition, 'kind' | 'checkpoint'>> = {},
 ): StreamPosition {
-	return { ...EMPTY, ...fields, kind: 'Boundary', checkpoint };
+	const position: StreamPosition = { ...EMPTY, ...fields, kind: 'Boundary', checkpoint };
+	if (fields.transactionIndex || fields.eventIndex) return position;
+	return { ...position, cursor: null, transactionIndex: null, eventIndex: null };
+}
+
+/** Whether items of the position's checkpoint can lie on both sides of it. */
+export function insideCheckpoint(position: StreamPosition): boolean {
+	return (
+		position.kind === 'Item' || (position.kind === 'Boundary' && position.transactionIndex !== null)
+	);
 }
 
 export function progressPosition(
@@ -147,10 +165,13 @@ export function positionBytes(position: StreamPosition): Uint8Array {
  */
 export function comparePositions(a: StreamPosition, b: StreamPosition): -1 | 0 | 1 | undefined {
 	if (a.checkpoint === null || b.checkpoint === null) return undefined;
-	if (a.kind === 'Boundary' && b.kind === 'Boundary') return order(a.checkpoint, b.checkpoint);
-	if (a.kind === 'Boundary') return a.checkpoint <= b.checkpoint ? -1 : 1;
-	if (b.kind === 'Boundary') return b.checkpoint <= a.checkpoint ? 1 : -1;
 	if (a.checkpoint !== b.checkpoint) return order(a.checkpoint, b.checkpoint);
+	if (a.kind === 'Boundary' && b.kind === 'Boundary') return compareKeys(a, b);
+	if (a.kind === 'Boundary') return boundaryToItem(a, b);
+	if (b.kind === 'Boundary') {
+		const comparison = boundaryToItem(b, a);
+		return comparison && (-comparison as -1 | 1);
+	}
 	if (a.itemId !== null || b.itemId !== null) return a.itemId === b.itemId ? 0 : undefined;
 	for (const field of ['transactionIndex', 'eventIndex'] as const) {
 		const x = a[field];
@@ -183,6 +204,21 @@ function order(a: bigint, b: bigint): -1 | 0 | 1 {
 	return a === b ? 0 : a < b ? -1 : 1;
 }
 
+/** Keys within one checkpoint, unset indexes counting as 0. */
+function compareKeys(a: StreamPosition, b: StreamPosition): -1 | 0 | 1 {
+	return (
+		order(a.transactionIndex ?? 0n, b.transactionIndex ?? 0n) ||
+		order(BigInt(a.eventIndex ?? 0), BigInt(b.eventIndex ?? 0))
+	);
+}
+
+/** A boundary against an item of its checkpoint: it sits before the item with its key. */
+function boundaryToItem(boundary: StreamPosition, item: StreamPosition): -1 | 1 | undefined {
+	if (boundary.transactionIndex === null) return -1;
+	if (item.transactionIndex === null) return undefined;
+	return compareKeys(boundary, item) <= 0 ? -1 : 1;
+}
+
 /**
  * Ascending coverage implied by having delivered everything through `position`: what the server
  * reported, else what the position implies. A checkpoint covers itself; a transaction or event
@@ -211,8 +247,12 @@ export function validatePosition(position: StreamPosition): void {
 	if (eventIndex !== null && transactionIndex === null) {
 		throw invalid('event index without a transaction index');
 	}
-	if (kind !== 'Item' && (transactionIndex !== null || itemId !== null)) {
-		throw invalid('item coordinates outside an item');
+	if (kind !== 'Item' && itemId !== null) throw invalid('item id outside an item');
+	if (kind === 'Progress' && transactionIndex !== null) {
+		throw invalid('item coordinates on progress');
+	}
+	if (kind === 'Boundary' && transactionIndex === 0n && !eventIndex) {
+		throw invalid('zero boundary indexes');
 	}
 	if (kind !== 'Progress' && position.indexedCheckpoint !== null) {
 		throw invalid('indexed checkpoint outside progress');
@@ -220,9 +260,10 @@ export function validatePosition(position: StreamPosition): void {
 	if (kind === 'Progress' ? checkpoint !== null || cursor === null : checkpoint === null) {
 		throw invalid(`${kind} coordinates`);
 	}
-	if (coverage.$kind !== 'Through' || checkpoint === null) return;
-	const limit = kind === 'Item' ? checkpoint : checkpoint - 1n;
-	if (coverage.checkpoint > limit) throw invalid('coverage beyond the position');
+	if (coverage.$kind !== 'Through' || kind === 'Progress') return;
+	if (coverage.checkpoint > indexedThrough(position)!) {
+		throw invalid('coverage beyond the position');
+	}
 }
 
 /** The newest checkpoint a server must have indexed before it can resume from `position`. */
@@ -231,7 +272,7 @@ export function indexedThrough(position: StreamPosition): bigint | null {
 		case 'Item':
 			return position.checkpoint;
 		case 'Boundary':
-			return position.checkpoint! - 1n;
+			return insideCheckpoint(position) ? position.checkpoint : position.checkpoint! - 1n;
 		case 'Progress':
 			return position.indexedCheckpoint;
 	}
