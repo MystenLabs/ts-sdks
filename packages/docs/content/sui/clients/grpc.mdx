@@ -105,7 +105,15 @@ That class extends the transport of the same name from
   `AbortSignal.timeout`, the status on a reason carrying one, and `CANCELLED` otherwise. Upstream
   reports all but a standard `AbortError` cancellation as `INTERNAL`.
 
+Network failures, such as a failed fetch or a failed response body read, report `UNAVAILABLE`. The
+transport rejects a `baseUrl` that is not an absolute http(s) URL, except for a path starting with
+`/` in a browser or with a custom `fetch`.
+
 Build custom gRPC-web transports from this class to retain these error-handling fixes.
+
+Browser clients need the endpoint to expose the `grpc-status` and `grpc-message` headers through
+CORS (`Access-Control-Expose-Headers`); otherwise a response that carries its status only in headers
+fails.
 
 `SuiGrpcClient` adds an `x-sui-client-protocol-version` request header with the highest Sui protocol
 version whose types the SDK can decode. This applies to all transports, including native gRPC, and
@@ -126,7 +134,7 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 const client = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	format: 'binary', // default is 'text' (base64-encoded)
+	format: 'text', // default is 'binary'; use 'text' for proxies that only support base64
 });
 ```
 
@@ -137,8 +145,6 @@ import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
-	format: 'binary', // default is 'text' (base64-encoded)
-	// Additional transport options like fetchInit
 });
 
 const client = new SuiGrpcClient({

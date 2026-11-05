@@ -25,6 +25,7 @@ export type { GrpcCoreClientOptions } from './core.js';
 
 // Subclasses `@protobuf-ts/grpcweb-transport`'s transport to fix its error handling.
 export { GrpcWebFetchTransport } from './transport.js';
+export type { GrpcWebFetchTransportOptions } from './transport.js';
 
 // Re-exported so users can configure a transport, and narrow and code the errors it produces,
 // without adding @protobuf-ts/* as a dependency.
