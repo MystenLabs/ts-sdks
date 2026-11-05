@@ -101,10 +101,6 @@ const tx = client.paymentKit.tx.processRegistryPayment({
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showEffects: true,
-		showEvents: true,
-	},
 });
 
 // Check transaction status

@@ -167,11 +167,12 @@ import {
 	place,
 	testnetEnvironment,
 } from '@mysten/kiosk';
-import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 
-const client = new SuiJsonRpcClient({
-	url: 'https://fullnode.testnet.sui.io:443',
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+	network: 'testnet',
 });
 
 // The kiosk we're purchasing from.

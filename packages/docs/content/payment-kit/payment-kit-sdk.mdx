@@ -234,15 +234,15 @@ const tx = client.paymentKit.tx.createRegistry({
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showObjectChanges: true,
-	},
+	include: { effects: true, objectTypes: true },
 });
 
-// Extract the RegistryAdminCap from result.Transaction.objectChanges
-const adminCap = result.Transaction.objectChanges?.find(
-	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
-);
+// Find the created RegistryAdminCap
+const adminCapId = result.Transaction?.effects.changedObjects.find(
+	(change) =>
+		change.idOperation === 'Created' &&
+		result.Transaction?.objectTypes[change.objectId]?.includes('RegistryAdminCap'),
+)?.objectId;
 ```
 
 **On-Chain Effects:**
@@ -588,17 +588,15 @@ type PaymentReceipt = {
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showEvents: true,
-	},
+	include: { events: true },
 });
 
-const receiptEvent = result.Transaction.events?.find((event) =>
-	event.type.includes('PaymentReceipt'),
+const receiptEvent = result.Transaction?.events.find((event) =>
+	event.eventType.includes('PaymentReceipt'),
 );
 
 if (receiptEvent) {
-	const receipt = receiptEvent.parsedJson as PaymentReceipt;
+	const receipt = receiptEvent.json as PaymentReceipt;
 	console.log('Payment Type:', receipt.payment_type);
 	console.log('Nonce:', receipt.nonce);
 	console.log('Amount:', receipt.amount);

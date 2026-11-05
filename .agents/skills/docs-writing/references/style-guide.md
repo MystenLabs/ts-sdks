@@ -122,7 +122,7 @@ The docs use `fumadocs-typescript` for auto-generated type tables. When document
 For showing multiple approaches:
 
 ```mdx
-<Tabs items={['gRPC', 'JSON-RPC', 'GraphQL']}>
+<Tabs items={['gRPC', 'GraphQL']}>
 	<Tab value="gRPC">...</Tab>
 </Tabs>
 ```
