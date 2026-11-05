@@ -693,3 +693,23 @@ function parseTransactionEffectsV2({
 		auxiliaryDataDigest: effects.auxDataDigest,
 	};
 }
+
+function isValidUrl(url: string) {
+	try {
+		new URL(url);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Rejects a URL that would fail every request as a network error, which streams retry. A path is
+ * accepted, so a client can be built during server-side rendering; it fails on its first request
+ * where `fetch` cannot resolve it.
+ */
+export function assertClientUrl(url: string, name: string) {
+	if (url.startsWith('/')) return;
+	if (/^https?:\/\//i.test(url) && isValidUrl(url)) return;
+	throw new Error(`${name} must be an absolute http(s) URL or a path starting with "/"`);
+}

@@ -17,10 +17,14 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
+import { assertClientUrl } from '../client/utils.js';
+import { GrpcWebPullCall } from './grpc-web-pull.js';
+import { toNetworkRpcError } from './network-error.js';
+import { PULL_SERVER_STREAMING } from './pull-call.js';
+import type { PullServerStreamingTransport, ServerStreamingIterableCall } from './pull-call.js';
 
-// A failed call rejects four promises with the same error, so it is only decoded once. Registered
-// globally so another installed copy of this package sees the same marker.
-const MESSAGE_DECODED = Symbol.for('@mysten/sui/grpc/decoded-status-message');
+// A failed call rejects four promises with the same error, so it is only decoded once.
+const decodedErrors = new WeakSet<RpcError>();
 
 // `grpc-message` is percent-encoded on the wire and the upstream transport does not decode it:
 // https://github.com/timostamm/protobuf-ts/pull/739
@@ -34,38 +38,19 @@ function decodeGrpcStatusMessage(message: string): string {
 	}
 }
 
-function markStatusMessageRead(error: RpcError): boolean {
-	if (MESSAGE_DECODED in error) return false;
-	Object.defineProperty(error, MESSAGE_DECODED, { value: true, configurable: true });
-
-	return true;
-}
-
 function decodeStatusMessageOnce(error: RpcError): void {
-	if (markStatusMessageRead(error)) error.message = decodeGrpcStatusMessage(error.message);
-}
-
-/** Whether this package's transport decoded the error's status text. */
-export function hasDecodedStatusMessage(error: object): boolean {
-	return MESSAGE_DECODED in error;
-}
-
-// An abort reason is arbitrary, and reading a property on it runs code the caller wrote. A read
-// that throws counts as absent, so one bad accessor does not decide the status.
-function readProperty(value: unknown, key: 'code' | 'name' | 'message'): unknown {
-	if (typeof value !== 'object' || value === null) return undefined;
-
-	try {
-		return (value as Record<string, unknown>)[key];
-	} catch {
-		return undefined;
-	}
+	if (decodedErrors.has(error)) return;
+	decodedErrors.add(error);
+	error.message = decodeGrpcStatusMessage(error.message);
 }
 
 // The reason is read by shape, since another copy of runtime-rpc or another realm fails
 // `instanceof`. `AbortSignal.timeout` aborts with a `TimeoutError`.
 function abortStatus(reason: unknown): string {
-	const code = readProperty(reason, 'code');
+	const { code, name } = (typeof reason === 'object' && reason !== null ? reason : {}) as {
+		code?: unknown;
+		name?: unknown;
+	};
 
 	// A status name maps to a number; `in` would also match the enum's reverse mapping.
 	if (
@@ -75,20 +60,9 @@ function abortStatus(reason: unknown): string {
 		return code;
 	}
 
-	return readProperty(reason, 'name') === 'TimeoutError'
+	return name === 'TimeoutError'
 		? GrpcStatusCode[GrpcStatusCode.DEADLINE_EXCEEDED]
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
-}
-
-// The transport reuses the abort reason's message, so matching it says the text is local. A fetch
-// that substitutes its own error (node-fetch) gives text of its own, which holds nothing to decode.
-// The reason is never coerced: a symbol or a throwing hook would throw here.
-function isAbortReasonText(message: string, reason: unknown): boolean {
-	if (typeof reason === 'string') return message === reason;
-
-	const reasonMessage = readProperty(reason, 'message');
-
-	return typeof reasonMessage === 'string' && message === reasonMessage;
 }
 
 // Rewritten in place, so every promise a call rejects surfaces the same error. Only the two codes
@@ -111,14 +85,6 @@ function normalize(error: unknown, signal: AbortSignal | undefined): void {
 			error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED])
 	) {
 		error.code = abortStatus(signal.reason);
-
-		// Text the abort reason supplied is local and holds nothing to decode; anything else came off
-		// the wire, even though the abort is what the caller sees. Settled here for the other promises
-		// the call rejects, which no longer match the codes above.
-		if (isAbortReasonText(error.message, signal.reason)) markStatusMessageRead(error);
-		else decodeStatusMessageOnce(error);
-
-		return;
 	}
 
 	decodeStatusMessageOnce(error);
@@ -131,23 +97,92 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 	}
 }
 
+// Upstream erases fetch and body-read failures into INTERNAL; code them as UNAVAILABLE instead.
+function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
+	return async (input, init) => {
+		let response: Response;
+		try {
+			response = await fetch(input, init);
+		} catch (error) {
+			throw toNetworkRpcError(error, init?.signal);
+		}
+		// Other bodies, such as node-fetch's Node.js streams, are left to upstream.
+		if (typeof response.body?.getReader !== 'function') return response;
+		const reader = response.body.getReader();
+		// Upstream reads only these fields and iterates the body. The getters stay lazy because
+		// Cloudflare Workers throw on `type`, which upstream catches.
+		return {
+			get status() {
+				return response.status;
+			},
+			get statusText() {
+				return response.statusText;
+			},
+			get headers() {
+				return response.headers;
+			},
+			get type() {
+				return response.type;
+			},
+			body: { [Symbol.asyncIterator]: () => readBody(reader, init?.signal) },
+		} as unknown as Response;
+	};
+}
+
+async function* readBody(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	signal: AbortSignal | null | undefined,
+): AsyncGenerator<Uint8Array> {
+	while (true) {
+		let result: ReadableStreamReadResult<Uint8Array>;
+		try {
+			result = await reader.read();
+		} catch (error) {
+			throw toNetworkRpcError(error, signal);
+		}
+		if (result.done) return;
+		yield result.value;
+	}
+}
+
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
- * messages, to code an aborted call from its reason rather than as `INTERNAL`, and to send the
- * `x-sui-client-protocol-version` header.
+ * messages, to code an aborted call from its reason rather than as `INTERNAL`, to code network
+ * failures as `UNAVAILABLE`, to send the `x-sui-client-protocol-version` header, and to default to
+ * the binary wire format. It also reads server streams on demand, which the SDK uses internally.
+ * A custom `fetch` must honour the request's `signal`.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`
  * keeps that package's behaviour.
  */
-export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
+export class GrpcWebFetchTransport
+	extends UpstreamGrpcWebFetchTransport
+	implements PullServerStreamingTransport
+{
 	constructor(options: GrpcWebOptions) {
+		assertClientUrl(options.baseUrl, 'GrpcWebFetchTransport baseUrl');
 		// Lets the server avoid sending types this SDK cannot decode. Caller-supplied `meta` wins.
 		super({
 			...options,
+			format: options.format ?? 'binary',
 			meta: {
 				[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
 				...options.meta,
 			},
+		});
+	}
+
+	/** Internal: an on-demand server-streaming call. Interceptors are not applied. */
+	[PULL_SERVER_STREAMING]<I extends object, O extends object>(
+		method: MethodInfo<I, O>,
+		input: I,
+		options: RpcOptions = {},
+	): ServerStreamingIterableCall<O> {
+		const merged = this.mergeOptions(options) as GrpcWebOptions;
+		return new GrpcWebPullCall(method, input, {
+			options: merged,
+			url: this.makeUrl(method, merged),
+			normalizeError: normalizeGrpcError,
 		});
 	}
 
@@ -156,7 +191,7 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		const call = super.unary(method, input, options);
+		const call = super.unary(method, input, withNetworkFetch(options));
 
 		normalizeRejections([call.headers, call.response, call.status, call.trailers], options.abort);
 
@@ -168,7 +203,7 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
-		const call = super.serverStreaming(method, input, options);
+		const call = super.serverStreaming(method, input, withNetworkFetch(options));
 
 		// A finite stream is often read through `responses` without awaiting `status`.
 		call.responses.onError((error) => normalizeGrpcError(error, options.abort));
@@ -176,6 +211,11 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 
 		return call;
 	}
+}
+
+function withNetworkFetch(options: RpcOptions): RpcOptions {
+	const fetch = (options as Partial<GrpcWebOptions>).fetch ?? globalThis.fetch;
+	return { ...options, fetch: networkFetch(fetch) } as RpcOptions;
 }
 
 /** Adds SDK metadata without mutating the caller's transport or its default options. */
@@ -195,5 +235,11 @@ export function withClientProtocolVersion(transport: RpcTransport): RpcTransport
 		serverStreaming: transport.serverStreaming.bind(transport),
 		clientStreaming: transport.clientStreaming.bind(transport),
 		duplex: transport.duplex.bind(transport),
+		// The inner transport's pull method merges its own options, which already carry the header.
+		...(PULL_SERVER_STREAMING in transport && {
+			[PULL_SERVER_STREAMING]: (transport as PullServerStreamingTransport)[
+				PULL_SERVER_STREAMING
+			].bind(transport),
+		}),
 	};
 }
