@@ -4,8 +4,8 @@ import { execSync } from 'child_process';
 import { mkdtemp } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { FaucetRateLimitError, getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { retry } from 'ts-retry-promise';
 
@@ -15,14 +15,14 @@ export const SUI_BIN = process.env.VITE_SUI_BIN ?? `sui`;
 //@ts-ignore-next-line
 const DEFAULT_FAUCET_URL = process.env.VITE_FAUCET_URL ?? getFaucetHost('localnet');
 //@ts-ignore-next-line
-const DEFAULT_FULLNODE_URL = process.env.VITE_FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
+const DEFAULT_FULLNODE_URL = process.env.VITE_FULLNODE_URL ?? 'http://127.0.0.1:9000';
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	client: SuiJsonRpcClient;
+	client: SuiGrpcClient;
 	configPath: string;
 
-	constructor(keypair: Ed25519Keypair, client: SuiJsonRpcClient, configPath: string) {
+	constructor(keypair: Ed25519Keypair, client: SuiGrpcClient, configPath: string) {
 		this.keypair = keypair;
 		this.client = client;
 		this.configPath = configPath;
@@ -31,16 +31,12 @@ export class TestToolbox {
 	address() {
 		return this.keypair.getPublicKey().toSuiAddress();
 	}
-
-	public async getActiveValidators() {
-		return (await this.client.getLatestSuiSystemState()).activeValidators;
-	}
 }
 
-export function getClient(): SuiJsonRpcClient {
-	return new SuiJsonRpcClient({
+export function getClient(): SuiGrpcClient {
+	return new SuiGrpcClient({
 		network: 'localnet',
-		url: DEFAULT_FULLNODE_URL,
+		baseUrl: DEFAULT_FULLNODE_URL,
 	});
 }
 
