@@ -96,10 +96,7 @@ const tx = client.paymentKit.tx.createRegistry({
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showEffects: true,
-		showObjectChanges: true,
-	},
+	include: { effects: true, objectTypes: true },
 });
 
 // Check transaction status
@@ -123,14 +120,14 @@ When you create a registry, two objects are created:
 The `RegistryAdminCap` is crucial for configuring your registry:
 
 ```ts
-// Find the admin cap in the transaction result
-const adminCapObject = result.Transaction.objectChanges?.find(
-	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
-);
+// Find the admin cap among the objects the transaction created
+const adminCapId = result.Transaction.effects.changedObjects.find(
+	(change) =>
+		change.idOperation === 'Created' &&
+		result.Transaction.objectTypes[change.objectId]?.includes('RegistryAdminCap'),
+)?.objectId;
 
-if (adminCapObject && 'objectId' in adminCapObject) {
-	const adminCapId = adminCapObject.objectId;
-
+if (adminCapId) {
 	console.log('Admin Capability ID:', adminCapId);
 
 	// Store this ID - you'll need it to configure the registry
@@ -306,9 +303,6 @@ const tx = client.paymentKit.tx.withdrawFromRegistry({
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showEffects: true,
-	},
 });
 
 console.log('Funds withdrawn!');
@@ -396,8 +390,8 @@ const record = await client.paymentKit.getPaymentRecord({
 if (record) {
 	const recordEpoch = parseInt(record.epochAtTimeOfRecord);
 	const currentEpoch = await client.core
-		.getLatestSuiSystemState()
-		.then((state) => Number(state.epoch));
+		.getCurrentSystemState()
+		.then(({ systemState }) => Number(systemState.epoch));
 
 	const expirationDuration = 30; // Your registry's setting
 	const canDelete = currentEpoch >= recordEpoch + expirationDuration;
@@ -461,10 +455,7 @@ const createTx = client.paymentKit.tx.createRegistry({
 const createResult = await client.signAndExecuteTransaction({
 	transaction: createTx,
 	signer: keypair,
-	options: {
-		showEffects: true,
-		showObjectChanges: true,
-	},
+	include: { effects: true, objectTypes: true },
 });
 
 // Check transaction status
@@ -475,11 +466,12 @@ if (createResult.$kind === 'FailedTransaction') {
 }
 
 // Step 2: Extract the admin cap
-const adminCapObject = createResult.Transaction.objectChanges?.find(
-	(change) => change.type === 'created' && change.objectType.includes('RegistryAdminCap'),
-);
-
-const adminCapId = adminCapObject && 'objectId' in adminCapObject ? adminCapObject.objectId : '';
+const adminCapId =
+	createResult.Transaction.effects.changedObjects.find(
+		(change) =>
+			change.idOperation === 'Created' &&
+			createResult.Transaction.objectTypes[change.objectId]?.includes('RegistryAdminCap'),
+	)?.objectId ?? '';
 
 console.log('Registry created!');
 console.log('Admin Cap ID:', adminCapId);

@@ -202,11 +202,7 @@ When this transaction executes, Payment Kit:
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showEffects: true,
-		showEvents: true,
-		showObjectChanges: true,
-	},
+	include: { events: true },
 });
 
 // Check transaction status
@@ -221,12 +217,12 @@ console.log('Transaction digest:', result.Transaction.digest);
 
 ```ts
 // Find the PaymentReceipt event
-const receiptEvent = result.Transaction.events?.find((event) =>
-	event.type.includes('PaymentReceipt'),
+const receiptEvent = result.Transaction?.events.find((event) =>
+	event.eventType.includes('PaymentReceipt'),
 );
 
-if (receiptEvent) {
-	const receipt = receiptEvent.parsedJson;
+if (receiptEvent?.json) {
+	const receipt = receiptEvent.json;
 
 	console.log('Payment Receipt:');
 	console.log('  Type:', receipt.payment_type); // 'Registry'
@@ -276,9 +272,7 @@ const tx = client.paymentKit.tx.processEphemeralPayment({
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
-	options: {
-		showEvents: true,
-	},
+	include: { events: true },
 });
 
 // Check transaction status
@@ -300,12 +294,12 @@ No `PaymentRecord` is created, so duplicate payments are not prevented.
 ### Extracting the receipt
 
 ```ts
-const receiptEvent = result.Transaction.events?.find((event) =>
-	event.type.includes('PaymentReceipt'),
+const receiptEvent = result.Transaction?.events.find((event) =>
+	event.eventType.includes('PaymentReceipt'),
 );
 
-if (receiptEvent) {
-	const receipt = receiptEvent.parsedJson;
+if (receiptEvent?.json) {
+	const receipt = receiptEvent.json;
 	console.log('Payment Type:', receipt.payment_type); // 'Ephemeral'
 }
 ```

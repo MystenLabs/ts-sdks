@@ -188,9 +188,8 @@ const { response } = await client.ledgerService.getTransaction({
 });
 ```
 
-A field you did not ask for comes back unset, which is the most common surprise when moving from a
-JSON-RPC mindset: an empty field usually means it was not requested rather than that it has no
-value.
+A field you did not ask for comes back unset: an empty field usually means it was not requested
+rather than that it has no value.
 
 The top-level methods build masks for you from their `include` options, adding the paths each option
 needs on top of the handful every result carries. That is the main reason to prefer them: field
