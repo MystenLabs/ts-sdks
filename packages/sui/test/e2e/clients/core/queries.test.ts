@@ -523,21 +523,6 @@ describe('Core API - Queries', () => {
 		let abortedDigest: string;
 		const checkpoints = new Map<string, bigint>();
 
-		/**
-		 * Strips cursors, and the aborting function's index from Move aborts, which the GraphQL
-		 * transport does not report.
-		 */
-		function normalizeTransactions(result: SuiClientTypes.ListTransactionsResponse) {
-			const normalized = structuredClone(stripCursors(result));
-			for (const tx of normalized.transactions) {
-				const error = tx.FailedTransaction?.status.error;
-				if (error?.$kind === 'MoveAbort') {
-					delete error.MoveAbort.location?.function;
-				}
-			}
-			return normalized;
-		}
-
 		function digestsOf(result: SuiClientTypes.ListTransactionsResponse) {
 			return result.transactions.map(
 				(tx) => (tx.Transaction ?? tx.FailedTransaction)?.digest ?? null,
@@ -717,7 +702,7 @@ describe('Core API - Queries', () => {
 							expect(digestsOf(result)).toEqual(expected);
 							return result;
 						},
-						normalizeTransactions,
+						stripCursors,
 						{ attempts: 3 },
 					);
 				}
@@ -812,7 +797,7 @@ describe('Core API - Queries', () => {
 							expect(digestsOf(result)).toEqual(expected);
 							return result;
 						},
-						normalizeTransactions,
+						stripCursors,
 						{ attempts: 3 },
 					);
 				}
@@ -930,7 +915,7 @@ describe('Core API - Queries', () => {
 						expect(digestsOf(result)).toEqual([abortedDigest]);
 						return result;
 					},
-					normalizeTransactions,
+					stripCursors,
 					{ attempts: 3 },
 				);
 			});
@@ -983,7 +968,7 @@ describe('Core API - Queries', () => {
 							expect(digestsOf(result)).toEqual(expected);
 							return result;
 						},
-						normalizeTransactions,
+						stripCursors,
 						{ attempts: 3 },
 					);
 					await toolbox.expectAllClientsReturnSameData(

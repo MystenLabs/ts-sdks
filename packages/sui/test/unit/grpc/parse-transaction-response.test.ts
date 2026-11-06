@@ -24,6 +24,7 @@ describe('gRPC transaction response parsers', () => {
 					digest: 'transaction-digest',
 					transaction: {
 						digest: 'transaction-data-digest',
+						sender: '0x1',
 						bcs: {
 							name: 'TransactionData',
 							value: 'AQIDBA==',
@@ -145,6 +146,7 @@ describe('gRPC transaction response parsers', () => {
 			JSON.stringify({
 				transaction: {
 					digest: 'transaction-digest',
+					transaction: { sender: '0x1' },
 					effects: { status: { success: false }, gasObject: { objectId: '0x5' } },
 				},
 			}),
@@ -155,7 +157,11 @@ describe('gRPC transaction response parsers', () => {
 
 		const withoutGasObject = GrpcTypes.SimulateTransactionResponse.fromJsonString(
 			JSON.stringify({
-				transaction: { digest: 'transaction-digest', effects: { status: { success: true } } },
+				transaction: {
+					digest: 'transaction-digest',
+					transaction: { sender: '0x1' },
+					effects: { status: { success: true } },
+				},
 			}),
 		);
 		expect(parseGrpcSimulateTransactionResponse(withoutGasObject).gasPaymentMocked).toBe(false);
@@ -164,6 +170,7 @@ describe('gRPC transaction response parsers', () => {
 	it('returns FailedTransaction for unsuccessful executed transactions', () => {
 		const response = GrpcTypes.ExecutedTransaction.create({
 			digest: 'failed-transaction-digest',
+			transaction: { sender: '0x1' },
 			effects: {
 				status: {
 					success: false,
@@ -192,6 +199,7 @@ describe('gRPC transaction response parsers', () => {
 	it('maps checkpoint and timestamp from executed transactions', () => {
 		const transaction = GrpcTypes.ExecutedTransaction.create({
 			digest: 'transaction-digest',
+			transaction: { sender: '0x1' },
 			checkpoint: 15_000_000n,
 			timestamp: {
 				seconds: 1_696_734_547n,
@@ -210,6 +218,7 @@ describe('gRPC transaction response parsers', () => {
 		const uncheckpointed = parseGrpcTransactionResponse(
 			GrpcTypes.ExecutedTransaction.create({
 				digest: 'uncheckpointed-transaction',
+				transaction: { sender: '0x1' },
 				effects: { status: { success: true } },
 			}),
 		);
@@ -220,6 +229,7 @@ describe('gRPC transaction response parsers', () => {
 		const result = parseGrpcTransactionResponse(
 			GrpcTypes.ExecutedTransaction.create({
 				digest: 'v1-transaction',
+				transaction: { sender: '0x1' },
 				effects: { version: 1, status: { success: true } },
 			}),
 			{ include: { effects: true } },
@@ -234,6 +244,7 @@ describe('gRPC transaction response parsers', () => {
 	it('includes protobuf JSON from top-level gRPC transaction methods', async () => {
 		const transaction = GrpcTypes.ExecutedTransaction.create({
 			digest: 'top-level-transaction-digest',
+			transaction: { sender: '0x1' },
 			effects: {
 				status: {
 					success: true,

@@ -19,7 +19,6 @@
 						"location": {
 							"package": "0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f",
 							"module": "guard",
-							"function": 0,
 							"instruction": 6,
 							"functionName": "check"
 						}
@@ -42,7 +41,6 @@
 							"location": {
 								"package": "0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f",
 								"module": "guard",
-								"function": 0,
 								"instruction": 6,
 								"functionName": "check"
 							}
@@ -104,6 +102,8 @@
 				"0xde0056b594ee2e444915ffb1c9975760319e6465e1eba36e05d14c58fc025b1c": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>"
 			},
 			"transaction": {
+				"version": 2,
+				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"gasData": {
 					"budget": "100000000",
 					"owner": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
@@ -116,8 +116,8 @@
 					],
 					"price": "1000"
 				},
-				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"expiration": { "$kind": "None", "None": true },
+				"inputs": [{ "$kind": "Pure", "Pure": { "bytes": "yAAAAAAAAAA=" } }],
 				"commands": [
 					{
 						"$kind": "MoveCall",
@@ -130,8 +130,24 @@
 						}
 					}
 				],
-				"inputs": [{ "$kind": "Pure", "Pure": { "bytes": "yAAAAAAAAAA=" } }],
-				"version": 2
+				"kind": {
+					"$kind": "ProgrammableTransaction",
+					"ProgrammableTransaction": {
+						"inputs": [{ "$kind": "Pure", "Pure": { "bytes": "yAAAAAAAAAA=" } }],
+						"commands": [
+							{
+								"$kind": "MoveCall",
+								"MoveCall": {
+									"package": "0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f",
+									"module": "guard",
+									"function": "check",
+									"typeArguments": [],
+									"arguments": [{ "$kind": "Input", "Input": 0 }]
+								}
+							}
+						]
+					}
+				}
 			},
 			"signatures": [],
 			"balanceChanges": [
@@ -145,6 +161,7 @@
 		},
 		"getTransaction": {
 			"digest": "A1yJurJPvv7kR9X5Ab5uyMSprn1TmJCZ6VBVvWpauDrb",
+			"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 			"epoch": "0",
 			"timestampMs": 1794606766123,
 			"checkpoint": "80",
@@ -159,7 +176,6 @@
 						"location": {
 							"package": "0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f",
 							"module": "guard",
-							"function": 0,
 							"instruction": 6,
 							"functionName": "check"
 						}
@@ -182,7 +198,6 @@
 							"location": {
 								"package": "0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f",
 								"module": "guard",
-								"function": 0,
 								"instruction": 6,
 								"functionName": "check"
 							}
@@ -244,6 +259,8 @@
 				"0xde0056b594ee2e444915ffb1c9975760319e6465e1eba36e05d14c58fc025b1c": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>"
 			},
 			"transaction": {
+				"version": 2,
+				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"gasData": {
 					"budget": "100000000",
 					"owner": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
@@ -256,8 +273,8 @@
 					],
 					"price": "1000"
 				},
-				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"expiration": { "$kind": "None", "None": true },
+				"inputs": [{ "$kind": "Pure", "Pure": { "bytes": "yAAAAAAAAAA=" } }],
 				"commands": [
 					{
 						"$kind": "MoveCall",
@@ -270,8 +287,24 @@
 						}
 					}
 				],
-				"inputs": [{ "$kind": "Pure", "Pure": { "bytes": "yAAAAAAAAAA=" } }],
-				"version": 2
+				"kind": {
+					"$kind": "ProgrammableTransaction",
+					"ProgrammableTransaction": {
+						"inputs": [{ "$kind": "Pure", "Pure": { "bytes": "yAAAAAAAAAA=" } }],
+						"commands": [
+							{
+								"$kind": "MoveCall",
+								"MoveCall": {
+									"package": "0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f",
+									"module": "guard",
+									"function": "check",
+									"typeArguments": [],
+									"arguments": [{ "$kind": "Input", "Input": 0 }]
+								}
+							}
+						]
+					}
+				}
 			},
 			"signatures": [
 				"AFLagw994iIwFIwUuN9shl7GJVhoXJcueZyypMFDnM86FMHyu0JSXpFHczd/LpqNJ/qyx6NRlFfycDSPuDSfLQSe7mjXbV725Frjn641LsFG8hPO4XPo8BXTSrZV3t9nOw=="

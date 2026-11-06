@@ -208,6 +208,8 @@ export type ListCheckpointsQueryVariables = Exact<{
 
 export type ListCheckpointsQuery = { checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null } }> } | null };
 
+export type Checkpoint_FieldsFragment = { sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null };
+
 export type GetAllBalancesQueryVariables = Exact<{
   owner: string;
   limit?: number | null | undefined;
@@ -300,6 +302,8 @@ export type ListEventsQueryVariables = Exact<{
 
 
 export type ListEventsQuery = { events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null } }> } | null };
+
+export type Event_FieldsFragment = { sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null };
 
 export type DefaultSuinsNameQueryVariables = Exact<{
   address: string;
@@ -402,7 +406,7 @@ export type SimulateTransactionQueryVariables = Exact<{
 }>;
 
 
-export type SimulateTransactionQuery = { simulateTransaction: { effects: { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, gasEffects: { gasObject: { address: string } | null } | null, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null, signatures: Array<{ signatureBytes: string | null }> } | null } | null, outputs?: Array<{ returnValues: Array<{ value: { bcs: string | null } | null }> | null, mutatedReferences: Array<{ value: { bcs: string | null } | null }> | null }> | null } };
+export type SimulateTransactionQuery = { simulateTransaction: { effects: { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, gasEffects: { gasObject: { address: string } | null } | null, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }> } | null } | null, outputs?: Array<{ returnValues: Array<{ value: { bcs: string | null } | null }> | null, mutatedReferences: Array<{ value: { bcs: string | null } | null }> | null }> | null } };
 
 export type ExecuteTransactionMutationVariables = Exact<{
   transactionDataBcs: string;
@@ -416,7 +420,7 @@ export type ExecuteTransactionMutationVariables = Exact<{
 }>;
 
 
-export type ExecuteTransactionMutation = { executeTransaction: { effects: { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } | null } | null } };
+export type ExecuteTransactionMutation = { executeTransaction: { effects: { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } | null } | null } };
 
 export type GetTransactionBlockQueryVariables = Exact<{
   digest: string;
@@ -429,7 +433,7 @@ export type GetTransactionBlockQueryVariables = Exact<{
 }>;
 
 
-export type GetTransactionBlockQuery = { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } | null };
+export type GetTransactionBlockQuery = { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } | null };
 
 export type ListTransactionsQueryVariables = Exact<{
   filter?: TransactionFilter | null | undefined;
@@ -446,9 +450,29 @@ export type ListTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type ListTransactionsQuery = { transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
+export type ListTransactionsQuery = { transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, edges: Array<{ cursor: string, node: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } }> } | null };
 
-export type Transaction_FieldsFragment = { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null };
+export type Transaction_FieldsFragment = { digest: string, transactionJson?: unknown, transactionBcs?: string | null, sender: { address: string } | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, timestamp: string | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, checkpoint: { sequenceNumber: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null };
+
+export type Transaction_EventFragment = { transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null };
+
+export type Transaction_Object_ChangeFragment = { address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null };
+
+export type GetTransactionObjectChangesQueryVariables = Exact<{
+  digest: string;
+  after?: string | null | undefined;
+}>;
+
+
+export type GetTransactionObjectChangesQuery = { transaction: { effects: { objectChanges: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null } | null } | null };
+
+export type GetTransactionEventsQueryVariables = Exact<{
+  digest: string;
+  after?: string | null | undefined;
+}>;
+
+
+export type GetTransactionEventsQuery = { transaction: { effects: { events: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } | null };
 
 export type ResolveTransactionQueryVariables = Exact<{
   transaction: unknown;
@@ -487,6 +511,45 @@ export class TypedDocumentString<TResult, TVariables>
     return this.value;
   }
 }
+export const Checkpoint_FieldsFragmentDoc = new TypedDocumentString(`
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}
+    `, {"fragmentName":"CHECKPOINT_FIELDS"}) as unknown as TypedDocumentString<Checkpoint_FieldsFragment, unknown>;
+export const Event_FieldsFragmentDoc = new TypedDocumentString(`
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+    `, {"fragmentName":"EVENT_FIELDS"}) as unknown as TypedDocumentString<Event_FieldsFragment, unknown>;
 export const Object_Owner_FieldsFragmentDoc = new TypedDocumentString(`
     fragment OBJECT_OWNER_FIELDS on Owner {
   __typename
@@ -608,9 +671,46 @@ export const Move_Object_FieldsFragmentDoc = new TypedDocumentString(`
     }
   }
 }`, {"fragmentName":"MOVE_OBJECT_FIELDS"}) as unknown as TypedDocumentString<Move_Object_FieldsFragment, unknown>;
+export const Transaction_Object_ChangeFragmentDoc = new TypedDocumentString(`
+    fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
+        }
+      }
+    }
+  }
+}
+    `, {"fragmentName":"TRANSACTION_OBJECT_CHANGE"}) as unknown as TypedDocumentString<Transaction_Object_ChangeFragment, unknown>;
+export const Transaction_EventFragmentDoc = new TypedDocumentString(`
+    fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+    `, {"fragmentName":"TRANSACTION_EVENT"}) as unknown as TypedDocumentString<Transaction_EventFragment, unknown>;
 export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     fragment TRANSACTION_FIELDS on Transaction {
   digest
+  sender {
+    address
+  }
   transactionJson @include(if: $includeTransaction)
   transactionBcs @include(if: $includeBcs)
   signatures {
@@ -646,45 +746,47 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     effectsJson @include(if: $includeObjectTypes)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
-        address
-        outputState {
-          asMoveObject {
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
+        ...TRANSACTION_OBJECT_CHANGE
       }
     }
     balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
-      pageInfo {
-        hasNextPage
-      }
       nodes {
-        transactionModule {
-          package {
-            address
-          }
-          name
-        }
-        sender {
-          address
-        }
-        contents {
-          type {
-            repr
-          }
-          bcs
-          json
-        }
+        ...TRANSACTION_EVENT
       }
     }
   }
 }
-    `, {"fragmentName":"TRANSACTION_FIELDS"}) as unknown as TypedDocumentString<Transaction_FieldsFragment, unknown>;
+    fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
+        }
+      }
+    }
+  }
+}`, {"fragmentName":"TRANSACTION_FIELDS"}) as unknown as TypedDocumentString<Transaction_FieldsFragment, unknown>;
 export const ListCheckpointsDocument = new TypedDocumentString(`
     query listCheckpoints($filter: CheckpointFilter, $first: Int, $after: String, $last: Int, $before: String) {
   checkpoints(
@@ -703,17 +805,19 @@ export const ListCheckpointsDocument = new TypedDocumentString(`
     edges {
       cursor
       node {
-        sequenceNumber
-        digest
-        timestamp
-        epoch {
-          epochId
-        }
+        ...CHECKPOINT_FIELDS
       }
     }
   }
 }
-    `) as unknown as TypedDocumentString<ListCheckpointsQuery, ListCheckpointsQueryVariables>;
+    fragment CHECKPOINT_FIELDS on Checkpoint {
+  sequenceNumber
+  digest
+  timestamp
+  epoch {
+    epochId
+  }
+}`) as unknown as TypedDocumentString<ListCheckpointsQuery, ListCheckpointsQueryVariables>;
 export const GetAllBalancesDocument = new TypedDocumentString(`
     query getAllBalances($owner: SuiAddress!, $limit: Int, $cursor: String) {
   address(address: $owner) {
@@ -930,36 +1034,38 @@ export const ListEventsDocument = new TypedDocumentString(`
     edges {
       cursor
       node {
-        sequenceNumber
-        transaction {
-          digest
-          effects {
-            checkpoint {
-              sequenceNumber
-            }
-          }
-        }
-        transactionModule {
-          package {
-            address
-          }
-          name
-        }
-        sender {
-          address
-        }
-        contents {
-          type {
-            repr
-          }
-          bcs
-          json
-        }
+        ...EVENT_FIELDS
       }
     }
   }
 }
-    `) as unknown as TypedDocumentString<ListEventsQuery, ListEventsQueryVariables>;
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}`) as unknown as TypedDocumentString<ListEventsQuery, ListEventsQueryVariables>;
 export const DefaultSuinsNameDocument = new TypedDocumentString(`
     query defaultSuinsName($address: SuiAddress!) {
   address(address: $address) {
@@ -1126,6 +1232,9 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
+  sender {
+    address
+  }
   transactionJson @include(if: $includeTransaction)
   transactionBcs @include(if: $includeBcs)
   signatures {
@@ -1161,39 +1270,42 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
     effectsJson @include(if: $includeObjectTypes)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
-        address
-        outputState {
-          asMoveObject {
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
+        ...TRANSACTION_OBJECT_CHANGE
       }
     }
     balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
-      pageInfo {
-        hasNextPage
-      }
       nodes {
-        transactionModule {
-          package {
-            address
-          }
-          name
-        }
-        sender {
-          address
-        }
-        contents {
-          type {
-            repr
-          }
-          bcs
-          json
+        ...TRANSACTION_EVENT
+      }
+    }
+  }
+}
+fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
         }
       }
     }
@@ -1214,6 +1326,9 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
+  sender {
+    address
+  }
   transactionJson @include(if: $includeTransaction)
   transactionBcs @include(if: $includeBcs)
   signatures {
@@ -1249,39 +1364,42 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
     effectsJson @include(if: $includeObjectTypes)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
-        address
-        outputState {
-          asMoveObject {
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
+        ...TRANSACTION_OBJECT_CHANGE
       }
     }
     balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
-      pageInfo {
-        hasNextPage
-      }
       nodes {
-        transactionModule {
-          package {
-            address
-          }
-          name
-        }
-        sender {
-          address
-        }
-        contents {
-          type {
-            repr
-          }
-          bcs
-          json
+        ...TRANSACTION_EVENT
+      }
+    }
+  }
+}
+fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
         }
       }
     }
@@ -1295,6 +1413,9 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
+  sender {
+    address
+  }
   transactionJson @include(if: $includeTransaction)
   transactionBcs @include(if: $includeBcs)
   signatures {
@@ -1330,39 +1451,42 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     effectsJson @include(if: $includeObjectTypes)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
-        address
-        outputState {
-          asMoveObject {
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
+        ...TRANSACTION_OBJECT_CHANGE
       }
     }
     balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
-      pageInfo {
-        hasNextPage
-      }
       nodes {
-        transactionModule {
-          package {
-            address
-          }
-          name
-        }
-        sender {
-          address
-        }
-        contents {
-          type {
-            repr
-          }
-          bcs
-          json
+        ...TRANSACTION_EVENT
+      }
+    }
+  }
+}
+fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
         }
       }
     }
@@ -1393,6 +1517,9 @@ export const ListTransactionsDocument = new TypedDocumentString(`
 }
     fragment TRANSACTION_FIELDS on Transaction {
   digest
+  sender {
+    address
+  }
   transactionJson @include(if: $includeTransaction)
   transactionBcs @include(if: $includeBcs)
   signatures {
@@ -1428,44 +1555,109 @@ export const ListTransactionsDocument = new TypedDocumentString(`
     effectsJson @include(if: $includeObjectTypes)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
-        address
-        outputState {
-          asMoveObject {
-            contents {
-              type {
-                repr
-              }
-            }
-          }
-        }
+        ...TRANSACTION_OBJECT_CHANGE
       }
     }
     balanceChangesJson @include(if: $includeBalanceChanges)
     events(first: 50) @include(if: $includeEvents) {
-      pageInfo {
-        hasNextPage
-      }
       nodes {
-        transactionModule {
-          package {
-            address
-          }
-          name
-        }
-        sender {
-          address
-        }
-        contents {
-          type {
-            repr
-          }
-          bcs
-          json
+        ...TRANSACTION_EVENT
+      }
+    }
+  }
+}
+fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}
+fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
         }
       }
     }
   }
 }`) as unknown as TypedDocumentString<ListTransactionsQuery, ListTransactionsQueryVariables>;
+export const GetTransactionObjectChangesDocument = new TypedDocumentString(`
+    query getTransactionObjectChanges($digest: String!, $after: String) {
+  transaction(digest: $digest) {
+    effects {
+      objectChanges(first: 50, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          ...TRANSACTION_OBJECT_CHANGE
+        }
+      }
+    }
+  }
+}
+    fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+  address
+  outputState {
+    asMoveObject {
+      contents {
+        type {
+          repr
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<GetTransactionObjectChangesQuery, GetTransactionObjectChangesQueryVariables>;
+export const GetTransactionEventsDocument = new TypedDocumentString(`
+    query getTransactionEvents($digest: String!, $after: String) {
+  transaction(digest: $digest) {
+    effects {
+      events(first: 50, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          ...TRANSACTION_EVENT
+        }
+      }
+    }
+  }
+}
+    fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}`) as unknown as TypedDocumentString<GetTransactionEventsQuery, GetTransactionEventsQueryVariables>;
 export const ResolveTransactionDocument = new TypedDocumentString(`
     query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true, $checksEnabled: Boolean = true) {
   simulateTransaction(

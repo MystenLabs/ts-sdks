@@ -86,6 +86,8 @@
 				"0xdba59d34fb0439861a8552036274c697e5fff2db88dcd0ddafc8c760044f7f4c": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>"
 			},
 			"transaction": {
+				"version": 2,
+				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"gasData": {
 					"budget": "100000000",
 					"owner": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
@@ -98,8 +100,11 @@
 					],
 					"price": "1000"
 				},
-				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"expiration": { "$kind": "None", "None": true },
+				"inputs": [
+					{ "$kind": "Pure", "Pure": { "bytes": "6AMAAAAAAAA=" } },
+					{ "$kind": "Pure", "Pure": { "bytes": "HDjjzm9OVNA1wm1hJs9ikazAiJrZGhdwvIvjsX+MrPk=" } }
+				],
 				"commands": [
 					{
 						"$kind": "SplitCoins",
@@ -116,11 +121,34 @@
 						}
 					}
 				],
-				"inputs": [
-					{ "$kind": "Pure", "Pure": { "bytes": "6AMAAAAAAAA=" } },
-					{ "$kind": "Pure", "Pure": { "bytes": "HDjjzm9OVNA1wm1hJs9ikazAiJrZGhdwvIvjsX+MrPk=" } }
-				],
-				"version": 2
+				"kind": {
+					"$kind": "ProgrammableTransaction",
+					"ProgrammableTransaction": {
+						"inputs": [
+							{ "$kind": "Pure", "Pure": { "bytes": "6AMAAAAAAAA=" } },
+							{
+								"$kind": "Pure",
+								"Pure": { "bytes": "HDjjzm9OVNA1wm1hJs9ikazAiJrZGhdwvIvjsX+MrPk=" }
+							}
+						],
+						"commands": [
+							{
+								"$kind": "SplitCoins",
+								"SplitCoins": {
+									"coin": { "$kind": "GasCoin", "GasCoin": true },
+									"amounts": [{ "$kind": "Input", "Input": 0 }]
+								}
+							},
+							{
+								"$kind": "TransferObjects",
+								"TransferObjects": {
+									"objects": [{ "$kind": "NestedResult", "NestedResult": [0, 0] }],
+									"address": { "$kind": "Input", "Input": 1 }
+								}
+							}
+						]
+					}
+				}
 			},
 			"signatures": [],
 			"balanceChanges": [
@@ -139,6 +167,7 @@
 		},
 		"getTransaction": {
 			"digest": "9yEUgv3ymz4qqJR6E5CDP8AKd4hLc4DginrWeoGvmYGR",
+			"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 			"epoch": "0",
 			"timestampMs": 1794606760639,
 			"checkpoint": "54",
@@ -220,6 +249,8 @@
 				"0xdba59d34fb0439861a8552036274c697e5fff2db88dcd0ddafc8c760044f7f4c": "0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>"
 			},
 			"transaction": {
+				"version": 2,
+				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"gasData": {
 					"budget": "100000000",
 					"owner": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
@@ -232,8 +263,11 @@
 					],
 					"price": "1000"
 				},
-				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"expiration": { "$kind": "None", "None": true },
+				"inputs": [
+					{ "$kind": "Pure", "Pure": { "bytes": "6AMAAAAAAAA=" } },
+					{ "$kind": "Pure", "Pure": { "bytes": "HDjjzm9OVNA1wm1hJs9ikazAiJrZGhdwvIvjsX+MrPk=" } }
+				],
 				"commands": [
 					{
 						"$kind": "SplitCoins",
@@ -250,11 +284,34 @@
 						}
 					}
 				],
-				"inputs": [
-					{ "$kind": "Pure", "Pure": { "bytes": "6AMAAAAAAAA=" } },
-					{ "$kind": "Pure", "Pure": { "bytes": "HDjjzm9OVNA1wm1hJs9ikazAiJrZGhdwvIvjsX+MrPk=" } }
-				],
-				"version": 2
+				"kind": {
+					"$kind": "ProgrammableTransaction",
+					"ProgrammableTransaction": {
+						"inputs": [
+							{ "$kind": "Pure", "Pure": { "bytes": "6AMAAAAAAAA=" } },
+							{
+								"$kind": "Pure",
+								"Pure": { "bytes": "HDjjzm9OVNA1wm1hJs9ikazAiJrZGhdwvIvjsX+MrPk=" }
+							}
+						],
+						"commands": [
+							{
+								"$kind": "SplitCoins",
+								"SplitCoins": {
+									"coin": { "$kind": "GasCoin", "GasCoin": true },
+									"amounts": [{ "$kind": "Input", "Input": 0 }]
+								}
+							},
+							{
+								"$kind": "TransferObjects",
+								"TransferObjects": {
+									"objects": [{ "$kind": "NestedResult", "NestedResult": [0, 0] }],
+									"address": { "$kind": "Input", "Input": 1 }
+								}
+							}
+						]
+					}
+				}
 			},
 			"signatures": [
 				"ANeb7bwLIsQTuS/WN55d75a9fPzGFiNILv8VEzqvtTNT3RcfSt2FqoncPtVWYSo3GlrmcjFSGgrc4Z6KBpi7Ogue7mjXbV725Frjn641LsFG8hPO4XPo8BXTSrZV3t9nOw=="
