@@ -57,6 +57,7 @@ describe('Multisig with ML-DSA-65 members', () => {
 			publicKey.toSuiAddress(),
 		);
 		const recovered = await verifyPersonalMessageSignature(MESSAGE, multisig, {
+			offline: true,
 			address: publicKey.toSuiAddress(),
 		});
 		expect(recovered.toSuiAddress()).toEqual(publicKey.toSuiAddress());
