@@ -162,3 +162,15 @@ const ETestCleverError: vector<u8> = b"Test clever error message";
 public fun abort_with_clever_error() {
     abort ETestCleverError
 }
+
+// Appended last so the line numbers asserted by the clever error tests stay stable
+
+/// Generic event for testing event type filters that match any instantiation
+public struct GenericEvent<phantom T> has copy, drop {
+    value: u64,
+}
+
+/// Emit a `GenericEvent` instantiated with the given type argument
+entry fun emit_generic<T>(value: u64) {
+    event::emit(GenericEvent<T> { value });
+}
