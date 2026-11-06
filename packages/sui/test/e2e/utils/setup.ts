@@ -246,7 +246,6 @@ export class TestToolbox {
 		options?: {
 			skip?: boolean;
 			attempts?: number;
-			exclude?: ClientKind[];
 		},
 	) {
 		if (options?.skip) {
@@ -254,12 +253,10 @@ export class TestToolbox {
 			return;
 		}
 
-		const clients = (
-			[
-				['grpc', this.grpcClient],
-				['graphql', this.graphqlClient],
-			] as const
-		).filter(([kind]) => !options?.exclude?.includes(kind));
+		const clients = [
+			['grpc', this.grpcClient],
+			['graphql', this.graphqlClient],
+		] as const;
 
 		const attempts = options?.attempts ?? 1;
 		for (let attempt = 1; ; attempt++) {

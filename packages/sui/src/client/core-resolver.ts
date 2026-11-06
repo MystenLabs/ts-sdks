@@ -169,11 +169,9 @@ async function setGasBudget(
 			},
 		}),
 		include: { effects: true },
-		// The empty payment above is a placeholder for budget estimation, not a real address
-		// balance payment, so the server must simulate with a mocked gas coin rather than
-		// selecting gas.
+		// Placeholder payment for budget estimation; the server must not select gas.
 		doGasSelection: false,
-	} as SuiClientTypes.SimulateTransactionOptions<{ effects: true }> & { doGasSelection: boolean });
+	});
 
 	if (simulateResult.$kind === 'FailedTransaction') {
 		const executionError = simulateResult.FailedTransaction.status.error ?? undefined;
