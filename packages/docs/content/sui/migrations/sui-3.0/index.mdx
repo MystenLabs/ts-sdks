@@ -108,6 +108,16 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 - **The raw gRPC `GetPackageRequest` has a required `selector`.** Calls to
   `client.movePackageService.getPackage` pass `selector: { oneofKind: undefined }` to read the
   package stored at `packageId`.
+- **gRPC network failures report `UNAVAILABLE`.** Network failures in `SuiGrpcClient` calls now
+  report the `UNAVAILABLE` status code instead of `INTERNAL`. Update code that matches on these
+  codes.
+- **gRPC `baseUrl` is validated.** `SuiGrpcClient` and `GrpcWebFetchTransport` throw when `baseUrl`
+  is not an absolute http(s) URL, unless it is a path starting with `/` in a browser or with a
+  custom `fetch`.
+- **The gRPC-web transport uses the binary wire format by default.** Both `SuiGrpcClient` and
+  `GrpcWebFetchTransport` from `@mysten/sui/grpc` now send `application/grpc-web+proto` instead of
+  base64 `application/grpc-web-text`. If a proxy in front of your full node only supports the text
+  format, pass `format: 'text'`.
 
 ## Other packages
 
