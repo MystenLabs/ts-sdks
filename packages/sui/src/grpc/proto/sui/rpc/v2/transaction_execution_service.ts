@@ -76,7 +76,11 @@ export interface SimulateTransactionRequest {
 	checks?: SimulateTransactionRequest_TransactionChecks;
 	/**
 	 * Perform gas selection based on a budget estimation and include the
-	 * selected gas payment and budget in the response.
+	 * selected gas payment and budget in the response. If selection fails
+	 * because the gas owner lacks enough SUI to cover the budget, the returned
+	 * error carries a `google.rpc.ErrorInfo` with reason
+	 * `INSUFFICIENT_GAS_BALANCE`, or `TRANSACTION_EXECUTION_FAILED` if the
+	 * transaction also fails while estimating the budget (see `ErrorReason`).
 	 *
 	 * This option will be ignored if `checks` is `DISABLED`.
 	 *
