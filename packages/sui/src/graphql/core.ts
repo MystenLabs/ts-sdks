@@ -29,6 +29,7 @@ import {
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
+	ListCheckpointsDocument,
 	ListEventsDocument,
 	ListTransactionsDocument,
 	MultiGetObjectsDocument,
@@ -65,7 +66,11 @@ import {
 	resolvePagination,
 	resolveTransactionFilter,
 } from '../client/query-filters.js';
-import { toGraphQLEventFilter, toGraphQLTransactionFilter } from './filters.js';
+import {
+	toGraphQLCheckpointBounds,
+	toGraphQLEventFilter,
+	toGraphQLTransactionFilter,
+} from './filters.js';
 
 const GRAPHQL_OBJECT_BATCH_SIZE = 40;
 
@@ -747,6 +752,50 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
+	async listCheckpoints(
+		options: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse> {
+		const { descending, after, before, limit } = resolvePagination(options);
+		const filter = toGraphQLCheckpointBounds(resolveCheckpointRange(options));
+
+		const checkpoints = await this.#graphqlQuery(
+			{
+				query: ListCheckpointsDocument,
+				signal: options.signal,
+				variables: {
+					filter,
+					first: descending ? undefined : limit,
+					after,
+					last: descending ? limit : undefined,
+					before,
+				},
+			},
+			(result) => result.checkpoints,
+		);
+
+		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
+		const nodes = descending ? [...checkpoints.nodes].reverse() : checkpoints.nodes;
+
+		return {
+			checkpoints: nodes.map((checkpoint): SuiClientTypes.Checkpoint => {
+				const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
+				const epoch = checkpoint.epoch?.epochId;
+
+				if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
+					throw new Error('listCheckpoints response is missing expected checkpoint fields');
+				}
+
+				return {
+					sequenceNumber: String(checkpoint.sequenceNumber),
+					digest: checkpoint.digest,
+					epoch: String(epoch),
+					timestampMs,
+				};
+			}),
+			...listPageCursors(checkpoints, { descending, after, before }),
+		};
+	}
+
 	async verifyZkLoginSignature(
 		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
@@ -1310,9 +1359,9 @@ function parseNormalizedSuiMoveTypeBody(
 }
 
 /**
- * Page cursors for listTransactions and listEvents, matching the gRPC client: a page that can
- * continue resumes from the server's cursor (which may be a scan position past the last item),
- * a final page ends at its last item, and an empty final page has no cursors.
+ * Page cursors for the list queries, matching the gRPC client: a page that can continue resumes
+ * from the server's cursor (which may be a scan position past the last item), a final page ends at
+ * its last item, and an empty final page has no cursors.
  */
 function listPageCursors(
 	connection: {

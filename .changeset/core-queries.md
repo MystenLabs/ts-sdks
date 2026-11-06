@@ -16,3 +16,7 @@ Expand the Core API queries:
   cursors, and a final page ends at its last item.
 - `doGasSelection` is an option of `simulateTransaction` on every client.
   `GraphQLSimulateTransactionOptions` is removed; use `SuiClientTypes.SimulateTransactionOptions`.
+- Add `listCheckpoints` to the Core API and as a top-level method on `SuiGrpcClient` and
+  `SuiGraphQLClient`. It pages through checkpoint summaries with the same `limit`, `order`, cursor
+  and checkpoint range options as `listTransactions`. Custom `CoreClient` subclasses must implement
+  it.
