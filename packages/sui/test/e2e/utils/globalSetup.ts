@@ -18,13 +18,14 @@ declare module 'vitest' {
 	}
 }
 
-const SUI_TOOLS_TAG =
-	process.env.SUI_TOOLS_TAG ||
-	(process.arch === 'arm64'
-		? 'e04cf9aa915cb6c069092733bebc3648755998e2-arm64'
-		: 'e04cf9aa915cb6c069092733bebc3648755998e2');
+const DEFAULT_SUI_TOOLS_TAG = '681aca4f69868d4eeca02221ced361b8288211e6';
 
 export default async function setup(project: TestProject) {
+	// The image must match the Docker host's architecture, which can differ from Node's.
+	const runtime = await getContainerRuntimeClient();
+	const arm = /^(arm64|aarch64)/.test(runtime.info.containerRuntime.architecture);
+	const suiToolsTag =
+		process.env.SUI_TOOLS_TAG || (arm ? `${DEFAULT_SUI_TOOLS_TAG}-arm64` : DEFAULT_SUI_TOOLS_TAG);
 	console.log('Starting test containers');
 	const network = await new Network().start();
 
@@ -40,7 +41,7 @@ export default async function setup(project: TestProject) {
 		.withPullPolicy(PullPolicy.alwaysPull())
 		.start();
 
-	const localnet = await new GenericContainer(`mysten/sui-tools:${SUI_TOOLS_TAG}`)
+	const localnet = await new GenericContainer(`mysten/sui-tools:${suiToolsTag}`)
 		// .withPullPolicy(PullPolicy.alwaysPull())
 		.withCommand([
 			'sui',
@@ -69,10 +70,9 @@ export default async function setup(project: TestProject) {
 
 	// Set up the default sui config so `sui keytool` and `sui move build` commands work.
 	// The config file is checked in at data/localnet-client.yaml and copied into the container.
-	const runtimeClient = await getContainerRuntimeClient();
-	const container = runtimeClient.container.getById(containerId);
-	await runtimeClient.container.exec(container, ['mkdir', '-p', '/root/.sui/sui_config']);
-	await runtimeClient.container.exec(container, [
+	const container = runtime.container.getById(containerId);
+	await runtime.container.exec(container, ['mkdir', '-p', '/root/.sui/sui_config']);
+	await runtime.container.exec(container, [
 		'bash',
 		'-c',
 		"echo '[]' > /root/.sui/sui_config/sui.keystore && cp /test-data/localnet-client.yaml /root/.sui/sui_config/client.yaml",
