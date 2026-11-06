@@ -18,6 +18,13 @@ import { fromBase64 } from '@mysten/utils';
 import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { abortableAsyncGenerator } from '../utils/abort.js';
+import { httpStatusReason } from '../client/errors.js';
+import { assertClientUrl } from '../client/utils.js';
+import { SuiGraphQLRequestError } from './errors.js';
+import { readGraphQLSSE } from './subscribe.js';
+
+export { SuiGraphQLRequestError } from './errors.js';
 
 export type GraphQLDocument<Result = Record<string, unknown>, Variables = Record<string, unknown>> =
 	| string
@@ -34,11 +41,11 @@ export type GraphQLQueryOptions<
 	operationName?: string;
 	extensions?: Record<string, unknown>;
 	signal?: AbortSignal;
-} & (Variables extends { [key: string]: never }
+} & (Record<string, unknown> extends Variables
 	? { variables?: Variables }
-	: {
-			variables: Variables;
-		});
+	: Variables extends { [key: string]: never }
+		? { variables?: Variables }
+		: { variables: Variables });
 
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
 	data?: Result;
@@ -50,10 +57,13 @@ export type GraphQLResponseErrors = Array<{
 	message: string;
 	locations?: { line: number; column: number }[];
 	path?: (string | number)[];
+	extensions?: Record<string, unknown>;
 }>;
 
 export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLDocument>> {
 	url: string;
+	/** SSE endpoint; defaults to the query URL with `/subscriptions` appended. */
+	subscriptionUrl?: string;
 	fetch?: typeof fetch;
 	headers?: Record<string, string>;
 	queries?: Queries;
@@ -61,7 +71,31 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 	mvr?: SuiClientTypes.MvrOptions;
 }
 
-export class SuiGraphQLRequestError extends Error {}
+/** Serialize the request body before `fetch`, so serialization errors are never retryable. */
+function requestBody(options: {
+	query: GraphQLDocument<any, any>;
+	variables?: unknown;
+	operationName?: string;
+	extensions?: Record<string, unknown>;
+}) {
+	return JSON.stringify({
+		query:
+			typeof options.query === 'string' || options.query instanceof String
+				? String(options.query)
+				: print(options.query),
+		variables: options.variables,
+		extensions: options.extensions,
+		operationName: options.operationName,
+	});
+}
+
+/** `url` with `/subscriptions` appended to its path. */
+function subscriptionUrlFor(url: string) {
+	const suffixAt = url.search(/[?#]/);
+	const path = suffixAt === -1 ? url : url.slice(0, suffixAt);
+	const suffix = suffixAt === -1 ? '' : url.slice(suffixAt);
+	return `${path.replace(/\/$/, '')}/subscriptions${suffix}`;
+}
 
 const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGraphQLClient') as never;
 
@@ -96,6 +130,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	implements SuiClientTypes.TransportMethods
 {
 	#url: string;
+	#subscriptionUrl: string;
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
@@ -110,6 +145,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 	constructor({
 		url,
+		subscriptionUrl = subscriptionUrlFor(url),
 		fetch: fetchFn = fetch,
 		headers = {},
 		queries = {} as Queries,
@@ -119,7 +155,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		super({
 			network,
 		});
+		assertClientUrl(url, 'SuiGraphQLClient url');
+		assertClientUrl(subscriptionUrl, 'SuiGraphQLClient subscriptionUrl');
 		this.#url = url;
+		this.#subscriptionUrl = subscriptionUrl;
 		this.#queries = queries;
 		this.#headers = headers;
 		this.#fetch = (...args) => fetchFn(...args);
@@ -132,34 +171,83 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	async query<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLQueryOptions<Result, Variables>,
 	): Promise<GraphQLQueryResult<Result>> {
-		const headers = new Headers({
-			'Content-Type': 'application/json',
-			...this.#headers,
-		});
-		if (!headers.has(CLIENT_PROTOCOL_VERSION_HEADER)) {
-			headers.set(CLIENT_PROTOCOL_VERSION_HEADER, String(MAX_PROTOCOL_VERSION));
-		}
-
-		const res = await this.#fetch(this.#url, {
+		const res = await this.#fetchResponse(this.#url, {
 			method: 'POST',
-			headers,
-			body: JSON.stringify({
-				query:
-					typeof options.query === 'string' || options.query instanceof String
-						? String(options.query)
-						: print(options.query),
-				variables: options.variables,
-				extensions: options.extensions,
-				operationName: options.operationName,
-			}),
+			headers: this.#requestHeaders({ 'Content-Type': 'application/json' }),
+			body: requestBody(options),
 			signal: options.signal,
 		});
 
 		if (!res.ok) {
-			throw new SuiGraphQLRequestError(`GraphQL request failed: ${res.statusText} (${res.status})`);
+			throw new SuiGraphQLRequestError(
+				`GraphQL request failed: ${res.statusText} (${res.status})`,
+				{ reason: httpStatusReason(res.status) },
+			);
 		}
 
-		return await res.json();
+		let body: string;
+		try {
+			body = await res.text();
+		} catch (cause) {
+			options.signal?.throwIfAborted();
+			throw new SuiGraphQLRequestError('GraphQL response body could not be read', {
+				reason: 'Unavailable',
+				cause,
+			});
+		}
+		try {
+			return JSON.parse(body);
+		} catch (cause) {
+			// A protocol error, not a transport failure, so it has no retry reason.
+			throw new SuiGraphQLRequestError('Invalid GraphQL response', { cause });
+		}
+	}
+
+	/**
+	 * Run a GraphQL subscription over server-sent events. Does not reconnect; transport failures
+	 * throw `SuiGraphQLRequestError`.
+	 */
+	subscribe<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
+		options: GraphQLQueryOptions<Result, Variables>,
+	): AsyncGenerator<GraphQLQueryResult<Result>> {
+		const run = async function* (
+			client: SuiGraphQLClient,
+			signal: AbortSignal,
+		): AsyncGenerator<GraphQLQueryResult<Result>> {
+			const response = await client.#fetchResponse(client.#subscriptionUrl, {
+				method: 'POST',
+				headers: client.#requestHeaders({
+					'Content-Type': 'application/json',
+					Accept: 'text/event-stream',
+				}),
+				body: requestBody(options),
+				signal,
+			});
+			yield* readGraphQLSSE<Result>(response, signal);
+		};
+		return abortableAsyncGenerator((signal) => run(this, signal), options.signal);
+	}
+
+	#requestHeaders(defaults: Record<string, string>): Headers {
+		const headers = new Headers({ ...defaults, ...this.#headers });
+		if (!headers.has(CLIENT_PROTOCOL_VERSION_HEADER)) {
+			headers.set(CLIENT_PROTOCOL_VERSION_HEADER, String(MAX_PROTOCOL_VERSION));
+		}
+		return headers;
+	}
+
+	/** `fetch` that reports a network failure (a `TypeError`) as a retryable request error. */
+	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
+		try {
+			return await this.#fetch(url, init);
+		} catch (cause) {
+			init.signal?.throwIfAborted();
+			if (!(cause instanceof TypeError)) throw cause;
+			throw new SuiGraphQLRequestError('GraphQL network request failed', {
+				reason: 'Unavailable',
+				cause,
+			});
+		}
 	}
 
 	async execute<

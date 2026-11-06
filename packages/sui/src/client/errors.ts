@@ -64,3 +64,15 @@ export class TransactionError extends SuiClientError {
 		this.digest = digest;
 	}
 }
+
+/**
+ * The retry reason for an HTTP error status: 429 is `RateLimited`, 503 is `Unavailable`, 408 and
+ * other 5xx except 501 are `ServerError`, and anything else is not retryable.
+ */
+export function httpStatusReason(status: number): SuiClientTypes.RetryReason | undefined {
+	if (status === 429) return 'RateLimited';
+	if (status === 503) return 'Unavailable';
+	if (status === 501) return undefined;
+	if (status === 408 || status >= 500) return 'ServerError';
+	return undefined;
+}
