@@ -233,6 +233,8 @@ export class TestToolbox {
 	/**
 	 * Test that both client implementations (gRPC, GraphQL) return the same data
 	 * for a given query. This ensures consistency across the different transport layers.
+	 * Transaction signatures are compared in any order: a sponsored transaction's signatures have no
+	 * meaningful order, and the transports report them differently.
 	 *
 	 * @param queryFn - Function that takes a client and returns a promise with the query result
 	 * @param normalize - Optional function to normalize results before comparison (e.g., to ignore cursor differences)
@@ -268,7 +270,7 @@ export class TestToolbox {
 			const results = await Promise.all(
 				clients.map(async ([kind, client]) => {
 					const result = await queryFn(client, kind);
-					return [kind, normalize ? normalize(result) : result] as const;
+					return [kind, sortSignatures(normalize ? normalize(result) : result)] as const;
 				}),
 			);
 
@@ -285,6 +287,21 @@ export class TestToolbox {
 			}
 		}
 	}
+}
+
+/** A copy of `value` with every `signatures` array sorted. Only plain objects are copied. */
+function sortSignatures<T>(value: T): T {
+	if (Array.isArray(value)) return value.map(sortSignatures) as T;
+	if (!value || typeof value !== 'object') return value;
+	const prototype = Object.getPrototypeOf(value);
+	// Maps, errors, byte arrays and class instances keep their identity and compare as they are.
+	if (prototype !== Object.prototype && prototype !== null) return value;
+	return Object.fromEntries(
+		Object.entries(value).map(([key, field]) => [
+			key,
+			key === 'signatures' && Array.isArray(field) ? [...field].sort() : sortSignatures(field),
+		]),
+	) as T;
 }
 
 /**

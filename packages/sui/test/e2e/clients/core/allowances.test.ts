@@ -240,10 +240,10 @@ describe('Allowance withdrawals', () => {
 			include: { transaction: true },
 		});
 
-		const input = result.Transaction!.transaction!.inputs.find(
-			(input) => 'FundsWithdrawal' in input,
+		const input = result.Transaction!.transaction!.kind.ProgrammableTransaction!.inputs.find(
+			(input) => input.$kind === 'FundsWithdrawal',
 		);
-		expect(input && 'FundsWithdrawal' in input ? input.FundsWithdrawal : undefined).toMatchObject({
+		expect(input?.$kind === 'FundsWithdrawal' ? input.FundsWithdrawal : undefined).toMatchObject({
 			reservation: { $kind: 'MaxAmountU64', MaxAmountU64: SPEND_AMOUNT.toString() },
 			withdrawFrom: {
 				$kind: 'SenderAllowance',
@@ -266,11 +266,11 @@ describe('Allowance withdrawals', () => {
 
 		const transaction = await executeSpend(client);
 
-		const withdrawal = transaction.transaction!.inputs.find((input) => 'FundsWithdrawal' in input);
+		const withdrawal = transaction.transaction!.kind.ProgrammableTransaction!.inputs.find(
+			(input) => input.$kind === 'FundsWithdrawal',
+		);
 		expect(
-			withdrawal && 'FundsWithdrawal' in withdrawal
-				? withdrawal.FundsWithdrawal.withdrawFrom
-				: undefined,
+			withdrawal?.$kind === 'FundsWithdrawal' ? withdrawal.FundsWithdrawal.withdrawFrom : undefined,
 		).toEqual({
 			$kind: 'SenderAllowance',
 			SenderAllowance: { funder: funder.address, allowance: allowanceId },
