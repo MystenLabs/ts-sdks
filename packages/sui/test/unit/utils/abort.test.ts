@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it, vi } from 'vitest';
-import { abortableAsyncGenerator } from '../../../src/utils/abort.js';
+import { abortableAsyncGenerator, sleep } from '../../../src/utils/abort.js';
 
 describe('abortableAsyncGenerator', () => {
 	it('does not start or attach listeners when returned before iteration', async () => {
@@ -50,5 +50,22 @@ describe('abortableAsyncGenerator', () => {
 		const thrown = expect(stream.throw(error)).rejects.toBe(error);
 		await Promise.all([next, thrown]);
 		expect(cleanup).toHaveBeenCalledOnce();
+	});
+});
+
+describe('sleep', () => {
+	it('resolves after the delay and detaches from the signal', async () => {
+		const controller = new AbortController();
+		const remove = vi.spyOn(controller.signal, 'removeEventListener');
+		await sleep(1, controller.signal);
+		expect(remove).toHaveBeenCalledOnce();
+	});
+
+	it('rejects with the abort reason', async () => {
+		const controller = new AbortController();
+		const pending = sleep(60_000, controller.signal);
+		controller.abort(new Error('stop'));
+		await expect(pending).rejects.toThrow('stop');
+		await expect(sleep(1, controller.signal)).rejects.toThrow('stop');
 	});
 });

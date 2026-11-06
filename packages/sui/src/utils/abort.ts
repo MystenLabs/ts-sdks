@@ -55,3 +55,22 @@ export function abortableAsyncGenerator<T>(
 	};
 	return iterator;
 }
+
+/** The longest delay `setTimeout` supports; larger values fire after 1 ms. */
+export const MAX_TIMEOUT = 2 ** 31 - 1;
+
+/** Resolves after `delay` ms, or rejects with the abort reason. */
+export function sleep(delay: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal.aborted) return reject(signal.reason);
+		const onAbort = () => {
+			clearTimeout(timer);
+			reject(signal.reason);
+		};
+		const timer = setTimeout(() => {
+			signal.removeEventListener('abort', onAbort);
+			resolve();
+		}, delay);
+		signal.addEventListener('abort', onAbort, { once: true });
+	});
+}

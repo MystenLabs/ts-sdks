@@ -344,3 +344,24 @@ describe('baseUrl', () => {
 		).not.toThrow();
 	});
 });
+
+it('retries a ledger stream whose first fetch fails', async () => {
+	let calls = 0;
+	const s = server(() => {
+		calls++;
+		return Promise.reject(new TypeError('fetch failed'));
+	});
+	const client = new SuiGrpcClient({
+		network: 'testnet',
+		baseUrl: 'http://localhost',
+		fetch: s.fetch,
+	});
+	const stream = client.streamEvents({
+		retry: { maxAttempts: 1, initialDelay: 0, maxDelay: 0 },
+	});
+	await expect(stream[Symbol.asyncIterator]().next()).rejects.toMatchObject({
+		code: 'UNAVAILABLE',
+	});
+	// The first attempt and one retry.
+	expect(calls).toBe(2);
+});
