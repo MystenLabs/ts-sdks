@@ -1,5 +1,13 @@
 # Change Log
 
+## 2.1.4
+
+### Patch Changes
+
+- f0483f6: Reject `NaN` and non-integer values for `u8`, `u16` and `u32` instead of silently writing
+  them as 0 or a truncated integer, and throw on negative ULEB128 values instead of returning an
+  empty encoding.
+
 ## 2.1.3
 
 ### Patch Changes
