@@ -6,7 +6,6 @@ export {
 	type GraphQLQueryOptions,
 	type GraphQLQueryResult,
 	type GraphQLResponseErrors,
-	type GraphQLSimulateTransactionOptions,
 	type SuiGraphQLClientOptions,
 	SuiGraphQLClient,
 	SuiGraphQLRequestError,
