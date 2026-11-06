@@ -55,6 +55,14 @@ export namespace SuiClientTypes {
 
 	export type Order = 'ascending' | 'descending';
 
+	/**
+	 * Why a failed request may succeed on retry.
+	 * - `Unavailable`: the server could not be reached or the connection dropped.
+	 * - `RateLimited`: the server or a proxy is limiting requests.
+	 * - `ServerError`: any other failure that may clear on retry.
+	 */
+	export type RetryReason = 'Unavailable' | 'RateLimited' | 'ServerError';
+
 	/** Object methods */
 	export interface TransportMethods {
 		getObjects: <Include extends ObjectInclude = {}>(
