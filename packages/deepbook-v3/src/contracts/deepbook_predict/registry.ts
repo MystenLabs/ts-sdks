@@ -886,6 +886,90 @@ export function createAndShareExpiryMarketAt(options: CreateAndShareExpiryMarket
 			),
 		});
 }
+export interface CreateAndShareExpiryMarketWithBandArguments {
+	registry?: RawTransactionArgument<string>;
+	poolVault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
+	lifecycleCap: RawTransactionArgument<string>;
+	propbookUnderlyingId: RawTransactionArgument<number>;
+	cadenceId: RawTransactionArgument<number>;
+	expectedExpiry: RawTransactionArgument<number | bigint | null>;
+	minEntryProbability: RawTransactionArgument<number | bigint>;
+	maxEntryProbability: RawTransactionArgument<number | bigint>;
+}
+export interface CreateAndShareExpiryMarketWithBandOptions {
+	package?: string;
+	arguments: CreateAndShareExpiryMarketWithBandArguments;
+	config?: {
+		registry: ConfigValue;
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * `create_and_share_expiry_market` with the new market's mint entry band narrowed
+ * to `[min_entry_probability, max_entry_probability]`, aborting unless the
+ * deployable expiry is `expected_expiry` when that is set. The other two creation
+ * entrypoints call this with `[0, u64::MAX]`, which keeps the template's band.
+ *
+ * The band can only tighten: each side keeps the tighter of the requested value
+ * and the template's, so a bound looser than the template leaves that side at the
+ * template's, and the call aborts when the two bands do not overlap. Like every
+ * snapshotted term, the band is fixed for the market's life, and `MarketCreated`
+ * reports it. A keeper uses this to admit fewer mints in markets open across a
+ * chosen window.
+ */
+export function createAndShareExpiryMarketWithBand(
+	options: CreateAndShareExpiryMarketWithBandOptions,
+) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u32',
+		'u8',
+		'0x1::option::Option<u64>',
+		'u64',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'poolVault',
+		'config',
+		'propbookRegistry',
+		'lifecycleCap',
+		'propbookUnderlyingId',
+		'cadenceId',
+		'expectedExpiry',
+		'minEntryProbability',
+		'maxEntryProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'create_and_share_expiry_market_with_band',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					poolVault: options.arguments?.poolVault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface CreateAndShareBuilderCodeArguments {
 	registry?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;

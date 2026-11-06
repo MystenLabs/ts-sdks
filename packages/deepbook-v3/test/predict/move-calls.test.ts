@@ -131,7 +131,12 @@ test('every generated Predict module with a function or event layout is exported
 			'redeemSettledPermissionless',
 			'quoteClose',
 		],
-		'protocol_config.ts': ['setEwmaParams', 'setEwmaEnabled'],
+		'protocol_config.ts': [
+			'setEwmaParams',
+			'setEwmaEnabled',
+			'addSettledRedeemKeeper',
+			'removeSettledRedeemKeeper',
+		],
 	};
 	const files = readdirSync(new URL('../../src/contracts/deepbook_predict/', import.meta.url));
 	const missing: string[] = [];

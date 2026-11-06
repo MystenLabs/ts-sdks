@@ -196,6 +196,30 @@ describe('retired bindings keep their shipped argument keys', () => {
 		);
 	});
 
+	test('the retired settled-redeem keeper setters', () => {
+		const KEEPER = '0x' + '77'.repeat(32);
+		for (const [shipped, generated] of [
+			[
+				protocolConfigMoveCalls.addSettledRedeemKeeper,
+				generatedProtocolConfig.addSettledRedeemKeeper,
+			],
+			[
+				protocolConfigMoveCalls.removeSettledRedeemKeeper,
+				generatedProtocolConfig.removeSettledRedeemKeeper,
+			],
+		] as const) {
+			expect(
+				built((tx) =>
+					tx.add(shipped({ config, arguments: { AdminCap: ADMIN_CAP, keeper: KEEPER } })),
+				),
+			).toBe(
+				built((tx) =>
+					tx.add(generated({ config, arguments: { AdminCap: ADMIN_CAP, Keeper: KEEPER } })),
+				),
+			);
+		}
+	});
+
 	test('the Version 5 renames: settled redeems, quote_close and quote_redeem_open', () => {
 		const QUEUE = '0x' + 'bb'.repeat(32);
 		const ordersConfig = toOrdersConfig(TESTNET_CONFIG);

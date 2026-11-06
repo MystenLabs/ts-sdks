@@ -197,10 +197,10 @@ describe('sessions deployment ids', () => {
 	// package was told apart from the version retired by DBU-746.
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
-		// Sessions v6 from the P-33 SVI-decimals pass, relinked to Predict v9, predict_orders v4 and
-		// Propbook v3 (DBU-1152).
+		// Sessions v9: the spot pool allowlist (v7, DBU-947), relinked to Predict v10, predict_orders v5,
+		// DeepBook core v21 and deepbook_core_account v2.
 		expect(cfg.sessionsPackageId).toBe(
-			'0x8b3e5c2a5aa9c9bb65c87869802deffce4302ca850dc75a0a49429193251ba18',
+			'0x3bb8b2db2727bcb401c922ea79456d2b454c149a7f67013c26499ccb00e6d951',
 		);
 		expect(cfg.sessionsPackageIdV1).toBe(
 			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',

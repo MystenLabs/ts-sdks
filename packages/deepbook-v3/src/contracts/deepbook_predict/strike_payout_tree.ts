@@ -39,9 +39,9 @@
  *
  * Delayed execution adds pins: a waiting order's boundary ticks, passed in as
  * `pins` (tick -> count of waiting orders; a key is present only while its count
- * is positive). Enqueue creates the nodes up front (`ensure_node`), no deletion
- * path removes a pinned node, and a resolve fill inserts over existing nodes only
- * (`insert_exist`), so the keeper never creates a node.
+ * is positive). Enqueue creates the nodes up front (`ens_node`), no deletion path
+ * removes a pinned node, and a resolve fill inserts over existing nodes only
+ * (`ins_old`), so the keeper never creates a node.
  */
 
 import { MoveStruct } from '../utils/index.js';
