@@ -2,11 +2,9 @@
 
 The core APIs, notably the query APIs (`listTransactions`, `listEvents`), are intentionally
 restricted to what all three transports (gRPC, GraphQL, JSON-RPC) can support with identical
-behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts` (gRPC is covered
-by the unit tests in `test/unit/grpc/list-queries.test.ts` until the pinned localnet image serves
-the List RPCs, at which point it should be added to the parity matrix). Several capabilities were
-left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC is fully
-deprecated and removed, they can be promoted into the core API.
+behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. Several
+capabilities were left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC
+is fully deprecated and removed, they can be promoted into the core API.
 
 Until then, advanced filtering is available through the raw gRPC ledger service
 (`client.ledgerService.listTransactions` and friends take full DNF filters), and through raw GraphQL
@@ -85,13 +83,10 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 
 ## Other tracked items
 
-- The gRPC parity e2e tests in `test/e2e/clients/core/queries.test.ts` are excluded via the
-  `EXCLUDE` constant until `SUI_TOOLS_TAG` points at an image that serves the
-  `ListCheckpoints`/`ListTransactions`/`ListEvents` RPCs.
 - `MoveEventType` matching semantics for generic types differ between JSON-RPC (exact struct tag
   match) and gRPC/GraphQL (a bare `pkg::mod::Name` matches any instantiation). The parity tests only
   cover non-generic event types; revisit when promoting package-only prefixes.
 - The JSON-RPC `MoveFunction` filter matches aborted transactions, while the GraphQL `function`
-  filter only matches successful ones (gRPC behavior is unverified until the List RPCs are
-  testable). The parity tests avoid this by querying a freshly published package whose calls all
-  succeed; revisit once JSON-RPC is gone.
+  filter only matches successful ones (gRPC behavior has not been verified). The parity tests avoid
+  this by querying a freshly published package whose calls all succeed; revisit once JSON-RPC is
+  gone.
