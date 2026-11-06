@@ -64,6 +64,47 @@ function eventEndFrame(n: number, reason: GrpcTypes.QueryEndReason): GrpcTypes.L
 	});
 }
 
+function checkpointFrame(
+	n: number,
+	end?: GrpcTypes.QueryEndReason,
+): GrpcTypes.ListCheckpointsResponse {
+	return GrpcTypes.ListCheckpointsResponse.create({
+		watermark: { cursor: cursor(n) },
+		checkpoint: {
+			sequenceNumber: BigInt(n),
+			digest: `checkpoint-${n}`,
+			summary: {
+				epoch: 7n,
+				timestamp: { seconds: 1_700_000_000n + BigInt(n), nanos: 123_456_789 },
+			},
+		},
+		...(end !== undefined && { end: { reason: end } }),
+	});
+}
+
+function checkpointEndFrame(
+	n: number,
+	reason: GrpcTypes.QueryEndReason,
+): GrpcTypes.ListCheckpointsResponse {
+	return GrpcTypes.ListCheckpointsResponse.create({
+		watermark: { cursor: cursor(n) },
+		end: { reason },
+	});
+}
+
+function mockListCheckpoints(client: SuiGrpcClient, frames: GrpcTypes.ListCheckpointsResponse[]) {
+	let request: GrpcTypes.ListCheckpointsRequest | undefined;
+	client.ledgerService.listCheckpoints = ((req: GrpcTypes.ListCheckpointsRequest) => {
+		request = req;
+		return {
+			responses: (async function* () {
+				yield* frames;
+			})(),
+		};
+	}) as never;
+	return () => request!;
+}
+
 function mockListTransactions(client: SuiGrpcClient, frames: GrpcTypes.ListTransactionsResponse[]) {
 	let request: GrpcTypes.ListTransactionsRequest | undefined;
 	client.ledgerService.listTransactions = ((req: GrpcTypes.ListTransactionsRequest) => {
@@ -332,5 +373,112 @@ describe('gRPC list query requests', () => {
 
 		const { events } = await client.core.listEvents({});
 		expect(events[0].checkpoint).toBeNull();
+	});
+});
+
+describe('gRPC listCheckpoints', () => {
+	it('requests summary fields, the checkpoint range, and one lookahead item', async () => {
+		const client = makeClient();
+		const getRequest = mockListCheckpoints(client, [
+			checkpointEndFrame(9, QueryEndReason.LEDGER_TIP),
+		]);
+
+		await client.core.listCheckpoints({
+			limit: 4,
+			startCheckpoint: 10,
+			endCheckpoint: '20',
+			after: cursorB64(1),
+			before: cursorB64(5),
+			order: 'descending',
+		});
+
+		const request = getRequest();
+		expect(request.readMask?.paths).toEqual([
+			'sequence_number',
+			'digest',
+			'summary.epoch',
+			'summary.timestamp',
+		]);
+		expect(request.startCheckpoint).toBe(10n);
+		expect(request.endCheckpoint).toBe(20n);
+		expect(request.filter).toBeUndefined();
+		expect(request.options?.limit).toBe(5);
+		expect(request.options?.after).toEqual(cursor(1));
+		expect(request.options?.before).toEqual(cursor(5));
+		expect(request.options?.ordering).toBe(GrpcTypes.Ordering.DESCENDING);
+	});
+
+	it('maps checkpoint summaries and converts timestamps to milliseconds', async () => {
+		const client = makeClient();
+		mockListCheckpoints(client, [checkpointFrame(1, QueryEndReason.LEDGER_TIP)]);
+
+		const result = await client.core.listCheckpoints({});
+
+		expect(result.checkpoints).toEqual([
+			{
+				sequenceNumber: '1',
+				digest: 'checkpoint-1',
+				epoch: '7',
+				// Sub-millisecond nanos are truncated
+				timestampMs: 1700000001123,
+			},
+		]);
+		expect(result.hasNextPage).toBe(false);
+		expect(result.startCursor).toBe(cursorB64(1));
+		expect(result.endCursor).toBe(cursorB64(1));
+	});
+
+	it('truncates the lookahead item and reports a next page', async () => {
+		const client = makeClient();
+		mockListCheckpoints(client, [
+			checkpointFrame(1),
+			checkpointFrame(2),
+			checkpointFrame(3, QueryEndReason.ITEM_LIMIT),
+		]);
+
+		const result = await client.core.listCheckpoints({ limit: 2 });
+
+		expect(result.checkpoints.map((checkpoint) => checkpoint.sequenceNumber)).toEqual(['1', '2']);
+		expect(result.hasNextPage).toBe(true);
+		expect(result.endCursor).toBe(cursorB64(2));
+	});
+
+	it('treats CHECKPOINT_BOUND as terminal', async () => {
+		const client = makeClient();
+		mockListCheckpoints(client, [
+			checkpointFrame(1),
+			checkpointEndFrame(2, QueryEndReason.CHECKPOINT_BOUND),
+		]);
+
+		const result = await client.core.listCheckpoints({ limit: 5 });
+
+		expect(result.checkpoints).toHaveLength(1);
+		expect(result.hasNextPage).toBe(false);
+		expect(result.endCursor).toBe(cursorB64(1));
+	});
+
+	it('throws when a checkpoint is missing its summary', async () => {
+		const client = makeClient();
+		mockListCheckpoints(client, [
+			GrpcTypes.ListCheckpointsResponse.create({
+				watermark: { cursor: cursor(1) },
+				checkpoint: { sequenceNumber: 1n, digest: 'checkpoint-1' },
+				end: { reason: QueryEndReason.LEDGER_TIP },
+			}),
+		]);
+
+		await expect(client.core.listCheckpoints({})).rejects.toThrow(
+			'listCheckpoints response is missing expected checkpoint fields',
+		);
+	});
+
+	it('rejects invalid checkpoint ranges before sending a request', async () => {
+		const client = makeClient();
+		const getRequest = mockListCheckpoints(client, []);
+
+		await expect(
+			client.core.listCheckpoints({ startCheckpoint: 5, endCheckpoint: 4 }),
+		).rejects.toThrow('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+		expect(getRequest()).toBeUndefined();
 	});
 });
