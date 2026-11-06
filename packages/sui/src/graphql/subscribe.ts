@@ -17,6 +17,7 @@ const MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
 export async function* readGraphQLSSE<Result>(
 	response: Response,
 	signal: AbortSignal,
+	onOpen?: () => void,
 ): AsyncGenerator<GraphQLQueryResult<Result>> {
 	// A custom `fetch` that ignores the signal can resolve after the abort.
 	if (signal.aborted) {
@@ -38,6 +39,7 @@ export async function* readGraphQLSSE<Result>(
 		cancelQuietly(response.body);
 		throw new SuiGraphQLRequestError('GraphQL subscription requires a text/event-stream response');
 	}
+	onOpen?.();
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
 	const parser = new ServerSentEventParser(MAX_MESSAGE_SIZE);

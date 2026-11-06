@@ -88,6 +88,8 @@ const transaction = result.Transaction ?? result.FailedTransaction;
 console.log(transaction.digest, result.protoJson);
 ```
 
+The [ledger stream](/sui/clients/streaming#grpc-options) methods also take a native `grpcFilter`.
+
 ## Transport options
 
 By default, `SuiGrpcClient` uses `GrpcWebFetchTransport`, which works in browsers and Node.js
@@ -157,9 +159,13 @@ const client = new SuiGrpcClient({
 
 ### Native gRPC transport
 
-For server-side applications (Node.js, Bun, and others), use the native gRPC transport with
-`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HTTP/2 and the native gRPC protocol
-rather than the gRPC-web translation layer.
+For server-side applications (Node.js, Bun, and others), requests can also use the native gRPC
+transport from `@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HTTP/2 and the native
+gRPC protocol rather than the gRPC-web translation layer. Unary calls and bounded list methods such
+as `listCheckpoints`, `listTransactions` and `listEvents` work on it.
+
+The resumable ledger streams (`streamCheckpoints`, `streamTransactions` and `streamEvents`) work on
+any transport.
 
 ```npm
 npm install @protobuf-ts/grpc-transport @grpc/grpc-js
@@ -454,3 +460,6 @@ checkpoint sequence number rather than a watermark cursor, and `listCheckpoints`
 `startCheckpoint` and `endCheckpoint` rather than `options.after` and `options.before`. Replay that
 gap by listing from the sequence number after the last one you processed, up to the sequence number
 the new subscription started at.
+
+[Ledger streams](/sui/clients/streaming) do this for you: they resume from a saved token and replay
+the gap automatically.

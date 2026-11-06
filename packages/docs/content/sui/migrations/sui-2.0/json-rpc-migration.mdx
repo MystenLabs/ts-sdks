@@ -619,46 +619,26 @@ console.log(response.checkpoint?.transactions.map((transaction) => transaction.d
 
 ## Subscriptions
 
-Replace JSON-RPC websocket subscriptions with the gRPC `subscriptionService`:
+Replace JSON-RPC websocket subscriptions with [ledger streams](/sui/clients/streaming), available on
+both clients. They take the same filters as `listTransactions` and `listEvents`, reconnect
+automatically, and resume from a saved token:
 
-| JSON-RPC Method        | gRPC Service Replacement                    |
-| ---------------------- | ------------------------------------------- |
-| `subscribeTransaction` | `subscriptionService.subscribeTransactions` |
-| `subscribeEvent`       | `subscriptionService.subscribeEvents`       |
+| JSON-RPC Method        | Replacement          |
+| ---------------------- | -------------------- |
+| `subscribeTransaction` | `streamTransactions` |
+| `subscribeEvent`       | `streamEvents`       |
 
 ```typescript
-const stream = client.subscriptionService.subscribeEvents({
-	filter: {
-		terms: [
-			{
-				literals: [
-					{
-						negated: false,
-						predicate: {
-							oneofKind: 'eventType',
-							eventType: { eventType: '0x2::coin::CoinCreated' },
-						},
-					},
-				],
-			},
-		],
-	},
-	readMask: { paths: ['event_type', 'contents', 'json', 'checkpoint', 'transaction_digest'] },
-});
-
-for await (const frame of stream.responses) {
-	if (frame.event) {
-		console.log(frame.event.eventType, frame.event.json);
-	}
+for await (const frame of client.streamEvents({
+	filter: { eventType: '0x2::coin::CoinCreated' },
+})) {
+	console.log(frame.event.eventType, frame.event.json, frame.resumeToken);
 }
 ```
 
-Subscriptions begin at the current tip of the chain and do not resume automatically. For gap
-recovery, retain the last `frame.watermark.cursor`, open the new subscription to establish its
-first-frame position, and replay with the paired raw `client.ledgerService.listEvents()` call using
-the same protobuf filter and `options.after` cursor. Repeat the raw list call as the index advances
-until it reaches the new subscription's start position. Do not pass the subscription filter or
-cursor to top-level `client.listEvents()`: its Core filter and base64 cursor are different types.
+For filters the Core API does not express, `SuiGrpcClient` streams accept a native gRPC filter as
+`grpcFilter` (see [gRPC options](/sui/clients/streaming#grpc-options)). The raw
+`subscriptionService` remains available; see [Subscriptions](/sui/clients/grpc#subscriptions).
 
 ## When to use GraphQL
 

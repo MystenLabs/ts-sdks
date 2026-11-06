@@ -11,6 +11,7 @@ import {
 	parseStructTag,
 } from '../utils/sui-types.js';
 import type { ClientCache } from './cache.js';
+import { httpStatusReason, SuiClientError } from './errors.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { PACKAGE_VERSION } from '../version.js';
 import type { SuiClientTypes } from './types.js';
@@ -28,6 +29,21 @@ export interface MvrClientOptions {
 		packages?: Record<string, string>;
 		types?: Record<string, string>;
 	};
+}
+
+/** An MVR request that failed or got an error response. */
+export class MvrRequestError extends SuiClientError {
+	/** Why repeating the same request may succeed; undefined when it can't. */
+	readonly reason?: SuiClientTypes.RetryReason;
+
+	constructor(
+		message: string,
+		options: { reason?: SuiClientTypes.RetryReason; cause?: unknown } = {},
+	) {
+		super(message, { cause: options.cause });
+		this.name = 'MvrRequestError';
+		this.reason = options.reason;
+	}
 }
 
 export class MvrClient implements SuiClientTypes.MvrMethods {
@@ -166,21 +182,32 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 			throw new Error('MVR Api URL is not set for the current client');
 		}
 
-		const response = await fetch(`${this.#url}${url}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...MVR_API_HEADER,
-			},
-			body: JSON.stringify(body),
-		});
+		let response: Response;
+		try {
+			response = await fetch(`${this.#url}${url}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...MVR_API_HEADER,
+				},
+				body: JSON.stringify(body),
+			});
+		} catch (cause) {
+			throw new MvrRequestError('MVR request failed', { cause, reason: 'Unavailable' });
+		}
 
 		if (!response.ok) {
 			const errorBody = await response.json().catch(() => ({}));
-			throw new Error(`Failed to resolve types: ${errorBody?.message}`);
+			throw new MvrRequestError(`Failed to resolve types: ${errorBody?.message}`, {
+				reason: httpStatusReason(response.status),
+			});
 		}
 
-		return response.json();
+		try {
+			return await response.json();
+		} catch (cause) {
+			throw new MvrRequestError('MVR response could not be read', { cause, reason: 'Unavailable' });
+		}
 	}
 
 	async resolvePackage({
