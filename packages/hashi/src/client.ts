@@ -965,7 +965,17 @@ export class HashiClient {
 							bcs: bcs.Address.serialize(parsed.request_id).toBytes(),
 						},
 					})
-					.catch(() => null);
+					.catch((err) => {
+						// A missing or deleted field means the request left the queue. Anything
+						// else (network, server) must propagate rather than read as confirmed.
+						if (
+							err instanceof Error &&
+							(isObjectNotFoundError(err) || (err as { reason?: unknown }).reason === 'deleted')
+						) {
+							return null;
+						}
+						throw err;
+					});
 
 				status = reqResult?.dynamicField ? 'pending' : 'confirmed';
 			} catch (err) {

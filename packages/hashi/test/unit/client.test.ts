@@ -1833,6 +1833,69 @@ describe('HashiClient', () => {
 			expect(result).not.toBeNull();
 			expect(result!.status).toBe('expired');
 		});
+
+		function mockDepositUpToBagLookup(bagLookupError: Error) {
+			vi.spyOn(client.core, 'getTransaction').mockResolvedValueOnce({
+				Transaction: {
+					events: [
+						{
+							eventType: `${PACKAGE_ID}::deposit::DepositRequested`,
+							json: {
+								request_id: REQUEST_ID,
+								utxo_id: { txid: '0x' + 'ab'.repeat(32), vout: 0 },
+								amount: '50000',
+								derivation_path: TEST_SUI_ADDRESS,
+								timestamp_ms: '1000',
+							},
+						},
+					],
+				},
+			} as never);
+			vi.spyOn(DepositRequest, 'get').mockResolvedValueOnce({
+				json: { approved_timestamp_ms: null },
+			} as never);
+			const getDfSpy = vi.spyOn(client.core, 'getDynamicField');
+			getDfSpy.mockResolvedValueOnce({
+				dynamicField: {
+					value: {
+						bcs: BitcoinState.serialize({
+							id: '0x' + 'b0'.repeat(32),
+							deposit_queue: {
+								requests: { id: '0x' + 'd1'.repeat(32), size: '0' },
+								processed: { id: '0x' + 'd2'.repeat(32), size: '0' },
+							},
+							withdrawal_queue: {
+								requests: { id: '0x' + 'c1'.repeat(32), size: '0' },
+								processed: { id: '0x' + 'c2'.repeat(32), size: '0' },
+								withdrawal_txns: { id: '0x' + 'c3'.repeat(32), size: '0' },
+								confirmed_txns: { id: '0x' + 'c4'.repeat(32), size: '0' },
+							},
+							utxo_pool: {
+								utxo_records: { id: '0x' + 'a1'.repeat(32), size: '0' },
+								spent_utxos: { id: '0x' + 'a2'.repeat(32), size: '0' },
+							},
+							user_requests: { id: '0x' + 'a3'.repeat(32), size: '0' },
+						}).toBytes(),
+					},
+				},
+			} as never);
+			getDfSpy.mockRejectedValueOnce(bagLookupError);
+		}
+
+		it('returns confirmed status when the bag entry has been deleted', async () => {
+			mockDepositUpToBagLookup(
+				new ObjectError('deleted', 'Object has been deleted', { reason: 'deleted' }),
+			);
+
+			const result = await client.hashi.view.depositStatus('test-digest');
+			expect(result!.status).toBe('confirmed');
+		});
+
+		it('rethrows bag lookup errors that are not object-not-found', async () => {
+			mockDepositUpToBagLookup(new Error('network down'));
+
+			await expect(client.hashi.view.depositStatus('test-digest')).rejects.toThrow('network down');
+		});
 	});
 
 	describe('view.withdrawalStatus', () => {
