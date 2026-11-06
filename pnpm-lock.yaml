@@ -787,7 +787,7 @@ importers:
   packages/hashi:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../sui
       '@noble/curves':
         specifier: ^2.3.0
@@ -923,7 +923,7 @@ importers:
   packages/pas:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../sui
     devDependencies:
       '@mysten/codegen':
@@ -951,7 +951,7 @@ importers:
         specifier: workspace:^
         version: link:../bcs
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../sui
     devDependencies:
       '@mysten/codegen':
@@ -1020,7 +1020,7 @@ importers:
   packages/signers/aws:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../../sui
       '@noble/curves':
         specifier: ^2.3.0
@@ -1048,7 +1048,7 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../../sui
       '@noble/curves':
         specifier: ^2.3.0
@@ -1076,7 +1076,7 @@ importers:
         specifier: workspace:^
         version: link:../../ledgerjs-hw-app-sui
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../../sui
     devDependencies:
       '@types/node':
@@ -1092,7 +1092,7 @@ importers:
   packages/signers/webcrypto:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../../sui
       '@noble/curves':
         specifier: ^2.3.0
@@ -1139,7 +1139,7 @@ importers:
   packages/sponsor:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../sui
       '@mysten/wallet-sdk':
         specifier: workspace:^
@@ -1325,7 +1325,7 @@ importers:
         specifier: workspace:^
         version: link:../bcs
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../sui
       '@mysten/wallet-standard':
         specifier: workspace:^
@@ -1353,7 +1353,7 @@ importers:
   packages/wallet-standard:
     dependencies:
       '@mysten/sui':
-        specifier: workspace:^
+        specifier: workspace:^3.0.0
         version: link:../sui
       '@wallet-standard/core':
         specifier: 1.1.2

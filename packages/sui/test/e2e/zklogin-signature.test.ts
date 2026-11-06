@@ -76,8 +76,8 @@ describe('zkLogin signature', () => {
 		},
 		async () => {
 			const toolbox = await setup();
-			const epoch = await toolbox.jsonRpcClient.getLatestSuiSystemState();
-			const currentEpoch = Number(epoch.epoch);
+			const { systemState } = await toolbox.grpcClient.core.getCurrentSystemState();
+			const currentEpoch = Number(systemState.epoch);
 			const maxEpoch = currentEpoch + 10;
 
 			// Generate PersonalMessage signature dynamically using --json for reliable parsing

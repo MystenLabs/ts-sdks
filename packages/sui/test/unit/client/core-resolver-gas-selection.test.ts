@@ -4,8 +4,9 @@
 import { toBase58 } from '@mysten/bcs';
 import { describe, expect, it, vi } from 'vitest';
 
+import { coreClientResolveTransactionPlugin } from '../../../src/client/core-resolver.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
-import { SuiJsonRpcClient } from '../../../src/jsonRpc/client.js';
+import { SuiGrpcClient } from '../../../src/grpc/index.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import { createCoinReservationRef } from '../../../src/utils/coin-reservation.js';
 import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../../src/utils/index.js';
@@ -36,7 +37,12 @@ function paymentRefs(objects: SuiClientTypes.Coin[]) {
 }
 
 function createClient(objects = coins(300), addressBalance = '0') {
-	const client = new SuiJsonRpcClient({ network: 'testnet', url: 'http://localhost:9000' });
+	const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost:9000' });
+	// Exercise the shared client-side resolver (used by the transaction executors) rather than the
+	// gRPC server-side resolution.
+	vi.spyOn(client.core, 'resolveTransactionPlugin').mockReturnValue(
+		coreClientResolveTransactionPlugin,
+	);
 	vi.spyOn(client.core, 'listCoins').mockResolvedValue({
 		objects,
 		hasNextPage: false,
