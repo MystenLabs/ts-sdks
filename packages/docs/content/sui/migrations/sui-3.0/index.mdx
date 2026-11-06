@@ -118,6 +118,11 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   `GrpcWebFetchTransport` from `@mysten/sui/grpc` now send `application/grpc-web+proto` instead of
   base64 `application/grpc-web-text`. If a proxy in front of your full node only supports the text
   format, pass `format: 'text'`.
+- **`SuiGraphQLClient` throws `SuiGraphQLRequestError` for network failures.** Network failures and
+  response bodies that can't be read or parsed now throw `SuiGraphQLRequestError` instead of the
+  underlying error, which is its `cause`. Its `reason` property is set when retrying can help.
+- **`SuiGraphQLClient` checks `url` when it is constructed.** It must be an absolute http(s) URL, or
+  a path starting with `/` in a browser or with a custom `fetch`; anything else throws.
 
 ## Other packages
 
@@ -162,3 +167,4 @@ return transactionBlockResponseFromExecution(result.Transaction ?? result.Failed
   `before` can be combined to read a window.
 - `doGasSelection` is available on every client's `simulateTransaction`.
 - A `listCheckpoints` method for paging through checkpoints.
+- `SuiGraphQLClient.subscribe` runs GraphQL subscriptions; `subscriptionUrl` sets their endpoint.
