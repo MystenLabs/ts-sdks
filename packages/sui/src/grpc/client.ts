@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { TransactionExecutionServiceClient } from './proto/sui/rpc/v2/transaction_execution_service.client.js';
 import { LedgerServiceClient } from './proto/sui/rpc/v2/ledger_service.client.js';
 import { MovePackageServiceClient } from './proto/sui/rpc/v2/move_package_service.client.js';
@@ -19,8 +18,9 @@ import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { GrpcWebFetchTransport, withClientProtocolVersion } from './transport.js';
+import type { GrpcWebFetchTransportOptions } from './transport.js';
 
-interface SuiGrpcTransportOptions extends GrpcWebOptions {
+interface SuiGrpcTransportOptions extends GrpcWebFetchTransportOptions {
 	transport?: never;
 }
 
