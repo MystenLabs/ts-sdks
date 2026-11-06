@@ -74,6 +74,12 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 - **`GraphQLSimulateTransactionOptions` is removed** from `@mysten/sui/graphql`. Use
   `SuiClientTypes.SimulateTransactionOptions`, which now includes `doGasSelection`.
 
+### Transports
+
+- **The raw gRPC `GetPackageRequest` has a required `selector`.** Calls to
+  `client.movePackageService.getPackage` pass `selector: { oneofKind: undefined }` to read the
+  package stored at `packageId`.
+
 ## Other packages
 
 `@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`;

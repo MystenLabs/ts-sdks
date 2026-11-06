@@ -33,11 +33,14 @@ import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
  * at the current tip of the chain as seen by the server (the latest executed
  * checkpoint). To recover data missed between subscriptions, replay the gap
  * with the paired List API: pass the last received `Watermark.cursor` as
- * `options.after` on the List request (for checkpoints, pass the last
- * received `cursor + 1` as `start_checkpoint`). The List scan reads from the
- * indexed tip, which may trail the subscription's start position; repeat the
- * List call as the index advances until the replay reaches the position
- * established by the subscription's first frame.
+ * `options.after`, with the request's start at its `cursor_position` (for
+ * checkpoints, pass the last received `cursor + 1` as `start_checkpoint`). The
+ * List scan reads from the indexed tip, which may trail the subscription's
+ * start position; repeat the List call as the index advances until the replay
+ * reaches the position established by the subscription's first frame: for
+ * transactions and events, that frame's item key if it carries an item, and
+ * its `cursor_position` otherwise. Compare positions and item keys, never
+ * cursor bytes.
  *
  * A subscription behaves like an unbounded ascending scan: every frame
  * carries the subscriber's resume point, and progress advances as
@@ -104,11 +107,14 @@ export interface ISubscriptionServiceClient {
  * at the current tip of the chain as seen by the server (the latest executed
  * checkpoint). To recover data missed between subscriptions, replay the gap
  * with the paired List API: pass the last received `Watermark.cursor` as
- * `options.after` on the List request (for checkpoints, pass the last
- * received `cursor + 1` as `start_checkpoint`). The List scan reads from the
- * indexed tip, which may trail the subscription's start position; repeat the
- * List call as the index advances until the replay reaches the position
- * established by the subscription's first frame.
+ * `options.after`, with the request's start at its `cursor_position` (for
+ * checkpoints, pass the last received `cursor + 1` as `start_checkpoint`). The
+ * List scan reads from the indexed tip, which may trail the subscription's
+ * start position; repeat the List call as the index advances until the replay
+ * reaches the position established by the subscription's first frame: for
+ * transactions and events, that frame's item key if it carries an item, and
+ * its `cursor_position` otherwise. Compare positions and item keys, never
+ * cursor bytes.
  *
  * A subscription behaves like an unbounded ascending scan: every frame
  * carries the subscriber's resume point, and progress advances as

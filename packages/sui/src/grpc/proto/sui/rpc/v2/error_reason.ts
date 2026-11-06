@@ -10,6 +10,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 /**
+ * Error reasons in the `sui.io` error domain, used as the `reason` of a
+ * `google.rpc.ErrorInfo` or of a `google.rpc.BadRequest.FieldViolation`.
+ *
  * @generated from protobuf enum sui.rpc.v2.ErrorReason
  */
 export enum ErrorReason {
@@ -25,4 +28,176 @@ export enum ErrorReason {
 	 * @generated from protobuf enum value: FIELD_MISSING = 2;
 	 */
 	FIELD_MISSING = 2,
+	/**
+	 * Gas selection could not find enough SUI to cover the gas budget.
+	 * `SimulateTransaction` returns this with `INVALID_ARGUMENT`. Gas selection
+	 * runs only when `do_gas_selection` is set, `checks` is not `DISABLED`, and
+	 * the transaction has no gas payment objects. When the server estimates the
+	 * budget and the transaction fails in that estimation, `SimulateTransaction`
+	 * returns `TRANSACTION_EXECUTION_FAILED` instead of this error, so with an
+	 * estimated budget this reason means the transaction executed successfully
+	 * in simulation.
+	 *
+	 * Example of an ErrorInfo when the gas owner holds a single 2246360 MIST
+	 * coin, has no address balance, and the transaction needs a budget of
+	 * 8924024 MIST:
+	 *
+	 *     { "reason": "INSUFFICIENT_GAS_BALANCE",
+	 *       "domain": "sui.io",
+	 *       "metadata": {
+	 *         "owner": "0x0000000000000000000000000000000000000000000000000000000000000123",
+	 *         "requiredBudget": "8924024",
+	 *         "coinBalance": "2246360",
+	 *         "addressBalance": "0"
+	 *       }
+	 *     }
+	 *
+	 * Metadata, with amounts in MIST as decimal strings:
+	 * - `owner`: the gas owner's address, as "0x" followed by 64 hex digits.
+	 * - `requiredBudget`: the gas budget the transaction needs. When the
+	 *   request leaves the budget unset, this is the server's estimate plus the
+	 *   cost of loading every coin counted in `coinBalance` beyond the first;
+	 *   otherwise it is the budget from the request. An estimated
+	 *   `requiredBudget` depends on how many coins the gas owner holds: when
+	 *   the owner already holds coins, sending it a new coin raises
+	 *   `requiredBudget` by up to the cost of loading one more coin. A new coin
+	 *   worth `requiredBudget` covers that increase unless `coinBalance` is
+	 *   less than the cost of loading one coin; a new coin worth only
+	 *   `requiredBudget` minus `coinBalance` can fall short.
+	 * - `coinBalance`: total of the gas owner's `Coin<SUI>` objects considered
+	 *   by gas selection: owned, non-consensus coins not already used as
+	 *   transaction inputs, largest first, up to the protocol's maximum number
+	 *   of gas payment objects.
+	 * - `addressBalance`: the gas owner's SUI address balance remaining after
+	 *   the transaction's own explicit SUI withdrawals from the gas owner; "0"
+	 *   if there is none.
+	 *
+	 * The two balances are reported separately because they combine
+	 * differently. When the transaction uses the gas coin (an `Argument` of kind
+	 * `GAS`), coins and address balance are combined to pay for gas. Otherwise
+	 * they are never combined: the address balance pays for gas only if it
+	 * alone covers the budget before coin-loading costs, which is at most
+	 * `requiredBudget`; if it does not, the coins alone must cover
+	 * `requiredBudget`.
+	 *
+	 * @generated from protobuf enum value: INSUFFICIENT_GAS_BALANCE = 3;
+	 */
+	INSUFFICIENT_GAS_BALANCE = 3,
+	/**
+	 * The transaction failed while executing in simulation. `SimulateTransaction`
+	 * returns this with `INVALID_ARGUMENT` when it estimates the budget, the
+	 * transaction fails in that estimation, and gas selection then cannot cover
+	 * the budget. It is returned instead of the `INSUFFICIENT_GAS_BALANCE`
+	 * reason in that case because the transaction fails even with its gas paid
+	 * for, so the gas budget is not what stops it; `kind` says what does. Some
+	 * kinds can still be fixed by adding funds: for example,
+	 * `INSUFFICIENT_FUNDS_FOR_WITHDRAW` means a balance the transaction
+	 * withdraws from holds too little. `INSUFFICIENT_GAS` cannot: the estimation
+	 * runs with the maximum gas budget, so it means the transaction needs more
+	 * gas than any budget allows. A gas owner that can cover the budget instead
+	 * gets a successful response whose `effects.status.error` describes the
+	 * failure.
+	 *
+	 * The status details also carry the `ExecutionError`, in the same form as
+	 * `effects.status.error`.
+	 *
+	 * Example of an ErrorInfo for a Move abort in the first command:
+	 *
+	 *     { "reason": "TRANSACTION_EXECUTION_FAILED",
+	 *       "domain": "sui.io",
+	 *       "metadata": {
+	 *         "kind": "MOVE_ABORT",
+	 *         "command": "0"
+	 *       }
+	 *     }
+	 *
+	 * Metadata:
+	 * - `kind`: the failure's `ExecutionError.ExecutionErrorKind` name.
+	 * - `command`: index of the command that failed, as a decimal string, or
+	 *   "" if no single command failed.
+	 *
+	 * @generated from protobuf enum value: TRANSACTION_EXECUTION_FAILED = 4;
+	 */
+	TRANSACTION_EXECUTION_FAILED = 4,
+	/**
+	 * The request reads ledger data above what this server has indexed. The
+	 * `LedgerService` `List*` RPCs return this with `OUT_OF_RANGE` for a
+	 * descending query when:
+	 * - its `before` or `after` cursor names a position this server has not
+	 *   indexed.
+	 * - its `end_checkpoint`, which is exclusive, is above
+	 *   `firstUnavailableCheckpoint`, or, with `end_checkpoint` unset, its
+	 *   `start_checkpoint` is at or above `firstUnavailableCheckpoint`.
+	 * An ascending query never gets this error. Its `before` cursor and its
+	 * checkpoint range end at the latest indexed checkpoint, and an `after`
+	 * cursor past it ends an empty response with `LEDGER_TIP` at the position
+	 * that cursor resumes from.
+	 *
+	 * Such a cursor comes from a newer view of the ledger than this server's,
+	 * for example from another replica behind the same load balancer. The data
+	 * is not indexed here yet, so the same request becomes servable once this
+	 * server catches up, and a client may resend it unchanged after a delay. A
+	 * cursor comes from a server that had indexed its position, so a request
+	 * rejected for its cursor (`bound` is "cursor") is servable within the time
+	 * replicas take to catch up with each other. A checkpoint bound may name a
+	 * checkpoint the chain has not reached, so retrying it can wait
+	 * indefinitely.
+	 *
+	 * Example of an ErrorInfo for a descending query's `before` cursor at
+	 * checkpoint 1205, sent to a server whose latest indexed checkpoint is 1199:
+	 *
+	 *     { "reason": "ABOVE_LATEST_AVAILABLE",
+	 *       "domain": "sui.io",
+	 *       "metadata": {
+	 *         "bound": "cursor",
+	 *         "requestedCheckpoint": "1205",
+	 *         "firstUnavailableCheckpoint": "1200"
+	 *       }
+	 *     }
+	 *
+	 * Metadata, with checkpoints as decimal strings:
+	 * - `bound`: what reads above the indexed data: "cursor" for a `before` or
+	 *   `after` cursor, or the name of the request field, "start_checkpoint"
+	 *   or "end_checkpoint".
+	 * - `requestedCheckpoint`: the checkpoint recorded in the cursor, or the
+	 *   value of the request field.
+	 * - `firstUnavailableCheckpoint`: the lowest checkpoint this server has not
+	 *   indexed, one above its latest indexed checkpoint, or "0" if it has
+	 *   indexed none.
+	 *
+	 * @generated from protobuf enum value: ABOVE_LATEST_AVAILABLE = 5;
+	 */
+	ABOVE_LATEST_AVAILABLE = 5,
+	/**
+	 * The request needs ledger data this server has pruned. The
+	 * `LedgerService` `List*` RPCs return this with `OUT_OF_RANGE` when the
+	 * request's `start_checkpoint` or `after` cursor is below the lowest
+	 * checkpoint this server serves, when its checkpoint range ends at or below
+	 * that checkpoint, when a descending query with no lower bound of its own
+	 * reaches it, or when the server prunes data a query has not read yet. A
+	 * descending query that reaches the lowest checkpoint fails after it
+	 * streams every item at or above that checkpoint, and its last response
+	 * carries a watermark at that checkpoint.
+	 *
+	 * Pruned data does not come back, so the same request fails the same way
+	 * on this server. A client can send it to a server that retains the data,
+	 * or resume at or above `lowestAvailableCheckpoint`.
+	 *
+	 * Example of an ErrorInfo from a server whose lowest available checkpoint
+	 * is 5000:
+	 *
+	 *     { "reason": "BELOW_EARLIEST_AVAILABLE",
+	 *       "domain": "sui.io",
+	 *       "metadata": {
+	 *         "lowestAvailableCheckpoint": "5000"
+	 *       }
+	 *     }
+	 *
+	 * Metadata:
+	 * - `lowestAvailableCheckpoint`: the lowest checkpoint this server serves,
+	 *   as a decimal string.
+	 *
+	 * @generated from protobuf enum value: BELOW_EARLIEST_AVAILABLE = 6;
+	 */
+	BELOW_EARLIEST_AVAILABLE = 6,
 }
