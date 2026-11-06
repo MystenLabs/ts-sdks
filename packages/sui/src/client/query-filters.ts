@@ -19,32 +19,22 @@ export interface ResolvedPagination {
 const DEFAULT_PAGE_SIZE = 50;
 
 /**
- * Validates pagination bounds and resolves the traversal direction.
+ * Resolves pagination bounds and the traversal direction.
  *
- * `after` and `before` are exclusive ledger-position bounds. Until every
- * transport can combine bounds freely, a query accepts at most one bound, and
- * the bound must match the traversal direction (`after` implies ascending,
- * `before` implies descending).
+ * `after` and `before` are exclusive, order-independent ledger-position bounds
+ * that can be combined to read a window. Without an explicit `order`, queries
+ * bounded only by `before` read in descending order, and every other query
+ * reads in ascending order.
  */
 export function resolvePagination(options: {
 	after?: string | null;
 	before?: string | null;
-	order?: 'ascending' | 'descending';
+	order?: SuiClientTypes.Order;
 	limit?: number;
 }): ResolvedPagination {
-	if (options.after != null && options.before != null) {
-		throw new Error('Only one of `after` or `before` may be provided');
-	}
-
-	const descending = options.order ? options.order === 'descending' : options.before != null;
-
-	if (options.after != null && descending) {
-		throw new Error('`after` can not be combined with descending queries');
-	}
-
-	if (options.before != null && !descending) {
-		throw new Error('`before` can not be combined with ascending queries');
-	}
+	const descending = options.order
+		? options.order === 'descending'
+		: options.before != null && options.after == null;
 
 	return {
 		descending,
@@ -54,36 +44,77 @@ export function resolvePagination(options: {
 	};
 }
 
-export type ResolvedTransactionFilter =
-	| { $kind: 'sender'; sender: string }
-	| { $kind: 'function'; package: string; module?: string; function?: string };
-
-/**
- * Validates that a transaction query's filter supports pagination bounds.
- *
- * Function filters can only be paginated when fully qualified (`package::module::function`);
- * cursors on package- or module-level function filters are rejected.
- */
-export function validateTransactionQuery(
-	filter: ResolvedTransactionFilter | undefined,
-	pagination: ResolvedPagination,
-): void {
-	if (
-		filter?.$kind === 'function' &&
-		(pagination.after != null || pagination.before != null) &&
-		(!filter.module || !filter.function)
-	) {
-		throw new Error(
-			'Paginating transactions filtered by function requires a fully qualified `package::module::function`',
-		);
-	}
+export interface ResolvedCheckpointRange {
+	/** Inclusive lower checkpoint bound. */
+	start?: bigint;
+	/** Exclusive upper checkpoint bound. */
+	end?: bigint;
 }
 
-export type ResolvedEventFilter =
-	| { $kind: 'sender'; sender: string }
-	| { $kind: 'emitModule'; package: string; module: string }
-	| { $kind: 'eventTypeModule'; package: string; module: string }
-	| { $kind: 'eventType'; eventType: string };
+/**
+ * Validates `startCheckpoint`/`endCheckpoint` and converts them to bigints, so
+ * every transport rejects the same ranges.
+ */
+export function resolveCheckpointRange(options: {
+	startCheckpoint?: SuiClientTypes.CheckpointNumber;
+	endCheckpoint?: SuiClientTypes.CheckpointNumber;
+}): ResolvedCheckpointRange {
+	const start =
+		options.startCheckpoint == null
+			? undefined
+			: parseCheckpointNumber(options.startCheckpoint, 'startCheckpoint');
+	const end =
+		options.endCheckpoint == null
+			? undefined
+			: parseCheckpointNumber(options.endCheckpoint, 'endCheckpoint');
+
+	if (start != null && end != null && end < start) {
+		throw new Error('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+	}
+
+	return { start, end };
+}
+
+/**
+ * Validates a checkpoint sequence number and converts it to a bigint. Values
+ * are capped at `Number.MAX_SAFE_INTEGER` because GraphQL represents
+ * checkpoints as `UInt53`.
+ */
+export function parseCheckpointNumber(
+	value: SuiClientTypes.CheckpointNumber,
+	label: string,
+): bigint {
+	const valid =
+		typeof value === 'bigint'
+			? value >= 0n && value <= BigInt(Number.MAX_SAFE_INTEGER)
+			: typeof value === 'number'
+				? Number.isSafeInteger(value) && value >= 0
+				: /^\d+$/.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
+
+	if (!valid) {
+		throw new Error(`Invalid ${label} "${value}": expected a non-negative integer`);
+	}
+
+	return BigInt(value);
+}
+
+/** A validated transaction filter with addresses normalized and MVR names resolved. */
+export interface ResolvedTransactionFilter {
+	sender?: string;
+	affectedAddress?: string;
+	affectedObject?: string;
+	/** A normalized Move path: `0x…`, `0x…::module`, or `0x…::module::function`. */
+	function?: string;
+}
+
+/** A validated event filter with addresses normalized and MVR names resolved. */
+export interface ResolvedEventFilter {
+	sender?: string;
+	/** `0x…` or `0x…::module`. */
+	emitModule?: string;
+	/** `0x…`, `0x…::module`, or a fully qualified type name. */
+	eventType?: string;
+}
 
 /**
  * Validates a transaction filter and resolves any MVR names it contains.
@@ -96,100 +127,110 @@ export async function resolveTransactionFilter(
 	filter: SuiClientTypes.TransactionFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedTransactionFilter> {
-	assertSinglePredicate(filter, ['sender', 'function'], 'transaction');
+	assertAtMostOne(filter, ['affectedAddress', 'affectedObject', 'function'], 'A transaction');
+
+	const resolved: ResolvedTransactionFilter = {};
 
 	if (filter.sender != null) {
-		return { $kind: 'sender', sender: normalizeSuiAddress(filter.sender) };
+		resolved.sender = normalizeSuiAddress(filter.sender);
 	}
 
-	const [pkg, module, fn, ...rest] = filter.function!.split('::');
-
-	if (!pkg || rest.length > 0 || module === '' || fn === '') {
-		throw new Error(
-			`Invalid function filter "${filter.function}": expected "package", "package::module", or "package::module::function"`,
-		);
+	if (filter.affectedAddress != null) {
+		resolved.affectedAddress = normalizeSuiAddress(filter.affectedAddress);
 	}
 
-	return {
-		$kind: 'function',
-		package: normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package),
-		module,
-		function: fn,
-	};
+	if (filter.affectedObject != null) {
+		resolved.affectedObject = normalizeSuiAddress(filter.affectedObject);
+	}
+
+	if (filter.function != null) {
+		const [pkg, module, fn, ...rest] = filter.function.split('::');
+
+		if (!pkg || rest.length > 0 || module === '' || fn === '') {
+			throw new Error(
+				`Invalid function filter "${filter.function}": expected "package", "package::module", or "package::module::function"`,
+			);
+		}
+
+		resolved.function = [await resolvePackage(mvr, pkg, signal), module, fn]
+			.filter((segment) => segment != null)
+			.join('::');
+	}
+
+	return resolved;
 }
 
 /**
  * Validates an event filter and resolves any MVR names it contains.
  *
- * `emitModule` must name a module (`package::module`), and `eventType` must be
- * at least module-qualified (`package::module` or a full type). Every transport
- * resolves filters through this function so that validation errors and MVR
- * handling are identical across clients.
+ * Every transport resolves filters through this function so that validation
+ * errors and MVR handling are identical across clients.
  */
 export async function resolveEventFilter(
 	mvr: SuiClientTypes.MvrMethods,
 	filter: SuiClientTypes.EventFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedEventFilter> {
-	assertSinglePredicate(filter, ['sender', 'emitModule', 'eventType'], 'event');
+	assertAtMostOne(filter, ['emitModule', 'eventType'], 'An event');
+
+	const resolved: ResolvedEventFilter = {};
 
 	if (filter.sender != null) {
-		return { $kind: 'sender', sender: normalizeSuiAddress(filter.sender) };
+		resolved.sender = normalizeSuiAddress(filter.sender);
 	}
 
 	if (filter.emitModule != null) {
-		const [pkg, module, ...rest] = filter.emitModule.split('::');
+		const segments = filter.emitModule.split('::');
 
-		if (!pkg || !module || rest.length > 0) {
+		if (segments.length > 2 || segments.some((segment) => segment === '')) {
 			throw new Error(
-				`Invalid emitModule filter "${filter.emitModule}": expected "package::module"`,
+				`Invalid emitModule filter "${filter.emitModule}": expected "package" or "package::module"`,
 			);
 		}
 
-		return {
-			$kind: 'emitModule',
-			package: normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package),
-			module,
-		};
+		const [pkg, module] = segments;
+		resolved.emitModule = [await resolvePackage(mvr, pkg, signal), module]
+			.filter((segment) => segment != null)
+			.join('::');
 	}
 
-	const eventType = filter.eventType!;
-	const segments = eventType.split('::');
+	if (filter.eventType != null) {
+		const eventType = filter.eventType;
+		const segments = eventType.split('::');
 
-	if (segments.length === 2 && segments.every((segment) => segment !== '')) {
-		return {
-			$kind: 'eventTypeModule',
-			package: normalizeSuiAddress(
-				(await mvr.resolvePackage({ package: segments[0], signal })).package,
-			),
-			module: segments[1],
-		};
+		if (segments.some((segment) => segment === '')) {
+			throw new Error(
+				`Invalid eventType filter "${eventType}": expected "package", "package::module", or a fully qualified type name`,
+			);
+		}
+
+		if (segments.length <= 2) {
+			const [pkg, module] = segments;
+			resolved.eventType = [await resolvePackage(mvr, pkg, signal), module]
+				.filter((segment) => segment != null)
+				.join('::');
+		} else {
+			resolved.eventType = (await mvr.resolveType({ type: eventType, signal })).type;
+		}
 	}
 
-	if (segments.length < 3 || segments.some((segment) => segment === '')) {
-		throw new Error(
-			`Invalid eventType filter "${eventType}": expected "package::module" or a fully qualified type name`,
-		);
-	}
-
-	return {
-		$kind: 'eventType',
-		eventType: (await mvr.resolveType({ type: eventType, signal })).type,
-	};
+	return resolved;
 }
 
-function assertSinglePredicate(
-	filter: Record<string, unknown>,
-	predicates: string[],
-	kind: string,
-): void {
+async function resolvePackage(
+	mvr: SuiClientTypes.MvrMethods,
+	pkg: string,
+	signal?: AbortSignal,
+): Promise<string> {
+	return normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package);
+}
+
+function assertAtMostOne(filter: Record<string, unknown>, predicates: string[], subject: string) {
 	const present = predicates.filter((predicate) => filter[predicate] != null);
 
-	if (present.length !== 1) {
+	if (present.length > 1) {
 		throw new Error(
-			`A ${kind} filter must specify exactly one of ${predicates.join(', ')}${
-				present.length ? ` (got ${present.join(', ')})` : ''
-			}`,
+			`${subject} filter may specify at most one of ${predicates.join(', ')} (got ${present.join(', ')})`,
 		);
 	}
 }
