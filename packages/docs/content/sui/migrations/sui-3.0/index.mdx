@@ -72,6 +72,12 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 - **`SuiGraphQLClient` page cursors match `SuiGrpcClient`.** In `listTransactions` and `listEvents`,
   a final page's `endCursor` is its last item's cursor, and an empty final page has `null` cursors.
 
+### Transports
+
+- **The raw gRPC `GetPackageRequest` has a required `selector`.** Calls to
+  `client.movePackageService.getPackage` pass `selector: { oneofKind: undefined }` to read the
+  package stored at `packageId`.
+
 ## Other packages
 
 `@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`. If

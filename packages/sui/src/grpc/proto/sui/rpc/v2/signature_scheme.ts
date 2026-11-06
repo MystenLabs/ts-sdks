@@ -48,4 +48,8 @@ export enum SignatureScheme {
 	 * @generated from protobuf enum value: PASSKEY = 6;
 	 */
 	PASSKEY = 6,
+	/**
+	 * @generated from protobuf enum value: MLDSA65 = 7;
+	 */
+	MLDSA65 = 7,
 }
