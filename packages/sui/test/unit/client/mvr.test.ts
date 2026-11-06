@@ -1,9 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 
-import { extractMvrTypes, MvrClient } from '../../../src/client/mvr.js';
+import { extractMvrTypes, MvrClient, MvrRequestError } from '../../../src/client/mvr.js';
 import { ClientCache } from '../../../src/client/cache.js';
 
 describe('extractMvrTypes', () => {
@@ -100,5 +100,62 @@ describe('MvrClient cancellation', () => {
 			type: '0x2::sui::SUI',
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+});
+
+describe('MvrClient request failures', () => {
+	const type = '@mvr/demo::foo::Bar';
+	function resolveWith(fetchImpl: () => Promise<Response>) {
+		vi.stubGlobal('fetch', vi.fn(fetchImpl));
+		onTestFinished(() => {
+			vi.unstubAllGlobals();
+		});
+		return new MvrClient({ cache: new ClientCache(), url: 'https://mvr.example' }).resolveType({
+			type,
+		});
+	}
+
+	it.each<[string, () => Promise<Response>, string | undefined]>([
+		[
+			'a rejected fetch',
+			async () => {
+				throw new TypeError('fetch failed');
+			},
+			'Unavailable',
+		],
+		[
+			'an unavailable status',
+			async () => Response.json({ message: 'down' }, { status: 503 }),
+			'Unavailable',
+		],
+		[
+			'a client error status',
+			async () => Response.json({ message: 'bad' }, { status: 400 }),
+			undefined,
+		],
+		[
+			'an unreadable body',
+			async () =>
+				new Response(
+					new ReadableStream({
+						start(controller) {
+							controller.error(new TypeError('socket closed'));
+						},
+					}),
+				),
+			'Unavailable',
+		],
+	])('throws MvrRequestError on %s', async (_, fetchImpl, reason) => {
+		const error = await resolveWith(fetchImpl).catch((error: unknown) => error);
+		expect(error).toBeInstanceOf(MvrRequestError);
+		expect((error as MvrRequestError).reason).toBe(reason);
+	});
+
+	it('fails a name that does not resolve with a plain error', async () => {
+		const error = await resolveWith(async () => Response.json({ resolution: {} })).catch(
+			(error: unknown) => error,
+		);
+		expect(error).not.toBeInstanceOf(MvrRequestError);
+		expect(error).toMatchObject({ message: `Failed to resolve type: ${type}` });
 	});
 });

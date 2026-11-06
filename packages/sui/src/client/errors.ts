@@ -64,3 +64,12 @@ export class TransactionError extends SuiClientError {
 		this.digest = digest;
 	}
 }
+
+/** Why an HTTP error status may clear on retry, if it may; matches gRPC's codes for the status. */
+export function httpStatusReason(status: number): SuiClientTypes.RetryReason | undefined {
+	if (status === 429) return 'RateLimited';
+	if (status === 503) return 'Unavailable';
+	if (status === 501) return undefined;
+	if (status === 408 || status >= 500) return 'ServerError';
+	return undefined;
+}

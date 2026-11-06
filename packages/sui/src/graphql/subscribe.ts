@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { GraphQLQueryResult } from './client.js';
-import { httpStatusReason, SuiGraphQLRequestError } from './errors.js';
+import { httpStatusReason } from '../client/errors.js';
+import { SuiGraphQLRequestError } from './errors.js';
 import { ServerSentEventParser } from './sse-parser.js';
 
 /** The largest SSE message, in characters, before the subscription fails. */

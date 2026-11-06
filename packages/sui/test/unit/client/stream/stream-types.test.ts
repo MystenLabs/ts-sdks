@@ -1,0 +1,120 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { describe, expectTypeOf, it } from 'vitest';
+
+import type { CoreClient } from '../../../../src/client/core.js';
+import type { SuiClientTypes as T } from '../../../../src/client/types.js';
+import type { SuiGrpcClient } from '../../../../src/grpc/client.js';
+
+describe('stream types', () => {
+	it('yields only items by default', () => {
+		expectTypeOf<T.StreamCheckpointResult>().toEqualTypeOf<T.StreamCheckpointFrame>();
+		expectTypeOf<T.StreamEventResult>().toEqualTypeOf<T.StreamEventFrame>();
+		expectTypeOf<T.StreamTransactionResult>().toEqualTypeOf<T.StreamTransactionFrame>();
+		expectTypeOf<
+			T.StreamEventResult<{ completion: false; progress: false }>
+		>().toEqualTypeOf<T.StreamEventFrame>();
+	});
+
+	it('adds control frames that may be enabled, including non-literal booleans', () => {
+		expectTypeOf<T.StreamEventResult<{ completion: true }>>().toEqualTypeOf<
+			T.StreamEventFrame | T.StreamCompletionFrame
+		>();
+		expectTypeOf<T.StreamEventResult<{ progress: boolean }>>().toEqualTypeOf<
+			T.StreamEventFrame | T.StreamProgressFrame
+		>();
+		expectTypeOf<
+			T.StreamTransactionResult<{ effects: true }, { completion: true; progress: true }>
+		>().toEqualTypeOf<
+			T.StreamTransactionFrame<{ effects: true }> | T.StreamCompletionFrame | T.StreamProgressFrame
+		>();
+	});
+
+	it('adds control frames that any member of a union of frame options enables', () => {
+		expectTypeOf<T.StreamEventResult<{ completion: true } | { progress: true }>>().toEqualTypeOf<
+			T.StreamEventFrame | T.StreamCompletionFrame | T.StreamProgressFrame
+		>();
+		expectTypeOf<T.StreamCheckpointResult<{}, {} | { completion: true }>>().toEqualTypeOf<
+			T.StreamCheckpointFrame | T.StreamCompletionFrame
+		>();
+		expectTypeOf<
+			T.StreamEventResult<{} | { completion: false } | { progress: false }>
+		>().toEqualTypeOf<T.StreamEventFrame>();
+	});
+
+	it('keeps include for data fields only', () => {
+		expectTypeOf<T.StreamTransactionsOptions<{ effects: true }>['include']>().toEqualTypeOf<
+			{ effects: true } | undefined
+		>();
+		expectTypeOf<'pageSize'>().not.toExtend<keyof T.StreamOptions>();
+		expectTypeOf<'maxBufferedItems'>().not.toExtend<keyof T.StreamOptions>();
+	});
+
+	it('adds checkpoint transactions only when they are included', () => {
+		expectTypeOf<T.StreamCheckpointFrame['checkpoint']>().toEqualTypeOf<T.Checkpoint>();
+		expectTypeOf<
+			T.StreamCheckpointFrame<{ transactions: { effects: true } }>['checkpoint']['transactions']
+		>().toEqualTypeOf<T.TransactionResult<{ effects: true }>[]>();
+		expectTypeOf<
+			T.StreamCheckpointResult<{ transactions: {} }, { progress: true }>
+		>().toEqualTypeOf<T.StreamCheckpointFrame<{ transactions: {} }> | T.StreamProgressFrame>();
+	});
+
+	it('always sets the checkpoint of streamed events and transactions', () => {
+		expectTypeOf<T.StreamEventFrame['event']['checkpoint']>().toEqualTypeOf<string>();
+		type Result = T.StreamTransactionFrame['transaction'];
+		expectTypeOf<NonNullable<Result['Transaction']>['checkpoint']>().toEqualTypeOf<string>();
+		expectTypeOf<NonNullable<Result['FailedTransaction']>['checkpoint']>().toEqualTypeOf<string>();
+		// Listed ones can still lack it.
+		expectTypeOf<T.EventEntry['checkpoint']>().toEqualTypeOf<string | null>();
+		expectTypeOf<T.Transaction['checkpoint']>().toEqualTypeOf<string | null>();
+	});
+
+	it('requires exactly one input bound without a discriminator', () => {
+		expectTypeOf<{ checkpoint: string }>().toExtend<T.StreamStart>();
+		expectTypeOf<{ resumeToken: string }>().toExtend<T.StreamStart>();
+		expectTypeOf<{}>().not.toExtend<T.StreamStart>();
+		expectTypeOf<{ checkpoint: string; resumeToken: string }>().not.toExtend<T.StreamStart>();
+		expectTypeOf<{ resumeToken: string }>().not.toExtend<T.StreamEnd>();
+	});
+
+	it('types stream method results by include and frame options', () => {
+		// Never called: only the types are checked.
+		function check(client: CoreClient, grpc: SuiGrpcClient) {
+			expectTypeOf(client.streamEvents()).toEqualTypeOf<AsyncGenerator<T.StreamEventFrame>>();
+			expectTypeOf(
+				client.streamTransactions({ include: { effects: true }, frames: { progress: true } }),
+			).toEqualTypeOf<
+				AsyncGenerator<T.StreamTransactionFrame<{ effects: true }> | T.StreamProgressFrame>
+			>();
+			expectTypeOf(client.streamCheckpoints({ frames: { completion: true } })).toEqualTypeOf<
+				AsyncGenerator<T.StreamCheckpointFrame | T.StreamCompletionFrame>
+			>();
+			expectTypeOf(
+				client.streamCheckpoints({ include: { transactions: { effects: true } } }),
+			).toEqualTypeOf<
+				AsyncGenerator<T.StreamCheckpointFrame<{ transactions: { effects: true } }>>
+			>();
+
+			expectTypeOf(grpc.streamEvents()).toEqualTypeOf<AsyncGenerator<T.StreamEventResult>>();
+			const enabled = Math.random() > 0.5;
+			const stream = grpc.streamEvents({ frames: { completion: enabled, progress: enabled } });
+			type Frame = typeof stream extends AsyncGenerator<infer F> ? F : never;
+			expectTypeOf<Frame['$kind']>().toEqualTypeOf<'Event' | 'Progress' | 'Complete'>();
+			// @ts-expect-error Native and shared filters are exclusive.
+			void grpc.streamEvents({ filter: { sender: '0x1' }, grpcFilter: { terms: [] } });
+		}
+		void check;
+	});
+
+	it('adds stream methods to CoreClient without requiring transports to implement them', () => {
+		expectTypeOf<CoreClient>().toHaveProperty('streamCheckpoints');
+		expectTypeOf<CoreClient>().toHaveProperty('streamTransactions');
+		expectTypeOf<CoreClient>().toHaveProperty('streamEvents');
+		// Not part of the abstract transport contract: CoreClient implements them over a hook.
+		expectTypeOf<'streamCheckpoints'>().not.toExtend<keyof T.TransportMethods>();
+		expectTypeOf<'streamTransactions'>().not.toExtend<keyof T.TransportMethods>();
+		expectTypeOf<'streamEvents'>().not.toExtend<keyof T.TransportMethods>();
+	});
+});
