@@ -3,7 +3,7 @@
 
 /**
  * Transactions that exercise mapper edge cases, read through every Core API path that returns them:
- * get and list.
+ * get, list, and the transaction and checkpoint streams.
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -25,6 +25,12 @@ const INCLUDE = {
 
 type Fixture = 'crossPackageEvent' | 'perEpochConfig' | 'sponsored' | 'insufficientBalance';
 type Signer = Awaited<ReturnType<TestToolbox['getSigner']>>;
+
+async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
+	const frames: T[] = [];
+	for await (const frame of stream) frames.push(frame);
+	return frames;
+}
 
 /**
  * Error messages are worded by each server and are not compared. Everything else about the error
@@ -57,6 +63,7 @@ describe('transport parity of transaction mappings', () => {
 	let packageId: string;
 	let sender: Signer;
 	const digests = {} as Record<Fixture, string>;
+	let range: { start: { checkpoint: string }; end: { checkpoint: string } };
 
 	/** A transaction with gas set by hand, so it executes even when it is expected to fail. */
 	async function buildByHand(tx: Transaction, gasOwner: string) {
@@ -142,6 +149,21 @@ describe('transport parity of transaction mappings', () => {
 		digests.insufficientBalance = await execute(await buildByHand(overdraw, sender.address), [
 			sender,
 		]);
+
+		const checkpoints = await Promise.all(
+			Object.values(digests).map(async (digest) => {
+				const { Transaction, FailedTransaction } = await toolbox.grpcClient.core.getTransaction({
+					digest,
+				});
+				return BigInt((Transaction ?? FailedTransaction)!.checkpoint!);
+			}),
+		);
+		const first = checkpoints.reduce((a, b) => (a < b ? a : b));
+		const last = checkpoints.reduce((a, b) => (a > b ? a : b));
+		range = {
+			start: { checkpoint: first.toString() },
+			end: { checkpoint: (last + 1n).toString() },
+		};
 	});
 
 	function getAll(client: ClientWithCoreApi) {
@@ -183,6 +205,42 @@ describe('transport parity of transaction mappings', () => {
 				include: INCLUDE,
 			});
 			return transactions;
+		}, withoutErrorMessages);
+	});
+
+	it('returns the same checkpoints with transactions, matching streamTransactions on each transport', async () => {
+		const include = { transactions: INCLUDE };
+		await toolbox.expectAllClientsReturnSameData(async (client) => {
+			const checkpoints = (await collect(client.core.streamCheckpoints({ ...range, include }))).map(
+				(frame) => frame.checkpoint,
+			);
+			const transactions = await collect(
+				client.core.streamTransactions({ ...range, include: INCLUDE }),
+			);
+			expect(checkpoints.flatMap((checkpoint) => checkpoint.transactions)).toEqual(
+				transactions.map((frame) => frame.transaction),
+			);
+			const delivered = new Set(
+				checkpoints.flatMap((checkpoint) =>
+					checkpoint.transactions.map((result) => unwrap(result).digest),
+				),
+			);
+			for (const digest of Object.values(digests)) expect(delivered).toContain(digest);
+			// System transactions are sent by 0x0 on both transports.
+			const isSystem = (result: (typeof checkpoints)[number]['transactions'][number]) =>
+				unwrap(result).transaction.kind.$kind !== 'ProgrammableTransaction';
+			const system = checkpoints.flatMap((checkpoint) => checkpoint.transactions.filter(isSystem));
+			expect(system.length).toBeGreaterThan(0);
+			for (const result of system) expect(unwrap(result).sender).toBe(normalizeSuiAddress('0x0'));
+			// Other test files run alongside this one; compare only this file's transactions and the
+			// system transactions.
+			const ours = new Set(Object.values(digests));
+			return checkpoints.map((checkpoint) => ({
+				...checkpoint,
+				transactions: checkpoint.transactions.filter(
+					(result) => isSystem(result) || ours.has(unwrap(result).digest),
+				),
+			}));
 		}, withoutErrorMessages);
 	});
 });
