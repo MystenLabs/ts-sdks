@@ -8,6 +8,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import type { SuiJsonRpcTypes } from '@mysten/wallet-standard';
 import { beforeAll, describe, expect, test } from 'vitest';
 
+import { programmableTransactionData } from './transaction-data.js';
 import {
 	mappableIncludeFor,
 	transactionBlockResponseFromExecution,
@@ -56,9 +57,9 @@ async function freshTransaction() {
 	tx.transferObjects([coin], RECIPIENT);
 
 	const bytes = await tx.build();
-	// `getData()` after a build is the same shape the core client parses an
-	// executed transaction into.
-	return { bytes, data: tx.getData() };
+	// With a programmable `kind` added, `getData()` after a build is the shape
+	// the core client parses an executed transaction into.
+	return { bytes, data: programmableTransactionData(tx.getData()) };
 }
 
 /** The core `Transaction` a gRPC execution of that PTB parses to. */
@@ -393,11 +394,12 @@ describe('published object changes', () => {
 		tx.setGasOwner(SENDER);
 		tx.setGasPrice(1000n);
 		tx.setGasBudget(2_000_000n);
+		tx.setGasPayment([]);
 		commands(tx);
 
 		return {
 			...transaction,
-			transaction: tx.getData(),
+			transaction: programmableTransactionData(tx.getData()),
 			objectTypes: {},
 			effects: {
 				...transaction.effects,
@@ -567,5 +569,40 @@ describe('partial includes', () => {
 
 		expect(response.effects).toBeDefined();
 		expect(response.balanceChanges).toHaveLength(2);
+	});
+});
+
+describe('transaction kinds', () => {
+	test('map only effects for a kind the client could not map', () => {
+		const { kind: _, ...header } = transaction.transaction;
+		const unknown = executedTransaction({ ...header, kind: { $kind: 'Unknown', Unknown: true } });
+		const response = transactionBlockResponseFromExecution(unknown, {
+			bytes,
+			signatures: [SIGNATURE],
+			options: { showInput: true, showEffects: true, showObjectChanges: true },
+		});
+
+		expect(response.transaction).toBeUndefined();
+		expect(response.effects).toEqual(build({ options: { showEffects: true } }).effects);
+		expect(response.objectChanges).toBeUndefined();
+	});
+
+	test('map effects and object changes of a system transaction but leave out the input', () => {
+		const { kind: _, ...header } = transaction.transaction;
+		const system = executedTransaction({
+			...header,
+			kind: { $kind: 'EndOfEpochTransaction', EndOfEpochTransaction: [] },
+		});
+		const response = transactionBlockResponseFromExecution(system, {
+			bytes,
+			signatures: [SIGNATURE],
+			options: { showInput: true, showEffects: true, showObjectChanges: true },
+		});
+
+		expect(response.transaction).toBeUndefined();
+		expect(response.effects).toEqual(build({ options: { showEffects: true } }).effects);
+		expect(response.objectChanges).toEqual(
+			build({ options: { showObjectChanges: true } }).objectChanges,
+		);
 	});
 });

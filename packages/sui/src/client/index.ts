@@ -11,6 +11,7 @@ export {
 	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 } from './utils.js';
+export { parseTransactionDataBcs } from './transaction-data.js';
 
 export {
 	BaseClient,
