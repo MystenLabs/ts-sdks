@@ -131,9 +131,9 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse>;
 
-	abstract listDynamicFields(
-		options: SuiClientTypes.ListDynamicFieldsOptions,
-	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;
+	abstract listDynamicFields<Include extends SuiClientTypes.DynamicFieldInclude = {}>(
+		options: SuiClientTypes.ListDynamicFieldsOptions<Include>,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse<Include>>;
 
 	abstract listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ListTransactionsOptions<Include>,
@@ -269,6 +269,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 						typeof nameTypeParam === 'string' ? nameTypeParam : normalizeStructTag(nameTypeParam),
 					bcs: options.name.bcs,
 				},
+				valueType,
 				value: {
 					type: valueType,
 					bcs: valueBcs,
