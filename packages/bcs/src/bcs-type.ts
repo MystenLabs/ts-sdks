@@ -204,7 +204,13 @@ export function uIntBcsType<const Name extends string = string>({
 		read: (reader) => reader[readMethod](),
 		write: (value, writer) => writer[writeMethod](value),
 		validate: (value) => {
-			if (value < 0 || value > options.maxValue) {
+			// `NaN` and fractions pass the range check, and the DataView setters
+			// would silently write them as 0 or a truncated integer.
+			if (
+				(typeof value === 'number' && !Number.isInteger(value)) ||
+				value < 0 ||
+				value > options.maxValue
+			) {
 				throw new TypeError(
 					`Invalid ${options.name} value: ${value}. Expected value in range 0-${options.maxValue}`,
 				);

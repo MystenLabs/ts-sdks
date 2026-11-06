@@ -8,6 +8,10 @@ export function ulebEncode(num: number | bigint): number[] {
 	const arr: number[] = [];
 	let len = 0;
 
+	if (bigNum < 0n) {
+		throw new TypeError(`Invalid ULEB128 value: ${num}. Expected a non-negative integer`);
+	}
+
 	if (bigNum === 0n) {
 		return [0];
 	}

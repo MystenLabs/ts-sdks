@@ -68,3 +68,34 @@ describe('BCS: Primitives', () => {
 		});
 	});
 });
+
+describe('BCS: invalid small integers', () => {
+	const types = [
+		['u8', bcs.u8()],
+		['u16', bcs.u16()],
+		['u32', bcs.u32()],
+	] as const;
+
+	for (const [name, type] of types) {
+		it(`rejects NaN and fractions for ${name}`, () => {
+			for (const value of [NaN, 1.5, 0.1, 254.9]) {
+				expect(() => type.serialize(value)).toThrow(`Invalid ${name} value: ${value}`);
+			}
+		});
+
+		it(`keeps accepting integers in range for ${name}`, () => {
+			expect(type.fromHex(type.serialize(0).toHex())).toBe(0);
+			expect(type.fromHex(type.serialize(255).toHex())).toBe(255);
+		});
+	}
+
+	it('rejects NaN inside a struct field', () => {
+		const S = bcs.struct('S', { a: bcs.u8(), b: bcs.u32() });
+		expect(() => S.serialize({ a: 1, b: NaN })).toThrow('Invalid u32 value: NaN');
+	});
+
+	it('rejects negative uleb128 values', () => {
+		expect(() => bcs.uleb128().serialize(-1)).toThrow('Invalid ULEB128 value: -1');
+		expect(bcs.uleb128().serialize(0).toHex()).toBe('00');
+	});
+});
