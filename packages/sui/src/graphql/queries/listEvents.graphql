@@ -13,31 +13,35 @@ query listEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, 
 			cursor
 		}
 		nodes {
-			sequenceNumber
-			transaction {
-				digest
-				effects {
-					checkpoint {
-						sequenceNumber
-					}
-				}
-			}
-			transactionModule {
-				package {
-					address
-				}
-				name
-			}
-			sender {
-				address
-			}
-			contents {
-				type {
-					repr
-				}
-				bcs
-				json
+			...EVENT_FIELDS
+		}
+	}
+}
+
+fragment EVENT_FIELDS on Event {
+	sequenceNumber
+	transaction {
+		digest
+		effects {
+			checkpoint {
+				sequenceNumber
 			}
 		}
+	}
+	transactionModule {
+		package {
+			address
+		}
+		name
+	}
+	sender {
+		address
+	}
+	contents {
+		type {
+			repr
+		}
+		bcs
+		json
 	}
 }

@@ -19,9 +19,6 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   returns the full list (documented on `TransactionInclude.events`). Fixing this means following
   `pageInfo.hasNextPage` with per-transaction follow-up queries in `parseTransaction`, which applies
   to every transaction method on the GraphQL transport, not just the query APIs.
-- **GraphQL omits the aborting function's index** — `MoveAbort.location.function` is set by gRPC
-  (from the effects status) but left undefined by GraphQL, whose `ExecutionError` only exposes the
-  function's name. The query parity tests strip it when comparing aborted transactions.
 - **GraphQL event checkpoints** — `listEvents` reports `checkpoint: null` for an event whose
   checkpoint the server doesn't return. Seen once in e2e runs (an unfiltered read of the first
   events on a fresh localnet); retrying the page returned it.
