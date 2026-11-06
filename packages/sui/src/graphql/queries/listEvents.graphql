@@ -9,31 +9,34 @@ query listEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, 
 			startCursor
 			endCursor
 		}
-		nodes {
-			sequenceNumber
-			transaction {
-				digest
-				effects {
-					checkpoint {
-						sequenceNumber
+		edges {
+			cursor
+			node {
+				sequenceNumber
+				transaction {
+					digest
+					effects {
+						checkpoint {
+							sequenceNumber
+						}
 					}
 				}
-			}
-			transactionModule {
-				package {
+				transactionModule {
+					package {
+						address
+					}
+					name
+				}
+				sender {
 					address
 				}
-				name
-			}
-			sender {
-				address
-			}
-			contents {
-				type {
-					repr
+				contents {
+					type {
+						repr
+					}
+					bcs
+					json
 				}
-				bcs
-				json
 			}
 		}
 	}
