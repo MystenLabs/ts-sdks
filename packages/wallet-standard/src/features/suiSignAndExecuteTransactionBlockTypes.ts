@@ -435,7 +435,8 @@ export type SuiTransaction =
 	  };
 
 /** @deprecated Part of the deprecated `sui:signAndExecuteTransactionBlock` feature. */
-export type SuiWithdrawFrom = 'sender' | 'sponsor';
+export type SuiWithdrawFrom =
+	'sender' | 'sponsor' | { senderAllowance: { funder: string; allowance: string } };
 
 /** @deprecated Part of the deprecated `sui:signAndExecuteTransactionBlock` feature. */
 export type SuiWithdrawalTypeArg = {
