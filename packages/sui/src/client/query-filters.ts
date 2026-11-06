@@ -127,7 +127,7 @@ export async function resolveTransactionFilter(
 	filter: SuiClientTypes.TransactionFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedTransactionFilter> {
-	assertAtMostOne(filter, ['affectedAddress', 'affectedObject', 'function'], 'A transaction');
+	validateTransactionFilter(filter);
 
 	const resolved: ResolvedTransactionFilter = {};
 
@@ -144,14 +144,7 @@ export async function resolveTransactionFilter(
 	}
 
 	if (filter.function != null) {
-		const [pkg, module, fn, ...rest] = filter.function.split('::');
-
-		if (!pkg || rest.length > 0 || module === '' || fn === '') {
-			throw new Error(
-				`Invalid function filter "${filter.function}": expected "package", "package::module", or "package::module::function"`,
-			);
-		}
-
+		const [pkg, module, fn] = filter.function.split('::');
 		resolved.function = [await resolvePackage(mvr, pkg, signal), module, fn]
 			.filter((segment) => segment != null)
 			.join('::');
@@ -171,7 +164,7 @@ export async function resolveEventFilter(
 	filter: SuiClientTypes.EventFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedEventFilter> {
-	assertAtMostOne(filter, ['emitModule', 'eventType'], 'An event');
+	validateEventFilter(filter);
 
 	const resolved: ResolvedEventFilter = {};
 
@@ -180,15 +173,7 @@ export async function resolveEventFilter(
 	}
 
 	if (filter.emitModule != null) {
-		const segments = filter.emitModule.split('::');
-
-		if (segments.length > 2 || segments.some((segment) => segment === '')) {
-			throw new Error(
-				`Invalid emitModule filter "${filter.emitModule}": expected "package" or "package::module"`,
-			);
-		}
-
-		const [pkg, module] = segments;
+		const [pkg, module] = filter.emitModule.split('::');
 		resolved.emitModule = [await resolvePackage(mvr, pkg, signal), module]
 			.filter((segment) => segment != null)
 			.join('::');
@@ -197,12 +182,6 @@ export async function resolveEventFilter(
 	if (filter.eventType != null) {
 		const eventType = filter.eventType;
 		const segments = eventType.split('::');
-
-		if (segments.some((segment) => segment === '')) {
-			throw new Error(
-				`Invalid eventType filter "${eventType}": expected "package", "package::module", or a fully qualified type name`,
-			);
-		}
 
 		if (segments.length <= 2) {
 			const [pkg, module] = segments;
@@ -215,6 +194,45 @@ export async function resolveEventFilter(
 	}
 
 	return resolved;
+}
+
+/**
+ * Checks a transaction filter's shape without resolving MVR names, throwing a plain `Error`.
+ * Addresses are not checked, so a malformed one reaches the server.
+ */
+export function validateTransactionFilter(filter: SuiClientTypes.TransactionFilter) {
+	assertAtMostOne(filter, ['affectedAddress', 'affectedObject', 'function'], 'A transaction');
+
+	if (filter.function != null) {
+		const [pkg, module, fn, ...rest] = filter.function.split('::');
+
+		if (!pkg || rest.length > 0 || module === '' || fn === '') {
+			throw new Error(
+				`Invalid function filter "${filter.function}": expected "package", "package::module", or "package::module::function"`,
+			);
+		}
+	}
+}
+
+/** Checks an event filter's shape like `validateTransactionFilter`. */
+export function validateEventFilter(filter: SuiClientTypes.EventFilter) {
+	assertAtMostOne(filter, ['emitModule', 'eventType'], 'An event');
+
+	if (filter.emitModule != null) {
+		const segments = filter.emitModule.split('::');
+
+		if (segments.length > 2 || segments.some((segment) => segment === '')) {
+			throw new Error(
+				`Invalid emitModule filter "${filter.emitModule}": expected "package" or "package::module"`,
+			);
+		}
+	}
+
+	if (filter.eventType != null && filter.eventType.split('::').some((segment) => segment === '')) {
+		throw new Error(
+			`Invalid eventType filter "${filter.eventType}": expected "package", "package::module", or a fully qualified type name`,
+		);
+	}
 }
 
 async function resolvePackage(

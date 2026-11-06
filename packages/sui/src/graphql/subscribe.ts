@@ -21,6 +21,7 @@ function cancelBody(response: Response) {
 export async function* readGraphQLSSE<Result>(
 	response: Response,
 	signal: AbortSignal,
+	onOpen?: () => void,
 ): AsyncGenerator<GraphQLQueryResult<Result>> {
 	if (!response.ok) {
 		cancelBody(response);
@@ -37,6 +38,7 @@ export async function* readGraphQLSSE<Result>(
 		cancelBody(response);
 		throw new SuiGraphQLRequestError('GraphQL subscription requires a text/event-stream response');
 	}
+	onOpen?.();
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
 	const parser = new ServerSentEventParser(MAX_MESSAGE_SIZE);

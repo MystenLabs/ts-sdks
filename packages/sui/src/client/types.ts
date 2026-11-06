@@ -55,13 +55,211 @@ export namespace SuiClientTypes {
 
 	export type Order = 'ascending' | 'descending';
 
+	/** Opaque resume position, valid only for the stream that produced it. */
+	export type StreamResumeToken = string;
+
+	/**
+	 * Where a stream starts: at a checkpoint (inclusive), or after the frame that carried a resume
+	 * token, so save a token only once its frame is processed.
+	 */
+	export type StreamStart =
+		| { checkpoint: CheckpointNumber; resumeToken?: never }
+		| { resumeToken: StreamResumeToken; checkpoint?: never };
+
+	/** Where a finite stream stops: before this checkpoint (exclusive). */
+	export interface StreamEnd {
+		checkpoint: CheckpointNumber;
+	}
+
+	export interface StreamRetryOptions {
+		/**
+		 * First retry delay in milliseconds; each further failure doubles it.
+		 * @default 250
+		 */
+		initialDelay?: number;
+		/**
+		 * Cap on the retry delay in milliseconds.
+		 * @default 30_000
+		 */
+		maxDelay?: number;
+		/**
+		 * Consecutive failures without progress before the stream throws. 0 disables retries.
+		 * @default 10
+		 */
+		maxAttempts?: number;
+	}
+
 	/**
 	 * Why a failed request may succeed on retry.
-	 * - `Unavailable`: the server could not be reached or the connection dropped.
+	 * - `Unavailable`: the server could not be reached, the connection dropped, or a live feed ended.
 	 * - `RateLimited`: the server or a proxy is limiting requests.
 	 * - `ServerError`: any other failure that may clear on retry.
 	 */
 	export type RetryReason = 'Unavailable' | 'RateLimited' | 'ServerError';
+
+	/** Connection state reported to `onStatus`, for diagnostics only. Use frame tokens to resume. */
+	export type StreamStatus =
+		/** An attempt is starting; `attempt` counts consecutive failures without progress. */
+		| { $kind: 'Connecting'; attempt: number }
+		/** This attempt received its first page or live frame, or its GraphQL subscription opened. */
+		| { $kind: 'Connected' }
+		/** Waiting `delay` ms before the next attempt after `error`. */
+		| {
+				$kind: 'Retrying';
+				attempt: number;
+				delay: number;
+				reason: RetryReason;
+				error: unknown;
+		  };
+
+	/** Control frames to emit in addition to items. */
+	export interface StreamFrameOptions {
+		/** Emit a final Complete frame after a finite stream finishes. */
+		completion?: boolean;
+		/** Emit Progress frames carrying resumable positions that no item reported. */
+		progress?: boolean;
+	}
+
+	export interface StreamOptions<
+		Frames extends StreamFrameOptions = {},
+	> extends CoreClientMethodOptions {
+		/**
+		 * Where to start: at a checkpoint, or after the frame that carried a resume token. Required
+		 * for a finite ascending read.
+		 */
+		start?: StreamStart;
+		/** Where a finite stream stops (exclusive). */
+		end?: StreamEnd;
+		/** Defaults to the resume token's order, else `'ascending'`. */
+		order?: Order;
+		/**
+		 * Keep following new checkpoints after the history.
+		 * @default true for an ascending stream without an `end`
+		 */
+		follow?: boolean;
+		/**
+		 * How a followed stream receives new data: a live subscription, or polling every
+		 * `pollInterval`.
+		 * @default 'subscribe'
+		 */
+		delivery?: 'subscribe' | 'poll';
+		/**
+		 * Milliseconds between polls, and between reads while waiting for the server to index.
+		 * @default 1000
+		 */
+		pollInterval?: number;
+		retry?: StreamRetryOptions;
+		/** Called synchronously with each status. Throwing ends the stream with that error. */
+		onStatus?: (status: StreamStatus) => void;
+		/** Control frames to emit alongside items. */
+		frames?: Frames;
+	}
+
+	/** Data to deliver with each streamed checkpoint. */
+	export interface StreamCheckpointInclude {
+		/**
+		 * Deliver every transaction of the checkpoint, in execution order, with these fields. Each
+		 * checkpoint is yielded once all of its transactions have been read.
+		 */
+		transactions?: TransactionInclude;
+	}
+
+	export interface StreamCheckpointsOptions<
+		Include extends StreamCheckpointInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> extends StreamOptions<Frames> {
+		include?: Include;
+	}
+
+	export interface StreamTransactionsOptions<
+		Include extends TransactionInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> extends StreamOptions<Frames> {
+		filter?: TransactionFilter;
+		include?: Include;
+	}
+
+	export interface StreamEventsOptions<
+		Frames extends StreamFrameOptions = {},
+	> extends StreamOptions<Frames> {
+		filter?: EventFilter;
+	}
+
+	export interface StreamCheckpoint<Include extends StreamCheckpointInclude = {}> {
+		$kind: 'Checkpoint';
+		/** Includes `transactions` when `include.transactions` is set. */
+		checkpoint: Checkpoint &
+			(Include extends { transactions: infer TransactionFields extends TransactionInclude }
+				? { transactions: TransactionResult<TransactionFields>[] }
+				: {});
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamTransaction<Include extends TransactionInclude = {}> {
+		$kind: 'Transaction';
+		transaction: TransactionResult<Include>;
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamEvent {
+		$kind: 'Event';
+		event: EventEntry;
+		resumeToken: StreamResumeToken;
+	}
+
+	/** A resumable position that no item reported, such as the end of an empty range. */
+	export interface StreamProgressFrame {
+		$kind: 'Progress';
+		resumeToken: StreamResumeToken;
+	}
+
+	/**
+	 * Sent once after a finite stream finishes, even an empty one.
+	 * - `checkpointBound`: reached `end`.
+	 * - `indexedTip`: reached the indexed tip read when the stream started (`follow: false`).
+	 * - `genesis`: a descending read reached checkpoint 0.
+	 * - `retentionLimit`: a descending read reached the oldest checkpoint the server retains.
+	 */
+	export interface StreamCompletionFrame {
+		$kind: 'Complete';
+		reason: 'checkpointBound' | 'indexedTip' | 'genesis' | 'retentionLimit';
+		/** Last delivered position, if there is one. */
+		resumeToken?: StreamResumeToken;
+	}
+
+	/**
+	 * `T` when `Frames[Key]` may be true; includes non-literal booleans. Distributes over a union of
+	 * option objects, so a frame that any member enables is included.
+	 */
+	type EnabledFrame<
+		Frames extends StreamFrameOptions,
+		Key extends keyof StreamFrameOptions,
+		T,
+	> = Frames extends unknown
+		? Key extends keyof Frames
+			? true extends Frames[Key]
+				? T
+				: never
+			: never
+		: never;
+
+	export type StreamResult<Item, Frames extends StreamFrameOptions = {}> =
+		| Item
+		| EnabledFrame<Frames, 'completion', StreamCompletionFrame>
+		| EnabledFrame<Frames, 'progress', StreamProgressFrame>;
+
+	export type StreamCheckpointFrame<
+		Include extends StreamCheckpointInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> = StreamResult<StreamCheckpoint<Include>, Frames>;
+	export type StreamTransactionFrame<
+		Include extends TransactionInclude = {},
+		Frames extends StreamFrameOptions = {},
+	> = StreamResult<StreamTransaction<Include>, Frames>;
+	export type StreamEventFrame<Frames extends StreamFrameOptions = {}> = StreamResult<
+		StreamEvent,
+		Frames
+	>;
 
 	/** Object methods */
 	export interface TransportMethods {

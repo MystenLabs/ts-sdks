@@ -19,6 +19,11 @@ import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_servic
 import type { TransactionPlugin } from '../transactions/index.js';
 import { GrpcWebFetchTransport, withClientProtocolVersion } from './transport.js';
 import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
+import type {
+	GrpcStreamCheckpointsOptions,
+	GrpcStreamEventsOptions,
+	GrpcStreamTransactionsOptions,
+} from './stream-types.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -172,6 +177,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 
 		this.core = new GrpcCoreClient({
 			client: this,
+			transport,
 			base: this,
 			network: options.network,
 			mvr: options.mvr,
@@ -373,5 +379,41 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		input: SuiClientTypes.ResolveNameServiceAddressOptions,
 	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
 		return this.core.resolveNameServiceAddress(input);
+	}
+
+	/**
+	 * Streams checkpoints in ledger order, resumable from any frame's `resumeToken`, following new
+	 * checkpoints by default. `grpcFilter` keeps only checkpoints with a matching transaction.
+	 */
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		options?: GrpcStreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointFrame<Include, Frames>> {
+		return this.core.streamCheckpoints(options);
+	}
+
+	/**
+	 * Streams transactions matching `filter` in ledger order, resumable from any frame's
+	 * `resumeToken`. `grpcFilter` replaces `filter` with a native filter.
+	 */
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		options?: GrpcStreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionFrame<Include, Frames>> {
+		return this.core.streamTransactions(options);
+	}
+
+	/**
+	 * Streams events matching `filter` in ledger order, resumable from any frame's `resumeToken`.
+	 * `grpcFilter` replaces `filter` with a native filter.
+	 */
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		options?: GrpcStreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventFrame<Frames>> {
+		return this.core.streamEvents(options);
 	}
 }

@@ -6,7 +6,8 @@ import type { SuiClientTypes } from '../client/types.js';
 
 /**
  * A transport failure of a GraphQL query or subscription, or a malformed response. GraphQL errors
- * delivered in a response body are returned in `errors` instead.
+ * delivered in a response body are returned in `errors` instead, except by ledger streams, which
+ * throw them with the errors as `cause`.
  */
 export class SuiGraphQLRequestError extends SuiClientError {
 	/** Why repeating the same request may succeed; undefined when it can't. */
