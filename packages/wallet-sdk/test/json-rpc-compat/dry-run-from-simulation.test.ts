@@ -13,6 +13,7 @@ import {
 } from '../../src/json-rpc-compat/dry-run-from-simulation.js';
 import type { MappableTransaction } from '../../src/json-rpc-compat/index.js';
 import { dryRunFromSimulation, tryDryRunFromSimulation } from '../../src/json-rpc-compat/index.js';
+import { programmableTransactionData } from './transaction-data.js';
 
 const SENDER = '0x000000000000000000000000000000000000000000000000000000000000000a';
 const RECIPIENT = '0x000000000000000000000000000000000000000000000000000000000000000b';
@@ -133,7 +134,7 @@ describe('dryRunFromSimulation', () => {
 				[MUTATED_OBJECT_ID]: `${FRAMEWORK}::demo::Nft`,
 				[TRANSFERRED_OBJECT_ID]: `${FRAMEWORK}::demo::Nft`,
 			},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -176,7 +177,7 @@ describe('dryRunFromSimulation', () => {
 					},
 				],
 				digest: null,
-			},
+			}),
 			bcs: undefined,
 		} as unknown as SuiClientTypes.Transaction<{
 			balanceChanges: true;
@@ -324,7 +325,7 @@ describe('gas paid from an address balance', () => {
 			},
 			events: [],
 			objectTypes: {},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -337,7 +338,7 @@ describe('gas paid from an address balance', () => {
 				inputs: [],
 				commands: [],
 				digest: null,
-			},
+			}),
 		} as unknown as Parameters<typeof dryRunFromSimulation>[0];
 	}
 
@@ -382,6 +383,15 @@ describe('gas paid from an address balance', () => {
 			owner: { AddressOwner: RECIPIENT },
 		});
 	});
+
+	test('refuses a transaction kind the client could not map', () => {
+		const sim = simulation();
+		const { kind: _, ...header } = sim.transaction;
+		sim.transaction = { ...header, kind: { $kind: 'Unknown', Unknown: true } };
+
+		expect(() => dryRunFromSimulation(sim)).toThrow(/update the SDK/);
+		expect(tryDryRunFromSimulation(sim)).toBeUndefined();
+	});
 });
 
 describe('objects moved under another object', () => {
@@ -418,7 +428,7 @@ describe('objects moved under another object', () => {
 				[CHILD_ID]: `${FRAMEWORK}::demo::Nft`,
 				[WRAPPED_ID]: `${FRAMEWORK}::demo::Nft`,
 			},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -426,7 +436,7 @@ describe('objects moved under another object', () => {
 				inputs: [],
 				commands: [],
 				digest: null,
-			},
+			}),
 		} as unknown as Parameters<typeof dryRunFromSimulation>[0];
 	}
 
@@ -527,7 +537,7 @@ describe('funds withdrawal inputs', () => {
 			},
 			events: [],
 			objectTypes: {},
-			transaction: {
+			transaction: programmableTransactionData({
 				version: 2,
 				sender: SENDER,
 				expiration: { None: true },
@@ -543,7 +553,7 @@ describe('funds withdrawal inputs', () => {
 				],
 				commands: [],
 				digest: null,
-			},
+			}),
 		} as unknown as Parameters<typeof dryRunFromSimulation>[0];
 
 		const { transaction } = dryRunFromSimulation(simulation).input;
@@ -636,12 +646,12 @@ describe('JSON-RPC address and owner forms', () => {
 				[CREATED_OBJECT_ID]: `${SYSTEM}::staking_pool::StakedSui`,
 				[MUTATED_OBJECT_ID]: `${FRAMEWORK}::coin::Coin<${DEEPBOOK}::custodian::Account<${PACKAGE}::m::T>>`,
 			},
-			transaction: {
+			transaction: programmableTransactionData({
 				sender: SENDER,
 				gasData: { owner: SENDER, payment: [] },
 				inputs: [],
 				commands: [],
-			},
+			}),
 		} as unknown as MappableTransaction;
 	}
 

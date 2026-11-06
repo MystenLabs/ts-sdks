@@ -3,7 +3,7 @@
 
 import {
 	extractStatusFromEffectsBcs,
-	parseTransactionBcs,
+	parseTransactionDataBcs,
 	parseTransactionEffectsBcs,
 	type SuiClientTypes,
 } from '@mysten/sui/client';
@@ -31,15 +31,30 @@ export function buildTransactionResult(
 		);
 	}
 
+	let transaction: SuiClientTypes.TransactionData;
+	try {
+		transaction = parseTransactionDataBcs(transactionBytes);
+	} catch (error) {
+		throw new Error(
+			'Failed to parse the transaction data returned by the wallet, you may need to update the SDK to pick up the latest bcs types',
+			{ cause: error },
+		);
+	}
+
+	if (!transaction.sender) {
+		throw new Error('The transaction data returned by the wallet has no sender');
+	}
+
 	const txResult: SuiClientTypes.Transaction<{ effects: true; transaction: true; bcs: true }> = {
 		digest,
+		sender: transaction.sender,
 		signatures: [signature],
 		epoch: null,
 		timestampMs: null,
 		checkpoint: null,
 		status,
 		effects: effects as SuiClientTypes.TransactionEffects,
-		transaction: parseTransactionBcs(transactionBytes),
+		transaction,
 		balanceChanges: undefined,
 		events: undefined,
 		objectTypes: undefined,

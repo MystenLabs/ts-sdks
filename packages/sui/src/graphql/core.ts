@@ -4,9 +4,16 @@
 import { CoreClient } from '../client/core.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { grpcTransactionToLedgerTransactionData } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
+	Checkpoint_FieldsFragment,
+	GetTransactionEventsQuery,
+	GetTransactionEventsQueryVariables,
+	GetTransactionObjectChangesQuery,
+	GetTransactionObjectChangesQueryVariables,
+	Event_FieldsFragment,
 	Object_Owner_FieldsFragment,
 	Transaction_FieldsFragment,
 } from './generated/queries.js';
@@ -29,6 +36,8 @@ import {
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
+	GetTransactionEventsDocument,
+	GetTransactionObjectChangesDocument,
 	ListCheckpointsDocument,
 	ListEventsDocument,
 	ListTransactionsDocument,
@@ -52,7 +61,6 @@ import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.j
 import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcJson,
-	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
@@ -108,6 +116,15 @@ export class GraphQLCoreClient extends CoreClient {
 		}
 
 		return extractedData as NonNullable<Data>;
+	}
+
+	#withAllPages(transaction: Transaction_FieldsFragment, signal?: AbortSignal) {
+		return withAllPages(transaction, {
+			events: (variables) =>
+				this.#graphqlQuery({ query: GetTransactionEventsDocument, variables, signal }),
+			objectChanges: (variables) =>
+				this.#graphqlQuery({ query: GetTransactionObjectChangesDocument, variables, signal }),
+		});
 	}
 
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
@@ -397,7 +414,7 @@ export class GraphQLCoreClient extends CoreClient {
 			() => new TransactionError('notFound', options.digest),
 		);
 
-		return parseTransaction(result, options.include);
+		return parseTransaction(await this.#withAllPages(result, options.signal), options.include);
 	}
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
@@ -690,7 +707,11 @@ export class GraphQLCoreClient extends CoreClient {
 		const nodes = descending ? [...transactions.nodes].reverse() : transactions.nodes;
 
 		return {
-			transactions: nodes.map((transaction) => parseTransaction(transaction, options.include)),
+			transactions: await Promise.all(
+				nodes.map(async (transaction) =>
+					parseTransaction(await this.#withAllPages(transaction, options.signal), options.include),
+				),
+			),
 			...listPageCursors(transactions, { descending, after, before }),
 		};
 	}
@@ -724,29 +745,13 @@ export class GraphQLCoreClient extends CoreClient {
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
 
 		return {
-			events: nodes.map((event): SuiClientTypes.EventEntry => {
-				const packageId = event.transactionModule?.package?.address;
-				const module = event.transactionModule?.name;
-				const sender = event.sender?.address;
-				const eventType = event.contents?.type?.repr;
-				const transactionDigest = event.transaction?.digest;
+			events: nodes.map((event) => {
 				const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
-
-				if (!packageId || !module || !sender || !eventType || !transactionDigest) {
-					throw new Error('listEvents response is missing expected event fields');
-				}
-
-				return {
-					packageId: normalizeSuiAddress(packageId),
-					module,
-					sender: normalizeSuiAddress(sender),
-					eventType: normalizeStructTag(eventType),
-					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-					json: (event.contents?.json as Record<string, unknown>) ?? null,
-					checkpoint: checkpoint == null ? null : String(checkpoint),
-					transactionDigest,
-					eventIndex: event.sequenceNumber,
-				};
+				return parseGraphQLEvent(
+					event,
+					checkpoint == null ? null : String(checkpoint),
+					'listEvents',
+				);
 			}),
 			...listPageCursors(events, { descending, after, before }),
 		};
@@ -777,21 +782,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const nodes = descending ? [...checkpoints.nodes].reverse() : checkpoints.nodes;
 
 		return {
-			checkpoints: nodes.map((checkpoint): SuiClientTypes.Checkpoint => {
-				const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
-				const epoch = checkpoint.epoch?.epochId;
-
-				if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
-					throw new Error('listCheckpoints response is missing expected checkpoint fields');
-				}
-
-				return {
-					sequenceNumber: String(checkpoint.sequenceNumber),
-					digest: checkpoint.digest,
-					epoch: String(epoch),
-					timestampMs,
-				};
-			}),
+			checkpoints: nodes.map((checkpoint) => parseGraphQLCheckpoint(checkpoint, 'listCheckpoints')),
 			...listPageCursors(checkpoints, { descending, after, before }),
 		};
 	}
@@ -1080,6 +1071,134 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 	}
 }
 
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLCheckpoint(
+	checkpoint: Checkpoint_FieldsFragment,
+	source: string,
+): SuiClientTypes.Checkpoint {
+	const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
+	const epoch = checkpoint.epoch?.epochId;
+
+	if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
+		throw new Error(`${source} response is missing expected checkpoint fields`);
+	}
+
+	return {
+		sequenceNumber: String(checkpoint.sequenceNumber),
+		digest: checkpoint.digest,
+		epoch: String(epoch),
+		timestampMs,
+	};
+}
+
+/** The event fields shared by `EVENT_FIELDS` and the events nested in `TRANSACTION_FIELDS`. */
+type GraphQLEventFields = Pick<Event_FieldsFragment, 'transactionModule' | 'sender' | 'contents'>;
+
+/** `source` names the response in the error thrown when required fields are missing. */
+function parseGraphQLEventFields(event: GraphQLEventFields, source: string): SuiClientTypes.Event {
+	const packageId = event.transactionModule?.package?.address;
+	const module = event.transactionModule?.name;
+	const eventType = event.contents?.type?.repr;
+
+	if (!packageId || !module || !eventType) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+
+	return {
+		packageId: normalizeSuiAddress(packageId),
+		module,
+		// System transactions have no sender; gRPC reports the zero address for their events.
+		sender: normalizeSuiAddress(event.sender?.address ?? '0x0'),
+		eventType: normalizeStructTag(eventType),
+		bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+		json: (event.contents?.json as Record<string, unknown>) ?? null,
+	};
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLEvent(
+	event: Event_FieldsFragment,
+	checkpoint: string | null,
+	source: string,
+): SuiClientTypes.EventEntry {
+	const transactionDigest = event.transaction?.digest;
+	if (!transactionDigest) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+
+	return {
+		...parseGraphQLEventFields(event, source),
+		checkpoint,
+		transactionDigest,
+		eventIndex: event.sequenceNumber,
+	};
+}
+
+export interface TransactionPageReaders {
+	events: (variables: GetTransactionEventsQueryVariables) => Promise<GetTransactionEventsQuery>;
+	objectChanges: (
+		variables: GetTransactionObjectChangesQueryVariables,
+	) => Promise<GetTransactionObjectChangesQuery>;
+}
+
+/** Page size of the events and object changes nested in `TRANSACTION_FIELDS`. */
+const NESTED_PAGE_SIZE = 50;
+
+/**
+ * The transaction with all of its events and object changes. The nested lists carry no page info,
+ * which keeps checkpoint scans under the service's output-node limit, so a full nested list is read
+ * again by digest, to the end.
+ */
+export async function withAllPages(
+	transaction: Transaction_FieldsFragment,
+	read: TransactionPageReaders,
+): Promise<Transaction_FieldsFragment> {
+	const effects = transaction.effects;
+	const full = (list?: { nodes: unknown[] } | null) => list?.nodes.length === NESTED_PAGE_SIZE;
+	if (!full(effects?.events) && !full(effects?.objectChanges)) {
+		return transaction;
+	}
+	const { digest } = transaction;
+	const [events, objectChanges] = await Promise.all([
+		full(effects!.events)
+			? readAll(digest, async (after) => {
+					const data = await read.events({ digest, after });
+					return data.transaction?.effects?.events;
+				})
+			: effects!.events,
+		full(effects!.objectChanges)
+			? readAll(digest, async (after) => {
+					const data = await read.objectChanges({ digest, after });
+					return data.transaction?.effects?.objectChanges;
+				})
+			: effects!.objectChanges,
+	]);
+	return { ...transaction, effects: { ...effects!, events, objectChanges } };
+}
+
+async function readAll<Node>(
+	digest: string,
+	next: (
+		after: string | null,
+	) => Promise<
+		| { pageInfo: { hasNextPage: boolean; endCursor?: string | null }; nodes: Node[] }
+		| null
+		| undefined
+	>,
+): Promise<{ nodes: Node[] }> {
+	const nodes: Node[] = [];
+	let after: string | null = null;
+	for (;;) {
+		const page = await next(after);
+		if (!page) {
+			throw new Error(`Missing a page of transaction ${digest}`);
+		}
+		nodes.push(...page.nodes);
+		if (!page.pageInfo.hasNextPage || page.nodes.length === 0) return { nodes };
+		after = page.pageInfo.endCursor ?? null;
+	}
+}
+
 function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
@@ -1141,20 +1260,17 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 				};
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
-	if (include?.transaction && transaction.transactionJson) {
-		const grpcTx = GrpcTransactionType.fromJson(
+	if (include?.transaction) {
+		if (!transaction.transactionJson) {
+			throw new Error('Transaction data is required but missing from GraphQL response');
+		}
+		// `transactionJson` is the gRPC JSON encoding. Unknown fields and enum values, from kinds
+		// newer than this SDK, are dropped so they map to `Unknown` like they do over gRPC.
+		const grpcTransaction = GrpcTransactionType.fromJson(
 			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
 			{ ignoreUnknownFields: true },
 		);
-		const resolved = grpcTransactionToTransactionData(grpcTx);
-		transactionData = {
-			gasData: resolved.gasData,
-			sender: resolved.sender,
-			expiration: resolved.expiration,
-			commands: resolved.commands,
-			inputs: resolved.inputs,
-			version: resolved.version,
-		};
+		transactionData = grpcTransactionToLedgerTransactionData(grpcTransaction);
 	}
 
 	const bcsBytes =
@@ -1165,6 +1281,8 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
+		// System transactions have no sender over GraphQL; gRPC reports them as 0x0.
+		sender: normalizeSuiAddress(transaction.sender?.address ?? '0x0'),
 		status,
 		effects: (include?.effects
 			? parseTransactionEffectsBcs(fromBase64(transaction.effects?.effectsBcs!))
@@ -1180,18 +1298,9 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
-			? (transaction.effects?.events?.nodes.map((event) => {
-					const eventType = event.contents?.type?.repr!;
-					const [packageId, module] = eventType.split('::');
-					return {
-						packageId,
-						module,
-						sender: event.sender?.address!,
-						eventType,
-						bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-						json: (event.contents?.json as Record<string, unknown>) ?? null,
-					};
-				}) ?? [])
+			? (transaction.effects?.events?.nodes.map((event) =>
+					parseGraphQLEventFields(event, 'Transaction'),
+				) ?? [])
 			: undefined) as SuiClientTypes.Transaction<Include>['events'],
 	};
 
@@ -1219,12 +1328,13 @@ function parseGraphQLExecutionError(
 	executionError: GraphQLExecutionError | null | undefined,
 ): SuiClientTypes.ExecutionError {
 	const name = mapGraphQLExecutionErrorKind(executionError);
+	// The GraphQL schema has no field for the failing command; it is only in the message ("in 3rd command").
+	const commandMatch = executionError?.message?.match(/in (\d+)\w* command/);
+	const command = commandMatch ? parseInt(commandMatch[1], 10) - 1 : undefined;
 
 	if (name === 'MoveAbort' && executionError?.abortCode != null) {
 		const location = parseGraphQLMoveLocation(executionError);
 		const cleverError = parseGraphQLCleverError(executionError);
-		const commandMatch = executionError.message?.match(/in (\d+)\w* command/);
-		const command = commandMatch ? parseInt(commandMatch[1], 10) - 1 : undefined;
 
 		return {
 			$kind: 'MoveAbort',
@@ -1259,6 +1369,7 @@ function parseGraphQLExecutionError(
 	return {
 		$kind: 'Unknown',
 		message: executionError?.message ?? 'Transaction failed',
+		command,
 		Unknown: null,
 	};
 }
