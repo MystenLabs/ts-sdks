@@ -81,7 +81,7 @@ export namespace SuiClientTypes {
 		 * Include the JSON representation of the object's Move struct content.
 		 *
 		 * **Warning:** The exact shape and field names of this data may vary between different
-		 * API implementations (JSON-RPC vs gRPC or GraphQL). For consistent data across APIs,
+		 * API implementations (gRPC or GraphQL). For consistent data across APIs,
 		 * use the `content` field and parse the BCS data directly.
 		 */
 		json?: boolean;
@@ -175,7 +175,7 @@ export namespace SuiClientTypes {
 		 * The JSON representation of the object's Move struct content.
 		 *
 		 * **Warning:** The exact shape and field names of this data may vary between different
-		 * API implementations (JSON-RPC vs gRPC or GraphQL). For consistent data across APIs use
+		 * API implementations (gRPC or GraphQL). For consistent data across APIs use
 		 * the `content` field and parse the BCS data directly.
 		 */
 		json: Include extends { json: true } ? Record<string, unknown> | null : undefined;
@@ -396,7 +396,7 @@ export namespace SuiClientTypes {
 		 * Include events emitted by the transaction.
 		 *
 		 * On the GraphQL transport, at most the first 50 events of a transaction are returned;
-		 * gRPC and JSON-RPC return the full event list.
+		 * gRPC returns the full event list.
 		 */
 		events?: boolean;
 		/** Include a map of object IDs to their types for all changed objects. */
@@ -523,12 +523,6 @@ export namespace SuiClientTypes {
 
 	/**
 	 * A filter matching events. Exactly one predicate must be specified.
-	 *
-	 * All predicates are supported by every transport, with one caveat: on the deprecated
-	 * JSON-RPC transport, an `eventType` naming a generic type must include type arguments —
-	 * a bare generic name (e.g. `0xpkg::mod::Event` for events of type `0xpkg::mod::Event<T>`)
-	 * matches any instantiation on gRPC and GraphQL, but matches nothing on JSON-RPC, which
-	 * compares the full type for exact equality.
 	 */
 	export type EventFilter =
 		| {
@@ -550,8 +544,7 @@ export namespace SuiClientTypes {
 				 * name (`package::module::Name` or `package::module::Name<T1, T2>`).
 				 *
 				 * A bare generic name (`package::module::Name` without type arguments) matches
-				 * any instantiation on gRPC and GraphQL, but matches nothing on the deprecated
-				 * JSON-RPC transport, which compares the full type for exact equality.
+				 * any instantiation.
 				 */
 				eventType: string;
 				sender?: never;
@@ -566,8 +559,8 @@ export namespace SuiClientTypes {
 		 * Maximum number of items to return. Defaults to 50.
 		 *
 		 * Servers cap page sizes (50 by default): values above the server's cap cause the
-		 * GraphQL and JSON-RPC transports to throw, while gRPC servers silently truncate
-		 * the page to their configured maximum.
+		 * GraphQL transport to throw, while gRPC servers silently truncate the page to their
+		 * configured maximum.
 		 */
 		limit?: number;
 		/**
@@ -615,8 +608,8 @@ export namespace SuiClientTypes {
 		 * Maximum number of items to return. Defaults to 50.
 		 *
 		 * Servers cap page sizes (50 by default): values above the server's cap cause the
-		 * GraphQL and JSON-RPC transports to throw, while gRPC servers silently truncate
-		 * the page to their configured maximum.
+		 * GraphQL transport to throw, while gRPC servers silently truncate the page to their
+		 * configured maximum.
 		 */
 		limit?: number;
 		/**
@@ -640,8 +633,8 @@ export namespace SuiClientTypes {
 		/**
 		 * The sequence number of the checkpoint containing the emitting transaction.
 		 *
-		 * `null` on the JSON-RPC transport, which does not expose checkpoint
-		 * information for queried events.
+		 * `null` when the transport does not expose checkpoint information for queried
+		 * events.
 		 */
 		checkpoint: string | null;
 		/** The digest of the transaction that emitted this event. */
@@ -1126,7 +1119,7 @@ export namespace SuiClientTypes {
 		 * The JSON representation of the event's Move struct data.
 		 *
 		 * **Warning:** The exact shape and field names of this data may vary between different
-		 * API implementations (JSON-RPC vs gRPC or GraphQL). For consistent data across APIs use
+		 * API implementations (gRPC or GraphQL). For consistent data across APIs use
 		 * the `bcs` field and parse the BCS data directly.
 		 */
 		json: Record<string, unknown> | null;

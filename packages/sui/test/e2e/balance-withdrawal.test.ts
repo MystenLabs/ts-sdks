@@ -25,14 +25,13 @@ describe('Balance Withdrawal', () => {
 			arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
 		});
 
-		const depositResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const depositResult = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: depositTx,
 			signer: toolbox.keypair,
-			options: { showEffects: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: depositResult.digest });
-		expect(depositResult.effects?.status.status).toEqual('success');
+		await toolbox.grpcClient.core.waitForTransaction({ result: depositResult });
+		expect(depositResult.$kind).toEqual('Transaction');
 
 		const withdrawTx = new Transaction();
 
@@ -56,13 +55,13 @@ describe('Balance Withdrawal', () => {
 
 		withdrawTx.transferObjects([coin], toolbox.address());
 
-		const withdrawResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const withdrawResult = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: withdrawTx,
 			signer: toolbox.keypair,
-			options: { showEffects: true, showBalanceChanges: true },
+			include: { effects: true, balanceChanges: true },
 		});
 
-		expect(withdrawResult.effects?.status.status).toEqual('success');
+		expect(withdrawResult.$kind).toEqual('Transaction');
 	});
 
 	it('uses address balance for gas payment and withdrawal', async () => {
@@ -79,22 +78,22 @@ describe('Balance Withdrawal', () => {
 			arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
 		});
 
-		const depositResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const depositResult = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: depositTx,
 			signer: toolbox.keypair,
-			options: { showEffects: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: depositResult.digest });
-		expect(depositResult.effects?.status.status).toEqual('success');
+		await toolbox.grpcClient.core.waitForTransaction({ result: depositResult });
+		expect(depositResult.$kind).toEqual('Transaction');
 
 		// Step 2: Get chain info for ValidDuring expiration
-		const [genesisCheckpoint, gasPrice, systemState] = await Promise.all([
-			toolbox.jsonRpcClient.getCheckpoint({ id: '0' }),
-			toolbox.jsonRpcClient.getReferenceGasPrice(),
-			toolbox.jsonRpcClient.getLatestSuiSystemState(),
-		]);
-		const chainDigest = genesisCheckpoint.digest; // Full 32-byte checkpoint digest
+		const [{ chainIdentifier }, { referenceGasPrice: gasPrice }, { systemState }] =
+			await Promise.all([
+				toolbox.grpcClient.core.getChainIdentifier(),
+				toolbox.grpcClient.core.getReferenceGasPrice(),
+				toolbox.grpcClient.core.getCurrentSystemState(),
+			]);
+		const chainDigest = chainIdentifier; // Full 32-byte genesis checkpoint digest
 		const currentEpoch = BigInt(systemState.epoch);
 
 		// Step 3: Create transaction that uses address balance for gas
@@ -123,7 +122,7 @@ describe('Balance Withdrawal', () => {
 		// Configure for address balance gas payment
 		tx.setSender(toolbox.address());
 		tx.setGasPayment([]); // Empty payment = use address balance
-		tx.setGasPrice(gasPrice);
+		tx.setGasPrice(BigInt(gasPrice));
 		tx.setGasBudget(100_000_000n); // 0.1 SUI budget
 		tx.setExpiration({
 			ValidDuring: {
@@ -136,13 +135,13 @@ describe('Balance Withdrawal', () => {
 			},
 		});
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: { showEffects: true, showBalanceChanges: true },
+			include: { effects: true, balanceChanges: true },
 		});
 
-		expect(result.effects?.status.status).toEqual('success');
+		expect(result.$kind).toEqual('Transaction');
 	});
 
 	it('automatically sets ValidDuring expiration for address balance gas', async () => {
@@ -159,14 +158,13 @@ describe('Balance Withdrawal', () => {
 			arguments: [coinToDeposit, depositTx.pure.address(toolbox.address())],
 		});
 
-		const depositResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const depositResult = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: depositTx,
 			signer: toolbox.keypair,
-			options: { showEffects: true },
 		});
 
-		await toolbox.jsonRpcClient.waitForTransaction({ digest: depositResult.digest });
-		expect(depositResult.effects?.status.status).toEqual('success');
+		await toolbox.grpcClient.core.waitForTransaction({ result: depositResult });
+		expect(depositResult.$kind).toEqual('Transaction');
 
 		// Step 2: Create transaction that uses address balance for gas
 		// Do NOT set expiration - let the resolver set it automatically
@@ -196,13 +194,13 @@ describe('Balance Withdrawal', () => {
 		tx.setGasPayment([]); // Empty payment = use address balance
 		tx.setGasBudget(100_000_000n); // 0.1 SUI budget
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: { showEffects: true, showBalanceChanges: true },
+			include: { effects: true, balanceChanges: true },
 		});
 
-		expect(result.effects?.status.status).toEqual('success');
+		expect(result.$kind).toEqual('Transaction');
 
 		// Verify expiration was automatically set
 		const data = tx.getData();

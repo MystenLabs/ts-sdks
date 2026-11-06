@@ -1,6 +1,5 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI, normalizeSuiAddress } from '@mysten/sui/utils';
@@ -9,7 +8,8 @@ import { expect } from 'vitest';
 import { ALLOWED_METADATA, SuinsTransaction, suins } from '../src/index.js';
 
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
-	const client = new SuiGrpcClient({ baseUrl: getJsonRpcFullnodeUrl(network), network }).$extend(
+	const baseUrl = `https://fullnode.${network}.sui.io:443`;
+	const client = new SuiGrpcClient({ baseUrl, network }).$extend(
 		suins({ pythAccessToken: process.env.VITE_PYTH_ACCESS_TOKEN }),
 	);
 

@@ -5,7 +5,6 @@ import { fromHex } from '@mysten/bcs';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { describe, it, expect } from 'vitest';
 
 import { seal } from '../../src/client.js';
@@ -36,7 +35,7 @@ describe('Committee Aggregator Tests', () => {
 		// Create client with seal extension.
 		const client = new SuiGrpcClient({
 			network: 'testnet',
-			baseUrl: getJsonRpcFullnodeUrl('testnet'),
+			baseUrl: 'https://fullnode.testnet.sui.io:443',
 		}).$extend(
 			seal({
 				serverConfigs: [

@@ -32,7 +32,7 @@ import { fromRaw } from './units.js';
 // functions turn that result into typed receipts. No network, no client.
 //
 // Decoding uses each event's BCS bytes, not its `json`: the client typings
-// warn the JSON rendering varies across transports (JSON-RPC/gRPC/GraphQL),
+// warn the JSON rendering varies across transports (gRPC/GraphQL),
 // while BCS is canonical. Layouts come from the GENERATED event MoveStructs
 // (src/contracts/{deepbook_predict,deepbook_predict_orders,account}/*_events.ts), whose field order
 // mirrors the deployed Move — regenerate the bindings if the package changes.

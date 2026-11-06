@@ -27,7 +27,7 @@ describe('Coin Reservation', () => {
 		tx.setSender(address);
 		tx.setGasBudget(2_000_000);
 
-		await tx.build({ client: toolbox.jsonRpcClient });
+		await tx.build({ client: toolbox.grpcClient });
 		const data = tx.getData();
 		expect(data.gasData.payment).toEqual([]);
 	});
@@ -42,7 +42,7 @@ describe('Coin Reservation', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1000n]);
 		tx.transferObjects([coin], address);
 
-		const result = await toolbox.jsonRpcClient.core.signAndExecuteTransaction({
+		const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: tx,
 			signer: keypair,
 			include: { effects: true },
@@ -62,7 +62,7 @@ describe('Coin Reservation', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1000n]);
 		tx.transferObjects([coin], address);
 
-		const result = await toolbox.jsonRpcClient.core.signAndExecuteTransaction({
+		const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
 			transaction: tx,
 			signer: keypair,
 			include: { effects: true },
@@ -83,7 +83,7 @@ describe('Coin Reservation', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1000n]);
 		tx.transferObjects([coin], address);
 
-		await tx.build({ client: toolbox.jsonRpcClient });
+		await tx.build({ client: toolbox.grpcClient });
 
 		const data = tx.getData();
 		const payment = data.gasData.payment!;
@@ -112,7 +112,7 @@ describe('Coin Reservation', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1000n]);
 		tx.transferObjects([coin], address);
 
-		await tx.build({ client: toolbox.jsonRpcClient });
+		await tx.build({ client: toolbox.grpcClient });
 
 		const data = tx.getData();
 		const payment = data.gasData.payment!;
