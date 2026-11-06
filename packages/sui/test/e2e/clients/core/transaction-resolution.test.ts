@@ -378,7 +378,9 @@ describe('Core API - Transaction Resolution', () => {
 					expect(BigInt(simulation.Transaction.epoch)).toBeGreaterThanOrEqual(
 						BigInt(validDuring.minEpoch!),
 					);
-					expect(BigInt(simulation.Transaction.epoch)).toBeLessThan(BigInt(validDuring.maxEpoch!));
+					expect(BigInt(simulation.Transaction.epoch)).toBeLessThanOrEqual(
+						BigInt(validDuring.maxEpoch!),
+					);
 				}
 
 				const result = await client.core.signAndExecuteTransaction({
@@ -403,7 +405,9 @@ describe('Core API - Transaction Resolution', () => {
 				expect(BigInt(result.Transaction.epoch!)).toBeGreaterThanOrEqual(
 					BigInt(validDuring.minEpoch!),
 				);
-				expect(BigInt(result.Transaction.epoch!)).toBeLessThan(BigInt(validDuring.maxEpoch!));
+				expect(BigInt(result.Transaction.epoch!)).toBeLessThanOrEqual(
+					BigInt(validDuring.maxEpoch!),
+				);
 				await toolbox.waitForTransaction({ result });
 			},
 		);
