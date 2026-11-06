@@ -81,6 +81,34 @@ their users have nothing to change. If your code names legacy response types suc
 `SuiTransactionBlockResponse`, import them from the `SuiJsonRpcTypes` namespace in
 `@mysten/wallet-standard` instead.
 
+Wallets that still implement the deprecated `sui:signAndExecuteTransactionBlock` feature can build
+its legacy response from a gRPC or GraphQL execution with `@mysten/wallet-sdk/json-rpc-compat`:
+
+```typescript
+import {
+	mappableIncludeFor,
+	transactionBlockResponseFromExecution,
+} from '@mysten/wallet-sdk/json-rpc-compat';
+
+// `input` is the dApp's `sui:signAndExecuteTransactionBlock` input; `bytes` and `signature` are what
+// the wallet signed.
+const result = await client.core.executeTransaction({
+	transaction: bytes,
+	signatures: [signature],
+	include: mappableIncludeFor(input.options),
+});
+
+return transactionBlockResponseFromExecution(result.Transaction ?? result.FailedTransaction, {
+	bytes,
+	signatures: [signature],
+	options: input.options,
+	requestType: input.requestType,
+});
+```
+
+`dryRunFromSimulation` builds the legacy `DryRunTransactionBlockResponse` from a
+`simulateTransaction` result the same way.
+
 ## New in 3.0
 
 - `listTransactions` filters accept `affectedAddress` and `affectedObject`, and `sender` combines
