@@ -46,31 +46,69 @@ async function getSuiFromFaucet(keypair: Keypair) {
 }
 
 describe('Contract links', () => {
-	test('claim coins as address balances with app sponsorship', async () => {
-		const link = client.zksend.linkBuilder({ sender: keypair.toSuiAddress() });
-		link.addClaimableMist(100n);
-		await link.create({ signer: keypair, waitForTransaction: true });
+	test.each([1, 2, 5, 10, 25, 50])(
+		'claim %i coins as address balances with app sponsorship',
+		async (coinCount) => {
+			const link = client.zksend.linkBuilder({ sender: keypair.toSuiAddress() });
+			const creation = new Transaction();
+			for (let i = 0; i < coinCount; i++) {
+				link.addClaimableObjectRef(
+					creation.coin({ balance: 100n }),
+					'0x2::coin::Coin<0x2::sui::SUI>',
+				);
+			}
+			await link.create({ transaction: creation, signer: keypair, waitForTransaction: true });
 
-		const claimLink = await client.zksend.loadLinkFromUrl(link.getLink());
-		const recipient = Ed25519Keypair.generate().toSuiAddress();
-		const tx = claimLink.createClaimTransaction(recipient);
-		tx.setGasOwner(keypair.toSuiAddress());
-		const bytes = await tx.build({ client });
-		const senderSignature = await claimLink.keypair!.signTransaction(bytes);
-		const gasSignature = await keypair.signTransaction(bytes);
-		const result = await client.executeTransaction({
-			transaction: bytes,
-			signatures: [senderSignature.signature, gasSignature.signature],
-		});
-		expect(result.$kind).toBe('Transaction');
-		await client.waitForTransaction({ result });
+			const claimLink = await client.zksend.loadLinkFromUrl(link.getLink());
+			const recipient = Ed25519Keypair.generate().toSuiAddress();
+			const tx = claimLink.createClaimTransaction(recipient);
+			tx.setGasOwner(keypair.toSuiAddress());
 
-		const { balance } = await client.getBalance({ owner: recipient });
-		expect(balance.addressBalance).toBe('100');
-		expect(balance.coinBalance).toBe('0');
-		const claimedLink = await client.zksend.loadLinkFromUrl(link.getLink());
-		expect(claimedLink.claimed).toBe(true);
-	}, 30_000);
+			const legacy = new Transaction();
+			legacy.setSender(claimLink.keypair!.toSuiAddress());
+			legacy.setGasOwner(keypair.toSuiAddress());
+			const { init, assets, finalize } = claimLink.claimFlow();
+			legacy.add(init);
+			legacy.transferObjects(
+				assets.map((asset) => asset.argument),
+				recipient,
+			);
+			legacy.add(finalize);
+			const previous = await client.simulateTransaction({
+				transaction: await legacy.build({ client }),
+				include: { effects: true },
+			});
+			expect(previous.$kind).toBe('Transaction');
+			const bytes = await tx.build({ client });
+			const senderSignature = await claimLink.keypair!.signTransaction(bytes);
+			const gasSignature = await keypair.signTransaction(bytes);
+			const result = await client.executeTransaction({
+				transaction: bytes,
+				signatures: [senderSignature.signature, gasSignature.signature],
+				include: { effects: true },
+			});
+			expect(result.$kind).toBe('Transaction');
+			const gas = result.Transaction!.effects.gasUsed;
+			// The storage rebate is already net of the non-refundable fee.
+			const netGas = (cost: typeof gas) =>
+				BigInt(cost.computationCost) + BigInt(cost.storageCost) - BigInt(cost.storageRebate);
+			expect(netGas(gas)).toBeLessThan(0n);
+			expect(netGas(gas)).toBeLessThan(netGas(previous.Transaction!.effects.gasUsed));
+			for (const coin of claimLink.assets!.coins) {
+				expect(result.Transaction!.effects.changedObjects).toContainEqual(
+					expect.objectContaining({ objectId: coin.objectId, idOperation: 'Deleted' }),
+				);
+			}
+			await client.waitForTransaction({ result });
+
+			const { balance } = await client.getBalance({ owner: recipient });
+			expect(balance.addressBalance).toBe(String(100 * coinCount));
+			expect(balance.coinBalance).toBe('0');
+			const claimedLink = await client.zksend.loadLinkFromUrl(link.getLink());
+			expect(claimedLink.claimed).toBe(true);
+		},
+		30_000,
+	);
 
 	test('create and claim link', async () => {
 		const link = client.zksend.linkBuilder({
