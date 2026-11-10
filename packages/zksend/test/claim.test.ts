@@ -147,6 +147,15 @@ describe('claim transactions', () => {
 		);
 	});
 
+	it('requires at least one claimed asset', () => {
+		const tx = new Transaction();
+		const { init, finalize } = setup().claimFlow();
+		tx.add(init);
+		tx.transferObjects([], RECIPIENT);
+		tx.add(finalize);
+		expect(isClaimTransaction(tx, TESTNET_CONTRACT_IDS)).toBe(false);
+	});
+
 	it('requires the configured zkBag contract', () => {
 		const tx = setup().createClaimTransaction(RECIPIENT);
 		expect(isClaimTransaction(tx, { packageId: normalizeSuiAddress('0x999') })).toBe(false);
