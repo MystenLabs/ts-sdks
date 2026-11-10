@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.89
+
+### Patch Changes
+
+- Updated dependencies [f2f07a3]
+  - @mysten/zksend@1.3.0
+
 ## 0.1.88
 
 ### Patch Changes
