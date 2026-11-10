@@ -14,6 +14,7 @@ questions:
   - What changed in @mysten/sui 3.0?
   - How do I migrate from SuiJsonRpcClient in @mysten/sui 3.0?
   - Do I need to update other @mysten packages for @mysten/sui 3.0?
+  - Can I use @mysten/sui 3.0 before my dependencies support it?
 answer: >-
   @mysten/sui 3.0 removes the deprecated JSON-RPC transport. Move to SuiGrpcClient or
   SuiGraphQLClient using the existing JSON-RPC migration guide, then check a short list of smaller
@@ -186,6 +187,60 @@ For wallet code that still reads the JSON-RPC dry-run shape, `dryRunFromSimulati
 `DryRunTransactionBlockResponse` from a `simulateTransaction` result simulated with
 `include: { balanceChanges: true, effects: true, events: true, objectTypes: true, transaction: true }`.
 The legacy types are in the `SuiJsonRpcTypes` namespace of `@mysten/wallet-standard`.
+
+## Dependencies that still require 2.x
+
+Packages built for `@mysten/sui` 2.x usually run on 3.0 unchanged, so you can upgrade before every
+third-party dependency releases a version for 3.0. Without an override, npm refuses to install
+packages whose peer dependency requires `@mysten/sui@^2`, and packages that list it in
+`dependencies` install their own 2.x copy, whose types don't match yours. Upgrade `@mysten/sui`,
+then add an override so every package uses your copy:
+
+```json title="package.json (npm)"
+{
+	"overrides": {
+		"@mysten/sui": "$@mysten/sui"
+	}
+}
+```
+
+`$@mysten/sui` reuses the version in your own `dependencies`.
+
+```yaml title="pnpm-workspace.yaml (pnpm 10 and later)"
+overrides:
+  '@mysten/sui': '$@mysten/sui'
+```
+
+pnpm 9 ignores overrides in `pnpm-workspace.yaml`: put the same entry under `pnpm.overrides` in
+`package.json` instead.
+
+```json title="package.json (Yarn, Bun)"
+{
+	"resolutions": {
+		"@mysten/sui": "^3.0.0"
+	}
+}
+```
+
+Yarn still prints a peer dependency warning, which you can ignore.
+
+The breaking changes above affect your dependencies the same way they affect your code. These show
+up most often:
+
+- **A package that imports `@mysten/sui/jsonRpc` fails to load, even if it never uses JSON-RPC.**
+  Node reports `Package subpath './jsonRpc' is not defined by "exports"`, and bundlers report that
+  `@mysten/sui/jsonRpc` can't be resolved or isn't exported. Stay on `@mysten/sui` 2.x until that
+  package releases a version for 3.0. The legacy `@mysten/dapp-kit` is one of these packages:
+  migrate to [`@mysten/dapp-kit-react`](/sui/migrations/sui-2.0/dapp-kit).
+- **A package that imports only types from `@mysten/sui/jsonRpc` loads, but fails to type-check with
+  `TS2307`.** With `skipLibCheck` enabled the error goes away and those types become `any`.
+- **Packages that call the `@mysten/sui/verify` functions without a `client` throw.** If they catch
+  the error, they treat every signature as invalid. Test any flow that checks a signature.
+
+Remove the override once every dependency supports 3.0. If you maintain a package, release a version
+that lists `@mysten/sui@^3` in `peerDependencies`, as described in
+[Building SDKs](/sui/sdk-building#use-mysten-packages-as-peer-dependencies), so apps keep a single
+copy.
 
 ## New in 3.0
 
