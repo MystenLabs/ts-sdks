@@ -46,6 +46,32 @@ async function getSuiFromFaucet(keypair: Keypair) {
 }
 
 describe('Contract links', () => {
+	test('claim coins as address balances with app sponsorship', async () => {
+		const link = client.zksend.linkBuilder({ sender: keypair.toSuiAddress() });
+		link.addClaimableMist(100n);
+		await link.create({ signer: keypair, waitForTransaction: true });
+
+		const claimLink = await client.zksend.loadLinkFromUrl(link.getLink());
+		const recipient = Ed25519Keypair.generate().toSuiAddress();
+		const tx = claimLink.createClaimTransaction(recipient);
+		tx.setGasOwner(keypair.toSuiAddress());
+		const bytes = await tx.build({ client });
+		const senderSignature = await claimLink.keypair!.signTransaction(bytes);
+		const gasSignature = await keypair.signTransaction(bytes);
+		const result = await client.executeTransaction({
+			transaction: bytes,
+			signatures: [senderSignature.signature, gasSignature.signature],
+		});
+		expect(result.$kind).toBe('Transaction');
+		await client.waitForTransaction({ result });
+
+		const { balance } = await client.getBalance({ owner: recipient });
+		expect(balance.addressBalance).toBe('100');
+		expect(balance.coinBalance).toBe('0');
+		const claimedLink = await client.zksend.loadLinkFromUrl(link.getLink());
+		expect(claimedLink.claimed).toBe(true);
+	}, 30_000);
+
 	test('create and claim link', async () => {
 		const link = client.zksend.linkBuilder({
 			sender: keypair.toSuiAddress(),
@@ -81,7 +107,8 @@ describe('Contract links', () => {
 				]
 			`);
 
-		const claim = await claimLink.claimAssets(keypair.toSuiAddress());
+		const recipient = Ed25519Keypair.generate().toSuiAddress();
+		const claim = await claimLink.claimAssets(recipient);
 
 		const res = await client.waitForTransaction({
 			result: claim,
@@ -96,6 +123,17 @@ describe('Contract links', () => {
 				1 + // gas
 				1, // bag
 		);
+
+		const { balance } = await client.getBalance({ owner: recipient });
+		expect(balance.addressBalance).toBe('100');
+		expect(balance.coinBalance).toBe('0');
+
+		const claimedBears = await client.getObjects({
+			objectIds: bears.map((bear) => bear.objectId),
+		});
+		for (const bear of claimedBears.objects) {
+			expect(bear).toMatchObject({ owner: { $kind: 'AddressOwner', AddressOwner: recipient } });
+		}
 
 		const link2 = await client.zksend.loadLinkFromUrl(linkUrl);
 		expect(link2.assets).toBeUndefined();

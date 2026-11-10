@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 /** A claimed asset paired with its on-chain type, available for composition within a claim transaction. */
 export interface ClaimedAsset {
@@ -41,6 +42,7 @@ export function isClaimTransaction(
 	},
 ) {
 	let transfers = 0;
+	let deposits = 0;
 
 	for (const command of tx.getData().commands) {
 		switch (command.$kind) {
@@ -56,6 +58,23 @@ export function isClaimTransaction(
 				transfers++;
 				break;
 			case 'MoveCall':
+				if (
+					command.MoveCall.package === normalizeSuiAddress('0x2') &&
+					command.MoveCall.module === 'coin' &&
+					command.MoveCall.function === 'send_funds'
+				) {
+					const [coin, recipient] = command.MoveCall.arguments;
+					if (
+						command.MoveCall.arguments.length !== 2 ||
+						command.MoveCall.typeArguments.length !== 1 ||
+						(coin?.$kind !== 'Result' && coin?.$kind !== 'NestedResult') ||
+						recipient?.$kind !== 'Input'
+					) {
+						return false;
+					}
+					deposits++;
+					break;
+				}
 				if (command.MoveCall.package !== options.packageId) {
 					return false;
 				}
@@ -73,5 +92,5 @@ export function isClaimTransaction(
 		}
 	}
 
-	return transfers === 1;
+	return transfers <= 1 && (transfers === 1 || deposits > 0);
 }

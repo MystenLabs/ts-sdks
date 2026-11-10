@@ -221,11 +221,22 @@ export class ZkSendLink {
 		const { init, assets, finalize } = this.claimFlow({ reclaim });
 		tx.add(init);
 
-		if (assets.length > 0) {
-			tx.transferObjects(
-				assets.map((a) => a.argument),
-				address,
-			);
+		const coinIds = new Set(this.assets!.coins.map((coin) => coin.objectId));
+		const objects = [];
+		for (const asset of assets) {
+			if (coinIds.has(asset.objectId)) {
+				tx.moveCall({
+					target: '0x2::coin::send_funds',
+					typeArguments: [normalizeStructTag(parseStructTag(asset.type).typeParams[0])],
+					arguments: [tx.object(asset.argument), tx.pure.address(address)],
+				});
+			} else {
+				objects.push(asset.argument);
+			}
+		}
+
+		if (objects.length > 0) {
+			tx.transferObjects(objects, address);
 		}
 
 		tx.add(finalize);
