@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
+import type { Argument, Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 /** A claimed asset paired with its on-chain type, available for composition within a claim transaction. */
@@ -43,16 +43,21 @@ export function isClaimTransaction(
 ) {
 	let transfers = 0;
 	let deposits = 0;
+	let starts = 0;
+	let finalizations = 0;
+	const claimResults = new Set<number>();
+	const isClaimedObject = (argument: Argument) =>
+		argument.$kind === 'Result'
+			? claimResults.has(argument.Result)
+			: argument.$kind === 'NestedResult' &&
+				argument.NestedResult[1] === 0 &&
+				claimResults.has(argument.NestedResult[0]);
 
-	for (const command of tx.getData().commands) {
+	for (const [index, command] of tx.getData().commands.entries()) {
 		switch (command.$kind) {
 			case 'TransferObjects':
 				// Ensure that we are only transferring results of a claim
-				if (
-					!command.TransferObjects.objects.every(
-						(o) => o.$kind === 'Result' || o.$kind === 'NestedResult',
-					)
-				) {
+				if (!command.TransferObjects.objects.every(isClaimedObject)) {
 					return false;
 				}
 				transfers++;
@@ -67,7 +72,8 @@ export function isClaimTransaction(
 					if (
 						command.MoveCall.arguments.length !== 2 ||
 						command.MoveCall.typeArguments.length !== 1 ||
-						(coin?.$kind !== 'Result' && coin?.$kind !== 'NestedResult') ||
+						!coin ||
+						!isClaimedObject(coin) ||
 						recipient?.$kind !== 'Input'
 					) {
 						return false;
@@ -82,9 +88,20 @@ export function isClaimTransaction(
 				if (command.MoveCall.module !== 'zk_bag') {
 					return false;
 				}
-				const fn = command.MoveCall.function;
-				if (fn !== 'init_claim' && fn !== 'reclaim' && fn !== 'claim' && fn !== 'finalize') {
-					return false;
+				switch (command.MoveCall.function) {
+					case 'init_claim':
+					case 'reclaim':
+						if (++starts !== 1) return false;
+						break;
+					case 'claim':
+						if (starts !== 1 || finalizations !== 0) return false;
+						claimResults.add(index);
+						break;
+					case 'finalize':
+						if (claimResults.size === 0 || ++finalizations !== 1) return false;
+						break;
+					default:
+						return false;
 				}
 				break;
 			default:
@@ -92,5 +109,10 @@ export function isClaimTransaction(
 		}
 	}
 
-	return transfers <= 1 && (transfers === 1 || deposits > 0);
+	return (
+		starts === 1 &&
+		finalizations === 1 &&
+		claimResults.size > 0 &&
+		(transfers === 1 || (transfers === 0 && deposits > 0))
+	);
 }

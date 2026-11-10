@@ -9,7 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
 import { beforeAll, describe, expect, test } from 'vitest';
 
-import { zksend } from '../src/index.js';
+import { isClaimTransaction, TESTNET_CONTRACT_IDS, zksend } from '../src/index.js';
 
 export const DEMO_BEAR_CONFIG = {
 	packageId: '0xab8ed19f16874f9b8b66b0b6e325ee064848b1a7fdcb1c2f0478b17ad8574e65',
@@ -46,10 +46,22 @@ async function getSuiFromFaucet(keypair: Keypair) {
 }
 
 describe('Contract links', () => {
-	test.each([1, 2, 5, 10, 25, 50])(
-		'claim %i coins as address balances with app sponsorship',
-		async (coinCount) => {
+	test.each([
+		[1, 0],
+		[2, 0],
+		[5, 0],
+		[10, 0],
+		[25, 0],
+		[50, 0],
+		[1, 1],
+	])(
+		'claim %i coins and %i NFTs with app sponsorship',
+		async (coinCount, nftCount) => {
 			const link = client.zksend.linkBuilder({ sender: keypair.toSuiAddress() });
+			const bears = nftCount > 0 ? await createBears(nftCount) : [];
+			for (const bear of bears) {
+				link.addClaimableObject(bear.objectId);
+			}
 			const creation = new Transaction();
 			for (let i = 0; i < coinCount; i++) {
 				link.addClaimableObjectRef(
@@ -74,12 +86,14 @@ describe('Contract links', () => {
 				recipient,
 			);
 			legacy.add(finalize);
+			expect(isClaimTransaction(legacy, TESTNET_CONTRACT_IDS)).toBe(true);
 			const previous = await client.simulateTransaction({
 				transaction: await legacy.build({ client }),
 				include: { effects: true },
 			});
 			expect(previous.$kind).toBe('Transaction');
 			const bytes = await tx.build({ client });
+			expect(isClaimTransaction(Transaction.from(bytes), TESTNET_CONTRACT_IDS)).toBe(true);
 			const senderSignature = await claimLink.keypair!.signTransaction(bytes);
 			const gasSignature = await keypair.signTransaction(bytes);
 			const result = await client.executeTransaction({
@@ -104,6 +118,14 @@ describe('Contract links', () => {
 			const { balance } = await client.getBalance({ owner: recipient });
 			expect(balance.addressBalance).toBe(String(100 * coinCount));
 			expect(balance.coinBalance).toBe('0');
+			if (bears.length > 0) {
+				const claimedBears = await client.getObjects({
+					objectIds: bears.map((bear) => bear.objectId),
+				});
+				for (const bear of claimedBears.objects) {
+					expect(bear).toMatchObject({ owner: { $kind: 'AddressOwner', AddressOwner: recipient } });
+				}
+			}
 			const claimedLink = await client.zksend.loadLinkFromUrl(link.getLink());
 			expect(claimedLink.claimed).toBe(true);
 		},

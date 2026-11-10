@@ -98,6 +98,88 @@ describe('claim transactions', () => {
 		expect(isClaimTransaction(tx, TESTNET_CONTRACT_IDS)).toBe(true);
 	});
 
+	it('accepts deposits mixed with transfers of claimed coins and NFTs', () => {
+		const tx = new Transaction();
+		const { init, assets, finalize } = setup().claimFlow();
+		tx.add(init);
+		tx.moveCall({
+			target: '0x2::coin::send_funds',
+			typeArguments: [COIN_TYPES[0]],
+			arguments: [tx.object(assets[0].argument), tx.pure.address(RECIPIENT)],
+		});
+		tx.transferObjects(
+			assets.slice(1).map((asset) => asset.argument),
+			RECIPIENT,
+		);
+		tx.add(finalize);
+		expect(isClaimTransaction(tx, TESTNET_CONTRACT_IDS)).toBe(true);
+	});
+
+	it('rejects transfers without any contract interaction', () => {
+		const tx = new Transaction();
+		tx.transferObjects([], RECIPIENT);
+		expect(isClaimTransaction(tx, TESTNET_CONTRACT_IDS)).toBe(false);
+	});
+
+	it('rejects deposits without any contract interaction', () => {
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x2::coin::send_funds',
+			typeArguments: [COIN_TYPES[0]],
+			arguments: [{ Result: 0 }, tx.pure.address(RECIPIENT)],
+		});
+		expect(isClaimTransaction(tx, TESTNET_CONTRACT_IDS)).toBe(false);
+	});
+
+	it.each(['init_claim', 'claim', 'finalize'])('requires the %s contract call', (fn) => {
+		const data = setup().createClaimTransaction(RECIPIENT).getData();
+		data.commands = data.commands.filter((command) => command.MoveCall?.function !== fn);
+		expect(isClaimTransaction(Transaction.from(JSON.stringify(data)), TESTNET_CONTRACT_IDS)).toBe(
+			false,
+		);
+	});
+
+	it.each(['init_claim', 'finalize'])('rejects duplicate %s calls', (fn) => {
+		const data = setup().createClaimTransaction(RECIPIENT).getData();
+		data.commands.push(data.commands.find((command) => command.MoveCall?.function === fn)!);
+		expect(isClaimTransaction(Transaction.from(JSON.stringify(data)), TESTNET_CONTRACT_IDS)).toBe(
+			false,
+		);
+	});
+
+	it('requires the configured zkBag contract', () => {
+		const tx = setup().createClaimTransaction(RECIPIENT);
+		expect(isClaimTransaction(tx, { packageId: normalizeSuiAddress('0x999') })).toBe(false);
+	});
+
+	it('rejects deposits that refer to a future claim', () => {
+		const data = setup().createClaimTransaction(RECIPIENT).getData();
+		const index = data.commands.findIndex((command) => command.MoveCall?.function === 'send_funds');
+		const nextClaim = data.commands.findIndex(
+			(command, i) => i > index && command.MoveCall?.function === 'claim',
+		);
+		data.commands[index].MoveCall!.arguments[0] = { $kind: 'Result', Result: nextClaim };
+		expect(isClaimTransaction(Transaction.from(JSON.stringify(data)), TESTNET_CONTRACT_IDS)).toBe(
+			false,
+		);
+	});
+
+	it.each(['deposit', 'transfer'])('rejects a %s of the bag instead of a claimed asset', (kind) => {
+		const data = setup().createClaimTransaction(RECIPIENT).getData();
+		if (kind === 'deposit') {
+			const deposit = data.commands.find(
+				(command) => command.MoveCall?.function === 'send_funds',
+			)!.MoveCall!;
+			deposit.arguments[0] = { $kind: 'NestedResult', NestedResult: [0, 0] };
+		} else {
+			const transfer = data.commands.find((command) => command.TransferObjects)!.TransferObjects!;
+			transfer.objects[0] = { $kind: 'NestedResult', NestedResult: [0, 0] };
+		}
+		expect(isClaimTransaction(Transaction.from(JSON.stringify(data)), TESTNET_CONTRACT_IDS)).toBe(
+			false,
+		);
+	});
+
 	it('rejects deposits of input objects', () => {
 		const tx = new Transaction();
 		tx.moveCall({
@@ -111,9 +193,17 @@ describe('claim transactions', () => {
 	it.each(['0x3::coin::send_funds', '0x2::balance::send_funds', '0x2::coin::burn'])(
 		'rejects unrelated calls to %s',
 		(target) => {
-			const tx = setup().createClaimTransaction(RECIPIENT);
-			tx.moveCall({ target });
-			expect(isClaimTransaction(tx, TESTNET_CONTRACT_IDS)).toBe(false);
+			const data = setup().createClaimTransaction(RECIPIENT).getData();
+			const deposit = data.commands.find(
+				(command) => command.MoveCall?.function === 'send_funds',
+			)!.MoveCall!;
+			const [pkg, module, fn] = target.split('::');
+			deposit.package = normalizeSuiAddress(pkg);
+			deposit.module = module;
+			deposit.function = fn;
+			expect(isClaimTransaction(Transaction.from(JSON.stringify(data)), TESTNET_CONTRACT_IDS)).toBe(
+				false,
+			);
 		},
 	);
 });
