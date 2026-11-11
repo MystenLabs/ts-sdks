@@ -9,6 +9,8 @@ import {
 	getDeployment,
 	getUnits,
 	MAINNET_ACCOUNT,
+	MAINNET_PREDICT,
+	MAINNET_SESSIONS,
 	TESTNET_ACCOUNT,
 	TESTNET_DEPLOYMENT,
 	TESTNET_PREDICT,
@@ -112,11 +114,15 @@ describe('account call target vs. identity', () => {
 		);
 	});
 
-	test('Mainnet records no account call target until it upgrades account', () => {
+	test('Mainnet keeps the original id and calls account v2 separately', () => {
 		expect(MAINNET_ACCOUNT.accountPackageId).toBe(
 			'0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
 		);
-		expect(MAINNET_ACCOUNT.accountPackageIdLatest).toBeUndefined();
+		expect(MAINNET_ACCOUNT.accountPackageIdLatest).toBe(
+			'0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
+		);
+		expect(MAINNET_SESSIONS.accountPackageIdLatest).toBe(MAINNET_ACCOUNT.accountPackageIdLatest);
+		expect(MAINNET_PREDICT.packages.accountLatest).toBe(MAINNET_ACCOUNT.accountPackageIdLatest);
 	});
 });
 

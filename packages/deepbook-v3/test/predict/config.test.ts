@@ -52,11 +52,11 @@ test('Testnet records delayed execution', () => {
 });
 
 test('Mainnet records delayed execution', () => {
-	// Mainnet's v4 rollout (DBU-899). The Predict call target and the delayed-execution type
-	// origin are the same package until Predict is upgraded again, and `predictV1` keeps the
-	// original ID for the v1 types.
+	// Mainnet's Version 5 upgrades: Predict v5 and `deepbook_predict_orders` v2 are the call
+	// targets. Predict v4, which introduced delayed execution, stays the origin of its types and
+	// events, and `predictV1` / `predictOrdersV1` keep the original IDs for the v1 types.
 	expect(MAINNET_CONFIG.packages.predict).toBe(
-		'0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+		'0xb0aaafe0d7ddd754243202fb6337e503be98d8f363f6343a46c59540180be463',
 	);
 	expect(MAINNET_CONFIG.packages.predictV1).toBe(
 		'0x89aea622e7bb3bdd598bde87dde40ee31c9eed4971b9546e23ec83de3c48bbba',
@@ -65,12 +65,19 @@ test('Mainnet records delayed execution', () => {
 		'0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
 	);
 	expect(MAINNET_CONFIG.packages.predictOrders).toBe(
+		'0x48e78879ee871c7c94807ee895e83a87c16bb37c8a558ac23584a315a2312dce',
+	);
+	expect(MAINNET_CONFIG.packages.predictOrdersV1).toBe(
 		'0x7cd41de311f8f3efb2c239b38773a4010fce3bef0120cd55f479843077c98903',
 	);
-	expect(MAINNET_CONFIG.packages.predictOrdersV1).toBeUndefined();
 	expect(MAINNET_CONFIG.packages.predictMath).toBe(
-		'0x19262d18a3ce9f1c304defbacc89f36585152acde73e626231200d10617fb9a7',
+		'0x2919b07ab2b995075cf2d0f9a72aeeb2d45636d3ba2a87dda35ac6b26f124c8e',
 	);
+	expect(MAINNET_CONFIG.packages.accountLatest).toBe(
+		'0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
+	);
+	expect(MAINNET_CONFIG.packages.predictCurrentVersion).toBe(5n);
+	expect(MAINNET_CONFIG.packages.predictOrdersCurrentVersion).toBe(2n);
 	expect(MAINNET_CONFIG.objects.orderDesk).toBe(
 		'0x87b0a87262aacf58eaff567eed2fb7cb0f9cbc1f5ce33ef79216cd26d13a1b5b',
 	);
