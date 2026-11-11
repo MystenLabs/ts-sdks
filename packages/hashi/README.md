@@ -317,8 +317,8 @@ Each Sui address maps to a unique P2TR Bitcoin deposit address with two script-p
 immediate 2-of-2 leaf `multi_a(2, guardian, derive(mpc_master, sui_address))`, and a delayed
 MPC-only recovery leaf `and_v(v:older(delay), pk(derive(mpc_master, sui_address)))`. The MPC
 child-key derivation replicates
-`fastcrypto_tbls::threshold_schnorr::key_derivation::derive_verifying_key`; the guardian's BTC key
-is read from the on-chain `guardian_btc_public_key` config, and `generateDepositAddress` throws
+`fastcrypto_threshold::threshold_schnorr::key_derivation::derive_verifying_key`; the guardian's BTC
+key is read from the on-chain `guardian_btc_public_key` config, and `generateDepositAddress` throws
 `HashiConfigError` until the deployment publishes it. See the
 [Hashi address-scheme docs](https://mystenlabs.github.io/hashi/design/address-scheme.html) for the
 full design.
