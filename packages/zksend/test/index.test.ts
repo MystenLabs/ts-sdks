@@ -9,7 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
 import { beforeAll, describe, expect, test } from 'vitest';
 
-import { zksend } from '../src/index.js';
+import { isClaimTransaction, TESTNET_CONTRACT_IDS, zksend } from '../src/index.js';
 
 export const DEMO_BEAR_CONFIG = {
 	packageId: '0xab8ed19f16874f9b8b66b0b6e325ee064848b1a7fdcb1c2f0478b17ad8574e65',
@@ -46,6 +46,92 @@ async function getSuiFromFaucet(keypair: Keypair) {
 }
 
 describe('Contract links', () => {
+	test.each([
+		[1, 0],
+		[2, 0],
+		[5, 0],
+		[10, 0],
+		[25, 0],
+		[50, 0],
+		[1, 1],
+	])(
+		'claim %i coins and %i NFTs with app sponsorship',
+		async (coinCount, nftCount) => {
+			const link = client.zksend.linkBuilder({ sender: keypair.toSuiAddress() });
+			const bears = nftCount > 0 ? await createBears(nftCount) : [];
+			for (const bear of bears) {
+				link.addClaimableObject(bear.objectId);
+			}
+			const creation = new Transaction();
+			for (let i = 0; i < coinCount; i++) {
+				link.addClaimableObjectRef(
+					creation.coin({ balance: 100n }),
+					'0x2::coin::Coin<0x2::sui::SUI>',
+				);
+			}
+			await link.create({ transaction: creation, signer: keypair, waitForTransaction: true });
+
+			const claimLink = await client.zksend.loadLinkFromUrl(link.getLink());
+			const recipient = Ed25519Keypair.generate().toSuiAddress();
+			const tx = claimLink.createClaimTransaction(recipient);
+			tx.setGasOwner(keypair.toSuiAddress());
+
+			const legacy = new Transaction();
+			legacy.setSender(claimLink.keypair!.toSuiAddress());
+			legacy.setGasOwner(keypair.toSuiAddress());
+			const { init, assets, finalize } = claimLink.claimFlow();
+			legacy.add(init);
+			legacy.transferObjects(
+				assets.map((asset) => asset.argument),
+				recipient,
+			);
+			legacy.add(finalize);
+			expect(isClaimTransaction(legacy, TESTNET_CONTRACT_IDS)).toBe(true);
+			const previous = await client.simulateTransaction({
+				transaction: await legacy.build({ client }),
+				include: { effects: true },
+			});
+			expect(previous.$kind).toBe('Transaction');
+			const bytes = await tx.build({ client });
+			expect(isClaimTransaction(Transaction.from(bytes), TESTNET_CONTRACT_IDS)).toBe(true);
+			const senderSignature = await claimLink.keypair!.signTransaction(bytes);
+			const gasSignature = await keypair.signTransaction(bytes);
+			const result = await client.executeTransaction({
+				transaction: bytes,
+				signatures: [senderSignature.signature, gasSignature.signature],
+				include: { effects: true },
+			});
+			expect(result.$kind).toBe('Transaction');
+			const gas = result.Transaction!.effects.gasUsed;
+			// The storage rebate is already net of the non-refundable fee.
+			const netGas = (cost: typeof gas) =>
+				BigInt(cost.computationCost) + BigInt(cost.storageCost) - BigInt(cost.storageRebate);
+			expect(netGas(gas)).toBeLessThan(0n);
+			expect(netGas(gas)).toBeLessThan(netGas(previous.Transaction!.effects.gasUsed));
+			for (const coin of claimLink.assets!.coins) {
+				expect(result.Transaction!.effects.changedObjects).toContainEqual(
+					expect.objectContaining({ objectId: coin.objectId, idOperation: 'Deleted' }),
+				);
+			}
+			await client.waitForTransaction({ result });
+
+			const { balance } = await client.getBalance({ owner: recipient });
+			expect(balance.addressBalance).toBe(String(100 * coinCount));
+			expect(balance.coinBalance).toBe('0');
+			if (bears.length > 0) {
+				const claimedBears = await client.getObjects({
+					objectIds: bears.map((bear) => bear.objectId),
+				});
+				for (const bear of claimedBears.objects) {
+					expect(bear).toMatchObject({ owner: { $kind: 'AddressOwner', AddressOwner: recipient } });
+				}
+			}
+			const claimedLink = await client.zksend.loadLinkFromUrl(link.getLink());
+			expect(claimedLink.claimed).toBe(true);
+		},
+		30_000,
+	);
+
 	test('create and claim link', async () => {
 		const link = client.zksend.linkBuilder({
 			sender: keypair.toSuiAddress(),
@@ -81,7 +167,8 @@ describe('Contract links', () => {
 				]
 			`);
 
-		const claim = await claimLink.claimAssets(keypair.toSuiAddress());
+		const recipient = Ed25519Keypair.generate().toSuiAddress();
+		const claim = await claimLink.claimAssets(recipient);
 
 		const res = await client.waitForTransaction({
 			result: claim,
@@ -96,6 +183,17 @@ describe('Contract links', () => {
 				1 + // gas
 				1, // bag
 		);
+
+		const { balance } = await client.getBalance({ owner: recipient });
+		expect(balance.addressBalance).toBe('100');
+		expect(balance.coinBalance).toBe('0');
+
+		const claimedBears = await client.getObjects({
+			objectIds: bears.map((bear) => bear.objectId),
+		});
+		for (const bear of claimedBears.objects) {
+			expect(bear).toMatchObject({ owner: { $kind: 'AddressOwner', AddressOwner: recipient } });
+		}
 
 		const link2 = await client.zksend.loadLinkFromUrl(linkUrl);
 		expect(link2.assets).toBeUndefined();

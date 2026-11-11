@@ -58,6 +58,13 @@ describe('ULEB Encoding and Decoding', () => {
 		});
 	});
 
+	describe('ulebEncode negative input', () => {
+		it('throws instead of returning an empty encoding', () => {
+			expect(() => ulebEncode(-1)).toThrow('Invalid ULEB128 value: -1');
+			expect(() => ulebEncode(-1n)).toThrow('Invalid ULEB128 value: -1');
+		});
+	});
+
 	describe('ulebDecode', () => {
 		it('should decode zero', () => {
 			const result = ulebDecode([0]);

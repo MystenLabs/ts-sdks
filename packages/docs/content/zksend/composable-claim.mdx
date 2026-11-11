@@ -29,11 +29,13 @@ goal:
       label: Needs answer summary for AI citation
 ---
 
-By default, `link.claimAssets(address)` builds a claim transaction that transfers every asset to the
-recipient and submits it via a Mysten-hosted sponsor. If you want to _use_ a claimed object in the
-same transaction — for example, inserting a claimed NFT into another on-chain object, staking a
-claimed coin, or depositing into a vault — use `link.claimFlow()` to compose the claim into your own
-transaction.
+By default, `link.claimAssets(address)` builds a claim transaction that deposits coins into the
+recipient's address balance, transfers NFTs as objects, and submits it via a Mysten-hosted sponsor.
+Reclaims use the same deposit behavior. If you want to _use_ a claimed object in the same
+transaction — for example, inserting a claimed NFT into another on-chain object, staking a claimed
+coin, or depositing into a vault — use `link.claimFlow()` to compose the claim into your own
+transaction. `claimFlow()` exposes coins as objects so you can use them before choosing how to send
+them to the recipient.
 
 ## How it works
 
@@ -71,14 +73,14 @@ tx.add(finalize);
 
 Every asset in the returned list must be claimed somewhere in the transaction — assets that are
 never used won't create a `claim<T>` command and the transaction will fail. If you only want the
-default claim-and-transfer behavior, use `link.createClaimTransaction(address)` instead.
+default claim behavior, use `link.createClaimTransaction(address)` instead.
 
 ## Sponsorship
 
 `link.claimAssets(address)` uses a sponsorship flow so the claimer does not need gas to claim the
-assets, but it only accepts the standard `init_claim` → `claim<T>` → transfer → `finalize` shape.
-Transactions built with `claimFlow()` may include extra move calls, so the default sponsor may
-reject them.
+assets, but it only accepts the standard claim shape: `init_claim`, `claim<T>` calls, coin deposits
+via `0x2::coin::send_funds` and NFT transfers, then `finalize`. Transactions built with
+`claimFlow()` may include extra move calls, so the default sponsor may reject them.
 
 Apps using `claimFlow()` are responsible for their own gas and sponsorship. The ephemeral link
 keypair is still the transaction sender (it authorizes the claim), so the typical pattern is dual

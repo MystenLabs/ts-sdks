@@ -1,5 +1,16 @@
 # @mysten/zksend
 
+## 1.3.0
+
+### Minor Changes
+
+- f2f07a3: Deposit claimed and reclaimed coins into the recipient's address balance instead of
+  transferring coin objects. Continue transferring NFTs as objects and allow address balance
+  deposits in `isClaimTransaction`. Require a zkBag claim lifecycle and verify that transferred or
+  deposited objects come from preceding claim calls.
+
+## 1.2.41
+
 ## 1.2.40
 
 ## 1.2.39
