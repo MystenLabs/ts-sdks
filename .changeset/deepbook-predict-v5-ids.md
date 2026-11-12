@@ -15,3 +15,7 @@ v9 `0x3bb8b2db…`, built from deepbookv3 main. The regenerated bindings add Pre
 (`session_config::allowed_pools`, `admin_allow_pool`, `admin_disallow_pool`). Session spot orders
 through Sessions v9 abort with `EPoolNotAllowed` (code 2) on a pool outside the allowlist. The
 version constants are unchanged (Predict 5, orders 2).
+
+`decodeMoveAbort` and `describePredictError` now name the Version 5 aborts:
+`session_config::EPoolNotAllowed` (with readable text), `protocol_config::ESettledRedeemRetired`,
+and Predict's `config_constants` setter bounds, including `EInvalidFeeBands`.
