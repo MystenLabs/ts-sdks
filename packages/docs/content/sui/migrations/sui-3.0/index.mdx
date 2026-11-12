@@ -64,13 +64,10 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 
 ### Core API
 
-- **Custom `CoreClient` subclasses and hand-built mocks need updating:**
-  - Implement the new abstract `listCheckpoints` and `verifySignature` methods.
-  - Set the new required `sender` field on `SuiClientTypes.Transaction` values.
-  - Give `SuiClientTypes.TransactionData` values a `kind` and the `$kind` discriminants described
-    below.
-  - Make `listDynamicFields` generic over its `include` option, like `getObjects`. Loops that pass a
-    page's cursor back in may need a `SuiClientTypes.ListDynamicFieldsResponse` annotation.
+- **`listDynamicFields` pagination loops may need a type annotation.** `listDynamicFields` is now
+  generic over its `include` option, like `getObjects`, so a loop that passes a page's cursor back
+  in can fail with `TS7022`. Annotate the page as `SuiClientTypes.ListDynamicFieldsResponse`,
+  passing your `include` as the type argument if you use one.
 - **`listDynamicFields` returns a dynamic object field's child object as its value.** With
   `include: { value: true }`, `SuiGrpcClient` now sets a dynamic object field's `value` to the child
   object's type and BCS content, as `SuiGraphQLClient` already did, instead of the child's ID. Read
