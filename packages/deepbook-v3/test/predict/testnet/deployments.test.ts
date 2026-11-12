@@ -115,18 +115,18 @@ describe('the deployment record matches the live chain', () => {
 });
 
 describe('package publication and type origins', () => {
-	// The P-33 SVI-decimals pass (DBU-1152): Predict v9, predict_orders v4 and Sessions v6, after
-	// the Version 5 rehearsal (DBU-1117) brought account v2. predict_math stays at version 2 from the
+	// The final Version 5 code pass: Predict v10, predict_orders v5 and Sessions v9, after the
+	// Version 5 rehearsal (DBU-1117) brought account v2. predict_math stays at version 2 from the
 	// relink to Propbook v2 (DBU-1027). These are Testnet package numbers; the code's version
 	// constants follow Mainnet.
 	test.each([
-		[TESTNET_PREDICT.packages.predict, 9n, TESTNET_PREDICT.packages.predictV1],
+		[TESTNET_PREDICT.packages.predict, 10n, TESTNET_PREDICT.packages.predictV1],
 		[
 			getSessionsConfig('testnet').sessionsPackageId,
-			6n,
+			9n,
 			getSessionsConfig('testnet').sessionsPackageIdV1,
 		],
-		[TESTNET_CONFIG.packages.predictOrders!, 4n, PREDICT_ORDERS_V1],
+		[TESTNET_CONFIG.packages.predictOrders!, 5n, PREDICT_ORDERS_V1],
 		[TESTNET_CONFIG.packages.predictMath!, 2n, PREDICT_MATH_V1],
 		[TESTNET_ACCOUNT.accountPackageIdLatest!, 2n, TESTNET_ACCOUNT.accountPackageId],
 	])('latest package %s is version %s of %s', async (packageId, version, originalId) => {
