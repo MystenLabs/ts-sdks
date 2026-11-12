@@ -1,5 +1,13 @@
 # @mysten/walletconnect-wallet
 
+## 1.2.0
+
+### Minor Changes
+
+- 2ee43cf: Add an optional `dAppMetadata` option to `registerWalletConnectWallet` and
+  `WalletConnectWallet` so dApps can pass their own name, description, URL and icons to
+  WalletConnect
+
 ## 1.1.38
 
 ## 1.1.37
