@@ -7,6 +7,9 @@
  * owners grant and revoke sessions; an active session can only generate app auth
  * inside the Predict and DeepBook spot wrappers exposed here.
  *
+ * Session-key spot orders trade only on the pools in `SessionsConfig`'s allowlist,
+ * which the `SessionsAdminCap` holder maintains.
+ *
  * A session-key trade that names a Predict builder code pays that builder a fee
  * the session holder picks, so the owner approves one code and a maximum fee per
  * session (`approve_session_builder`), and the `_with_builder` wrappers accept
@@ -333,7 +336,10 @@ export interface PlaceLimitOrderOptions {
 	};
 	typeArguments: [string, string];
 }
-/** Place a DeepBook spot limit order for an Account with an active session. */
+/**
+ * Place a DeepBook spot limit order for an Account with an active session, on a
+ * pool in the `SessionsConfig` allowlist (`session_config::EPoolNotAllowed`).
+ */
 export function placeLimitOrder(options: PlaceLimitOrderOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
@@ -407,7 +413,10 @@ export interface PlaceMarketOrderOptions {
 	};
 	typeArguments: [string, string];
 }
-/** Place a DeepBook spot market order for an Account with an active session. */
+/**
+ * Place a DeepBook spot market order for an Account with an active session, on a
+ * pool in the `SessionsConfig` allowlist (`session_config::EPoolNotAllowed`).
+ */
 export function placeMarketOrder(options: PlaceMarketOrderOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
@@ -471,7 +480,10 @@ export interface CancelLiveOrderOptions {
 	};
 	typeArguments: [string, string];
 }
-/** Cancel a DeepBook spot order for an Account with an active session. */
+/**
+ * Cancel a DeepBook spot order for an Account with an active session, on any pool,
+ * so orders on a pool removed from the allowlist can still be cancelled.
+ */
 export function cancelLiveOrder(options: CancelLiveOrderOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';

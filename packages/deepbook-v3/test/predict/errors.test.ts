@@ -99,7 +99,8 @@ describe('decodeMoveAbort', () => {
 
 // Predict's error constants are plain u64 codes, so the fullnode surfaces no clever-error name and
 // the SDK names them from ABORT_NAMES. The expected names are the Move constants at deepbookv3
-// 29117434 (`const EName: u64 = code;`), and the builder-fee codes at 166cdf5c.
+// 29117434 (`const EName: u64 = code;`), the builder-fee codes at 166cdf5c, and the Version 5
+// codes (`ESettledRedeemRetired`, `config_constants`, `EPoolNotAllowed`) at 43dbc952.
 describe('plain abort codes decode to their constant names', () => {
 	const plain = (module: string, code: number) =>
 		decodeMoveAbort({ MoveAbort: { abortCode: String(code), location: { module } } });
@@ -123,6 +124,14 @@ describe('plain abort codes decode to their constant names', () => {
 		['protocol_config', 13, 'ECutoverNotReached'],
 		['protocol_config', 15, 'EOrderFlowNotAllowed'],
 		['protocol_config', 16, 'EBuilderFeeCutoverNotReached'],
+		['protocol_config', 17, 'ESettledRedeemRetired'],
+		// Codes Version 5 dropped from its source keep their names for the older versions.
+		['protocol_config', 8, 'ESettledRedeemKeeperAlreadyAdded'],
+		['expiry_market', 12, 'ENotSettledRedeemKeeper'],
+		['config_constants', 0, 'EInvalidBaseFee'],
+		['config_constants', 15, 'EInvalidCadenceWindowSize'],
+		['config_constants', 28, 'EInvalidBuilderFeeCap'],
+		['config_constants', 29, 'EInvalidFeeBands'],
 		['lazer_price', 2, 'EFeedMissing'],
 		['pricing', 0, 'EZeroForward'],
 		['pricing', 12, 'EBlockScholesPriceUnavailable'],
@@ -132,6 +141,7 @@ describe('plain abort codes decode to their constant names', () => {
 		['sessions', 3, 'EBuilderNotApproved'],
 		['sessions', 5, 'EBuilderApprovalsNotEnabled'],
 		['session_config', 0, 'EPackageVersionDisabled'],
+		['session_config', 2, 'EPoolNotAllowed'],
 		['account_registry', 1, 'EAppNotAuthorized'],
 		['strike_payout_tree', 1, 'EMaxPayoutTreeNodes'],
 		['strike_exposure_config', 3, 'EPremiumBelowMinimum'],
@@ -153,10 +163,11 @@ describe('plain abort codes decode to their constant names', () => {
 		expect(ABORT_NAMES.queue).toHaveLength(13);
 		expect(ABORT_NAMES.desk).toHaveLength(3);
 		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
-		expect(ABORT_NAMES.protocol_config).toHaveLength(17);
+		expect(ABORT_NAMES.protocol_config).toHaveLength(18);
+		expect(ABORT_NAMES.config_constants).toHaveLength(30);
 		expect(ABORT_NAMES.pricing).toHaveLength(20);
 		expect(ABORT_NAMES.sessions).toHaveLength(6);
-		expect(ABORT_NAMES.session_config).toHaveLength(2);
+		expect(ABORT_NAMES.session_config).toHaveLength(3);
 		expect(ABORT_NAMES.account_registry).toHaveLength(3);
 		expect(ABORT_NAMES.strike_payout_tree).toHaveLength(6);
 		expect(ABORT_NAMES.plp).toHaveLength(15);
@@ -198,6 +209,7 @@ describe('plain abort codes decode to their constant names', () => {
 			['pricing', 12],
 			['pricing', 4],
 			['sessions', 1],
+			['session_config', 2],
 			['account_registry', 1],
 		] as [string, number][]) {
 			expect(describePredictError(plain(module, code)!)).not.toBeNull();

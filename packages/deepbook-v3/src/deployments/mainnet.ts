@@ -37,6 +37,11 @@ export const MAINNET_DEPLOYMENT: DeploymentInfo = Object.freeze({
 export const MAINNET_ACCOUNT: AccountIds = Object.freeze({
 	accountPackageId: '0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
 	accountRegistry: '0x8c52c6f5b2374e33f4a726d9c32337b1aee3a71410d41c18faa91d938d66e4bc',
+	/**
+	 * Call target of every account call. Type tags and derived addresses keep
+	 * `accountPackageId`, the original.
+	 */
+	accountPackageIdLatest: '0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
 });
 
 /**
@@ -52,6 +57,11 @@ export const MAINNET_SESSIONS: SessionsIds = Object.freeze({
 	sessionsConfig: '0xb2fba483748aac7508676020d4e691d68239b66f8bf7c5e7634dd1a76a329317',
 	accountPackageId: '0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
 	accountRegistry: '0x8c52c6f5b2374e33f4a726d9c32337b1aee3a71410d41c18faa91d938d66e4bc',
+	/**
+	 * Call target of every account call. Type tags and derived addresses keep
+	 * `accountPackageId`, the original.
+	 */
+	accountPackageIdLatest: '0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
 	deepbookRegistry: '0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d',
 	deepbookCoreAccountPackageId:
 		'0xd71b5a341dc8dc7e187517849edf61e54670b60fe496e07186c09a65fa7afdb7',
@@ -75,12 +85,14 @@ export const MAINNET_UNITS: DeploymentUnits = Object.freeze({
 export const MAINNET_PREDICT: PredictIds = Object.freeze({
 	network: 'mainnet',
 	packages: Object.freeze({
-		predict: '0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+		predict: '0xb0aaafe0d7ddd754243202fb6337e503be98d8f363f6343a46c59540180be463',
 		predictV1: '0x89aea622e7bb3bdd598bde87dde40ee31c9eed4971b9546e23ec83de3c48bbba',
 		account: '0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
+		accountLatest: '0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
 		propbook: '0xa6c8f32015b5b41d34ee09995a2e9d7a21cdecf0e1910a50b264fd252cd33831',
-		predictOrders: '0x7cd41de311f8f3efb2c239b38773a4010fce3bef0120cd55f479843077c98903',
-		predictMath: '0x19262d18a3ce9f1c304defbacc89f36585152acde73e626231200d10617fb9a7',
+		predictOrders: '0x48e78879ee871c7c94807ee895e83a87c16bb37c8a558ac23584a315a2312dce',
+		predictOrdersV1: '0x7cd41de311f8f3efb2c239b38773a4010fce3bef0120cd55f479843077c98903',
+		predictMath: '0x2919b07ab2b995075cf2d0f9a72aeeb2d45636d3ba2a87dda35ac6b26f124c8e',
 	}),
 	objects: Object.freeze({
 		registry: '0x94327dbc256a2cfabd164c2bf4b3fe033bfaa4771f7a6f716954e07cb1b4beba',

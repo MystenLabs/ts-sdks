@@ -277,8 +277,13 @@ describe('execution mode and the watermark', () => {
 		expect(executionModeFor(5n, true)).toBe('delayed');
 		// A watermark above the Predict code this SDK calls retires it.
 		expect(executionModeFor(6n, true)).toBe('retired');
-		// A config pins the version its call target compiles: Mainnet's Predict v4 compiles 4.
+		// A config pins the version its call target compiles: one still on Predict v4 compiles 4.
+		expect(executionModeFor(5n, true, true, 4n)).toBe('retired');
+		// Mainnet's Predict v5 compiles 5.
 		expect(executionModeFor(5n, true, true, MAINNET_CONFIG.packages.predictCurrentVersion)).toBe(
+			'delayed',
+		);
+		expect(executionModeFor(6n, true, true, MAINNET_CONFIG.packages.predictCurrentVersion)).toBe(
 			'retired',
 		);
 		expect(executionModeFor(5n, true, true, TESTNET_CONFIG.packages.predictCurrentVersion)).toBe(

@@ -65,8 +65,10 @@ export interface MoveAbortError {
 /**
  * The error constants of the Predict modules the SDK's flows abort in, by module, as an array
  * indexed by the plain `u64` abort code (each module numbers its constants from 0 with no gaps).
- * Generated from the Move sources at deepbookv3 29117434. A published code never changes meaning:
- * new codes only append, so an older package version's codes are a prefix of its module's list.
+ * Generated from the Move sources at deepbookv3 29117434 and checked against 43dbc952, the Mainnet
+ * Version 5 sources. A published code never changes meaning: new codes only append, so an older
+ * package version's codes are a prefix of its module's list. A code a later version drops from its
+ * source keeps its name here, because the older versions still abort with it.
  * Keyed by module name only, as the abort location reports it, so a same-named module in an
  * unrelated package would be named from this table too.
  */
@@ -116,6 +118,42 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EOrderFlowNotAllowed',
 		// Predict v5: a builder trade before the watermark reaches the builder-fee version.
 		'EBuilderFeeCutoverNotReached',
+		// Predict v5: the settled-redeem keeper setters are retired and always abort with it.
+		'ESettledRedeemRetired',
+	],
+	// The bounds Predict's admin setters check, so only an admin transaction aborts here.
+	config_constants: [
+		'EInvalidBaseFee',
+		'EInvalidMinFee',
+		'EInvalidMinEntryProbability',
+		'EInvalidMaxEntryProbability',
+		'EInvalidPythSpotFreshnessMs',
+		'EInvalidBlockScholesPriceFreshnessMs',
+		'EInvalidProtocolReserveProfitShare',
+		'EInvalidBlockScholesSVIFreshnessMs',
+		'EInvalidExpiryFeeWindowMs',
+		'EInvalidExpiryFeeMaxMultiplier',
+		'EInvalidMarketTickSize',
+		'EInvalidEwmaAlpha',
+		'EInvalidEwmaZScoreThreshold',
+		'EInvalidEwmaPenaltyRate',
+		'EInvalidBackingBufferLambda',
+		'EInvalidCadenceWindowSize',
+		'EMarketTickSizeTooLarge',
+		'EInvalidLpRequestLimitFlushAttempts',
+		'EInvalidMaxLpPoolValue',
+		'EInvalidPlpSupplyFeeRate',
+		'EInvalidPlpWithdrawFeeRate',
+		'EInvalidInventoryImpactMaxRate',
+		'EInvalidReferralFeeRate',
+		'EInvalidMaxValuationWindowMs',
+		'EInvalidNoTradeWindowMs',
+		'EInvalidFeeIncentiveSubsidyRate',
+		'EInvalidFeeIncentiveLiveTargetRate',
+		'EInvalidFeeIncentiveLifetimeCapRate',
+		'EInvalidBuilderFeeCap',
+		// Predict v5: `set_template_fee_bands`.
+		'EInvalidFeeBands',
 	],
 	// Predict's live pricer, which every quote, plan and enqueue loads.
 	pricing: [
@@ -245,7 +283,12 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EBuilderFeeAboveApproved',
 		'EBuilderApprovalsNotEnabled',
 	],
-	session_config: ['EPackageVersionDisabled', 'EVersionWatermarkNotAdvanced'],
+	session_config: [
+		'EPackageVersionDisabled',
+		'EVersionWatermarkNotAdvanced',
+		// Sessions v4 (the Mainnet number): a session spot order on a pool outside the allowlist.
+		'EPoolNotAllowed',
+	],
 	// The shared account (`deepbook_account`).
 	account_registry: ['EAppAlreadyAuthorized', 'EAppNotAuthorized', 'EAccountAlreadyExists'],
 });
@@ -443,6 +486,8 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'sessions::EInvalidSessionDuration': 'A session must last more than 0 ms and at most 30 days.',
 	'session_config::EPackageVersionDisabled':
 		'This sessions package version is retired. Update to an SDK that calls the current package.',
+	'session_config::EPoolNotAllowed':
+		"Session keys can't place orders on this pool. Cancels and withdrawals still work.",
 	'account_registry::EAppNotAuthorized':
 		"Trading through this app (such as Sessions) isn't enabled for accounts yet.",
 	'account_registry::EAccountAlreadyExists': 'This address already has an account.',

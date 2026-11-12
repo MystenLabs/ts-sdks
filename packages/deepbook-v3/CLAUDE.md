@@ -270,11 +270,14 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   getter only exists from v4.
 - Predict's error constants are plain `u64` codes, so the fullnode surfaces no clever-error name.
   `errors.ts` `ABORT_NAMES` maps `(module, code)` to the constant name for `expiry_market`,
-  `protocol_config`, `pricing`, the admission, position and LP modules, the companion's modules and
-  `lazer_price`, generated from the Move sources (each module's codes run from 0 with no gaps, and
-  only append). Extend it when a module gains codes, or `describePredictError` and checks such as
-  `abortName === 'EMarketNotSettled'` miss them. The table is keyed by module name only, so
-  Predict's `order` and `registry` stay out: DeepBook core has modules of the same names.
+  `protocol_config`, `config_constants`, `pricing`, the admission, position and LP modules, the
+  companion's modules, `lazer_price` and Sessions' `sessions` and `session_config`, generated from
+  the Move sources (each module's codes run from 0 with no gaps, and only append). Extend it when a
+  module gains codes, or `describePredictError` and checks such as
+  `abortName === 'EMarketNotSettled'` miss them. A code a later version drops from its source (or
+  makes `#[test_only]`) keeps its name, since older versions still abort with it. The table is keyed
+  by module name only, so Predict's `order` and `registry` stay out: DeepBook core, Propbook and the
+  Block Scholes oracle have modules of the same names.
 - `queue.ORDER_FLOW_PACKAGE_VERSION` mirrors `desk::current_version` of the generated companion
   source. The preflight refuses with `'retired'` when the desk floor is above it, so bump it with
   the companion whenever the bindings are regenerated. `PREDICT_PACKAGE_VERSION` does the same for

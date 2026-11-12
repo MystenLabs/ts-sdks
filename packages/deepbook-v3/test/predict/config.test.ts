@@ -23,16 +23,16 @@ test('Testnet records delayed execution', () => {
 	// Testnet's v5 rollout (DBU-887) introduced the delayed-execution types, and the relink to
 	// Propbook v2 (DBU-1027) moved the call targets: predict_orders v2 and predict_math v2. The
 	// cadence-table upgrade (DBU-1109) moved Predict to v7, the Version 5 rehearsal (DBU-1117) to
-	// v8 with predict_orders v3, and the P-33 SVI-decimals pass (DBU-1152) to v9 with orders v4. The delayed-execution type origin stays v5, and predict_orders'
+	// v8 with predict_orders v3, the P-33 SVI-decimals pass (DBU-1152) to v9 with orders v4, and the fee-band pass to v10 with orders v5. The delayed-execution type origin stays v5, and predict_orders'
 	// events stay typed by its v1 original ID.
 	expect(TESTNET_CONFIG.packages.predict).toBe(
-		'0x481215e20e09c01350dd6f7803425566e4f854e44283af026c7304c41eb85f81',
+		'0xbb6a1595d6ab45f41658fcb032e0dfb2cd87f2613825a26f5bcbe98d2c8c9ce8',
 	);
 	expect(TESTNET_CONFIG.packages.predictDelayedExecution).toBe(
 		'0x0654ecbed7c0f2645d9de7cb6cf08e65c2ee05cdbb39a415f17a6bd1cd92e267',
 	);
 	expect(TESTNET_CONFIG.packages.predictOrders).toBe(
-		'0xcd6ff112fbe45f5d0fbf581628dde4cf2ef58ea169a496ad2aa18983cf1e289b',
+		'0xc43f12fec34351058cf80d5fd127248f14a4045429f2f56ee20695c4c9cdf3bf',
 	);
 	expect(TESTNET_CONFIG.packages.predictOrdersV1).toBe(
 		'0xd723ddef890bff70bd492cd384c913b5e7daeb6e8900cb3a5606546ac4f3907f',
@@ -52,11 +52,11 @@ test('Testnet records delayed execution', () => {
 });
 
 test('Mainnet records delayed execution', () => {
-	// Mainnet's v4 rollout (DBU-899). The Predict call target and the delayed-execution type
-	// origin are the same package until Predict is upgraded again, and `predictV1` keeps the
-	// original ID for the v1 types.
+	// Mainnet's Version 5 upgrades: Predict v5 and `deepbook_predict_orders` v2 are the call
+	// targets. Predict v4, which introduced delayed execution, stays the origin of its types and
+	// events, and `predictV1` / `predictOrdersV1` keep the original IDs for the v1 types.
 	expect(MAINNET_CONFIG.packages.predict).toBe(
-		'0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+		'0xb0aaafe0d7ddd754243202fb6337e503be98d8f363f6343a46c59540180be463',
 	);
 	expect(MAINNET_CONFIG.packages.predictV1).toBe(
 		'0x89aea622e7bb3bdd598bde87dde40ee31c9eed4971b9546e23ec83de3c48bbba',
@@ -65,12 +65,19 @@ test('Mainnet records delayed execution', () => {
 		'0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
 	);
 	expect(MAINNET_CONFIG.packages.predictOrders).toBe(
+		'0x48e78879ee871c7c94807ee895e83a87c16bb37c8a558ac23584a315a2312dce',
+	);
+	expect(MAINNET_CONFIG.packages.predictOrdersV1).toBe(
 		'0x7cd41de311f8f3efb2c239b38773a4010fce3bef0120cd55f479843077c98903',
 	);
-	expect(MAINNET_CONFIG.packages.predictOrdersV1).toBeUndefined();
 	expect(MAINNET_CONFIG.packages.predictMath).toBe(
-		'0x19262d18a3ce9f1c304defbacc89f36585152acde73e626231200d10617fb9a7',
+		'0x2919b07ab2b995075cf2d0f9a72aeeb2d45636d3ba2a87dda35ac6b26f124c8e',
 	);
+	expect(MAINNET_CONFIG.packages.accountLatest).toBe(
+		'0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
+	);
+	expect(MAINNET_CONFIG.packages.predictCurrentVersion).toBe(5n);
+	expect(MAINNET_CONFIG.packages.predictOrdersCurrentVersion).toBe(2n);
 	expect(MAINNET_CONFIG.objects.orderDesk).toBe(
 		'0x87b0a87262aacf58eaff567eed2fb7cb0f9cbc1f5ce33ef79216cd26d13a1b5b',
 	);

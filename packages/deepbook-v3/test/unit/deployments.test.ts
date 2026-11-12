@@ -9,6 +9,8 @@ import {
 	getDeployment,
 	getUnits,
 	MAINNET_ACCOUNT,
+	MAINNET_PREDICT,
+	MAINNET_SESSIONS,
 	TESTNET_ACCOUNT,
 	TESTNET_DEPLOYMENT,
 	TESTNET_PREDICT,
@@ -112,11 +114,15 @@ describe('account call target vs. identity', () => {
 		);
 	});
 
-	test('Mainnet records no account call target until it upgrades account', () => {
+	test('Mainnet keeps the original id and calls account v2 separately', () => {
 		expect(MAINNET_ACCOUNT.accountPackageId).toBe(
 			'0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
 		);
-		expect(MAINNET_ACCOUNT.accountPackageIdLatest).toBeUndefined();
+		expect(MAINNET_ACCOUNT.accountPackageIdLatest).toBe(
+			'0x3dbf966f4d02a3ae4b996f5d2e81603164b598f9ff5db2bd8a2bf03ffebb4316',
+		);
+		expect(MAINNET_SESSIONS.accountPackageIdLatest).toBe(MAINNET_ACCOUNT.accountPackageIdLatest);
+		expect(MAINNET_PREDICT.packages.accountLatest).toBe(MAINNET_ACCOUNT.accountPackageIdLatest);
 	});
 });
 
@@ -197,10 +203,10 @@ describe('sessions deployment ids', () => {
 	// package was told apart from the version retired by DBU-746.
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
-		// Sessions v6 from the P-33 SVI-decimals pass, relinked to Predict v9, predict_orders v4 and
-		// Propbook v3 (DBU-1152).
+		// Sessions v9: the spot pool allowlist (v7, DBU-947), relinked to Predict v10, predict_orders v5,
+		// DeepBook core v21 and deepbook_core_account v2.
 		expect(cfg.sessionsPackageId).toBe(
-			'0x8b3e5c2a5aa9c9bb65c87869802deffce4302ca850dc75a0a49429193251ba18',
+			'0x3bb8b2db2727bcb401c922ea79456d2b454c149a7f67013c26499ccb00e6d951',
 		);
 		expect(cfg.sessionsPackageIdV1).toBe(
 			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',
