@@ -5,6 +5,6 @@ export {
 	registerWalletConnectWallet,
 	WalletConnectWallet,
 	WALLETCONNECT_WALLET_NAME,
-	type DappMetadata,
+	type DAppMetadata,
 	type GetClient,
 } from './wallet/index.js';

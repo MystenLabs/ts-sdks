@@ -261,7 +261,7 @@ describe('WalletConnectWallet dApp metadata', () => {
 	});
 
 	it('passes the provided dApp metadata to WalletConnect', async () => {
-		const dappMetadata = {
+		const dAppMetadata = {
 			name: 'My dApp',
 			description: 'My dApp description',
 			url: 'https://my-dapp.example',
@@ -279,11 +279,11 @@ describe('WalletConnectWallet dApp metadata', () => {
 			getClient: () => {
 				throw new Error('getClient should not be called in these tests');
 			},
-			dappMetadata,
+			dAppMetadata,
 		});
 		await wallet.init();
 
-		expect(initMock).toHaveBeenLastCalledWith(expect.objectContaining({ metadata: dappMetadata }));
+		expect(initMock).toHaveBeenLastCalledWith(expect.objectContaining({ metadata: dAppMetadata }));
 	});
 
 	it('falls back to default metadata when none is provided', async () => {
