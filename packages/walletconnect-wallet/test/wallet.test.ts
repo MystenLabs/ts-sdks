@@ -253,3 +253,50 @@ describe('WalletConnectWallet connect', () => {
 		expect(initMock).toHaveBeenCalledTimes(2);
 	});
 });
+
+describe('WalletConnectWallet dApp metadata', () => {
+	beforeEach(() => {
+		initMock.mockReset();
+		initMock.mockResolvedValue(makeConnector() as unknown as UniversalConnector);
+	});
+
+	it('passes the provided dApp metadata to WalletConnect', async () => {
+		const dAppMetadata = {
+			name: 'My dApp',
+			description: 'My dApp description',
+			url: 'https://my-dapp.example',
+			icons: ['https://my-dapp.example/icon.png'],
+		};
+
+		const wallet = new WalletConnectWallet({
+			metadata: {
+				id: 'walletconnect',
+				walletName: 'Wallet Connect',
+				icon: 'data:image/svg+xml;base64,PHN2Zy8+',
+				enabled: true,
+			},
+			projectId: 'test-project-id',
+			getClient: () => {
+				throw new Error('getClient should not be called in these tests');
+			},
+			dAppMetadata,
+		});
+		await wallet.init();
+
+		expect(initMock).toHaveBeenLastCalledWith(expect.objectContaining({ metadata: dAppMetadata }));
+	});
+
+	it('falls back to default metadata when none is provided', async () => {
+		const wallet = createWallet();
+		await wallet.init();
+
+		expect(initMock).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				metadata: expect.objectContaining({
+					name: 'Wallet Connect',
+					url: 'https://walletconnect.org',
+				}),
+			}),
+		);
+	});
+});
