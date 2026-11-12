@@ -47,6 +47,8 @@ type WalletEventsMap = {
 type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
+/** Metadata describing the dApp, shown to the user by the wallet when pairing. */
+export type DappMetadata = Parameters<typeof UniversalConnector.init>[0]['metadata'];
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 
 // -- Constants --
@@ -103,6 +105,7 @@ export class WalletConnectWallet implements Wallet {
 	#initialization: Promise<void>;
 	#projectId: string;
 	#getClient: GetClient;
+	#dappMetadata?: DappMetadata;
 
 	get name() {
 		return this.#walletName;
@@ -166,10 +169,12 @@ export class WalletConnectWallet implements Wallet {
 		metadata,
 		projectId,
 		getClient,
+		dappMetadata,
 	}: {
 		metadata: WalletMetadata;
 		projectId: string;
 		getClient: GetClient;
+		dappMetadata?: DappMetadata;
 	}) {
 		this.#id = metadata.id;
 		this.#accounts = [];
@@ -178,6 +183,7 @@ export class WalletConnectWallet implements Wallet {
 		this.#icon = icon;
 		this.#projectId = projectId;
 		this.#getClient = getClient;
+		this.#dappMetadata = dappMetadata;
 		this.#initialization = this.init();
 	}
 
@@ -193,9 +199,7 @@ export class WalletConnectWallet implements Wallet {
 	async #initialize() {
 		this.#connector = await UniversalConnector.init({
 			projectId: this.#projectId,
-
-			// TODO: Use dapp metadata
-			metadata: {
+			metadata: this.#dappMetadata ?? {
 				name: this.#walletName,
 				description: 'WalletConnect',
 				url: 'https://walletconnect.org',
@@ -385,12 +389,15 @@ type RegisterWalletConnectWallet = {
 	projectId: string;
 	getClient: GetClient;
 	metadata?: WalletMetadata;
+	/** Metadata for your dApp, shown in the wallet when the user pairs. */
+	dappMetadata?: DappMetadata;
 };
 
 export function registerWalletConnectWallet({
 	projectId,
 	getClient,
 	metadata,
+	dappMetadata,
 }: RegisterWalletConnectWallet) {
 	const wallets = getWallets();
 
@@ -420,6 +427,7 @@ export function registerWalletConnectWallet({
 		metadata: fullMetadata,
 		projectId,
 		getClient,
+		dappMetadata,
 	});
 	unregister = wallets.register(walletConnectWalletInstance);
 
