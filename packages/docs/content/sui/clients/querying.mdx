@@ -301,8 +301,20 @@ for (const field of page.dynamicFields) {
 }
 ```
 
-On `SuiGrpcClient` and `SuiGraphQLClient` this method also accepts `include: { value: true }` to
-fetch each field's BCS-encoded value in the same request.
+Pass `include: { value: true }` to fetch each field's BCS-encoded value in the same request. For a
+dynamic object field, `value` holds the child object's BCS-encoded content.
+
+```typescript
+const page = await client.listDynamicFields({
+	parentId: '0x123...',
+	include: { value: true },
+});
+
+for (const field of page.dynamicFields) {
+	console.log(field.value.type); // same as field.valueType
+	console.log(field.value.bcs); // BCS-encoded value
+}
+```
 
 ### `getDynamicField`
 
@@ -322,6 +334,9 @@ const { dynamicField } = await client.getDynamicField({
 console.log(dynamicField.value.type);
 console.log(dynamicField.value.bcs); // BCS-encoded value
 ```
+
+For a dynamic object field, pass the name type wrapped in `0x2::dynamic_object_field::Wrapper<...>`.
+`value` then holds the child object's type and BCS-encoded content, as in `listDynamicFields`.
 
 ### `getDynamicObjectField`
 
