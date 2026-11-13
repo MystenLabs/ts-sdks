@@ -11,6 +11,7 @@ import {
 	parseStructTag,
 } from '../utils/sui-types.js';
 import type { ClientCache } from './cache.js';
+import { pageBase } from './utils.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { PACKAGE_VERSION } from '../version.js';
 import type { SuiClientTypes } from './types.js';
@@ -28,6 +29,13 @@ export interface MvrClientOptions {
 		packages?: Record<string, string>;
 		types?: Record<string, string>;
 	};
+}
+
+const requestFailures = new WeakSet<object>();
+
+/** Whether `error` is an MVR request that failed in transit, such as a network failure. */
+export function isMvrRequestFailure(error: unknown): boolean {
+	return typeof error === 'object' && error !== null && requestFailures.has(error);
 }
 
 export class MvrClient implements SuiClientTypes.MvrMethods {
@@ -166,21 +174,42 @@ export class MvrClient implements SuiClientTypes.MvrMethods {
 			throw new Error('MVR Api URL is not set for the current client');
 		}
 
-		const response = await fetch(`${this.#url}${url}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...MVR_API_HEADER,
-			},
-			body: JSON.stringify(body),
-		});
+		const target = `${this.#url}${url}`;
+		// Checked first, so a malformed URL is not mistaken for a failed request.
+		new URL(target, pageBase());
+		let response: Response;
+		try {
+			response = await fetch(target, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...MVR_API_HEADER,
+				},
+				body: JSON.stringify(body),
+			});
+		} catch (error) {
+			// Lets callers retry a request that failed in transit, unlike a bad response or a bug.
+			if (typeof error === 'object' && error !== null) requestFailures.add(error);
+			throw error;
+		}
 
 		if (!response.ok) {
 			const errorBody = await response.json().catch(() => ({}));
-			throw new Error(`Failed to resolve types: ${errorBody?.message}`);
+			// The status lets callers retry rate limiting and outages.
+			throw Object.assign(new Error(`Failed to resolve types: ${errorBody?.message}`), {
+				status: response.status,
+			});
 		}
 
-		return response.json();
+		let text: string;
+		try {
+			text = await response.text();
+		} catch (error) {
+			// A body cut off mid-read is a failed request; a malformed one (from `JSON.parse`) is not.
+			if (typeof error === 'object' && error !== null) requestFailures.add(error);
+			throw error;
+		}
+		return JSON.parse(text);
 	}
 
 	async resolvePackage({
