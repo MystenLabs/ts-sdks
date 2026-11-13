@@ -120,6 +120,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse>;
 
+	abstract listCheckpoints(
+		options: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse>;
+
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
 	abstract verifyZkLoginSignature(
