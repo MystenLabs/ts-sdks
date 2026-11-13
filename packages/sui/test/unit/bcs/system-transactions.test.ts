@@ -7,6 +7,7 @@ import { fromBase64, fromHex, toBase64 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
+import { parseTransactionDataBcs } from '../../../src/client/transaction-data.js';
 import { GENESIS_TRANSACTION_GZIP_BASE64 } from './fixtures/genesis-transaction.js';
 
 // BCS `TransactionData` of system transactions captured from a `sui start --force-regenesis
@@ -169,6 +170,24 @@ describe('system transaction BCS', () => {
 			'settlement_prologue',
 			'settle_u128',
 		]);
+	});
+
+	it('keeps non-exclusive write access through the client transaction data', () => {
+		const data = parseTransactionDataBcs(fromBase64(FIXTURES.SETTLEMENT_NON_EXCLUSIVE_WRITE));
+
+		expect(data.kind.$kind).toEqual('ProgrammableSystemTransaction');
+		expect(data.kind.ProgrammableSystemTransaction!.inputs[0]).toEqual({
+			$kind: 'Object',
+			Object: {
+				$kind: 'SharedObject',
+				SharedObject: {
+					objectId: ACCUMULATOR_ROOT,
+					initialSharedVersion: '1',
+					mutable: false,
+					mutability: 'NonExclusiveWrite',
+				},
+			},
+		});
 	});
 
 	it('encodes shared object mutability as the bool it replaced', () => {
