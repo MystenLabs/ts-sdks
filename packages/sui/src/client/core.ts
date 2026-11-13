@@ -255,7 +255,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		});
 
 		// Default schedule tuned to testnet measurements:
-		// - Fullnode (gRPC/JSON-RPC): p50=130ms, p95=330ms
+		// - Fullnode (gRPC): p50=130ms, p95=330ms
 		// - GraphQL indexer: p50=1300ms, p95=1430ms
 		// After schedule exhausted, repeats the last interval.
 		const schedule = pollSchedule ?? [0, 300, 600, 1500, 3500];

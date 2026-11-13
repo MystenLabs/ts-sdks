@@ -7,7 +7,7 @@ import { decodeMoveAbort, type MoveAbortError } from '../errors.js';
 
 // The one network seam every read sits on: any client exposing the core API
 // (`client.core.simulateTransaction`, plus the object reads positions.ts needs).
-// Callers pass a real SuiGrpcClient/SuiJsonRpcClient; tests inject a structural mock.
+// Callers pass a real SuiGrpcClient/SuiGraphQLClient; tests inject a structural mock.
 export type ReadClient = ClientWithCoreApi;
 
 // The abort payload a failed simulate result carries: the structured gRPC `MoveAbort`
