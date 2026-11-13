@@ -226,12 +226,6 @@ describe('allowedPackages / allowedFunctions', () => {
 });
 
 describe('noRestrictedMoveCalls', () => {
-	it('throws at creation on a malformed target', () => {
-		expect(() => noRestrictedMoveCalls({ targets: { '0xbad:drain': 'block' } })).toThrow(
-			'Invalid restricted Move call target',
-		);
-	});
-
 	const sui = normalizeSuiAddress('0x2');
 	const bad = normalizeSuiAddress('0xbad');
 
@@ -263,11 +257,8 @@ describe('noRestrictedMoveCalls', () => {
 		expect(await validate(noRestrictedMoveCalls(), ['0x2::coin::zero'])).toEqual([]);
 	});
 
-	it('rejects configured targets at any level, and can allow aliases', async () => {
-		const validator = noRestrictedMoveCalls({
-			addressAliases: false,
-			targets: { '0xbad': 'warn' },
-		});
+	it('rejects configured entries in place of the default', async () => {
+		const validator = noRestrictedMoveCalls({ restrictedMoveCalls: ['0xbad'] });
 		expect(
 			(await validate(validator, ['0x2::address_alias::add', '0xbad::drain::all'])).map(
 				(issue) => issue.message,

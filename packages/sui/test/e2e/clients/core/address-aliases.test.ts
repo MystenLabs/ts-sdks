@@ -21,7 +21,11 @@ describe('Core API - Address aliases', () => {
 	const message = new TextEncoder().encode(personalMessage);
 
 	async function execute(tx: Transaction, signer = owner.keypair) {
-		const result = await toolbox.signAndExecuteTransaction({ transaction: tx, signer });
+		tx.setSender(signer.toSuiAddress());
+		const result = await toolbox.signAndExecuteTransaction({
+			transaction: await tx.build({ client: toolbox.grpcClient, restrictedMoveCalls: [] }),
+			signer,
+		});
 		if (result.$kind !== 'Transaction') {
 			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 		}

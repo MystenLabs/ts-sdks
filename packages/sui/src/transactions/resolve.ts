@@ -22,6 +22,12 @@ export interface BuildTransactionOptions {
 	 * address balance). Execution fails if the balances aren't there.
 	 */
 	assumeSufficientAddressBalances?: boolean;
+	/**
+	 * `package`, `package::module` or `package::module::function` entries. Building or serializing a
+	 * transaction with a MoveCall matching any of them throws. Takes precedence over the client's
+	 * `restrictedMoveCalls`, then `DEFAULT_RESTRICTED_MOVE_CALLS`; pass `[]` to allow all calls.
+	 */
+	restrictedMoveCalls?: readonly string[];
 }
 
 export interface SerializeTransactionOptions extends BuildTransactionOptions {

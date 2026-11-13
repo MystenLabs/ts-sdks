@@ -113,6 +113,9 @@ run on 3.0 or keep a 2.x copy of its own.
 - **`parseTransactionBcs` returns the transaction builder's `TransactionData`** from
   `@mysten/sui/transactions`, not `SuiClientTypes.TransactionData`. Use `parseTransactionDataBcs`
   where you need the client type.
+- **Building or serializing a transaction that calls `0x2::address_alias` throws.** Pass
+  `restrictedMoveCalls: []` to the client constructor, or to `build` or `toJSON`, to allow it. See
+  [Restricted Move calls](/sui/transactions/reference#restricted-move-calls).
 
 ### Transports
 
@@ -147,6 +150,12 @@ run on 3.0 or keep a 2.x copy of its own.
 
 - **`@mysten-incubation/sponsor`'s `userSignatureMatchesSender` verifies on the node**, and fails
   with `ANALYSIS_FAILED` if the node can't be reached.
+- **`@mysten/wallet-sdk`'s `restrictedMoveCalls` and `@mysten-incubation/sponsor`'s
+  `noRestrictedMoveCalls` take `{ restrictedMoveCalls }`** (`package`, `package::module` or
+  `package::module::function` entries) instead of `addressAliases` and `targets`, and throw on any
+  other option. The list replaces the default, so keep `'0x2::address_alias'` in it to keep flagging
+  alias changes. Results no longer have a `level`, and `matchedBy` is a single entry instead of an
+  array.
 - **`@mysten/wallet-standard` and `@mysten/kiosk` no longer use JSON-RPC types.** Import legacy
   response types from the `SuiJsonRpcTypes` namespace in `@mysten/wallet-standard`.
   `TransferPolicy.owner` in `@mysten/kiosk` is a `SuiClientTypes.ObjectOwner`.
@@ -186,6 +195,8 @@ You can upgrade before your dependencies release versions for 3.0. How a depende
 `@mysten/sui` decides which copy it uses:
 
 - **A regular dependency on 2.x:** it installs its own 2.x copy and keeps working on it.
+  `Transaction`s built by its copy skip the
+  [restricted Move calls](/sui/transactions/reference#restricted-move-calls) check.
 - **A peer dependency on `^2`:** npm refuses to install it next to 3.0. pnpm and Yarn print a
   warning and give it your 3.0 copy.
 

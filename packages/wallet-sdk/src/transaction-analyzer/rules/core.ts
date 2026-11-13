@@ -7,6 +7,9 @@ import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Analyzer, AnalyzerOutput } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
+/**
+ * Built with no restricted-call check, so register the `restrictedMoveCalls` rule before signing them.
+ */
 export const bytes = createAnalyzer({
 	cacheKey: 'bytes@1.0.0',
 	analyze:
@@ -14,7 +17,8 @@ export const bytes = createAnalyzer({
 		async (): Promise<AnalyzerOutput<Uint8Array>> => {
 			try {
 				return {
-					result: await transaction.build({ client: options.client }),
+					// Build what it inspects; the restrictedMoveCalls rule reports restricted calls.
+					result: await transaction.build({ client: options.client, restrictedMoveCalls: [] }),
 				};
 			} catch (error) {
 				// Building can throw for many reasons (object resolution, a missing client,

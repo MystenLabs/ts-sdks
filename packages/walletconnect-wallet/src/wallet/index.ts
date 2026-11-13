@@ -253,7 +253,8 @@ export class WalletConnectWallet implements Wallet {
 		const json = await serializable.toJSON({ client });
 		const tx = Transaction.from(json);
 		tx.setSenderIfNotSet(address);
-		return tx.build({ client });
+		// The bytes go to the remote wallet, which decides what it signs.
+		return tx.build({ client, restrictedMoveCalls: [] });
 	}
 
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {

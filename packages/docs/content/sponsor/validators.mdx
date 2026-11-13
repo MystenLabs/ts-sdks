@@ -194,10 +194,10 @@ it contributes `SponsorRejection | null`, deduping its analyzers with that graph
 | `boundedExpiration()`          | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch           |
 
 § Uses `restrictedMoveCalls` from `@mysten/wallet-sdk`. With no options it rejects calls that change
-the sender's address aliases (which addresses can sign for the account). Pass `targets` to restrict
-more packages, modules, or functions, for example
-`noRestrictedMoveCalls({ targets: { '0xbad': 'block' } })`, or `{ addressAliases: false }` to
-sponsor alias changes.
+the sender's address aliases (which addresses can sign for the account). `restrictedMoveCalls` takes
+`package`, `package::module` or `package::module::function` entries and replaces the default, so
+`noRestrictedMoveCalls({ restrictedMoveCalls: ['0x2::address_alias', '0xbad'] })` restricts one more
+package, and `{ restrictedMoveCalls: [] }` sponsors alias changes.
 
 \* The dry-run itself _succeeding_ but reporting an aborting transaction is a **policy** rejection
 (`TRANSACTION_WOULD_FAIL`): the bytes are executable and would still cost the sponsor gas (landing a
@@ -220,7 +220,8 @@ reported as a bad signature. Passes when no user signature was supplied (the spo
 The signature is read from the request, not from `validationOptions`.
 
 `defaults()` bundles `validSender()` + `onlyAddressBalanceGas()` + `gasCoinNotUsed()` +
-`onlySenderWithdrawals()` + `simulationSucceeds()` + `boundedExpiration()`.
+`onlySenderWithdrawals()` + `noRestrictedMoveCalls()` + `simulationSucceeds()` +
+`boundedExpiration()`.
 
 ## Timing-attack mitigation
 
