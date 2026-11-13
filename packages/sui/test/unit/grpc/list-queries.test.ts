@@ -26,7 +26,11 @@ function cursorB64(n: number) {
 function txFrame(n: number, end?: GrpcTypes.QueryEndReason): GrpcTypes.ListTransactionsResponse {
 	return GrpcTypes.ListTransactionsResponse.create({
 		watermark: { cursor: cursor(n) },
-		transaction: { digest: `digest-${n}`, effects: { status: { success: true } } },
+		transaction: {
+			digest: `digest-${n}`,
+			transaction: { sender: '0x1' },
+			effects: { status: { success: true } },
+		},
 		...(end !== undefined && { end: { reason: end } }),
 	});
 }
