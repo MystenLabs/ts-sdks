@@ -12,6 +12,7 @@ export default defineConfig({
 		'src/graphql/index.ts',
 		'src/graphql/schema/index.ts',
 		'src/grpc/index.ts',
+		'src/grpc/pull-transport/index.ts',
 		'src/keypairs/ed25519/index.ts',
 		'src/keypairs/secp256k1/index.ts',
 		'src/keypairs/secp256r1/index.ts',
