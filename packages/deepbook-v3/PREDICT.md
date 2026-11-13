@@ -328,8 +328,8 @@ the room from the model.
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
   `createQueue` (registry, desk and market), `commit`, `resolve`, `refund`, `adminRefund`,
   `settleStep`, `payOpen`, `claimParked` and `cleanup`. `SessionsContract` has the `enqueue*`
-  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3, which
-  `getSessionsConfig` records on both networks.
+  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3 or
+  later, which `getSessionsConfig` records on both networks.
 
 #### Queued orders from a session key
 
