@@ -13,10 +13,11 @@ packages/docs/content/
 │   ├── clients/            # Subsection
 │   │   ├── meta.json       # Subsection navigation
 │   │   ├── index.mdx
-│   │   ├── core.mdx
+│   │   ├── querying.mdx
+│   │   ├── executing.mdx
 │   │   ├── grpc.mdx
 │   │   ├── graphql.mdx
-│   │   └── json-rpc.mdx
+│   │   └── core.mdx
 │   ├── transaction-building/
 │   ├── cryptography/
 │   ├── utils/
@@ -62,7 +63,7 @@ Subdirectories can have their own `meta.json`:
 ```json
 {
 	"title": "Clients",
-	"pages": ["index", "core", "grpc", "graphql", "json-rpc"]
+	"pages": ["index", "querying", "executing", "grpc", "graphql", "core"]
 }
 ```
 
