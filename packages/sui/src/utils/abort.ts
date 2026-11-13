@@ -1,0 +1,79 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * `abortableAsyncGenerator` owns one controller per iteration and aborts it whenever the generator
+ * ends, so work below it needs no cancellation cleanup of its own.
+ */
+
+/** A controller that aborts when `signal` aborts. Call `dispose` to detach from `signal`. */
+export function linkedAbortController(signal?: AbortSignal) {
+	const controller = new AbortController();
+	const abort = () => controller.abort(signal?.reason);
+	if (signal?.aborted) abort();
+	else signal?.addEventListener('abort', abort, { once: true });
+	return { controller, dispose: () => signal?.removeEventListener('abort', abort) };
+}
+
+/**
+ * Runs `run` lazily on the first `next()` with a signal that aborts when the caller's signal
+ * aborts or the generator ends for any reason.
+ */
+export function abortableAsyncGenerator<T>(
+	run: (signal: AbortSignal) => AsyncGenerator<T>,
+	signal?: AbortSignal,
+): AsyncGenerator<T> {
+	let controller: AbortController | undefined;
+	async function* generate(): AsyncGenerator<T> {
+		const linked = linkedAbortController(signal);
+		controller = linked.controller;
+		try {
+			controller.signal.throwIfAborted();
+			yield* run(controller.signal);
+		} finally {
+			controller.abort();
+			linked.dispose();
+		}
+	}
+	const iterator = generate();
+	// A generator suspended in `await` queues `return()`/`throw()` behind the pending `next()`.
+	// Aborting first makes that pending read (or timer) reject, so the call cannot deadlock.
+	const originalReturn = iterator.return.bind(iterator);
+	iterator.return = (value) => {
+		controller?.abort();
+		return originalReturn(value);
+	};
+	const originalThrow = iterator.throw.bind(iterator);
+	iterator.throw = (error) => {
+		controller?.abort(error);
+		return originalThrow(error);
+	};
+	return iterator;
+}
+
+/** The longest delay `setTimeout` supports; larger values fire after 1 ms. */
+const MAX_TIMEOUT = 2 ** 31 - 1;
+
+/** Resolves after `delay` ms (`Infinity` waits for the abort) or rejects with the abort reason. */
+export function sleep(delay: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal.aborted) return reject(signal.reason);
+		let remaining = delay;
+		let timer: ReturnType<typeof setTimeout>;
+		const onAbort = () => {
+			clearTimeout(timer);
+			reject(signal.reason);
+		};
+		const wait = () => {
+			const step = Math.min(remaining, MAX_TIMEOUT);
+			remaining -= step;
+			timer = setTimeout(() => {
+				if (remaining > 0) return wait();
+				signal.removeEventListener('abort', onAbort);
+				resolve();
+			}, step);
+		};
+		wait();
+		signal.addEventListener('abort', onAbort, { once: true });
+	});
+}
