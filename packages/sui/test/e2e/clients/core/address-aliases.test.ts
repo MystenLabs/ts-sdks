@@ -21,8 +21,9 @@ describe('Core API - Address aliases', () => {
 	const message = new TextEncoder().encode(personalMessage);
 
 	async function execute(tx: Transaction, signer = owner.keypair) {
+		tx.setSender(signer.toSuiAddress());
 		const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
-			transaction: tx,
+			transaction: await tx.build({ client: toolbox.grpcClient, restrictedMoveCalls: [] }),
 			signer,
 		});
 		if (result.$kind !== 'Transaction') {

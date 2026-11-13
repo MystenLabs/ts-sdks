@@ -14,6 +14,7 @@ import { assertSponsorable, createSponsor } from '../src/sponsor.js';
 import type { SignTransactionResult, SponsoredTransaction } from '../src/sponsor.js';
 import {
 	gasBudget,
+	noRestrictedMoveCalls,
 	onlySenderWithdrawals,
 	validSender,
 	simulationSucceeds,
@@ -258,6 +259,29 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		if (result.$kind === 'Rejected') {
 			expect(result.issues.map((issue) => issue.code)).toEqual(['RESTRICTED_MOVE_CALL']);
 			expect(result.reason).toBe('POLICY_REJECTED');
+		}
+	});
+
+	it('rejects user-signed bytes that change address aliases', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const senderKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: senderKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		tx.moveCall({ target: '0x2::address_alias::add', arguments: [tx.pure.address('0xbad')] });
+		const bytes = await tx.build({ restrictedMoveCalls: [] });
+		const { signature: userSignature } = await senderKey.signTransaction(bytes);
+
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: offlineClient,
+			validate: [noRestrictedMoveCalls()],
+		});
+		const result = await sponsor.signTransaction({ transaction: bytes, userSignature });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.issues.map((issue) => issue.code)).toEqual(['RESTRICTED_MOVE_CALL']);
 		}
 	});
 

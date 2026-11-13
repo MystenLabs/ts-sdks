@@ -71,6 +71,12 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 	queries?: Queries;
 	network: SuiClientTypes.Network;
 	mvr?: SuiClientTypes.MvrOptions;
+	/**
+	 * `package`, `package::module` or `package::module::function` entries that transactions built
+	 * with this client can't call. A per-call `restrictedMoveCalls` on `build` or `toJSON` takes
+	 * precedence. Defaults to `DEFAULT_RESTRICTED_MOVE_CALLS`.
+	 */
+	restrictedMoveCalls?: readonly string[];
 }
 
 /** Serialize the request body before `fetch`, so serialization errors are never retryable. */
@@ -138,6 +144,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		queries = {} as Queries,
 		network,
 		mvr,
+		restrictedMoveCalls,
 	}: SuiGraphQLClientOptions<Queries>) {
 		super({
 			network,
@@ -152,6 +159,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		this.core = new GraphQLCoreClient({
 			graphqlClient: this,
 			mvr,
+			restrictedMoveCalls,
 			subscribe: (options, onOpen) => this.#subscribe(options, onOpen),
 		});
 	}

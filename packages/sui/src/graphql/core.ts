@@ -96,13 +96,15 @@ export class GraphQLCoreClient extends CoreClient {
 	constructor({
 		graphqlClient,
 		mvr,
+		restrictedMoveCalls,
 		subscribe,
 	}: {
 		graphqlClient: SuiGraphQLClient;
 		mvr?: SuiClientTypes.MvrOptions;
+		restrictedMoveCalls?: readonly string[];
 		subscribe: OpenSubscription;
 	}) {
-		super({ network: graphqlClient.network, base: graphqlClient, mvr });
+		super({ network: graphqlClient.network, base: graphqlClient, mvr, restrictedMoveCalls });
 		this.#graphqlClient = graphqlClient;
 		this.#subscribe = subscribe;
 	}

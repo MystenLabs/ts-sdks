@@ -57,15 +57,16 @@ itself. The rest of this page covers writing those queries; see the
 
 The constructor takes:
 
-| Option            | Description                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------------- |
-| `url`             | GraphQL endpoint: an absolute http(s) URL, or a path such as `/graphql` in a browser or with a custom `fetch` |
-| `subscriptionUrl` | Subscription endpoint; defaults to `url` with `/subscriptions` appended                                       |
-| `network`         | Network the endpoint serves, used for caching and MVR defaults                                                |
-| `headers`         | Extra headers sent with every request, such as an API key                                                     |
-| `fetch`           | Custom `fetch` implementation                                                                                 |
-| `queries`         | Named documents callable through [`execute`](#named-queries)                                                  |
-| `mvr`             | Move Registry overrides                                                                                       |
+| Option                | Description                                                                                                                               |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`                 | GraphQL endpoint: an absolute http(s) URL, or a path such as `/graphql` in a browser or with a custom `fetch`                             |
+| `subscriptionUrl`     | Subscription endpoint; defaults to `url` with `/subscriptions` appended                                                                   |
+| `network`             | Network the endpoint serves, used for caching and MVR defaults                                                                            |
+| `headers`             | Extra headers sent with every request, such as an API key                                                                                 |
+| `fetch`               | Custom `fetch` implementation                                                                                                             |
+| `queries`             | Named documents callable through [`execute`](#named-queries)                                                                              |
+| `mvr`                 | Move Registry overrides                                                                                                                   |
+| `restrictedMoveCalls` | Move calls transactions built with this client can't make; see [Restricted Move calls](/sui/transactions/reference#restricted-move-calls) |
 
 Public endpoints:
 

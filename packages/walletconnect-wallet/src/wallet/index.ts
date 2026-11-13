@@ -252,7 +252,8 @@ export class WalletConnectWallet implements Wallet {
 		const client = this.#getClient(network as SupportedNetwork);
 		const data = await transaction.toJSON();
 		const parsedTransaction = Transaction.from(data);
-		const bytes = await parsedTransaction.build({ client });
+		// Only reports the bytes; the remote wallet decides what it signs, as in #signTransaction.
+		const bytes = await parsedTransaction.build({ client, restrictedMoveCalls: [] });
 		const response = (await this.#connector?.request(
 			{
 				method: 'sui_signAndExecuteTransaction',

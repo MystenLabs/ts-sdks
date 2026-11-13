@@ -5,6 +5,10 @@ import { fromBase64 } from '@mysten/utils';
 
 import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import {
+	DEFAULT_RESTRICTED_MOVE_CALLS,
+	validateRestrictedMoveCalls,
+} from '../transactions/restricted-move-calls.js';
 import { deriveObjectID } from '../utils/derived-objects.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import {
@@ -59,6 +63,7 @@ export type ClientWithCoreApi = ClientWithExtensions<{
 export interface CoreClientOptions extends SuiClientTypes.SuiClientOptions {
 	base: BaseClient;
 	mvr?: SuiClientTypes.MvrOptions;
+	restrictedMoveCalls?: readonly string[];
 }
 
 const DEFAULT_MVR_URLS: Record<string, string> = {
@@ -69,9 +74,16 @@ const DEFAULT_MVR_URLS: Record<string, string> = {
 export abstract class CoreClient extends BaseClient implements SuiClientTypes.TransportMethods {
 	core = this;
 	mvr: SuiClientTypes.MvrMethods;
+	readonly restrictedMoveCalls: readonly string[];
 
 	constructor(options: CoreClientOptions) {
 		super(options);
+
+		this.restrictedMoveCalls = Object.freeze([
+			...(options.restrictedMoveCalls ?? DEFAULT_RESTRICTED_MOVE_CALLS),
+		]);
+		// Validate entries now rather than on the first build.
+		validateRestrictedMoveCalls(this.restrictedMoveCalls);
 
 		this.mvr = new MvrClient({
 			cache: this.cache.scope('core.mvr'),

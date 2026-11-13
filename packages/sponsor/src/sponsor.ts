@@ -344,7 +344,8 @@ export class Sponsor<TOptions extends object = object> {
 			// the transaction set, else estimated during build.
 			tx.setGasPayment([]);
 
-			bytes = await tx.build({ client: this.#client });
+			// noRestrictedMoveCalls rejects restricted calls, so the build must not throw on them.
+			bytes = await tx.build({ client: this.#client, restrictedMoveCalls: [] });
 		}
 
 		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
