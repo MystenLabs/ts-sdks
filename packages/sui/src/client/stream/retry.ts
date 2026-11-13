@@ -20,6 +20,8 @@ export class RetryBudget {
 	readonly #maxAttempts: number;
 	readonly #random: () => number;
 	#attempt = 0;
+	/** Failures of an error kind the adapter caps on its own, since the last progress. */
+	#cappedStreak = 0;
 
 	constructor(options: SuiClientTypes.StreamRetryOptions = {}, random = Math.random) {
 		this.#initialDelay = nonNegative(options.initialDelay ?? 250, 'retry.initialDelay');
@@ -40,6 +42,10 @@ export class RetryBudget {
 	 * reconnects at once, or after a short pause when the attempt delivered no item
 	 * (`progressOnly`), so a server that sends one progress edge and then fails is not hit in a
 	 * tight loop.
+	 *
+	 * `cap` limits the failures of one capped kind since the last progress. Only progress resets
+	 * that count; other failures in between leave it as it is. `maxAttempts` still applies to every
+	 * failure, and whichever limit is reached first ends the stream.
 	 */
 	onFailure(
 		error: unknown,
@@ -47,10 +53,15 @@ export class RetryBudget {
 		advanced: boolean,
 		reason?: SuiClientTypes.StreamRetryReason,
 		progressOnly = false,
+		cap?: number,
 	): number {
 		if (errorClass === 'fatal') throw error;
 		const afterProgress = progressOnly ? Math.min(this.#initialDelay, PROGRESS_ONLY_DELAY) : 0;
-		if (advanced) this.#attempt = 0;
+		if (advanced) {
+			this.#attempt = 0;
+			this.#cappedStreak = 0;
+		}
+		if (cap !== undefined && ++this.#cappedStreak > cap) throw error;
 		if (advanced && (errorClass === 'disconnect' || reason === 'Disconnected')) {
 			return afterProgress;
 		}

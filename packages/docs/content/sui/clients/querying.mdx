@@ -455,7 +455,9 @@ described under [Pagination](#pagination).
 For filters the Core API does not express (OR of predicates, negated or repeated predicates, or
 event-based and package-write predicates on transactions), use the
 [raw gRPC list RPCs](/sui/clients/grpc#using-service-clients). To follow new activity as it happens,
-see [gRPC subscriptions](/sui/clients/grpc#subscriptions).
+use [`streamTransactions` and `streamEvents`](/sui/clients/streaming), which take the same filters
+and resume after a restart. For native filters, see
+[gRPC subscriptions](/sui/clients/grpc#subscriptions).
 
 ### `listCheckpoints`
 
