@@ -112,6 +112,18 @@ function formatErrorMessage($kind: string, data: unknown): string {
 	return $kind;
 }
 
+// BCS names that the gRPC enum renamed; the unified names are gRPC's.
+const GRPC_ERROR_NAMES: Record<string, string> = {
+	InvalidBCSBytes: 'InvalidBcsBytes',
+	InvalidUsageOfPureArg: 'InvalidUsageOfPureArgument',
+	SharedObjectOperationNotAllowed: 'ConsensusObjectOperationNotAllowed',
+	PackageIDDoesNotMatch: 'PackageIdDoesNotMatch',
+};
+
+function renamed(name: string): string {
+	return GRPC_ERROR_NAMES[name] ?? name;
+}
+
 function parseBcsExecutionError(failure: {
 	error: BcsExecutionFailureStatus;
 	command: string | null;
@@ -125,7 +137,6 @@ function parseBcsExecutionError(failure: {
 			const moveLocation = {
 				package: location.module.address,
 				module: location.module.name,
-				function: location.function,
 				functionName: location.functionName ?? undefined,
 				instruction: location.instruction,
 			};
@@ -223,7 +234,7 @@ function parseBcsExecutionError(failure: {
 				command,
 				CommandArgumentError: {
 					argument: error.CommandArgumentError.argIdx,
-					name: error.CommandArgumentError.kind.$kind,
+					name: renamed(error.CommandArgumentError.kind.$kind),
 				},
 			};
 
@@ -245,7 +256,7 @@ function parseBcsExecutionError(failure: {
 				message: formatErrorMessage('PackageUpgradeError', error.PackageUpgradeError),
 				command,
 				PackageUpgradeError: {
-					name: upgradeError.$kind,
+					name: renamed(upgradeError.$kind),
 					packageId:
 						upgradeError.$kind === 'UnableToFetchPackage'
 							? upgradeError.UnableToFetchPackage.packageId
@@ -396,7 +407,7 @@ function parseBcsExecutionError(failure: {
 export function parseTransactionBcs(
 	bytes: Uint8Array,
 	onlyTransactionKind = false,
-): SuiClientTypes.TransactionData {
+): ReturnType<TransactionDataBuilder['snapshot']> {
 	return (
 		onlyTransactionKind
 			? TransactionDataBuilder.fromKindBytes(bytes)
@@ -474,6 +485,20 @@ export function extractStatusFromEffectsBcs(
 	};
 }
 
+/** Map a BCS owner onto the client owner type; party ownership has no client representation. */
+export function mapBcsOwner(owner: typeof bcs.Owner.$inferType): SuiClientTypes.ObjectOwner;
+export function mapBcsOwner(
+	owner: typeof bcs.Owner.$inferType | null,
+): SuiClientTypes.ObjectOwner | null;
+export function mapBcsOwner(
+	owner: typeof bcs.Owner.$inferType | null,
+): SuiClientTypes.ObjectOwner | null {
+	if (owner?.$kind === 'Party') {
+		return { $kind: 'Unknown' };
+	}
+	return owner;
+}
+
 export function parseTransactionEffectsBcs(effects: Uint8Array): SuiClientTypes.TransactionEffects {
 	const parsed = bcs.TransactionEffects.parse(effects);
 
@@ -532,7 +557,7 @@ function parseTransactionEffectsV1({
 			mapChangedObject(reference, {
 				inputState,
 				outputState: 'ObjectWrite',
-				outputOwner: owner,
+				outputOwner: mapBcsOwner(owner),
 				idOperation,
 			}),
 		);
@@ -607,7 +632,7 @@ function parseTransactionEffectsV2({
 				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
 				inputVersion: change.inputState.Exist?.[0][0] ?? null,
 				inputDigest: change.inputState.Exist?.[0][1] ?? null,
-				inputOwner: change.inputState.Exist?.[1] ?? null,
+				inputOwner: mapBcsOwner(change.inputState.Exist?.[1] ?? null),
 				outputState:
 					change.outputState.$kind === 'NotExist' ? 'DoesNotExist' : change.outputState.$kind,
 				outputVersion:
@@ -623,7 +648,9 @@ function parseTransactionEffectsV2({
 							? (change.outputState.ObjectWrite?.[0] ?? null)
 							: null,
 				outputOwner:
-					change.outputState.$kind === 'ObjectWrite' ? change.outputState.ObjectWrite[1] : null,
+					change.outputState.$kind === 'ObjectWrite'
+						? mapBcsOwner(change.outputState.ObjectWrite[1])
+						: null,
 				idOperation: change.idOperation.$kind,
 			};
 		},
@@ -652,13 +679,13 @@ function parseTransactionEffectsV2({
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
 			([objectId, object]): SuiClientTypes.UnchangedConsensusObject => {
+				// Unit variants such as `PerEpochConfig` parse as `true` and carry no version.
+				const version =
+					object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[0] : object[object.$kind];
 				return {
 					kind: object.$kind,
 					objectId: objectId,
-					version:
-						object.$kind === 'ReadOnlyRoot'
-							? object.ReadOnlyRoot[0]
-							: (object[object.$kind] as string | null),
+					version: typeof version === 'string' ? version : null,
 					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
 				};
 			},

@@ -18,13 +18,17 @@ query listCheckpoints(
 		edges {
 			cursor
 			node {
-				sequenceNumber
-				digest
-				timestamp
-				epoch {
-					epochId
-				}
+				...CHECKPOINT_FIELDS
 			}
 		}
+	}
+}
+
+fragment CHECKPOINT_FIELDS on Checkpoint {
+	sequenceNumber
+	digest
+	timestamp
+	epoch {
+		epochId
 	}
 }

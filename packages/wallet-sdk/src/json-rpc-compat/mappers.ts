@@ -12,7 +12,7 @@ import { readMoveModuleName } from './move-bytecode.js';
 
 type CallArg = SuiClientTypes.TransactionData['inputs'][number];
 type Command = SuiClientTypes.TransactionData['commands'][number];
-type Argument = Extract<Command, { MoveCall: unknown }>['MoveCall']['arguments'][number];
+type Argument = Extract<Command, { $kind: 'MoveCall' }>['MoveCall']['arguments'][number];
 type PureInputType = 'address' | 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256';
 
 const digestFilledWith = (byte: number) => toBase58(new Uint8Array(32).fill(byte));
@@ -183,7 +183,8 @@ export function mapObjectChanges(
 	transaction: Pick<MappableTransaction, 'effects' | 'objectTypes' | 'transaction'>,
 ): SuiJsonRpcTypes.SuiObjectChange[] {
 	const { effects, objectTypes } = transaction;
-	const sender = required(transaction.transaction.sender, 'sender');
+	assertKnownKind(transaction.transaction);
+	const { sender } = transaction.transaction;
 	const version = (value: string | null) => required(value, 'object version');
 	const mutated: SuiJsonRpcTypes.SuiObjectChange[] = [];
 	const created: SuiJsonRpcTypes.SuiObjectChange[] = [];
@@ -252,30 +253,45 @@ export function mapObjectChanges(
 export function mapTransactionDataToInput(
 	transaction: SuiClientTypes.TransactionData,
 ): SuiJsonRpcTypes.TransactionBlockData {
+	assertKnownKind(transaction);
+	const kind = transaction.kind.$kind;
+	if (kind !== 'ProgrammableTransaction' && kind !== 'ProgrammableSystemTransaction') {
+		// JSON-RPC inputs are only mapped for programmable transactions.
+		throw new Error(`Unsupported transaction kind ${kind}`);
+	}
 	const pureInputTypes = pureInputTypeHints(transaction);
 	const { gasData } = transaction;
 
 	return {
 		gasData: {
-			budget: String(required(gasData.budget, 'gas budget')),
-			owner: required(gasData.owner, 'gas owner'),
-			payment: (gasData.payment ?? []).map((payment) => ({
+			budget: gasData.budget,
+			owner: gasData.owner,
+			payment: gasData.payment.map((payment) => ({
 				objectId: payment.objectId,
 				version: asJsonNumber(payment.version),
 				digest: payment.digest,
 			})),
-			price: String(required(gasData.price, 'gas price')),
+			price: gasData.price,
 		},
 		messageVersion: 'v1',
-		sender: required(transaction.sender, 'sender'),
+		sender: transaction.sender,
 		transaction: {
 			inputs: transaction.inputs.map((input, index) =>
 				mapCallArg(input, pureInputTypes.get(index)),
 			),
-			kind: 'ProgrammableTransaction',
+			kind,
 			transactions: transaction.commands.map(mapCommand),
 		},
 	};
+}
+
+/** An `Unknown` kind is one the client could not map, so a response built from it would miss data. */
+function assertKnownKind(transaction: SuiClientTypes.TransactionData) {
+	if (transaction.kind.$kind === 'Unknown') {
+		throw new Error(
+			'Transaction kind is not supported by this SDK version, you may need to update the SDK to map this transaction',
+		);
+	}
 }
 
 function mapOwner(owner: SuiClientTypes.ObjectOwner | null): SuiJsonRpcTypes.ObjectOwner {
@@ -350,14 +366,13 @@ function mapGasObject(
 		return { reference: outputObjectRef(gasObject), owner: mapOwner(gasObject.outputOwner) };
 	}
 
-	const { gasData, sender } = transaction.transaction;
 	return {
 		reference: {
 			objectId: normalizeSuiAddress('0x0'),
 			version: asJsonNumber(0),
 			digest: OBJECT_DIGEST_MIN,
 		},
-		owner: { AddressOwner: required(gasData.owner ?? sender, 'gas owner') },
+		owner: { AddressOwner: transaction.transaction.gasData.owner },
 	};
 }
 
@@ -400,25 +415,45 @@ function outputObjectRef(change: SuiClientTypes.ChangedObject): SuiJsonRpcTypes.
 /** Module names of every published or upgraded package, sorted as the node lists them. */
 function publishedModuleNames(transaction: SuiClientTypes.TransactionData): string[] {
 	return transaction.commands
-		.flatMap((command) =>
-			'Publish' in command
-				? command.Publish.modules
-				: 'Upgrade' in command
-					? command.Upgrade.modules
-					: [],
-		)
+		.flatMap((command) => {
+			switch (command.$kind) {
+				case 'Publish':
+					return command.Publish.modules;
+				case 'Upgrade':
+					return command.Upgrade.modules;
+				default:
+					return [];
+			}
+		})
 		.map((module) => readMoveModuleName(fromBase64(module)))
 		.sort();
 }
 
 function mapCallArg(input: CallArg, pureInputType?: PureInputType): SuiJsonRpcTypes.SuiCallArg {
-	if ('Pure' in input) {
-		return mapPureCallArg(fromBase64(input.Pure.bytes), pureInputType);
+	switch (input.$kind) {
+		case 'Pure':
+			return mapPureCallArg(fromBase64(input.Pure.bytes), pureInputType);
+		case 'Object':
+			return mapObjectArg(input.Object);
+		case 'FundsWithdrawal': {
+			const { reservation, typeArg, withdrawFrom } = input.FundsWithdrawal;
+			return {
+				type: 'fundsWithdrawal',
+				reservation: { maxAmountU64: String(reservation.MaxAmountU64) },
+				typeArg: { balance: toTypeDisplayString(typeArg.Balance) },
+				withdrawFrom: mapWithdrawFrom(withdrawFrom),
+			};
+		}
+		default:
+			throw new Error(`Unsupported transaction input ${JSON.stringify(input)}`);
 	}
+}
 
-	if ('Object' in input) {
-		const object = input.Object;
-		if ('ImmOrOwnedObject' in object) {
+function mapObjectArg(
+	object: Extract<CallArg, { $kind: 'Object' }>['Object'],
+): SuiJsonRpcTypes.SuiCallArg {
+	switch (object.$kind) {
+		case 'ImmOrOwnedObject': {
 			const { objectId, version, digest } = object.ImmOrOwnedObject;
 			return {
 				type: 'object',
@@ -428,7 +463,7 @@ function mapCallArg(input: CallArg, pureInputType?: PureInputType): SuiJsonRpcTy
 				digest,
 			};
 		}
-		if ('SharedObject' in object) {
+		case 'SharedObject': {
 			const { objectId, initialSharedVersion, mutable } = object.SharedObject;
 			return {
 				type: 'object',
@@ -438,36 +473,34 @@ function mapCallArg(input: CallArg, pureInputType?: PureInputType): SuiJsonRpcTy
 				mutable,
 			};
 		}
-		const { objectId, version, digest } = object.Receiving;
-		return { type: 'object', objectType: 'receiving', objectId, version: String(version), digest };
+		case 'Receiving': {
+			const { objectId, version, digest } = object.Receiving;
+			return {
+				type: 'object',
+				objectType: 'receiving',
+				objectId,
+				version: String(version),
+				digest,
+			};
+		}
+		default:
+			throw new Error(`Unsupported object input ${JSON.stringify(object)}`);
 	}
-
-	if ('FundsWithdrawal' in input) {
-		const { reservation, typeArg, withdrawFrom } = input.FundsWithdrawal;
-		return {
-			type: 'fundsWithdrawal',
-			reservation: { maxAmountU64: String(reservation.MaxAmountU64) },
-			typeArg: { balance: toTypeDisplayString(typeArg.Balance) },
-			withdrawFrom: mapWithdrawFrom(withdrawFrom),
-		};
-	}
-
-	throw new Error(`Unsupported transaction input ${Object.keys(input)[0]}`);
 }
 
 function mapWithdrawFrom(
-	withdrawFrom: Extract<CallArg, { FundsWithdrawal: unknown }>['FundsWithdrawal']['withdrawFrom'],
+	withdrawFrom: Extract<CallArg, { $kind: 'FundsWithdrawal' }>['FundsWithdrawal']['withdrawFrom'],
 ): SuiJsonRpcTypes.SuiWithdrawFrom {
-	if ('Sender' in withdrawFrom) {
-		return 'sender';
+	switch (withdrawFrom.$kind) {
+		case 'Sender':
+			return 'sender';
+		case 'Sponsor':
+			return 'sponsor';
+		case 'SenderAllowance':
+			return { senderAllowance: withdrawFrom.SenderAllowance };
+		default:
+			throw new Error(`Unsupported fundsWithdrawal source ${JSON.stringify(withdrawFrom)}`);
 	}
-	if ('Sponsor' in withdrawFrom) {
-		return 'sponsor';
-	}
-	if ('SenderAllowance' in withdrawFrom) {
-		return { senderAllowance: withdrawFrom.SenderAllowance };
-	}
-	throw new Error(`Unsupported fundsWithdrawal source ${JSON.stringify(withdrawFrom)}`);
 }
 
 /** The pure input types the node could tell from the commands alone. */
@@ -476,19 +509,26 @@ function pureInputTypeHints(
 ): Map<number, PureInputType> {
 	const hints = new Map<number, PureInputType>();
 	const hint = (argument: Argument, type: PureInputType) => {
-		if ('Input' in argument && 'Pure' in (transaction.inputs[argument.Input] ?? {})) {
+		if (argument.$kind === 'Input' && transaction.inputs[argument.Input]?.$kind === 'Pure') {
 			hints.set(argument.Input, type);
 		}
 	};
 
 	for (const command of transaction.commands) {
-		if ('TransferObjects' in command) {
-			hint(command.TransferObjects.address, 'address');
-		} else if ('SplitCoins' in command) {
-			command.SplitCoins.amounts.forEach((amount) => hint(amount, 'u64'));
-		} else if ('MakeMoveVec' in command && isPureInputType(command.MakeMoveVec.type)) {
-			const type = command.MakeMoveVec.type;
-			command.MakeMoveVec.elements.forEach((element) => hint(element, type));
+		switch (command.$kind) {
+			case 'TransferObjects':
+				hint(command.TransferObjects.address, 'address');
+				break;
+			case 'SplitCoins':
+				command.SplitCoins.amounts.forEach((amount) => hint(amount, 'u64'));
+				break;
+			case 'MakeMoveVec': {
+				const { type, elements } = command.MakeMoveVec;
+				if (isPureInputType(type)) {
+					elements.forEach((element) => hint(element, type));
+				}
+				break;
+			}
 		}
 	}
 
@@ -523,66 +563,69 @@ const typeToBcs = {
 } as const;
 
 function mapCommand(command: Command): SuiJsonRpcTypes.SuiTransaction {
-	if ('MoveCall' in command) {
-		const {
-			package: packageId,
-			module,
-			function: fn,
-			typeArguments,
-			arguments: args,
-		} = command.MoveCall;
-		return {
-			MoveCall: {
+	switch (command.$kind) {
+		case 'MoveCall': {
+			const {
 				package: packageId,
 				module,
 				function: fn,
-				...(typeArguments.length > 0 && {
-					type_arguments: typeArguments.map(toTypeDisplayString),
-				}),
-				...(args.length > 0 && { arguments: args.map(mapArgument) }),
-			},
-		};
+				typeArguments,
+				arguments: args,
+			} = command.MoveCall;
+			return {
+				MoveCall: {
+					package: packageId,
+					module,
+					function: fn,
+					...(typeArguments.length > 0 && {
+						type_arguments: typeArguments.map(toTypeDisplayString),
+					}),
+					...(args.length > 0 && { arguments: args.map(mapArgument) }),
+				},
+			};
+		}
+		case 'TransferObjects': {
+			const { objects, address } = command.TransferObjects;
+			return { TransferObjects: [objects.map(mapArgument), mapArgument(address)] };
+		}
+		case 'SplitCoins': {
+			const { coin, amounts } = command.SplitCoins;
+			return { SplitCoins: [mapArgument(coin), amounts.map(mapArgument)] };
+		}
+		case 'MergeCoins': {
+			const { destination, sources } = command.MergeCoins;
+			return { MergeCoins: [mapArgument(destination), sources.map(mapArgument)] };
+		}
+		case 'Publish':
+			return { Publish: command.Publish.dependencies };
+		case 'MakeMoveVec': {
+			const { type, elements } = command.MakeMoveVec;
+			return {
+				MakeMoveVec: [type === null ? null : toTypeDisplayString(type), elements.map(mapArgument)],
+			};
+		}
+		case 'Upgrade': {
+			const { dependencies, package: packageId, ticket } = command.Upgrade;
+			return { Upgrade: [dependencies, packageId, mapArgument(ticket)] };
+		}
+		default:
+			throw new Error(`Unsupported transaction command ${JSON.stringify(command)}`);
 	}
-	if ('TransferObjects' in command) {
-		const { objects, address } = command.TransferObjects;
-		return { TransferObjects: [objects.map(mapArgument), mapArgument(address)] };
-	}
-	if ('SplitCoins' in command) {
-		const { coin, amounts } = command.SplitCoins;
-		return { SplitCoins: [mapArgument(coin), amounts.map(mapArgument)] };
-	}
-	if ('MergeCoins' in command) {
-		const { destination, sources } = command.MergeCoins;
-		return { MergeCoins: [mapArgument(destination), sources.map(mapArgument)] };
-	}
-	if ('Publish' in command) {
-		return { Publish: command.Publish.dependencies };
-	}
-	if ('MakeMoveVec' in command) {
-		const { type, elements } = command.MakeMoveVec;
-		return {
-			MakeMoveVec: [type === null ? null : toTypeDisplayString(type), elements.map(mapArgument)],
-		};
-	}
-	if ('Upgrade' in command) {
-		const { dependencies, package: packageId, ticket } = command.Upgrade;
-		return { Upgrade: [dependencies, packageId, mapArgument(ticket)] };
-	}
-
-	throw new Error(`Unsupported transaction command ${Object.keys(command)[0]}`);
 }
 
 function mapArgument(argument: Argument): SuiJsonRpcTypes.SuiArgument {
-	if ('GasCoin' in argument) {
-		return 'GasCoin';
+	switch (argument.$kind) {
+		case 'GasCoin':
+			return 'GasCoin';
+		case 'Input':
+			return { Input: argument.Input };
+		case 'Result':
+			return { Result: argument.Result };
+		case 'NestedResult':
+			return { NestedResult: argument.NestedResult };
+		default:
+			throw new Error(`Unsupported transaction argument ${JSON.stringify(argument)}`);
 	}
-	if ('Input' in argument) {
-		return { Input: argument.Input };
-	}
-	if ('Result' in argument) {
-		return { Result: argument.Result };
-	}
-	return { NestedResult: argument.NestedResult };
 }
 
 /** A type as sui_serde writes struct types: system addresses short, others in full. */

@@ -7,6 +7,7 @@ import type { SuiJsonRpcTypes } from '@mysten/wallet-standard';
 import { describe, expect, test } from 'vitest';
 
 import { dryRunFromSimulation } from '../../src/json-rpc-compat/index.js';
+import { programmableTransactionData } from './transaction-data.js';
 
 type Simulation = Parameters<typeof dryRunFromSimulation>[0];
 
@@ -54,6 +55,7 @@ function simulation({
 }): Simulation {
 	return {
 		digest: digestOf(9),
+		sender: SENDER,
 		signatures: [],
 		epoch: '1',
 		status,
@@ -78,10 +80,10 @@ function simulation({
 			unchangedConsensusObjects,
 			auxiliaryDataDigest: null,
 		},
-		transaction: {
+		transaction: programmableTransactionData({
 			version: 2,
 			sender: SENDER,
-			expiration: { None: true },
+			expiration: { $kind: 'None', None: true },
 			gasData: {
 				budget: '1000',
 				price: '1',
@@ -90,8 +92,7 @@ function simulation({
 			},
 			inputs,
 			commands,
-			digest: null,
-		},
+		}),
 	} as unknown as Simulation;
 }
 
@@ -156,6 +157,7 @@ describe('fullnode fidelity', () => {
 			simulation({
 				inputs: [
 					{
+						$kind: 'FundsWithdrawal',
 						FundsWithdrawal: {
 							reservation: { $kind: 'MaxAmountU64', MaxAmountU64: '500' },
 							typeArg: { $kind: 'Balance', Balance: `${FRAMEWORK}::sui::SUI` },
@@ -165,6 +167,7 @@ describe('fullnode fidelity', () => {
 				],
 				commands: [
 					{
+						$kind: 'MoveCall',
 						MoveCall: {
 							package: PACKAGE,
 							module: 'm',
@@ -192,15 +195,16 @@ describe('fullnode fidelity', () => {
 	test('leaves a pure input without a type hint as raw bytes', () => {
 		const dryRun = dryRunFromSimulation(
 			simulation({
-				inputs: [{ Pure: { bytes: 'BQAAAAAAAAA=' } }],
+				inputs: [{ $kind: 'Pure', Pure: { bytes: 'BQAAAAAAAAA=' } }],
 				commands: [
 					{
+						$kind: 'MoveCall',
 						MoveCall: {
 							package: PACKAGE,
 							module: 'm',
 							function: 'f',
 							typeArguments: [],
-							arguments: [{ Input: 0 }],
+							arguments: [{ $kind: 'Input', Input: 0 }],
 						},
 					},
 				],
@@ -336,6 +340,7 @@ describe('funds withdrawal inputs', () => {
 			simulation({
 				inputs: [
 					{
+						$kind: 'FundsWithdrawal',
 						FundsWithdrawal: {
 							reservation: { $kind: 'MaxAmountU64', MaxAmountU64: '500' },
 							typeArg: { $kind: 'Balance', Balance: `${FRAMEWORK}::sui::SUI` },
@@ -440,5 +445,35 @@ describe('JSON-RPC type and owner forms', () => {
 				simulation({ changedObjects: [changed({ objectId: OBJECT_A, outputOwner: null })] }),
 			),
 		).toThrow('Cannot map object owner');
+	});
+});
+
+describe('transaction kinds', () => {
+	function withKind(kind: SuiClientTypes.TransactionData['kind']) {
+		const sim = simulation({});
+		return { ...sim, transaction: { ...sim.transaction, kind } } as Simulation;
+	}
+
+	test('refuses a transaction kind the client could not map', () => {
+		expect(() => dryRunFromSimulation(withKind({ $kind: 'Unknown', Unknown: true }))).toThrow(
+			/update the SDK/,
+		);
+	});
+
+	test('reports a programmable system transaction under its own kind', () => {
+		const dryRun = dryRunFromSimulation(
+			withKind({
+				$kind: 'ProgrammableSystemTransaction',
+				ProgrammableSystemTransaction: { inputs: [], commands: [] },
+			}),
+		);
+
+		expect(dryRun.input.transaction.kind).toBe('ProgrammableSystemTransaction');
+	});
+
+	test('refuses to map the input of other system transactions', () => {
+		expect(() =>
+			dryRunFromSimulation(withKind({ $kind: 'EndOfEpochTransaction', EndOfEpochTransaction: [] })),
+		).toThrow('Unsupported transaction kind EndOfEpochTransaction');
 	});
 });
