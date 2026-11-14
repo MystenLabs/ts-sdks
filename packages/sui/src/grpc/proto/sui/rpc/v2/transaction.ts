@@ -1162,6 +1162,12 @@ export enum EndOfEpochTransactionKind_Kind {
 	 * @generated from protobuf enum value: WRITE_ACCUMULATOR_STORAGE_COST = 13;
 	 */
 	WRITE_ACCUMULATOR_STORAGE_COST = 13,
+	/**
+	 * Create and initialize the Forwarding Address Registry object.
+	 *
+	 * @generated from protobuf enum value: FORWARDING_ADDRESS_REGISTRY_CREATE = 14;
+	 */
+	FORWARDING_ADDRESS_REGISTRY_CREATE = 14,
 }
 /**
  * Expire old JWKs.

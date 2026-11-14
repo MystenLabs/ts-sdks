@@ -452,6 +452,47 @@ export interface ListTransactionsRequest {
 	 * @generated from protobuf field: optional sui.rpc.v2.QueryOptions options = 5;
 	 */
 	options?: QueryOptions;
+	/**
+	 * Optional. Transaction position within `start_checkpoint` at which the
+	 * query starts (inclusive): within `start_checkpoint`, only transactions
+	 * whose `ExecutedTransaction.transaction_index` is at least this value are
+	 * returned. Unset starts at the beginning of `start_checkpoint`. An index at
+	 * or past the checkpoint's transaction count starts at the next checkpoint.
+	 * Requires `start_checkpoint`. When this position leaves transactions of
+	 * `start_checkpoint` out, a descending query does not report that checkpoint
+	 * as covered in `Watermark.checkpoint`.
+	 *
+	 * Combines with `options.after` by intersection: the query starts at
+	 * whichever of the two is later in ledger order.
+	 *
+	 * Servers that predate this field ignore it and start at the beginning of
+	 * `start_checkpoint`, so clients must still drop transactions before this
+	 * position themselves.
+	 *
+	 * @generated from protobuf field: optional uint64 start_transaction_index = 6;
+	 */
+	startTransactionIndex?: bigint;
+	/**
+	 * Optional. Transaction position within the last checkpoint of the range,
+	 * `end_checkpoint - 1`, at which the query ends (exclusive): within that
+	 * checkpoint, only transactions whose `ExecutedTransaction.transaction_index`
+	 * is below this value are returned, so 0 returns none of it. Unset ends after
+	 * the whole checkpoint. An index at or past the checkpoint's transaction
+	 * count ends after the whole checkpoint. Requires `end_checkpoint`. A query
+	 * that stops at this position ends with `QUERY_END_REASON_CHECKPOINT_BOUND`.
+	 * When this position leaves transactions of that checkpoint out, an
+	 * ascending query does not report it as covered in `Watermark.checkpoint`.
+	 *
+	 * Combines with `options.before` by intersection: the query ends at
+	 * whichever of the two is earlier in ledger order.
+	 *
+	 * Servers that predate this field ignore it and return the whole
+	 * checkpoint, so clients must still drop transactions at or after this
+	 * position themselves.
+	 *
+	 * @generated from protobuf field: optional uint64 end_transaction_index = 7;
+	 */
+	endTransactionIndex?: bigint;
 }
 /**
  * Response message for LedgerService.ListTransactions.
@@ -533,6 +574,76 @@ export interface ListEventsRequest {
 	 * @generated from protobuf field: optional sui.rpc.v2.QueryOptions options = 5;
 	 */
 	options?: QueryOptions;
+	/**
+	 * Optional. Transaction position within `start_checkpoint` at which the
+	 * query starts (inclusive): within `start_checkpoint`, only events of
+	 * transactions whose `Event.transaction_index` is at least this value are
+	 * returned. Unset starts at the beginning of `start_checkpoint`. An index at
+	 * or past the checkpoint's transaction count starts at the next checkpoint,
+	 * ignoring `start_event_index`. Requires `start_checkpoint`. When this
+	 * position leaves events of `start_checkpoint` out, a descending query does
+	 * not report that checkpoint as covered in `Watermark.checkpoint`.
+	 *
+	 * Combines with `options.after` by intersection: the query starts at
+	 * whichever of the two is later in ledger order.
+	 *
+	 * Servers that predate this field ignore it and start at the beginning of
+	 * `start_checkpoint`, so clients must still drop events before this
+	 * position themselves.
+	 *
+	 * @generated from protobuf field: optional uint64 start_transaction_index = 6;
+	 */
+	startTransactionIndex?: bigint;
+	/**
+	 * Optional. Event position within the transaction at
+	 * `start_transaction_index` at which the query starts (inclusive): within
+	 * that transaction, only events whose `Event.event_index` is at least this
+	 * value are returned. Unset starts at the transaction's first event. An
+	 * index past the transaction's last event starts at the next transaction.
+	 * Requires `start_transaction_index`.
+	 *
+	 * Servers that predate this field ignore it, as for
+	 * `start_transaction_index`.
+	 *
+	 * @generated from protobuf field: optional uint32 start_event_index = 7;
+	 */
+	startEventIndex?: number;
+	/**
+	 * Optional. Transaction position within the last checkpoint of the range,
+	 * `end_checkpoint - 1`, at which the query ends (exclusive): within that
+	 * checkpoint, only events of transactions whose `Event.transaction_index` is
+	 * below this value are returned, plus, with `end_event_index`, the events
+	 * of the transaction at this index that precede it. Unset ends after the
+	 * whole checkpoint. An index at or past the checkpoint's transaction count
+	 * ends after the whole checkpoint. Requires `end_checkpoint`. A query that
+	 * stops at this position ends with `QUERY_END_REASON_CHECKPOINT_BOUND`.
+	 * When this position leaves events of that checkpoint out, an ascending
+	 * query does not report it as covered in `Watermark.checkpoint`.
+	 *
+	 * Combines with `options.before` by intersection: the query ends at
+	 * whichever of the two is earlier in ledger order.
+	 *
+	 * Servers that predate this field ignore it and return the whole
+	 * checkpoint, so clients must still drop events at or after this position
+	 * themselves.
+	 *
+	 * @generated from protobuf field: optional uint64 end_transaction_index = 8;
+	 */
+	endTransactionIndex?: bigint;
+	/**
+	 * Optional. Event position within the transaction at
+	 * `end_transaction_index` at which the query ends (exclusive): events of
+	 * that transaction whose `Event.event_index` is below this value are also
+	 * returned. Unset, like 0, returns none of the transaction's events. An
+	 * index past the transaction's last event returns all of them. Requires
+	 * `end_transaction_index`.
+	 *
+	 * Servers that predate this field ignore it, as for
+	 * `end_transaction_index`.
+	 *
+	 * @generated from protobuf field: optional uint32 end_event_index = 9;
+	 */
+	endEventIndex?: number;
 }
 /**
  * Response message for LedgerService.ListEvents.
@@ -926,6 +1037,22 @@ class ListTransactionsRequest$Type extends MessageType<ListTransactionsRequest> 
 			},
 			{ no: 4, name: 'filter', kind: 'message', T: () => TransactionFilter },
 			{ no: 5, name: 'options', kind: 'message', T: () => QueryOptions },
+			{
+				no: 6,
+				name: 'start_transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 7,
+				name: 'end_transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
 		]);
 	}
 }
@@ -970,6 +1097,24 @@ class ListEventsRequest$Type extends MessageType<ListEventsRequest> {
 			},
 			{ no: 4, name: 'filter', kind: 'message', T: () => EventFilter },
 			{ no: 5, name: 'options', kind: 'message', T: () => QueryOptions },
+			{
+				no: 6,
+				name: 'start_transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 7, name: 'start_event_index', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
+			{
+				no: 8,
+				name: 'end_transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 9, name: 'end_event_index', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 		]);
 	}
 }
