@@ -19,8 +19,8 @@ npm i @mysten/deepbook-v3 @mysten/sui
 
 ## Quickstart
 
-The SDK registers as a client extension — `$extend` it onto your `SuiClient`/`SuiGrpcClient`, then
-reach it at `client.predict.*`:
+The SDK registers as a client extension — `$extend` it onto your `SuiGrpcClient`, then reach it at
+`client.predict.*`:
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';

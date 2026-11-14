@@ -29,7 +29,6 @@ packages:
   - '!packages/sui/experimental'
   - '!packages/dapp-kit/packages/dapp-kit-core/web'
   - '!packages/sui/grpc'
-  - '!packages/sui/jsonRpc'
 
 # Explicit empty allowlist — no package is permitted to run install/build scripts.
 # Review a dependency before approving it with `pnpm approve-builds`.

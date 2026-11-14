@@ -764,7 +764,7 @@ const resolvePASIntents: TransactionPlugin = async (transactionData, buildOption
 	const client = buildOptions.client;
 	if (!client)
 		throw new PASClientError(
-			'A SuiClient must be provided to build transactions with PAS intents.',
+			'A Sui client must be provided to build transactions with PAS intents.',
 		);
 
 	const requirements = collectIntentData(transactionData.commands);

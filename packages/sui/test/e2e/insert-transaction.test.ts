@@ -182,7 +182,7 @@ describe('TransactionData.insertTransaction', () => {
 
 		// Get a coin object
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
-		const coinObjectId = coins.data[0].coinObjectId;
+		const coinObjectId = coins[0].objectId;
 
 		const mainTx = new Transaction();
 		mainTx.addIntentResolver(MERGE_INTENT, mergePlaceholderPlugin);
