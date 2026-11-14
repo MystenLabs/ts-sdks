@@ -1,6 +1,6 @@
 ---
 title: SuiGraphQLClient
-description: Connect to Sui over GraphQL and write type-safe custom queries
+description: Connect to Sui over GraphQL with type-safe queries and subscriptions
 keywords:
   - SuiGraphQLClient
   - GraphQL
@@ -14,9 +14,11 @@ questions:
   - How do I use SuiGraphQLClient?
   - How does Writing queries work?
   - How does Reading your own writes work?
-answer: Connect to Sui over GraphQL and write type-safe custom queries
+  - How do GraphQL subscriptions work?
+answer: Connect to Sui over GraphQL with type-safe queries and subscriptions
 goal:
-  description: Reader can connect to Sui over GraphQL and write type-safe custom queries
+  description:
+    Reader can connect to Sui over GraphQL, write type-safe custom queries and run subscriptions
   requires:
     - has_frontmatter:
         - title
@@ -55,14 +57,15 @@ itself. The rest of this page covers writing those queries; see the
 
 The constructor takes:
 
-| Option    | Description                                                    |
-| --------- | -------------------------------------------------------------- |
-| `url`     | GraphQL endpoint                                               |
-| `network` | Network the endpoint serves, used for caching and MVR defaults |
-| `headers` | Extra headers sent with every request, such as an API key      |
-| `fetch`   | Custom `fetch` implementation                                  |
-| `queries` | Named documents callable through [`execute`](#named-queries)   |
-| `mvr`     | Move Registry overrides                                        |
+| Option            | Description                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `url`             | GraphQL endpoint: an absolute http(s) URL, or a path such as `/graphql` in a browser or with a custom `fetch` |
+| `subscriptionUrl` | Subscription endpoint; defaults to `url` with `/subscriptions` appended                                       |
+| `network`         | Network the endpoint serves, used for caching and MVR defaults                                                |
+| `headers`         | Extra headers sent with every request, such as an API key                                                     |
+| `fetch`           | Custom `fetch` implementation                                                                                 |
+| `queries`         | Named documents callable through [`execute`](#named-queries)                                                  |
+| `mvr`             | Move Registry overrides                                                                                       |
 
 Public endpoints:
 
@@ -155,7 +158,10 @@ if (errors?.length) {
 }
 ```
 
-A transport-level failure (a non-2xx response) throws `SuiGraphQLRequestError` instead.
+A transport-level failure (a network error, a non-2xx response or a malformed body) throws
+`SuiGraphQLRequestError` instead. Its `reason` is set when repeating the request may succeed:
+`Unavailable` for network failures and HTTP 503, `RateLimited` for HTTP 429, and `ServerError` for
+HTTP 408 and other 5xx responses except 501.
 
 ### Named queries
 
@@ -185,3 +191,59 @@ GraphQL reads an index that trails execution slightly, so a transaction `execute
 already returned might not appear in a query for a moment. Use
 [`waitForTransaction`](/sui/clients/executing#waitfortransaction) before reading back a
 transaction's effects.
+
+## Subscriptions
+
+Use `subscribe` for any subscription document the endpoint supports. Results and variables are
+inferred from typed documents, just as with `query`:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { graphql } from '@mysten/sui/graphql/schema';
+
+const client = new SuiGraphQLClient({
+	url: 'https://graphql.devnet.sui.io/graphql',
+	network: 'devnet',
+});
+const checkpoints = graphql(`
+	subscription Checkpoints {
+		checkpoints {
+			cursor
+			node {
+				sequenceNumber
+				digest
+			}
+		}
+	}
+`);
+
+for await (const result of client.subscribe({ query: checkpoints })) {
+	if (result.errors?.length) {
+		console.error(result.errors);
+		continue;
+	}
+	console.log(result.data?.checkpoints);
+}
+```
+
+Subscriptions stream server-sent events over HTTP POST, using the client's `headers` and `fetch`.
+Set `subscriptionUrl` if your provider serves subscriptions at a different URL.
+
+Each result keeps its GraphQL `errors` alongside any partial data. HTTP, network and malformed
+response failures throw `SuiGraphQLRequestError`. The loop ends when the server closes the
+subscription, and `subscribe` does not reconnect.
+
+The request starts when iteration starts. `break` out of the loop to close the subscription.
+Aborting the signal also closes it, but rejects the pending iteration with the abort reason:
+
+```typescript
+const controller = new AbortController();
+
+try {
+	for await (const result of client.subscribe({ query: checkpoints, signal: controller.signal })) {
+		console.log(result.data?.checkpoints);
+	}
+} catch (error) {
+	if (!controller.signal.aborted) throw error;
+}
+```

@@ -25,7 +25,7 @@ describe('client protocol version header', () => {
 			headers: { Authorization: 'Bearer token', ...headers },
 		});
 
-		await client.query({ query: '{ serviceConfig { maxQueryDepth } }', variables: {} });
+		await client.query({ query: '{ serviceConfig { maxQueryDepth } }' });
 
 		const sentHeaders = new Headers(fetch.mock.calls[0][1]?.headers);
 		expect(sentHeaders.get(CLIENT_PROTOCOL_VERSION_HEADER)).toBe(expected);
