@@ -1,12 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { CoreClient } from '../client/core.js';
+import { CoreClient, type LedgerStreamRequest } from '../client/core.js';
+import type { AnyLedgerStreamAdapter } from '../client/stream/adapter.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
 import { grpcTransactionToLedgerTransactionData } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
-import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
+import type { GraphQLQueryOptions, OpenSubscription, SuiGraphQLClient } from './client.js';
 import type {
 	Checkpoint_FieldsFragment,
 	GetTransactionEventsQuery,
@@ -81,21 +82,35 @@ import {
 	toGraphQLEventFilter,
 	toGraphQLTransactionFilter,
 } from './filters.js';
+import { graphQLLedgerStreamAdapter } from './stream/index.js';
 
 const GRAPHQL_OBJECT_BATCH_SIZE = 40;
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
+	#subscribe: OpenSubscription;
 
 	constructor({
 		graphqlClient,
 		mvr,
+		subscribe,
 	}: {
 		graphqlClient: SuiGraphQLClient;
 		mvr?: SuiClientTypes.MvrOptions;
+		subscribe: OpenSubscription;
 	}) {
 		super({ network: graphqlClient.network, base: graphqlClient, mvr });
 		this.#graphqlClient = graphqlClient;
+		this.#subscribe = subscribe;
+	}
+
+	protected override createLedgerStreamAdapter(
+		request: LedgerStreamRequest,
+	): AnyLedgerStreamAdapter {
+		return graphQLLedgerStreamAdapter(
+			{ client: this.#graphqlClient, subscribe: this.#subscribe, mvr: this.mvr },
+			request,
+		);
 	}
 
 	async #graphqlQuery<
@@ -404,12 +419,7 @@ export class GraphQLCoreClient extends CoreClient {
 				signal: options.signal,
 				variables: {
 					digest: options.digest,
-					includeTransaction: options.include?.transaction ?? false,
-					includeEffects: options.include?.effects ?? false,
-					includeEvents: options.include?.events ?? false,
-					includeBalanceChanges: options.include?.balanceChanges ?? false,
-					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					...transactionIncludeVariables(options.include),
 				},
 			},
 			(result) => result.transaction,
@@ -428,12 +438,7 @@ export class GraphQLCoreClient extends CoreClient {
 				variables: {
 					transactionDataBcs: toBase64(options.transaction),
 					signatures: options.signatures,
-					includeTransaction: options.include?.transaction ?? false,
-					includeEffects: options.include?.effects ?? false,
-					includeEvents: options.include?.events ?? false,
-					includeBalanceChanges: options.include?.balanceChanges ?? false,
-					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					...transactionIncludeVariables(options.include),
 				},
 			},
 			(result) => result.executeTransaction,
@@ -470,13 +475,8 @@ export class GraphQLCoreClient extends CoreClient {
 									},
 								}
 							: transactionToGrpcJson(options.transaction),
-					includeTransaction: options.include?.transaction ?? false,
-					includeEffects: options.include?.effects ?? false,
-					includeEvents: options.include?.events ?? false,
-					includeBalanceChanges: options.include?.balanceChanges ?? false,
-					includeObjectTypes: options.include?.objectTypes ?? false,
+					...transactionIncludeVariables(options.include),
 					includeCommandResults: options.include?.commandResults ?? false,
-					includeBcs: options.include?.bcs ?? false,
 					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
@@ -694,12 +694,7 @@ export class GraphQLCoreClient extends CoreClient {
 					after,
 					last: descending ? limit : undefined,
 					before,
-					includeTransaction: options.include?.transaction ?? false,
-					includeEffects: options.include?.effects ?? false,
-					includeEvents: options.include?.events ?? false,
-					includeBalanceChanges: options.include?.balanceChanges ?? false,
-					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					...transactionIncludeVariables(options.include),
 				},
 			},
 			(result) => result.transactions,
@@ -1139,6 +1134,18 @@ export function parseGraphQLEvent(
 	};
 }
 
+/** `TRANSACTION_FIELDS` variables for `include`, shared so every query selects the same fields. */
+export function transactionIncludeVariables(include: SuiClientTypes.TransactionInclude = {}) {
+	return {
+		includeTransaction: include.transaction ?? false,
+		includeEffects: include.effects ?? false,
+		includeEvents: include.events ?? false,
+		includeBalanceChanges: include.balanceChanges ?? false,
+		includeObjectTypes: include.objectTypes ?? false,
+		includeBcs: include.bcs ?? false,
+	};
+}
+
 export interface TransactionPageReaders {
 	events: (variables: GetTransactionEventsQueryVariables) => Promise<GetTransactionEventsQuery>;
 	objectChanges: (
@@ -1204,7 +1211,7 @@ async function readAll<Node>(
 	}
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+export function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {

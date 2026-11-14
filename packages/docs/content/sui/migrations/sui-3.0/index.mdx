@@ -167,3 +167,5 @@ The legacy types are in the `SuiJsonRpcTypes` namespace of `@mysten/wallet-stand
 - `doGasSelection` is available on every client's `simulateTransaction`.
 - A `listCheckpoints` method for paging through checkpoints.
 - `SuiGraphQLClient.subscribe` runs GraphQL subscriptions; `subscriptionUrl` sets their endpoint.
+- Resumable checkpoint, transaction, and event streams on `SuiGrpcClient` and `SuiGraphQLClient`.
+  See [Resumable ledger streams](/sui/clients/streaming).

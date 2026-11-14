@@ -7,6 +7,7 @@ import {
 	formatMoveAbortMessage,
 	ObjectError,
 	SimulationError,
+	SuiStreamError,
 	TransactionError,
 } from '../client/index.js';
 import { raceSignal } from '../client/mvr.js';
@@ -71,9 +72,13 @@ import {
 	resolveTransactionFilter,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
+import { GrpcLedgerStreamAdapter, type GrpcLedgerStreamRequest } from './stream/index.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
+	/** The transport ledger streams read from; `SuiGrpcClient` passes its own. */
+	transport?: RpcTransport;
 }
 
 function isNameServiceResolutionMiss(error: unknown): boolean {
@@ -93,9 +98,28 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 
 export class GrpcCoreClient extends CoreClient {
 	#client: SuiGrpcClient;
-	constructor({ client, ...options }: GrpcCoreClientOptions) {
+	#transport?: RpcTransport;
+	constructor({ client, transport, ...options }: GrpcCoreClientOptions) {
 		super(options);
 		this.#client = client;
+		this.#transport = transport;
+	}
+
+	protected override createLedgerStreamAdapter(request: GrpcLedgerStreamRequest) {
+		// Streams call the transport directly to read responses on demand.
+		const transport = this.#transport;
+		if (!transport) {
+			throw new SuiStreamError('InvalidOptions', 'Ledger streams need a `transport` option');
+		}
+		return new GrpcLedgerStreamAdapter(
+			{
+				transport,
+				mvr: this.mvr,
+				chainIdentifier: async (signal) =>
+					(await this.getChainIdentifier({ signal })).chainIdentifier,
+			},
+			request,
+		);
 	}
 
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
