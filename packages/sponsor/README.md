@@ -75,14 +75,13 @@ createSponsor({ signer, client, validate: [defaults(), allowedPackages(['0xabc']
 ```
 
 Each default guards something real: `validSender()` requires a sender and stops a caller from
-sponsoring their own transaction, or one sent from an address in the sponsor's alias set;
-`onlyAddressBalanceGas()` and `gasCoinNotUsed()` stop a caller from spending the sponsor's gas (its
-address balance pays, and the gas coin is the sponsor's); `onlySenderWithdrawals()` allows sender
-withdrawals and withdrawals under allowances granted to the sender and funded by someone other than
-the sponsor. It rejects unknown sources, allowances with an unset gas owner, and withdrawals from
-the sponsor's **address balance** (the same balance that pays gas — a direct drain the gas-coin
-check can't see, since the withdrawal is an _input_, not a command argument);
-`noRestrictedMoveCalls()` rejects calls that change the sender's address aliases;
+sponsoring their own transaction; `onlyAddressBalanceGas()` and `gasCoinNotUsed()` stop a caller
+from spending the sponsor's gas (its address balance pays, and the gas coin is the sponsor's);
+`onlySenderWithdrawals()` allows sender withdrawals and withdrawals under allowances granted to the
+sender and funded by someone other than the sponsor. It rejects unknown sources, allowances with an
+unset gas owner, and withdrawals from the sponsor's **address balance** (the same balance that pays
+gas — a direct drain the gas-coin check can't see, since the withdrawal is an _input_, not a command
+argument); `noRestrictedMoveCalls()` rejects calls that change the sender's address aliases;
 `simulationSucceeds()` avoids paying for a transaction that aborts; and `boundedExpiration()` caps
 how long the signed transaction stays valid.
 
@@ -100,9 +99,6 @@ To **skip simulation**, use validators that don't depend on `transactionResponse
 ```ts
 createSponsor({ signer, client, validate: [validSender(), gasCoinNotUsed()] });
 ```
-
-`validSender()` still reads the sponsor's on-chain alias object and rejects the transaction if that
-lookup fails, so this configuration requires network access.
 
 ## What `transaction` is
 
@@ -423,7 +419,7 @@ it contributes `SponsorRejection | null`, deduping its analyzers with that graph
 
 | Validator                      | Reads                  | Rejects when…                                                                         |
 | ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------- |
-| `validSender()`                | `data`, alias object   | the sender is unset, or is the gas owner (sponsor) or in its address alias set        |
+| `validSender()`                | `data`                 | the sender is unset, or is the gas owner (sponsor)                                    |
 | `onlyAddressBalanceGas()`      | `data`                 | the gas payment isn't empty (`[]`)†                                                   |
 | `gasCoinNotUsed()`             | `data`                 | a command uses the gas coin (`tx.gas`)                                                |
 | `onlySenderWithdrawals()`      | `data`                 | a withdrawal uses sponsor funds, an unknown source, or an allowance with no gas owner |
@@ -444,16 +440,15 @@ underlying error detail (see [Result variants](#the-primitives)).
 from nominated gas coins; the sponsor-builds flow always sets this, so this validator mainly guards
 user-supplied bytes.
 
-‡ Verifies (via `@mysten/sui`'s `isValidTransactionSignature`) that **every** supplied user
-signature is cryptographically valid over the bytes **and** resolves to the sender — caught before
-the sponsor co-signs, rather than only at execution (all supplied signatures are attached to
-execution, so one that isn't the sender's would be rejected on-chain after the sponsor signed). A
-malformed, invalid, or wrong-signer signature is rejected as `USER_SIGNATURE_INVALID`; the sender
-match is key-type aware (a zkLogin key matches either its legacy or current address). An
-_environmental_ failure during verification (e.g. a zkLogin JWK/epoch lookup throwing) isn't a
-validation result — it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as a bad
-signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature is
-read from the request, not from `validationOptions`.
+‡ Verifies (through `client.core.verifySignature`) that **every** supplied user signature is valid
+over the bytes **and** that the sender or one of its address aliases signed it, checked by the
+client's node — caught before the sponsor co-signs, rather than only at execution (all supplied
+signatures are attached to execution, so one that isn't the sender's would be rejected on-chain
+after the sponsor signed). A malformed, invalid, or wrong-signer signature is rejected as
+`USER_SIGNATURE_INVALID`. An _environmental_ failure during verification (e.g. a network error)
+isn't a validation result — it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as
+a bad signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature
+is read from the request, not from `validationOptions`.
 
 `defaults()` bundles `validSender()` + `onlyAddressBalanceGas()` + `gasCoinNotUsed()` +
 `onlySenderWithdrawals()` + `simulationSucceeds()` + `boundedExpiration()` (see

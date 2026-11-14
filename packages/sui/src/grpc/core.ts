@@ -51,8 +51,14 @@ import {
 	transactionToGrpcTransaction,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
-import { isMockedGasObjectId, transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
+import {
+	decodeSignature,
+	isMockedGasObjectId,
+	resolveVerifySignatureOptions,
+	transactionBytesHaveEmptyGasPayment,
+} from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import type { VerifySignatureResponse } from './proto/sui/rpc/v2/signature_verification_service.js';
 import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
@@ -807,42 +813,56 @@ export class GrpcCoreClient extends CoreClient {
 		return { checkpoints: items, ...page };
 	}
 
-	async verifyZkLoginSignature(
-		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
-		const messageBytes = fromBase64(options.bytes);
+	async verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse> {
+		const { intentScope, message, address, checkAddressAliases } =
+			resolveVerifySignatureOptions(options);
+		const signature = decodeSignature(options.signature);
+		if (!signature) {
+			return { valid: false, reason: 'Cannot parse signature' };
+		}
 
-		// For PersonalMessage, the server expects BCS-encoded vector<u8>
-		// For TransactionData, the server expects the raw BCS-encoded TransactionData as-is
-		const messageValue =
-			options.intentScope === 'PersonalMessage'
-				? bcs.byteVector().serialize(messageBytes).toBytes()
-				: messageBytes;
-
-		const { response } = await this.#client.signatureVerificationService.verifySignature(
-			{
-				message: {
-					name: options.intentScope,
-					value: messageValue,
-				},
-				signature: {
-					bcs: {
-						value: fromBase64(options.signature),
+		let response: VerifySignatureResponse;
+		try {
+			({ response } = await this.#client.signatureVerificationService.verifySignature(
+				{
+					message: {
+						name: intentScope,
+						// A personal message is sent as a BCS `vector<u8>`, transaction data as-is.
+						value:
+							intentScope === 'PersonalMessage'
+								? bcs.byteVector().serialize(message).toBytes()
+								: message,
 					},
 					signature: {
-						oneofKind: undefined,
+						bcs: { value: signature },
+						signature: { oneofKind: undefined },
 					},
+					address,
+					checkAddressAliases,
+					jwks: [],
 				},
-				address: options.address,
-				jwks: [],
-			},
-			{ abort: options.signal },
-		);
+				{ abort: options.signal },
+			));
+		} catch (error) {
+			// The SDK builds every other field, so a rejected argument is a signature the node can't
+			// parse.
+			if (
+				error instanceof RpcError &&
+				error.code === GrpcStatusCode[GrpcStatusCode.INVALID_ARGUMENT]
+			) {
+				return { valid: false, reason: error.message };
+			}
+			throw error;
+		}
 
-		return {
-			success: response.isValid ?? false,
-			errors: response.reason ? [response.reason] : [],
-		};
+		if (typeof response.isValid !== 'boolean') {
+			throw new Error('The node returned no signature verification verdict');
+		}
+		return response.isValid
+			? { valid: true }
+			: { valid: false, reason: response.reason ?? 'Signature is not valid' };
 	}
 
 	async defaultNameServiceName(
