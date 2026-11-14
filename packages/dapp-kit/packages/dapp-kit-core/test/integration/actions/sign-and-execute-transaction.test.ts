@@ -12,6 +12,7 @@ import { createMockWallets, MockWallet } from '../../mocks/mock-wallet.js';
 import { createDAppKit, DAppKit } from '../../../src/index.js';
 import { createInMemoryStorage } from '../../../src/utils/storage.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 import { getWallets } from '@mysten/wallet-standard';
 import type { ReadonlyWalletAccount } from '@mysten/wallet-standard';
 import { createMockAccount } from '../../mocks/mock-account.js';
@@ -29,12 +30,15 @@ describe('[Integration] signAndExecuteTransaction action', () => {
 		return unregister;
 	}
 
-	function setup(accounts: ReadonlyWalletAccount[] = [createMockAccount(), createMockAccount()]) {
+	function setup(
+		accounts: ReadonlyWalletAccount[] = [createMockAccount(), createMockAccount()],
+		restrictedMoveCalls?: string[],
+	) {
 		dAppKit = createDAppKit({
 			networks: TEST_NETWORKS,
 			defaultNetwork: TEST_DEFAULT_NETWORK,
 			createClient(network) {
-				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
+				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network], restrictedMoveCalls });
 			},
 			storage: createInMemoryStorage(),
 			storageKey: 'test-storage-key',
@@ -84,6 +88,22 @@ describe('[Integration] signAndExecuteTransaction action', () => {
 		// Neither the globally selected account nor network changed:
 		expect(dAppKit.stores.$connection.get().account?.address).toBe(uiWallet.accounts[0].address);
 		expect(dAppKit.stores.$currentNetwork.get()).toBe(TEST_DEFAULT_NETWORK);
+	});
+
+	test.each([
+		['rejects restricted Move calls by default', undefined, 'restricted Move calls'],
+		['uses the client restrictedMoveCalls', [], /STOP .*address_alias/s],
+	])('%s', async (_name, restrictedMoveCalls, error) => {
+		const [uiWallet] = setup(undefined, restrictedMoveCalls);
+		signAndExecuteTransaction.mockImplementation(async (input) => {
+			throw new Error(`STOP ${await input.transaction.toJSON()}`);
+		});
+
+		await dAppKit.connectWallet({ wallet: uiWallet });
+
+		const transaction = new Transaction();
+		transaction.moveCall({ target: '0x2::address_alias::add' });
+		await expect(dAppKit.signAndExecuteTransaction({ transaction })).rejects.toThrow(error);
 	});
 
 	test('Throws when the provided account does not belong to the connected wallet', async () => {

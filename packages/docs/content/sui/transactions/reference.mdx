@@ -7,6 +7,7 @@ keywords:
   - inputs
   - splitCoins
   - moveCall
+  - restrictedMoveCalls
   - publish
   - upgrade
 questions:
@@ -413,3 +414,39 @@ const [a, b] = tx.moveCall({ target: '0xPkg::mod::returns_two' });
 const result = tx.moveCall({ target: '0xPkg::mod::returns_two' });
 tx.transferObjects([result[0], result[1]], address);
 ```
+
+## Restricted Move calls
+
+Building or serializing a transaction that makes a restricted Move call throws. The default
+(`DEFAULT_RESTRICTED_MOVE_CALLS`) is only `0x2::address_alias`: adding an alias lets another address
+sign for the account.
+
+Configure the list on the client; `[]` turns the check off:
+
+```typescript
+const client = new SuiGrpcClient({ network, baseUrl, restrictedMoveCalls: [] });
+```
+
+To restrict more calls, extend the default rather than replacing it:
+
+```typescript
+import { DEFAULT_RESTRICTED_MOVE_CALLS } from '@mysten/sui/transactions';
+
+const client = new SuiGrpcClient({
+	network,
+	baseUrl,
+	restrictedMoveCalls: [...DEFAULT_RESTRICTED_MOVE_CALLS, '0xbad'],
+});
+```
+
+`build()` and `toJSON()` also take `restrictedMoveCalls`, which takes precedence over the client's
+list. Entries are `package`, `package::module` or `package::module::function`.
+
+Entries only match top-level `moveCall` commands with that exact package ID, so they don't cover
+upgraded package IDs or Move code that makes the call for you. `findRestrictedMoveCalls` from
+`@mysten/sui/transactions` runs the same check on a transaction's data without throwing.
+
+Anything that builds with a client, such as `signAndExecuteTransaction`, `simulateTransaction`, the
+executors and dapp-kit, uses that client's list. Wallets that only support the legacy
+`sui:signTransactionBlock` features apply the default list, so a client-level `[]` doesn't reach
+them.

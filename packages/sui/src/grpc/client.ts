@@ -29,6 +29,12 @@ interface SuiGrpcTransportOptions extends GrpcWebOptions {
 export type SuiGrpcClientOptions = {
 	network: SuiClientTypes.Network;
 	mvr?: SuiClientTypes.MvrOptions;
+	/**
+	 * `package`, `package::module` or `package::module::function` entries that transactions built
+	 * with this client can't call. A per-call `restrictedMoveCalls` on `build` or `toJSON` takes
+	 * precedence. Defaults to `DEFAULT_RESTRICTED_MOVE_CALLS`.
+	 */
+	restrictedMoveCalls?: readonly string[];
 } & (
 	| {
 			transport: RpcTransport;
@@ -138,6 +144,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		const {
 			network: _network,
 			mvr: _mvr,
+			restrictedMoveCalls: _restrictedMoveCalls,
 			// Not forwarded: every Core API call passes its own `signal`, which would overwrite it.
 			abort: _abort,
 			transport: providedTransport,
@@ -163,6 +170,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			base: this,
 			network: options.network,
 			mvr: options.mvr,
+			restrictedMoveCalls: options.restrictedMoveCalls,
 		});
 	}
 

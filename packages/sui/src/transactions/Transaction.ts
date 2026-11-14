@@ -21,6 +21,7 @@ import { serializeV1TransactionData } from './data/v1.js';
 import { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { Inputs } from './Inputs.js';
 import { needsTransactionResolution, resolveTransactionPlugin } from './resolve.js';
+import { assertNoRestrictedMoveCalls } from './restricted-move-calls.js';
 import type {
 	BuildTransactionOptions,
 	SerializeTransactionOptions,
@@ -130,6 +131,11 @@ const TRANSACTION_BRAND = Symbol.for('@mysten/transaction') as never;
 
 interface SignOptions extends BuildTransactionOptions {
 	signer: Signer;
+}
+
+// Read once before plugins run: they get `options` and could change it.
+function restrictedMoveCallsFor(options: BuildTransactionOptions) {
+	return (options.restrictedMoveCalls ?? options.client?.core?.restrictedMoveCalls)?.slice();
 }
 
 export function isTransaction(obj: unknown): obj is TransactionLike {
@@ -813,8 +819,9 @@ export class Transaction {
 
 	/** Build the transaction to BCS bytes. */
 	async build(options: BuildTransactionOptions = {}): Promise<Uint8Array<ArrayBuffer>> {
-		await this.prepareForSerialization(options);
-		await this.#prepareBuild(options);
+		const restrictedMoveCalls = restrictedMoveCallsFor(options);
+		await this.#prepareForSerialization(options, restrictedMoveCalls);
+		await this.#prepareBuild(options, restrictedMoveCalls);
 		return this.#data.build({
 			onlyTransactionKind: options.onlyTransactionKind,
 		});
@@ -822,10 +829,14 @@ export class Transaction {
 
 	/** Derive transaction digest */
 	async getDigest(
-		options: Pick<BuildTransactionOptions, 'client' | 'assumeSufficientAddressBalances'> = {},
+		options: Pick<
+			BuildTransactionOptions,
+			'client' | 'assumeSufficientAddressBalances' | 'restrictedMoveCalls'
+		> = {},
 	): Promise<string> {
-		await this.prepareForSerialization(options);
-		await this.#prepareBuild(options);
+		const restrictedMoveCalls = restrictedMoveCallsFor(options);
+		await this.#prepareForSerialization(options, restrictedMoveCalls);
+		await this.#prepareBuild(options, restrictedMoveCalls);
 		return this.#data.getDigest();
 	}
 
@@ -833,12 +844,17 @@ export class Transaction {
 	 * Prepare the transaction by validating the transaction data and resolving all inputs
 	 * so that it can be built into bytes.
 	 */
-	async #prepareBuild(options: BuildTransactionOptions) {
+	async #prepareBuild(
+		options: BuildTransactionOptions,
+		restrictedMoveCalls: readonly string[] | undefined,
+	) {
 		if (!options.onlyTransactionKind && !this.#data.sender) {
 			throw new Error('Missing transaction sender');
 		}
 
 		await this.#runPlugins([...this.#buildPlugins, resolveTransactionPlugin], options);
+		// Build plugins and resolution can add commands after prepareForSerialization checked them.
+		assertNoRestrictedMoveCalls(this.#data, restrictedMoveCalls);
 	}
 
 	async #runPlugins(plugins: TransactionPlugin[], options: SerializeTransactionOptions) {
@@ -974,6 +990,13 @@ export class Transaction {
 	}
 
 	async prepareForSerialization(options: SerializeTransactionOptions) {
+		await this.#prepareForSerialization(options, restrictedMoveCallsFor(options));
+	}
+
+	async #prepareForSerialization(
+		options: SerializeTransactionOptions,
+		restrictedMoveCalls: readonly string[] | undefined,
+	) {
 		await this.#waitForPendingTasks();
 		this.#sortCommandsAndInputs();
 		const intents = new Set<string>();
@@ -1005,5 +1028,6 @@ export class Transaction {
 		steps.push(namedPackagesPlugin());
 
 		await this.#runPlugins(steps, options);
+		assertNoRestrictedMoveCalls(this.#data, restrictedMoveCalls);
 	}
 }

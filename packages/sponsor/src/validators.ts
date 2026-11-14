@@ -288,14 +288,14 @@ export function allowedFunctions(targets: Iterable<string>): Validator {
 
 /**
  * Reject MoveCalls that `restrictedMoveCalls(options)` from `@mysten/wallet-sdk`
- * flags, at any level (`RESTRICTED_MOVE_CALL`). With no options it rejects calls
- * into `0x2::address_alias`, which change which addresses can sign for the
- * sender's account, so a sponsor never pays for one. Add `targets` to restrict
- * more packages, modules or functions. Part of {@link defaults}, with no
- * options. Reads only `data`.
+ * flags (`RESTRICTED_MOVE_CALL`). With no options it rejects calls into
+ * `0x2::address_alias`, which change which addresses can sign for the sender's
+ * account, so a sponsor never pays for one. `restrictedMoveCalls` takes `package`,
+ * `package::module` or `package::module::function` entries and replaces the
+ * default. Part of {@link defaults}, with no options. Reads only `data`.
  *
  * To sponsor alias changes, leave this validator out, or pass
- * `{ addressAliases: false }` in place of the default instance.
+ * `{ restrictedMoveCalls: [] }` in place of the default instance.
  */
 export function noRestrictedMoveCalls(options?: RestrictedMoveCallsOptions): Validator {
 	return createAnalyzer({

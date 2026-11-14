@@ -255,6 +255,10 @@ An address can authorize other addresses to sign for it by adding them to its al
 matching what the address can sign onchain. The result reflects the alias set at the time you
 verify, so a stored signature can verify today and fail later.
 
+Building a transaction that calls `0x2::address_alias` throws unless the `restrictedMoveCalls` list
+on the client or the `build` call leaves it out (see
+[Restricted Move calls](/sui/transactions/reference#restricted-move-calls)).
+
 To accept only the address's own key, pass `checkAddressAliases: false`:
 
 ```typescript
