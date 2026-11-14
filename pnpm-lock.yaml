@@ -1182,7 +1182,7 @@ importers:
         specifier: ^0.7.1
         version: 0.7.1
       '@protobuf-ts/grpcweb-transport':
-        specifier: ^2.11.1
+        specifier: ~2.11.1
         version: 2.11.1
       '@protobuf-ts/runtime':
         specifier: ^2.11.1
