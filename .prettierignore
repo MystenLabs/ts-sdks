@@ -26,6 +26,7 @@ packages/walrus-wasm
 packages/move-bytecode-template
 packages/walrus/src/client
 packages/hashi/test/unit/deposit-address-vectors.json
+packages/wallet-sdk/test/json-rpc-compat/fixtures/*.json
 package.json
 pnpm-lock.yaml
 package_summaries/
