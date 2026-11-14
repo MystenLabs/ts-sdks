@@ -83,21 +83,21 @@ objects or Pure values and can be represented in several different ways:
     `initialSharedVersion`, and whether the shared object is used mutably.
   - `Receiving`: A reference to a receiving object, including the object's `id`, `version`, and
     `digest`.
-- `UnresolvedPure`: A placeholder for a pure value that has not been serialized to BCS.
+- `UnresolvedPure`: A pure value that has not been serialized to BCS. The built-in clients do not
+  support untyped pure values; use typed inputs such as `tx.pure.u64(value)`.
 - `UnresolvedObject`: A partial reference to an object, often containing just the object's `id`, but
   might also include a version, digest, or initialSharedVersion.
 
 ## Lifecycle of a transaction
 
-Because transactions can contain `UnresolvedPure` and `UnresolvedObject` inputs, these values need
-to be resolved before the transaction can be serialized to BCS. However, these unresolved inputs can
-be represented in JSON. What might not be able to be represented in JSON are Transaction Intents.
-Transaction Intents represent custom concepts added by plugins or third-party SDKs. To account for
-this, the build process of a transaction is split into two phases: serialization and building.
-Serialization prepares the transaction to be serialized to JSON by running serialization plugins,
-and resolving any unsupported intents. The Build phase then runs, which runs build plugins and
-resolves any UnresolvedPure and UnresolvedObject inputs, before the transaction is serialized to
-BCS.
+Because transactions can contain `UnresolvedObject` inputs, these values need to be resolved before
+the transaction can be serialized to BCS. However, these unresolved inputs can be represented in
+JSON. What might not be able to be represented in JSON are Transaction Intents. Transaction Intents
+represent custom concepts added by plugins or third-party SDKs. To account for this, the build
+process of a transaction is split into two phases: serialization and building. Serialization
+prepares the transaction to be serialized to JSON by running serialization plugins, and resolving
+any unsupported intents. The Build phase then runs, which runs build plugins and resolves any
+`UnresolvedObject` inputs, before the transaction is serialized to BCS.
 
 ## Serialization plugins
 

@@ -188,16 +188,17 @@ async function createCounter() {
 	// Add a create call
 	tx.add(counter.create());
 
-	const { digest } = suiClient.signAndExecuteTransaction({
+	const result = await client.signAndExecuteTransaction({
 		transaction: tx,
 		signer: keypair,
 	});
 
-	return digest;
+	return (result.Transaction ?? result.FailedTransaction).digest;
 }
 
 async function incrementCount(id: string) {
-	const tx = tx.add(
+	const tx = new Transaction();
+	tx.add(
 		counter.increment({
 			// Arguments can be passed in by name as an object, or as an array of values
 			arguments: {
@@ -207,12 +208,12 @@ async function incrementCount(id: string) {
 		}),
 	);
 
-	const { digest } = suiClient.signAndExecuteTransaction({
+	const result = await client.signAndExecuteTransaction({
 		transaction: tx,
 		signer: keypair,
 	});
 
-	return digest;
+	return (result.Transaction ?? result.FailedTransaction).digest;
 }
 ```
 
@@ -225,19 +226,13 @@ First, you will need to load the bcs data for your object, then parse it with yo
 ```tsx
 import * as counter from './generated/counter/counter';
 
-async await function readCounter(id: string) {
-	const data = suiClient.getObject({
-		id,
-		options: {
-			// request the bcs data when loading your object
-			showBcs: true,
-		}
-	})
+async function readCounter(id: string) {
+	const { object } = await client.core.getObject({
+		objectId: id,
+		// request the BCS content when loading your object
+		include: { content: true },
+	});
 
-	if (data.data.bcs?.dataType !== 'moveObject') {
-	  throw new Error('Expected a move object')
-	}
-
-	return counter.Counter.fromBase64(data.data.bcs.bcsBytes)
+	return counter.Counter.parse(object.content);
 }
 ```
