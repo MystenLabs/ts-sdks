@@ -107,6 +107,19 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   `ConsensusObjectOperationNotAllowed` and `PackageIdDoesNotMatch` (previously `InvalidBCSBytes`,
   `InvalidUsageOfPureArg`, `SharedObjectOperationNotAllowed` and `PackageIDDoesNotMatch`), as gRPC
   does. Update code that matches on the old names.
+- **`bcs.TransactionEffects` decodes to named structs.** V2 `changedObjects` entries are
+  `{ objectId, inputState, outputState, idOperation }` and `unchangedConsensusObjects` entries are
+  `{ objectId, kind }` instead of `[objectId, ...]` tuples. Version and digest pairs are
+  `{ version, digest }`, `ObjectIn.Exist` is `{ version, digest, owner }`, `ObjectOut.ObjectWrite`
+  is `{ digest, owner }`, `MoveAbort` is `{ location, abortCode }`, and accumulator values are
+  `IntegerTuple: { first, second }` and `EventDigest: [{ eventIndex, digest }]`. In V1 effects,
+  `modifiedAtVersions` entries are `{ objectId, version }` and `created`, `mutated`, `unwrapped` and
+  `gasObject` are `{ reference, owner }`. The `InsufficientBalanceForWithdraw` error is renamed to
+  `InsufficientFundsForWithdraw`, and `congested_objects` to `congestedObjects`. The encoded bytes
+  are unchanged.
+- **Multisig BCS fields are camelCase.** `bcs.MultiSig`, `MultiSigStruct` and the `multisig`
+  returned by `parseSerializedSignature` use `multisigPk` instead of `multisig_pk`, and
+  `bcs.MultiSigPublicKey` uses `pkMap` instead of `pk_map`.
 - **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.** Add it to the
   `readMask` paths of requests whose results you parse.
 

@@ -84,14 +84,14 @@ describe('extractStatusFromEffectsBcs', () => {
 				deleted: [],
 				unwrappedThenDeleted: [],
 				wrapped: [],
-				gasObject: [
-					{
+				gasObject: {
+					reference: {
 						objectId: ZERO_ADDRESS,
 						version: 1n,
 						digest: ZERO_DIGEST,
 					},
-					{ AddressOwner: ZERO_ADDRESS },
-				],
+					owner: { AddressOwner: ZERO_ADDRESS },
+				},
 				eventsDigest: null,
 				dependencies: [],
 			},
@@ -124,14 +124,14 @@ describe('extractStatusFromEffectsBcs', () => {
 				deleted: [],
 				unwrappedThenDeleted: [],
 				wrapped: [],
-				gasObject: [
-					{
+				gasObject: {
+					reference: {
 						objectId: ZERO_ADDRESS,
 						version: 1n,
 						digest: ZERO_DIGEST,
 					},
-					{ AddressOwner: ZERO_ADDRESS },
-				],
+					owner: { AddressOwner: ZERO_ADDRESS },
+				},
 				eventsDigest: null,
 				dependencies: [],
 			},

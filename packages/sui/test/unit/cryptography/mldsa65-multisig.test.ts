@@ -52,8 +52,8 @@ describe('Multisig with ML-DSA-65 members', () => {
 		const bytes = bcs.MultiSig.serialize(parsed.multisig, { maxSize: 65536 }).toBytes();
 		expect(bcs.MultiSig.parse(bytes)).toEqual(parsed.multisig);
 
-		// The multisig_pk inside the signature round-trips to the same address.
-		expect(new MultiSigPublicKey(parsed.multisig.multisig_pk).toSuiAddress()).toEqual(
+		// The multisigPk inside the signature round-trips to the same address.
+		expect(new MultiSigPublicKey(parsed.multisig.multisigPk).toSuiAddress()).toEqual(
 			publicKey.toSuiAddress(),
 		);
 		const recovered = await verifyPersonalMessageSignature(MESSAGE, multisig, {

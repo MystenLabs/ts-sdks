@@ -137,7 +137,7 @@ describe('Publickey', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 		expect(publicKey).toBeInstanceOf(MultiSigPublicKey);
 		expect(publicKey.getPublicKeys()).toEqual([
 			{ publicKey: pk1, weight: 1 },
@@ -372,7 +372,7 @@ describe('Publickey', () => {
 						.signature!,
 				},
 			],
-			multisig_pk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
+			multisigPk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
 		});
 	});
 

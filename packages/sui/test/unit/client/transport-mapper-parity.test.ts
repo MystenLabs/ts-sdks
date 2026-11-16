@@ -139,8 +139,8 @@ describe('unchanged consensus objects', () => {
 					lamportVersion: 2n,
 					changedObjects: [],
 					unchangedConsensusObjects: [
-						[perEpochConfig, { PerEpochConfig: true }],
-						[cancelled, { Cancelled: 5n }],
+						{ objectId: perEpochConfig, kind: { PerEpochConfig: true } },
+						{ objectId: cancelled, kind: { Cancelled: 5n } },
 					],
 					auxDataDigest: null,
 				},
@@ -227,7 +227,7 @@ describe('execution error names', () => {
 		{
 			name: 'CongestedObjects',
 
-			bcs: { ExecutionCancelledDueToSharedObjectCongestion: { congested_objects: [objectId] } },
+			bcs: { ExecutionCancelledDueToSharedObjectCongestion: { congestedObjects: [objectId] } },
 			grpc: {
 				kind: ErrorKind.EXECUTION_CANCELED_DUE_TO_CONSENSUS_OBJECT_CONGESTION,
 				errorDetails: { oneofKind: 'congestedObjects', congestedObjects: { objects: [objectId] } },

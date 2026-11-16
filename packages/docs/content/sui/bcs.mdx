@@ -169,8 +169,8 @@ if (effects.V2.status.$kind === 'Success') {
 }
 
 // Access changed objects
-for (const [objectId, change] of effects.V2.changedObjects) {
-	console.log('Object:', objectId);
+for (const change of effects.V2.changedObjects) {
+	console.log('Object:', change.objectId);
 	console.log('Output state:', change.outputState.$kind);
 }
 ```

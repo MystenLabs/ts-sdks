@@ -213,12 +213,14 @@ export const FundsWithdrawal = bcs.struct('FundsWithdrawal', {
 	withdrawFrom: WithdrawFrom,
 });
 
+export const base64String = bcs.byteVector().transform({
+	input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
+	output: (val) => toBase64(val),
+});
+
 export const CallArg = bcs.enum('CallArg', {
 	Pure: bcs.struct('Pure', {
-		bytes: bcs.byteVector().transform({
-			input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-			output: (val) => toBase64(val),
-		}),
+		bytes: base64String,
 	}),
 	Object: ObjectArg,
 	FundsWithdrawal: FundsWithdrawal,
@@ -273,37 +275,31 @@ export const Command = bcs.enum('Command', {
 		objects: bcs.vector(Argument),
 		address: Argument,
 	}),
-	// /**
-	//  * Split `amount` from a `coin`.
-	//  */
+	/**
+	 * Split `amounts` from a `coin`.
+	 */
 	SplitCoins: bcs.struct('SplitCoins', {
 		coin: Argument,
 		amounts: bcs.vector(Argument),
 	}),
-	// /**
-	//  * Merge Vector of Coins (`sources`) into a `destination`.
-	//  */
+	/**
+	 * Merge `sources` coins into a `destination` coin.
+	 */
 	MergeCoins: bcs.struct('MergeCoins', {
 		destination: Argument,
 		sources: bcs.vector(Argument),
 	}),
-	// /**
-	//  * Publish a Move module.
-	//  */
+	/**
+	 * Publish a Move package.
+	 */
 	Publish: bcs.struct('Publish', {
-		modules: bcs.vector(
-			bcs.byteVector().transform({
-				input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-				output: (val) => toBase64(val),
-			}),
-		),
+		modules: bcs.vector(base64String),
 		dependencies: bcs.vector(Address),
 	}),
-	// /**
-	//  * Build a vector of objects using the input arguments.
-	//  * It is impossible to export construct a `vector<T: key>` otherwise,
-	//  * so this call serves a utility function.
-	//  */
+	/**
+	 * Build a vector from the input arguments. This is the only way to construct a
+	 * `vector<T: key>` in a transaction.
+	 */
 	MakeMoveVec: bcs.struct('MakeMoveVec', {
 		type: optionEnum(TypeTag).transform({
 			input: (val: string | null) =>
@@ -318,13 +314,11 @@ export const Command = bcs.enum('Command', {
 		}),
 		elements: bcs.vector(Argument),
 	}),
+	/**
+	 * Upgrade a Move package.
+	 */
 	Upgrade: bcs.struct('Upgrade', {
-		modules: bcs.vector(
-			bcs.byteVector().transform({
-				input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-				output: (val) => toBase64(val),
-			}),
-		),
+		modules: bcs.vector(base64String),
 		dependencies: bcs.vector(Address),
 		package: Address,
 		ticket: Argument,
@@ -465,19 +459,14 @@ export const MultiSigPkMap = bcs.struct('MultiSigPkMap', {
 });
 
 export const MultiSigPublicKey = bcs.struct('MultiSigPublicKey', {
-	pk_map: bcs.vector(MultiSigPkMap),
+	pkMap: bcs.vector(MultiSigPkMap),
 	threshold: bcs.u16(),
 });
 
 export const MultiSig = bcs.struct('MultiSig', {
 	sigs: bcs.vector(CompressedSignature),
 	bitmap: bcs.u16(),
-	multisig_pk: MultiSigPublicKey,
-});
-
-export const base64String = bcs.byteVector().transform({
-	input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-	output: (val) => toBase64(val),
+	multisigPk: MultiSigPublicKey,
 });
 
 export const PasskeyAuthenticator = bcs.struct('PasskeyAuthenticator', {

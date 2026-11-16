@@ -31,3 +31,14 @@ Transaction results changed shape and match across transports:
 - Execution errors in `effects.status` match across transports. GraphQL's top-level `status`
   error distinguishes only `MoveAbort`; other errors are `Unknown`.
 - `MoveLocation.function` is removed; use `functionName`.
+- `bcs.TransactionEffects` decodes to named structs instead of tuples: V2 `changedObjects` entries
+  are `{ objectId, inputState, outputState, idOperation }`, `unchangedConsensusObjects` entries are
+  `{ objectId, kind }`, version/digest pairs are `{ version, digest }`, `ObjectIn.Exist` is
+  `{ version, digest, owner }`, `ObjectOut.ObjectWrite` is `{ digest, owner }`, `MoveAbort` is
+  `{ location, abortCode }`, accumulator `EventDigest` entries are `{ eventIndex, digest }`, and V1
+  object references with owners are `{ reference, owner }`. The
+  `InsufficientBalanceForWithdraw` error variant is renamed to `InsufficientFundsForWithdraw` and
+  `congested_objects` to `congestedObjects`. The encoded bytes are unchanged.
+- `bcs.MultiSig` and `bcs.MultiSigPublicKey` fields are camelCase: `multisig_pk` is `multisigPk`
+  and `pk_map` is `pkMap`, including in `MultiSigStruct` and the `multisig` returned by
+  `parseSerializedSignature`.

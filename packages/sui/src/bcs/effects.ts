@@ -84,7 +84,10 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	PublishErrorNonZeroAddress: null,
 	SuiMoveVerificationError: null,
 	MovePrimitiveRuntimeError: bcs.option(MoveLocation),
-	MoveAbort: bcs.tuple([MoveLocation, bcs.u64()]),
+	MoveAbort: bcs.struct('MoveAbort', {
+		location: MoveLocation,
+		abortCode: bcs.u64(),
+	}),
 	VMVerificationOrDeserializationError: null,
 	VMInvariantViolation: null,
 	FunctionNotFound: null,
@@ -122,7 +125,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	ExecutionCancelledDueToSharedObjectCongestion: bcs.struct(
 		'ExecutionCancelledDueToSharedObjectCongestion',
 		{
-			congested_objects: bcs.vector(Address),
+			congestedObjects: bcs.vector(Address),
 		},
 	),
 	AddressDeniedForCoin: bcs.struct('AddressDeniedForCoin', {
@@ -140,9 +143,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 		maxScaledSize: bcs.u64(),
 	}),
 	InvalidLinkage: null,
-	// Upstream renamed this to `InsufficientFundsForWithdraw`; renaming the parsed `$kind` would
-	// break the public API, and the wire representation is unchanged either way.
-	InsufficientBalanceForWithdraw: null,
+	InsufficientFundsForWithdraw: null,
 	NonExclusiveWriteInputObjectModified: bcs.struct('NonExclusiveWriteInputObjectModified', {
 		id: Address,
 	}),
@@ -166,38 +167,56 @@ const GasCostSummary = bcs.struct('GasCostSummary', {
 	nonRefundableStorageFee: bcs.u64(),
 });
 
+// Rust: crates/sui-types/src/effects/effects_v1.rs (`(ObjectRef, Owner)`)
+const ObjectReferenceWithOwner = bcs.struct('ObjectReferenceWithOwner', {
+	reference: SuiObjectRef,
+	owner: Owner,
+});
+
 // Rust: crates/sui-types/src/effects/effects_v1.rs
 const TransactionEffectsV1 = bcs.struct('TransactionEffectsV1', {
 	status: ExecutionStatus,
 	executedEpoch: bcs.u64(),
 	gasUsed: GasCostSummary,
-	modifiedAtVersions: bcs.vector(bcs.tuple([Address, bcs.u64()])),
+	modifiedAtVersions: bcs.vector(
+		bcs.struct('ModifiedAtVersion', {
+			objectId: Address,
+			version: bcs.u64(),
+		}),
+	),
 	sharedObjects: bcs.vector(SuiObjectRef),
 	transactionDigest: ObjectDigest,
-	created: bcs.vector(bcs.tuple([SuiObjectRef, Owner])),
-	mutated: bcs.vector(bcs.tuple([SuiObjectRef, Owner])),
-	unwrapped: bcs.vector(bcs.tuple([SuiObjectRef, Owner])),
+	created: bcs.vector(ObjectReferenceWithOwner),
+	mutated: bcs.vector(ObjectReferenceWithOwner),
+	unwrapped: bcs.vector(ObjectReferenceWithOwner),
 	deleted: bcs.vector(SuiObjectRef),
 	unwrappedThenDeleted: bcs.vector(SuiObjectRef),
 	wrapped: bcs.vector(SuiObjectRef),
-	gasObject: bcs.tuple([SuiObjectRef, Owner]),
+	gasObject: ObjectReferenceWithOwner,
 	eventsDigest: bcs.option(ObjectDigest),
 	dependencies: bcs.vector(ObjectDigest),
 });
 
 // Rust: crates/sui-types/src/base_types.rs
-const VersionDigest = bcs.tuple([bcs.u64(), ObjectDigest]);
+const VersionDigest = bcs.struct('VersionDigest', {
+	version: bcs.u64(),
+	digest: ObjectDigest,
+});
 
 // Rust: crates/sui-types/src/effects/object_change.rs
 const ObjectIn = bcs.enum('ObjectIn', {
 	NotExist: null,
-	Exist: bcs.tuple([VersionDigest, Owner]),
+	// Rust nests `(VersionDigest, Owner)`; flattening keeps the same bytes.
+	Exist: bcs.struct('ObjectInExist', {
+		version: bcs.u64(),
+		digest: ObjectDigest,
+		owner: Owner,
+	}),
 });
 
 // Rust: crates/sui-types/src/effects/object_change.rs
 const AccumulatorAddress = bcs.struct('AccumulatorAddress', {
 	address: Address,
-	// TODO: ask why this is the name
 	ty: TypeTag,
 });
 
@@ -210,9 +229,17 @@ const AccumulatorOperation = bcs.enum('AccumulatorOperation', {
 // Rust: crates/sui-types/src/effects/object_change.rs
 const AccumulatorValue = bcs.enum('AccumulatorValue', {
 	Integer: bcs.u64(),
-	IntegerTuple: bcs.tuple([bcs.u64(), bcs.u64()]),
+	IntegerTuple: bcs.struct('IntegerTuple', {
+		first: bcs.u64(),
+		second: bcs.u64(),
+	}),
 	// NonEmpty<(u64, Digest)> in Rust - vector must have at least one element
-	EventDigest: bcs.vector(bcs.tuple([bcs.u64(), ObjectDigest])),
+	EventDigest: bcs.vector(
+		bcs.struct('EventDigestEntry', {
+			eventIndex: bcs.u64(),
+			digest: ObjectDigest,
+		}),
+	),
 });
 
 // Rust: crates/sui-types/src/effects/object_change.rs
@@ -225,7 +252,10 @@ const AccumulatorWriteV1 = bcs.struct('AccumulatorWriteV1', {
 // Rust: crates/sui-types/src/effects/object_change.rs
 const ObjectOut = bcs.enum('ObjectOut', {
 	NotExist: null,
-	ObjectWrite: bcs.tuple([ObjectDigest, Owner]),
+	ObjectWrite: bcs.struct('ObjectWrite', {
+		digest: ObjectDigest,
+		owner: Owner,
+	}),
 	PackageWrite: VersionDigest,
 	AccumulatorWriteV1: AccumulatorWriteV1,
 });
@@ -235,13 +265,6 @@ const IDOperation = bcs.enum('IDOperation', {
 	None: null,
 	Created: null,
 	Deleted: null,
-});
-
-// Rust: crates/sui-types/src/effects/object_change.rs
-const EffectsObjectChange = bcs.struct('EffectsObjectChange', {
-	inputState: ObjectIn,
-	outputState: ObjectOut,
-	idOperation: IDOperation,
 });
 
 // Rust: crates/sui-types/src/effects/effects_v2.rs
@@ -263,8 +286,21 @@ const TransactionEffectsV2 = bcs.struct('TransactionEffectsV2', {
 	eventsDigest: bcs.option(ObjectDigest),
 	dependencies: bcs.vector(ObjectDigest),
 	lamportVersion: bcs.u64(),
-	changedObjects: bcs.vector(bcs.tuple([Address, EffectsObjectChange])),
-	unchangedConsensusObjects: bcs.vector(bcs.tuple([Address, UnchangedConsensusKind])),
+	changedObjects: bcs.vector(
+		// Rust pairs the ID with an `EffectsObjectChange`; flattening keeps the same bytes.
+		bcs.struct('ChangedObject', {
+			objectId: Address,
+			inputState: ObjectIn,
+			outputState: ObjectOut,
+			idOperation: IDOperation,
+		}),
+	),
+	unchangedConsensusObjects: bcs.vector(
+		bcs.struct('UnchangedConsensusObject', {
+			objectId: Address,
+			kind: UnchangedConsensusKind,
+		}),
+	),
 	auxDataDigest: bcs.option(ObjectDigest),
 });
 

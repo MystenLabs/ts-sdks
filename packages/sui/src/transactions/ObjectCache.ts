@@ -275,14 +275,14 @@ export class ObjectCache {
 		const deletedIds: string[] = [];
 		const addedObjects: ObjectCacheEntry[] = [];
 
-		changedObjects.forEach(([id, change]) => {
-			if (change.outputState.NotExist) {
-				deletedIds.push(id);
-			} else if (change.outputState.ObjectWrite) {
-				const [digest, owner] = change.outputState.ObjectWrite;
+		changedObjects.forEach(({ objectId, outputState }) => {
+			if (outputState.NotExist) {
+				deletedIds.push(objectId);
+			} else if (outputState.ObjectWrite) {
+				const { digest, owner } = outputState.ObjectWrite;
 
 				addedObjects.push({
-					objectId: id,
+					objectId,
 					digest,
 					version: lamportVersion,
 					owner: owner.AddressOwner ?? owner.ObjectOwner ?? null,

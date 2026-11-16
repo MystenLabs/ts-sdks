@@ -197,13 +197,13 @@ export function getGasCoinFromEffects(effects: typeof bcs.TransactionEffects.$in
 		throw new Error('Gas object not found in effects');
 	}
 
-	const [objectId, { outputState }] = gasObjectChange;
+	const { objectId, outputState } = gasObjectChange;
 
 	if (!outputState.ObjectWrite) {
 		throw new Error('Unexpected gas object state');
 	}
 
-	const [digest, owner] = outputState.ObjectWrite;
+	const { digest, owner } = outputState.ObjectWrite;
 
 	return {
 		ref: {

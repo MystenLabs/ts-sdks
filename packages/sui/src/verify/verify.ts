@@ -111,7 +111,7 @@ function parseSignature(signature: string, options: { client?: ClientWithCoreApi
 	if (parsedSignature.signatureScheme === 'MultiSig') {
 		return {
 			...parsedSignature,
-			publicKey: new MultiSigPublicKey(parsedSignature.multisig.multisig_pk, {
+			publicKey: new MultiSigPublicKey(parsedSignature.multisig.multisigPk, {
 				client: options.client,
 			}),
 		};
