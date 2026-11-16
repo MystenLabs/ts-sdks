@@ -36,6 +36,7 @@ on:
 
 jobs:
   publish:
+    environment: npm-release
     runs-on: ubuntu-latest
     permissions:
       contents: read
