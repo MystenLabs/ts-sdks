@@ -94,12 +94,12 @@ test('Mainnet records delayed execution', () => {
 	expect(MAINNET_CONFIG.objects.orderDesk).not.toBe(TESTNET_CONFIG.objects.orderDesk);
 });
 
-test('Mainnet sessions target v3, the first version with the queued-order wrappers', () => {
-	// The Mainnet Sessions v3 upgrade (DBU-899). `sessionsPackageIdV1` keeps the original ID,
-	// which the `SessionsApp` dynamic-field key and the session events are typed by.
+test('Mainnet sessions target v4, with the spot pool allowlist and builder approvals', () => {
+	// The Mainnet Sessions v4 upgrade. `sessionsPackageIdV1` keeps the original ID, which the
+	// `SessionsApp` dynamic-field key and the v1 session events are typed by.
 	const sessions = getSessionsConfig('mainnet');
 	expect(sessions.sessionsPackageId).toBe(
-		'0xfd9ef53ca443517d6a3a4d8742e00eaa1e7f35b0997697caab8c3e62870c0ce5',
+		'0x6069298c3d0d2e435e6621a19669f66b242baeaaaed27365943d53dc6c1d9b42',
 	);
 	expect(sessions.sessionsPackageIdV1).toBe(
 		'0x9a068beffa019ae756f4a6d2611e9899d3c6dd888812dd9eca87535d2ac55e2a',
