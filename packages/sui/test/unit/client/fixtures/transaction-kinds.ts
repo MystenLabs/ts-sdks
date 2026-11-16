@@ -73,11 +73,9 @@ const changeEpoch = {
 		storageRebate: '13',
 		nonRefundableStorageFee: '14',
 		epochStartTimestampMs: '1015',
-		systemPackages: [['9', [new Uint8Array([1, 2, 3])], [address]]] as [
-			string,
-			Uint8Array[],
-			string[],
-		][],
+		systemPackages: [
+			{ version: '9', modules: [new Uint8Array([1, 2, 3])], dependencies: [address] },
+		],
 	},
 };
 
@@ -95,10 +93,9 @@ const bcsPrologueV3 = {
 	consensusCommitDigest: digest,
 	subDagIndex: '2',
 	consensusDeterminedVersionAssignments: {
-		CancelledTransactionsV2: [[digest, [[[address, '3'], '10']]]] as [
-			string,
-			[[string, string], string][],
-		][],
+		CancelledTransactionsV2: [
+			{ digest, assignments: [{ objectId: address, startVersion: '3', version: '10' }] },
+		],
 	},
 };
 const grpcAssignments = {
@@ -238,7 +235,7 @@ export const cases: Record<
 			ConsensusCommitPrologueV3: {
 				...bcsPrologueV3,
 				consensusDeterminedVersionAssignments: {
-					CancelledTransactions: [[digest, [[address, '10']]]],
+					CancelledTransactions: [{ digest, assignments: [{ objectId: address, version: '10' }] }],
 				},
 			},
 		},
@@ -286,7 +283,7 @@ export const cases: Record<
 						epoch: '5',
 					},
 				],
-				authenticatorObjInitialSharedVersion: '1',
+				authenticatorObjectInitialSharedVersion: '1',
 			},
 		},
 	},
@@ -308,7 +305,7 @@ export const cases: Record<
 				epoch: '5',
 				randomnessRound: '8',
 				randomBytes: new Uint8Array([1, 2, 3]),
-				randomnessObjInitialSharedVersion: '2',
+				randomnessObjectInitialSharedVersion: '2',
 			},
 		},
 	},
@@ -393,7 +390,9 @@ export const cases: Record<
 			EndOfEpochTransaction: [
 				{ ChangeEpoch: changeEpoch.bcs },
 				{ AuthenticatorStateCreate: true },
-				{ AuthenticatorStateExpire: { minEpoch: '3', authenticatorObjInitialSharedVersion: '1' } },
+				{
+					AuthenticatorStateExpire: { minEpoch: '3', authenticatorObjectInitialSharedVersion: '1' },
+				},
 				{ RandomnessStateCreate: true },
 				{ DenyListStateCreate: true },
 				{ BridgeStateCreate: digest },
@@ -401,8 +400,8 @@ export const cases: Record<
 				{
 					StoreExecutionTimeObservations: {
 						V1: [
-							[
-								{
+							{
+								key: {
 									MoveEntryPoint: {
 										package: address,
 										module: 'example',
@@ -410,9 +409,11 @@ export const cases: Record<
 										typeArguments: ['u64'],
 									},
 								},
-								[[new Uint8Array([4, 5]), { secs: '6', nanos: 7 }]],
-							],
-							[{ TransferObjects: true }, []],
+								observations: [
+									{ validator: new Uint8Array([4, 5]), duration: { secs: '6', nanos: 7 } },
+								],
+							},
+							{ key: { TransferObjects: true }, observations: [] },
 						],
 					},
 				},

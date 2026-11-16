@@ -17,6 +17,7 @@ import type {
 	ExecutionTimeObservation as GrpcExecutionTimeObservation,
 	Transaction as GrpcTransaction,
 	TransactionKind as GrpcTransactionKind,
+	VersionAssignment as GrpcVersionAssignment,
 } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import {
 	EndOfEpochTransactionKind_Kind,
@@ -235,7 +236,7 @@ function grpcSystemKind(grpcKind: GrpcTransactionKind | undefined): TransactionK
 						},
 						epoch: u64(jwk.epoch, 'jwk epoch'),
 					})),
-					authenticatorObjInitialSharedVersion: u64(
+					authenticatorObjectInitialSharedVersion: u64(
 						update.authenticatorObjectInitialSharedVersion,
 						'authenticator object initial shared version',
 					),
@@ -257,7 +258,7 @@ function grpcSystemKind(grpcKind: GrpcTransactionKind | undefined): TransactionK
 					epoch: u64(update.epoch, 'epoch'),
 					randomnessRound: u64(update.randomnessRound, 'randomness round'),
 					randomBytes: required(update.randomBytes, 'random bytes'),
-					randomnessObjInitialSharedVersion: u64(
+					randomnessObjectInitialSharedVersion: u64(
 						update.randomnessObjectInitialSharedVersion,
 						'randomness object initial shared version',
 					),
@@ -356,7 +357,7 @@ function grpcEndOfEpochTransactionKindOrThrow(
 				$kind: 'AuthenticatorStateExpire',
 				AuthenticatorStateExpire: {
 					minEpoch: u64(expire.minEpoch, 'min epoch'),
-					authenticatorObjInitialSharedVersion: u64(
+					authenticatorObjectInitialSharedVersion: u64(
 						expire.authenticatorObjectInitialSharedVersion,
 						'authenticator object initial shared version',
 					),
@@ -415,11 +416,11 @@ function grpcChangeEpoch(change: GrpcChangeEpoch): NonNullable<TransactionKind['
 		epochStartTimestampMs: grpcTimestampToMilliseconds(
 			required(change.epochStartTimestamp, 'epoch start timestamp'),
 		),
-		systemPackages: change.systemPackages.map((pkg) => [
-			u64(pkg.version, 'system package version'),
-			pkg.modules,
-			pkg.dependencies.map((dependency) => normalizeSuiAddress(dependency)),
-		]),
+		systemPackages: change.systemPackages.map((pkg) => ({
+			version: u64(pkg.version, 'system package version'),
+			modules: pkg.modules,
+			dependencies: pkg.dependencies.map((dependency) => normalizeSuiAddress(dependency)),
+		})),
 	};
 }
 
@@ -477,34 +478,31 @@ function grpcVersionAssignments(
 		prologue.consensusDeterminedVersionAssignments,
 		'consensus determined version assignments',
 	);
-	const transactions = assignments.canceledTransactions.map((canceled) => ({
-		digest: required(canceled.digest, 'canceled transaction digest'),
-		assignments: canceled.versionAssignments.map((assignment) => ({
-			objectId: normalizeSuiAddress(required(assignment.objectId, 'object id')),
-			startVersion: assignment.startVersion,
-			version: u64(assignment.version, 'assigned version'),
-		})),
-	}));
+	const cancelled = <T>(mapAssignment: (assignment: GrpcVersionAssignment) => T) =>
+		assignments.canceledTransactions.map((canceled) => ({
+			digest: required(canceled.digest, 'canceled transaction digest'),
+			assignments: canceled.versionAssignments.map(mapAssignment),
+		}));
+	const objectId = ({ objectId }: GrpcVersionAssignment) =>
+		normalizeSuiAddress(required(objectId, 'object id'));
 
 	switch (assignments.version) {
 		case 1:
 			return {
 				$kind: 'CancelledTransactions',
-				CancelledTransactions: transactions.map(({ digest, assignments }) => [
-					digest,
-					assignments.map(({ objectId, version }) => [objectId, version]),
-				]),
+				CancelledTransactions: cancelled((assignment) => ({
+					objectId: objectId(assignment),
+					version: u64(assignment.version, 'assigned version'),
+				})),
 			};
 		case 2:
 			return {
 				$kind: 'CancelledTransactionsV2',
-				CancelledTransactionsV2: transactions.map(({ digest, assignments }) => [
-					digest,
-					assignments.map(({ objectId, startVersion, version }) => [
-						[objectId, u64(startVersion, 'start version')],
-						version,
-					]),
-				]),
+				CancelledTransactionsV2: cancelled((assignment) => ({
+					objectId: objectId(assignment),
+					startVersion: u64(assignment.startVersion, 'start version'),
+					version: u64(assignment.version, 'assigned version'),
+				})),
 			};
 		default:
 			throw new Error(`Unknown version assignments version: ${assignments.version}`);
@@ -520,16 +518,16 @@ function grpcExecutionTimeObservations(
 
 	return {
 		$kind: 'V1',
-		V1: observations.observations.map((observation) => [
-			grpcExecutionTimeObservationKey(observation),
-			observation.validatorObservations.map((validator) => {
+		V1: observations.observations.map((observation) => ({
+			key: grpcExecutionTimeObservationKey(observation),
+			observations: observation.validatorObservations.map((validator) => {
 				const duration = required(validator.duration, 'observation duration');
-				return [
-					required(validator.validator, 'validator'),
-					{ secs: duration.seconds.toString(), nanos: duration.nanos },
-				];
+				return {
+					validator: required(validator.validator, 'validator'),
+					duration: { secs: duration.seconds.toString(), nanos: duration.nanos },
+				};
 			}),
-		]),
+		})),
 	};
 }
 

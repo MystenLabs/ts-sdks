@@ -26,7 +26,11 @@ export const ChangeEpoch = bcs.struct('ChangeEpoch', {
 	nonRefundableStorageFee: bcs.u64(),
 	epochStartTimestampMs: bcs.u64(),
 	systemPackages: bcs.vector(
-		bcs.tuple([bcs.u64(), bcs.vector(bcs.byteVector()), bcs.vector(Address)]),
+		bcs.struct('SystemPackage', {
+			version: bcs.u64(),
+			modules: bcs.vector(bcs.byteVector()),
+			dependencies: bcs.vector(Address),
+		}),
 	),
 });
 
@@ -63,13 +67,28 @@ export const ConsensusDeterminedVersionAssignments = bcs.enum(
 	'ConsensusDeterminedVersionAssignments',
 	{
 		CancelledTransactions: bcs.vector(
-			bcs.tuple([ObjectDigest, bcs.vector(bcs.tuple([Address, bcs.u64()]))]),
+			bcs.struct('CancelledTransaction', {
+				digest: ObjectDigest,
+				assignments: bcs.vector(
+					bcs.struct('VersionAssignment', {
+						objectId: Address,
+						version: bcs.u64(),
+					}),
+				),
+			}),
 		),
 		CancelledTransactionsV2: bcs.vector(
-			bcs.tuple([
-				ObjectDigest,
-				bcs.vector(bcs.tuple([bcs.tuple([Address, bcs.u64()]), bcs.u64()])),
-			]),
+			bcs.struct('CancelledTransactionV2', {
+				digest: ObjectDigest,
+				assignments: bcs.vector(
+					// Rust nests `(ObjectID, start version)` in a tuple; flattening keeps the same bytes.
+					bcs.struct('VersionAssignmentV2', {
+						objectId: Address,
+						startVersion: bcs.u64(),
+						version: bcs.u64(),
+					}),
+				),
+			}),
 		),
 	},
 );
@@ -115,7 +134,7 @@ export const AuthenticatorStateUpdate = bcs.struct('AuthenticatorStateUpdate', {
 	epoch: bcs.u64(),
 	round: bcs.u64(),
 	newActiveJwks: bcs.vector(ActiveJwk),
-	authenticatorObjInitialSharedVersion: bcs.u64(),
+	authenticatorObjectInitialSharedVersion: bcs.u64(),
 });
 
 // Rust: crates/sui-types/src/transaction.rs
@@ -123,13 +142,13 @@ export const RandomnessStateUpdate = bcs.struct('RandomnessStateUpdate', {
 	epoch: bcs.u64(),
 	randomnessRound: bcs.u64(),
 	randomBytes: bcs.byteVector(),
-	randomnessObjInitialSharedVersion: bcs.u64(),
+	randomnessObjectInitialSharedVersion: bcs.u64(),
 });
 
 // Rust: crates/sui-types/src/transaction.rs
 export const AuthenticatorStateExpire = bcs.struct('AuthenticatorStateExpire', {
 	minEpoch: bcs.u64(),
-	authenticatorObjInitialSharedVersion: bcs.u64(),
+	authenticatorObjectInitialSharedVersion: bcs.u64(),
 });
 
 // Rust: crates/sui-types/src/execution.rs
@@ -151,19 +170,19 @@ export const ExecutionTimeObservationKey = bcs.enum('ExecutionTimeObservationKey
 // Rust: crates/sui-types/src/transaction.rs
 export const StoredExecutionTimeObservations = bcs.enum('StoredExecutionTimeObservations', {
 	V1: bcs.vector(
-		bcs.tuple([
-			ExecutionTimeObservationKey,
-			bcs.vector(
-				bcs.tuple([
+		bcs.struct('ExecutionTimeObservation', {
+			key: ExecutionTimeObservationKey,
+			observations: bcs.vector(
+				bcs.struct('ValidatorExecutionTimeObservation', {
 					// AuthorityName (BLS public key bytes)
-					bcs.byteVector(),
-					bcs.struct('Duration', {
+					validator: bcs.byteVector(),
+					duration: bcs.struct('Duration', {
 						secs: bcs.u64(),
 						nanos: bcs.u32(),
 					}),
-				]),
+				}),
 			),
-		]),
+		}),
 	),
 });
 

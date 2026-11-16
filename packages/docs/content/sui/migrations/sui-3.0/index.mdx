@@ -92,7 +92,15 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   `mutability: 'NonExclusiveWrite'`, `bcs.Owner` has a new `Party` variant, and the
   `bcs.MoveObjectType` variant `AccumulatorBalanceWrapper` is renamed to
   `SuiBalanceAccumulatorField`, with a new `BalanceAccumulatorField` variant. Handle the new
-  variants wherever you switch on these types.
+  variants wherever you switch on these types. System transaction kinds decoded with
+  `bcs.TransactionKind` use named fields where they used tuples: `ChangeEpoch.systemPackages`
+  entries are `{ version, modules, dependencies }`, cancelled transactions in consensus commit
+  prologues are `{ digest, assignments }` with `{ objectId, version }` assignments (plus
+  `startVersion` in `CancelledTransactionsV2`), and stored execution time observations are
+  `{ key, observations }` with `{ validator, duration }` observations. The
+  `authenticatorObjInitialSharedVersion` and `randomnessObjInitialSharedVersion` fields are renamed
+  to `authenticatorObjectInitialSharedVersion` and `randomnessObjectInitialSharedVersion`. The
+  encoded bytes are unchanged.
 - **`MoveLocation.function` is removed.** Use `location.functionName`.
 - **Execution error names match across transports.** Errors decoded from BCS effects, including
   GraphQL's, now report `InvalidBcsBytes`, `InvalidUsageOfPureArgument`,
