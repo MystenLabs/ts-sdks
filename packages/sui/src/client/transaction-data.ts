@@ -478,10 +478,10 @@ function grpcVersionAssignments(
 		prologue.consensusDeterminedVersionAssignments,
 		'consensus determined version assignments',
 	);
-	const cancelled = <T>(assignment: (assignment: GrpcVersionAssignment) => T) =>
+	const cancelled = <T>(mapAssignment: (assignment: GrpcVersionAssignment) => T) =>
 		assignments.canceledTransactions.map((canceled) => ({
 			digest: required(canceled.digest, 'canceled transaction digest'),
-			assignments: canceled.versionAssignments.map(assignment),
+			assignments: canceled.versionAssignments.map(mapAssignment),
 		}));
 	const objectId = ({ objectId }: GrpcVersionAssignment) =>
 		normalizeSuiAddress(required(objectId, 'object id'));
