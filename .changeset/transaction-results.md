@@ -19,6 +19,10 @@ Transaction results changed shape and match across transports:
 - BCS schemas decode every current system transaction: `bcs.SharedObjectRef` encodes
   `bcs.SharedObjectMutability`, `bcs.Owner` adds `Party`, and `bcs.MoveObjectType` renames
   `AccumulatorBalanceWrapper` to `SuiBalanceAccumulatorField` and adds `BalanceAccumulatorField`.
+- `bcs.TransactionKind` system variants decode to named structs instead of tuples
+  (`ChangeEpoch.systemPackages`, cancelled transaction version assignments, stored execution time
+  observations), and `*ObjInitialSharedVersion` fields are renamed to `*ObjectInitialSharedVersion`.
+  The encoded bytes are unchanged.
 - GraphQL reads an event's `packageId` and `module` from the transaction's top-level command,
   reports `0x0` as the sender of system transaction events, and reports the failing `command` for
   every execution error. Unchanged consensus objects without a version report `version: null`.

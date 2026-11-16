@@ -6,7 +6,12 @@ import { gunzipSync } from 'node:zlib';
 import { fromBase64, fromHex, toBase64 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
+import { bcs as bcsBase } from '@mysten/bcs';
+
 import { bcs } from '../../../src/bcs/index.js';
+import { ConsensusDeterminedVersionAssignments } from '../../../src/bcs/transactions.js';
+import { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
+import { END_OF_EPOCH_TRANSACTION_GZIP_BASE64 } from './fixtures/end-of-epoch-transaction.js';
 import { GENESIS_TRANSACTION_GZIP_BASE64 } from './fixtures/genesis-transaction.js';
 
 // BCS `TransactionData` of system transactions captured from a `sui start --force-regenesis
@@ -91,7 +96,7 @@ describe('system transaction BCS', () => {
 
 		expect(data.kind.$kind).toEqual('AuthenticatorStateUpdate');
 		const update = data.kind.AuthenticatorStateUpdate!;
-		expect(update.authenticatorObjInitialSharedVersion).toEqual('1');
+		expect(update.authenticatorObjectInitialSharedVersion).toEqual('1');
 		expect(update.newActiveJwks).toHaveLength(1);
 		expect(update.newActiveJwks[0]).toMatchObject({
 			jwkId: { iss: 'https://auth.3dos.io' },
@@ -107,7 +112,7 @@ describe('system transaction BCS', () => {
 		expect(data.kind.RandomnessStateUpdate).toMatchObject({
 			epoch: '0',
 			randomnessRound: '0',
-			randomnessObjInitialSharedVersion: '1',
+			randomnessObjectInitialSharedVersion: '1',
 		});
 		expect(data.kind.RandomnessStateUpdate!.randomBytes).toHaveLength(48);
 	});
@@ -119,7 +124,7 @@ describe('system transaction BCS', () => {
 		expect(data.kind.EndOfEpochTransaction).toEqual([
 			{
 				$kind: 'AuthenticatorStateExpire',
-				AuthenticatorStateExpire: { minEpoch: '0', authenticatorObjInitialSharedVersion: '1' },
+				AuthenticatorStateExpire: { minEpoch: '0', authenticatorObjectInitialSharedVersion: '1' },
 			},
 			{ $kind: 'BridgeCommitteeInit', BridgeCommitteeInit: '1' },
 			{
@@ -136,6 +141,84 @@ describe('system transaction BCS', () => {
 				}),
 			},
 		]);
+	});
+
+	it('decodes and round-trips a system package upgrade with execution time observations', () => {
+		const bytes = gunzipSync(fromBase64(END_OF_EPOCH_TRANSACTION_GZIP_BASE64));
+		expect(TransactionDataBuilder.getDigestFromBytes(bytes)).toEqual(
+			'EJbahhzwRhiPZAMj7F4Qezw3Ug3PRsP6KSEVX5MTMZzV',
+		);
+		const data = parse(toBase64(bytes));
+
+		const entries = data.kind.EndOfEpochTransaction!;
+		const changeEpoch = entries.find((entry) => entry.ChangeEpoch)!.ChangeEpoch!;
+		expect(changeEpoch.protocolVersion).toEqual('142');
+		expect(changeEpoch.systemPackages).toHaveLength(1);
+		const [framework] = changeEpoch.systemPackages;
+		expect(framework.version).toEqual('60');
+		expect(framework.modules).toHaveLength(68);
+		expect(framework.dependencies).toEqual([
+			'0x0000000000000000000000000000000000000000000000000000000000000001',
+		]);
+
+		const observations = entries.find((entry) => entry.StoreExecutionTimeObservations)!
+			.StoreExecutionTimeObservations!.V1!;
+		expect(observations).toHaveLength(7);
+		expect(observations.flatMap((entry) => entry.observations)).toHaveLength(516);
+		expect(observations[0].key.MoveEntryPoint?.function).toEqual('submit_mark');
+		expect(observations[0].observations[0].validator).toHaveLength(96);
+		expect(observations[0].observations[0].duration).toEqual({ secs: '0', nanos: 963270 });
+	});
+
+	it('encodes cancelled transaction assignments like the Rust tuples', () => {
+		const tupleLayout = bcsBase.enum('ConsensusDeterminedVersionAssignments', {
+			CancelledTransactions: bcsBase.vector(
+				bcsBase.tuple([
+					bcs.ObjectDigest,
+					bcsBase.vector(bcsBase.tuple([bcs.Address, bcsBase.u64()])),
+				]),
+			),
+			CancelledTransactionsV2: bcsBase.vector(
+				bcsBase.tuple([
+					bcs.ObjectDigest,
+					bcsBase.vector(
+						bcsBase.tuple([bcsBase.tuple([bcs.Address, bcsBase.u64()]), bcsBase.u64()]),
+					),
+				]),
+			),
+		});
+		const digest = 'EtjisPKCjzHU2919Y8k7uGgPEpbnehMN2MXLuTGrgoC4';
+		const v1 = {
+			$kind: 'CancelledTransactions' as const,
+			CancelledTransactions: [
+				{ digest, assignments: [{ objectId: ACCUMULATOR_ROOT, version: '10' }] },
+			],
+		};
+		const v2 = {
+			$kind: 'CancelledTransactionsV2' as const,
+			CancelledTransactionsV2: [
+				{
+					digest,
+					assignments: [{ objectId: ACCUMULATOR_ROOT, startVersion: '3', version: '10' }],
+				},
+			],
+		};
+
+		const v1Bytes = ConsensusDeterminedVersionAssignments.serialize(v1).toBytes();
+		expect(v1Bytes).toEqual(
+			tupleLayout
+				.serialize({ CancelledTransactions: [[digest, [[ACCUMULATOR_ROOT, '10']]]] })
+				.toBytes(),
+		);
+		expect(ConsensusDeterminedVersionAssignments.parse(v1Bytes)).toEqual(v1);
+
+		const v2Bytes = ConsensusDeterminedVersionAssignments.serialize(v2).toBytes();
+		expect(v2Bytes).toEqual(
+			tupleLayout
+				.serialize({ CancelledTransactionsV2: [[digest, [[[ACCUMULATOR_ROOT, '3'], '10']]]] })
+				.toBytes(),
+		);
+		expect(ConsensusDeterminedVersionAssignments.parse(v2Bytes)).toEqual(v2);
 	});
 
 	it('decodes and round-trips an accumulator settlement prologue', () => {
@@ -207,7 +290,7 @@ describe('system transaction BCS', () => {
 			startVersion: '7',
 			permissions: {
 				defaultPermissions: '3',
-				members: [[ACCUMULATOR_ROOT, '63'] as [string, string]],
+				members: [{ address: ACCUMULATOR_ROOT, permissions: '63' }],
 			},
 		};
 		// Field order from `Owner::Party` and `RawPartySerde` in crates/sui-types/src/object.rs.

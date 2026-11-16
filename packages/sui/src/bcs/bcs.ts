@@ -182,7 +182,13 @@ export const Owner = bcs.enum('Owner', {
 		permissions: bcs.struct('Party', {
 			// `ObjectPermissions` bitflags
 			defaultPermissions: bcs.u64(),
-			members: bcs.vector(bcs.tuple([Address, bcs.u64()])),
+			members: bcs.vector(
+				bcs.struct('PartyMember', {
+					address: Address,
+					// `ObjectPermissions` bitflags
+					permissions: bcs.u64(),
+				}),
+			),
 		}),
 	}),
 });
