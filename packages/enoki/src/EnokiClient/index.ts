@@ -64,6 +64,22 @@ export class EnokiClientError extends Error {
 		this.status = status;
 		this.code = errors?.[0]?.code ?? 'unknown_error';
 	}
+
+	/**
+	 * True when the transaction must be built and signed again before retrying, because Enoki's
+	 * sponsor address or the reference gas price changed since it was built.
+	 */
+	get requiresRebuild(): boolean {
+		return this.code === 'invalid_gas_owner' || this.code === 'invalid_gas_price';
+	}
+}
+
+/**
+ * Whether a sponsorship failed because the transaction was built with a sponsor address or
+ * reference gas price that's no longer current. Build it again, have the sender sign it, and retry.
+ */
+export function isStaleTransactionError(error: unknown): error is EnokiClientError {
+	return error instanceof EnokiClientError && error.requiresRebuild;
 }
 
 /**
