@@ -17,7 +17,8 @@ network, including those still on version 5, so wire a provider before moving to
 fetches Pyth or Block Scholes data itself. A refusal still throws the `PredictMoveError` the chain's
 quote raised, such as `EOrderFailsLimits` or `ELivePricingExpired`. Quotes now include the market's
 fee bands. The probability comes from the local pricer, which agrees with the chain to about 1e-4.
-The new `pricerAt` builds a market's pricer from one set of inputs, and the `quotes` namespace
+Inputs older than the version 5 live pricer's freshness windows are refused with its stale-oracle
+abort names, and `pricingFreshness` sets other windows. The new `pricerAt` builds a market's pricer from one set of inputs, and the `quotes` namespace
 exports the quote engine for a quote service.
 
 **Placement names no oracle object once a config records version 6.** New config fields

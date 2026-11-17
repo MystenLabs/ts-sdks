@@ -4,7 +4,11 @@
 // from signed Pyth and Block Scholes inputs (Predict version 6 keeps no live price on chain).
 import { describe, expect, test } from 'vitest';
 import { PredictInputError, PredictMoveError } from '../../src/predict/errors.js';
-import { pricerAt, type PricingInputs } from '../../src/predict/inputs.js';
+import {
+	DEFAULT_PRICING_FRESHNESS,
+	pricerAt,
+	type PricingInputs,
+} from '../../src/predict/inputs.js';
 import * as pricing from '../../src/predict/pricing.js';
 
 const E9 = 1_000_000_000n;
@@ -55,7 +59,7 @@ describe('pricerAt', () => {
 		expect(p.svi.b).toBeCloseTo(rolled.b, 15);
 		expect(p.svi).toMatchObject({ rho: -0.2, m: 0.001, sigma: 0.01 });
 		// Priced later, the surface carries less variance.
-		const later = pricerAt(INPUTS, { expiryMs: EXPIRY }, NOW + 30_000);
+		const later = pricerAt(INPUTS, { expiryMs: EXPIRY }, NOW + 30_000, false);
 		expect(later.svi.b).toBeLessThan(p.svi.b);
 	});
 
@@ -123,5 +127,42 @@ describe('pricerAt', () => {
 			expect(up).toBeLessThanOrEqual(previous + 1e-12);
 			previous = up;
 		}
+	});
+
+	test("refuses stale or future-stamped inputs with the live pricer's names", () => {
+		const name = (f: () => unknown) => {
+			try {
+				f();
+			} catch (e) {
+				return (e as PredictMoveError).abortName;
+			}
+			return null;
+		};
+		const at =
+			(inputs: PricingInputs, atMs = NOW) =>
+			() =>
+				pricerAt(inputs, { expiryMs: EXPIRY }, atMs);
+		// The defaults are the version 5 live pricer's windows.
+		expect(DEFAULT_PRICING_FRESHNESS).toMatchObject({
+			spotMaxAgeMs: 2_000,
+			valueMaxAgeMs: 2_000,
+			sviMaxAgeMs: 60_000,
+		});
+		expect(name(at({ ...INPUTS, spotMs: NOW - 2_001 }))).toBe('EPythSpotStale');
+		expect(name(at({ ...INPUTS, valueMs: NOW - 2_001 }))).toBe('EBlockScholesPriceStale');
+		expect(name(at({ ...INPUTS, sviMs: NOW - 60_001 }))).toBe('EBlockScholesSVIStale');
+		// A source time ahead of the pricing time beyond the clock skew is refused too.
+		expect(name(at({ ...INPUTS, spotMs: NOW + 1_001 }))).toBe('EPythSpotStale');
+		expect(name(at({ ...INPUTS, sviMs: NOW + 1_001 }))).toBe('EBlockScholesSVIStale');
+		expect(name(at({ ...INPUTS, spotMs: NOW + 1_000 }))).toBeNull();
+		// A wider window, or none, prices them.
+		expect(
+			pricerAt({ ...INPUTS, spotMs: NOW - 5_000 }, { expiryMs: EXPIRY }, NOW, {
+				spotMaxAgeMs: 10_000,
+			}).forwardRaw,
+		).toBeGreaterThan(0n);
+		expect(
+			pricerAt({ ...INPUTS, sviMs: NOW - 600_000 }, { expiryMs: EXPIRY }, NOW, false).forwardRaw,
+		).toBeGreaterThan(0n);
 	});
 });

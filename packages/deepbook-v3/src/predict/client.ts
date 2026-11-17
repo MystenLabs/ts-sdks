@@ -47,6 +47,7 @@ import {
 } from './errors.js';
 import {
 	pricerAt,
+	type PricingFreshness,
 	type PricingInputs,
 	type PricingInputsProvider,
 	type ResolvedPricer,
@@ -741,16 +742,20 @@ export function predict<Name extends string = 'predict'>({
 	network,
 	config,
 	pricingInputs,
+	pricingFreshness,
 }: {
 	name?: Name;
 	network: 'testnet' | 'mainnet';
 	config?: PredictConfig;
 	/** Supplies the signed inputs the off-chain prices, quotes and NAV need. See {@link PredictClient}. */
 	pricingInputs?: PricingInputsProvider;
+	/** How old those inputs may be. See {@link PredictClient}. */
+	pricingFreshness?: PricingFreshness | false;
 }): SuiClientRegistration<PredictCompatibleClient, Name, PredictClient> {
 	return {
 		name,
-		register: (client) => new PredictClient({ client, network, config, pricingInputs }),
+		register: (client) =>
+			new PredictClient({ client, network, config, pricingInputs, pricingFreshness }),
 	};
 }
 
@@ -794,6 +799,7 @@ export class PredictClient {
 	// market id → fee bands. A market copies the template at creation and keeps it for life.
 	#feeBandsCache = new Map<string, FeeBand[]>();
 	#pricingInputs: PricingInputsProvider | undefined;
+	#pricingFreshness: PricingFreshness | false | undefined;
 
 	/**
 	 * `pricingInputs` supplies the signed Pyth and Block Scholes inputs every off-chain price needs:
@@ -802,16 +808,23 @@ export class PredictClient {
 	 * no live price, so those reads throw `PredictInputError` without it, unless the call passes its
 	 * own `inputs`. The SDK never fetches Pyth or Block Scholes data itself: the frontend or a quote
 	 * service provides it. Transaction builders and the other reads don't need it.
+	 *
+	 * `pricingFreshness` bounds how old those inputs may be (the version 5 live pricer's windows
+	 * by default: 2 s for the spot, forward and Block Scholes spot, 60 s for the SVI tuple). A read
+	 * given staler inputs throws the chain's stale-oracle abort names (`EPythSpotStale`,
+	 * `EBlockScholesPriceStale`, `EBlockScholesSVIStale`). Pass `false` to price them anyway.
 	 */
 	constructor(opts: {
 		network: 'testnet' | 'mainnet';
 		client: PredictCompatibleClient;
 		config?: PredictConfig;
 		pricingInputs?: PricingInputsProvider;
+		pricingFreshness?: PricingFreshness | false;
 	}) {
 		this.cfg = opts.config ?? getConfig(opts.network);
 		this.#client = opts.client;
 		this.#pricingInputs = opts.pricingInputs;
+		this.#pricingFreshness = opts.pricingFreshness;
 	}
 
 	/** The deterministic id of an owner's canonical account wrapper — no chain read. */
@@ -1225,7 +1238,7 @@ export class PredictClient {
 		pricing: PricingOptions = {},
 	): Promise<ResolvedPricer> {
 		const inputs = await this.#inputsFor(m, marketId, expiryMs, pricing);
-		return pricerAt(inputs, { expiryMs }, Date.now());
+		return pricerAt(inputs, { expiryMs }, Date.now(), this.#pricingFreshness);
 	}
 
 	// The market state a local quote prices with: its object (fee policy, the sponsored balance,

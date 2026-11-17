@@ -128,9 +128,13 @@ inputs per call, for example `read.price(desc, { inputs })` or
 `read.planMint(owner, desc, { amount: 10, inputs })`.
 
 The pricer is Predict's own `pricing::pricer_at`, ported as `pricerAt(inputs, { expiryMs })`: the
-Block Scholes basis re-anchored on the Pyth spot, and the SVI `a` and `b` rolled down to now. A
-quote charges what the version 5 quote did: the entry band, the minimum premium and the lot grid,
-the trading fee times the market's fee band (`read.feeBands`), the sponsor subsidy capped by the
+Block Scholes basis re-anchored on the Pyth spot, and the SVI `a` and `b` rolled down to now. Inputs
+must be fresh, by the windows the version 5 live pricer enforced (2 s for the spot, forward and
+Block Scholes spot, 60 s for the SVI tuple), and none may sit more than 1 s ahead of the clock.
+Staler inputs throw `EPythSpotStale`, `EBlockScholesPriceStale` or `EBlockScholesSVIStale`. Set
+other windows with `pricingFreshness`, or pass `false` to price old inputs on purpose. A quote
+charges what the version 5 quote did: the entry band, the minimum premium and the lot grid, the
+trading fee times the market's fee band (`read.feeBands`), the sponsor subsidy capped by the
 market's sponsored balance, no congestion penalty, and the payout bound. A refusal throws the
 `PredictMoveError` the chain's quote raised (`EOrderFailsLimits`, `ELivePricingExpired`,
 `EBlockScholesInputsInvalid`), so code that matched on those names keeps working. The probability

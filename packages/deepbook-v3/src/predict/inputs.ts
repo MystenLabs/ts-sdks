@@ -74,6 +74,27 @@ export interface PricingInputsProvider {
 	pricingInputs(request: PricingInputsRequest): Promise<PricingInputs>;
 }
 
+/**
+ * How old each input may be when a market is priced, in ms, and how far ahead of the pricing time
+ * a source time may sit (clock skew between the provider and this process). The defaults are the
+ * freshness windows Predict's version 5 live pricer enforced (`PricingConfig`): 2 s for the Pyth
+ * spot and the Block Scholes spot and forward, and 60 s for the SVI tuple.
+ */
+export interface PricingFreshness {
+	spotMaxAgeMs?: number;
+	valueMaxAgeMs?: number;
+	sviMaxAgeMs?: number;
+	maxClockSkewMs?: number;
+}
+
+/** The freshness {@link pricerAt} enforces unless told otherwise. */
+export const DEFAULT_PRICING_FRESHNESS: Readonly<Required<PricingFreshness>> = Object.freeze({
+	spotMaxAgeMs: 2_000,
+	valueMaxAgeMs: 2_000,
+	sviMaxAgeMs: 60_000,
+	maxClockSkewMs: 1_000,
+});
+
 /** A pricer built from signed inputs: the decimal forward and rolled SVI, plus their sources. */
 export interface ResolvedPricer extends PricerInputs {
 	/** The time the SVI was rolled down to and the fees are charged at, in ms. */
@@ -144,6 +165,17 @@ const invalidInputs = () => new PredictMoveError('pricing', 5n, 'EBlockScholesIn
 const nonPositiveVariance = () =>
 	new PredictMoveError('pricing', 14n, 'EBlockScholesMinVarianceInvalid');
 const expired = () => new PredictMoveError('pricing', 9n, 'ELivePricingExpired');
+const spotStale = () => new PredictMoveError('pricing', 18n, 'EPythSpotStale');
+const valueStale = () => new PredictMoveError('pricing', 4n, 'EBlockScholesPriceStale');
+const sviStale = () => new PredictMoveError('pricing', 10n, 'EBlockScholesSVIStale');
+
+// `pricing::is_fresh`, with room for clock skew: a source time at most `maxAge` before `now`, and
+// at most `skew` after it.
+function fresh(sourceMs: bigint, nowMs: bigint, maxAgeMs: number, skewMs: number): boolean {
+	return (
+		sourceMs > 0n && sourceMs <= nowMs + BigInt(skewMs) && nowMs - sourceMs <= BigInt(maxAgeMs)
+	);
+}
 
 /**
  * Build the pricer a market prices from at `atMs` (default now): Predict's `pricing::pricer_at`
@@ -151,8 +183,13 @@ const expired = () => new PredictMoveError('pricing', 9n, 'ELivePricingExpired')
  * `spot · bsForward / bsSpot` floored, and the SVI `a` and `b` are rolled down by
  * `(expiry − atMs) / (expiry − sviMs)` at 1e18, as the chain rolls them.
  *
+ * Each source time must be fresh at `atMs` ({@link PricingFreshness}, the version 5 live
+ * pricer's windows by default), and none may sit ahead of it by more than the clock skew. Pass
+ * `freshness: false` to price stale or historical inputs on purpose (a backtest).
+ *
  * Throws the `PredictMoveError` the chain's own pricer load raised in the same case, so callers
- * that matched on it keep working: `ELivePricingExpired` at or past expiry,
+ * that matched on it keep working: `ELivePricingExpired` at or past expiry, `EPythSpotStale`,
+ * `EBlockScholesPriceStale` or `EBlockScholesSVIStale` for an input outside its window,
  * `EBlockScholesInputsInvalid` outside the pricing-safe envelope, and
  * `EBlockScholesMinVarianceInvalid` when the rolled surface's minimum variance isn't positive.
  * Throws `PredictInputError` on malformed inputs.
@@ -161,6 +198,7 @@ export function pricerAt(
 	inputs: PricingInputs,
 	market: { expiryMs: bigint },
 	atMs: number | bigint = Date.now(),
+	freshness: PricingFreshness | false = DEFAULT_PRICING_FRESHNESS,
 ): ResolvedPricer {
 	const nowMs = toBig(atMs, 'atMs');
 	const expiry = market.expiryMs;
@@ -183,6 +221,12 @@ export function pricerAt(
 	const sviMs = toBig(inputs.sviMs, 'sviMs');
 	const valueMs = toBig(inputs.valueMs, 'valueMs');
 	const spotMs = toBig(inputs.spotMs, 'spotMs');
+	if (freshness !== false) {
+		const f = { ...DEFAULT_PRICING_FRESHNESS, ...freshness };
+		if (!fresh(spotMs, nowMs, f.spotMaxAgeMs, f.maxClockSkewMs)) throw spotStale();
+		if (!fresh(valueMs, nowMs, f.valueMaxAgeMs, f.maxClockSkewMs)) throw valueStale();
+		if (!fresh(sviMs, nowMs, f.sviMaxAgeMs, f.maxClockSkewMs)) throw sviStale();
+	}
 	if (sviMs >= expiry) throw invalidInputs();
 
 	// `block_scholes::new_vol`: `a` and `b` at 1e18, `rho`, `m` and `sigma` at 1e9.

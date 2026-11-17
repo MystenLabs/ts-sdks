@@ -135,8 +135,9 @@ export type { PricerSnapshot } from './reads/pricing.js';
 // caller supplies: implement `PricingInputsProvider` and pass it to `PredictClient` /
 // `predict({ pricingInputs })`. `pricerAt` builds a market's pricer from one set of inputs, as the
 // chain's `pricing::pricer_at` does.
-export { pricerAt } from './inputs.js';
+export { DEFAULT_PRICING_FRESHNESS, pricerAt } from './inputs.js';
 export type {
+	PricingFreshness,
 	PricingInputs,
 	PricingInputsProvider,
 	PricingInputsRequest,
