@@ -92,15 +92,18 @@ export class EnokiClientExtension {
 	getSponsorAddress(): Promise<string> {
 		if (!this.#sponsorAddress) {
 			const network = this.#network();
-			this.#sponsorAddress = this.#enoki.getApp().then(({ sponsorAddresses }) => {
+			const promise = this.#enoki.getApp().then(({ sponsorAddresses }) => {
 				const address = sponsorAddresses?.[network];
 				if (!address) {
 					throw new Error(`Enoki does not sponsor transactions on ${network}`);
 				}
 				return normalizeSuiAddress(address);
 			});
-			this.#sponsorAddress.catch(() => {
-				this.#sponsorAddress = undefined;
+			this.#sponsorAddress = promise;
+			promise.catch(() => {
+				if (this.#sponsorAddress === promise) {
+					this.#sponsorAddress = undefined;
+				}
 			});
 		}
 		return this.#sponsorAddress;
@@ -168,6 +171,7 @@ export class EnokiClientExtension {
 
 		let response: { digest: string };
 		try {
+			options.signal?.throwIfAborted();
 			response = await this.#enoki.sponsorAndExecuteTransaction({
 				network,
 				transactionBytes: toBase64(transactionBytes),
