@@ -12,8 +12,6 @@ import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { inspectReturns } from '../../src/predict/reads/inspect.js';
 import {
 	activeMarketIds,
-	rangePrices,
-	currentNav,
 	expiryMarketId,
 	marketState,
 	marketStates,
@@ -27,7 +25,6 @@ import {
 	parseVectorOfIds,
 } from '../../src/predict/reads/parse.js';
 import { poolStats } from '../../src/predict/reads/pool.js';
-import { POS_INF_TICK } from '../../src/predict/ticks.js';
 
 // Account calls target the latest account package (a PTB can't call one older than Predict links);
 // event and struct types keep the original `cfg.packages.account`.
@@ -183,55 +180,6 @@ describe('markets reads', () => {
 		});
 	});
 
-	test('rangePrices: one pricer, three Strike codecs, both sides read', async () => {
-		// Command layout the migrated read emits: load_live_pricer, then three
-		// range_codec::strike_from_tick (finite strike, +inf, -inf), then two
-		// pricing::range_price, then the two pricing::probability reductions.
-		// `range_price` returns a `RangePrice` struct, so the u64 the caller wants is the
-		// probability() output: UP = commands[len-2], DOWN = commands[len-1].
-		const { client, captured } = mockClient([
-			[new Uint8Array(0)], // 0: load_live_pricer (&Pricer reference, unused)
-			[new Uint8Array(0)], // 1: strike_from_tick — finite strike
-			[new Uint8Array(0)], // 2: strike_from_tick — +inf sentinel
-			[new Uint8Array(0)], // 3: strike_from_tick — -inf sentinel
-			[new Uint8Array(0)], // 4: range_price UP (RangePrice struct, not parsed here)
-			[new Uint8Array(0)], // 5: range_price DOWN (RangePrice struct, not parsed here)
-			[bcs.u64().serialize(340_000_000n).toBytes()], // 6: probability UP
-			[bcs.u64().serialize(660_000_000n).toBytes()], // 7: probability DOWN
-		]);
-		const feeds = {
-			pythFeed: cfg.underlyings.BTC.pythFeed,
-			blockScholesValueStore: cfg.underlyings.BTC.blockScholesValueStore,
-			blockScholesSviStore: cfg.underlyings.BTC.blockScholesSviStore,
-		};
-		const strikeRaw = 105_000_000_000_000n;
-		const tickSizeRaw = 10_000_000n;
-		const r = await rangePrices(client, config, ADDR_A, feeds, strikeRaw, tickSizeRaw);
-		expect(r).toEqual({ upRaw: 340_000_000n, downRaw: 660_000_000n });
-		expect(targets(captured.tx!)).toEqual([
-			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-			`${cfg.packages.predict}::range_codec::strike_from_tick`,
-			`${cfg.packages.predict}::range_codec::strike_from_tick`,
-			`${cfg.packages.predict}::range_codec::strike_from_tick`,
-			`${cfg.packages.predict}::pricing::range_price`,
-			`${cfg.packages.predict}::pricing::range_price`,
-			`${cfg.packages.predict}::pricing::probability`,
-			`${cfg.packages.predict}::pricing::probability`,
-		]);
-		// Each Strike is strike_from_tick(tick, tickSize): the finite boundary tick is
-		// strikeRaw / tickSizeRaw, and the open ends are the POS_INF_TICK (+inf) and 0
-		// (-inf) sentinels — no raw u64::MAX / 0 price bounds anymore.
-		const pure = captured
-			.tx!.getData()
-			.inputs.filter((i) => 'Pure' in i && i.Pure)
-			.map((i) => (i as { Pure: { bytes: string } }).Pure.bytes);
-		const b64u64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
-		expect(pure).toContain(b64u64(strikeRaw / tickSizeRaw)); // finite strike tick
-		expect(pure).toContain(b64u64(POS_INF_TICK)); // +inf sentinel tick
-		expect(pure).toContain(b64u64(0n)); // -inf sentinel tick
-		expect(pure).toContain(b64u64(tickSizeRaw)); // tick size fed to strike_from_tick
-	});
-
 	test('referenceTick: Some → tick, None → null', async () => {
 		const some = mockClient([[bcs.option(bcs.u64()).serialize(42n).toBytes()]]);
 		expect(await referenceTick(some.client, config, '0xdeadbeef')).toBe(42n);
@@ -333,19 +281,6 @@ describe('markets reads', () => {
 			},
 		} as unknown as ReadClient;
 		await expect(settlementPrice(client, config, '0xdeadbeef')).rejects.toThrow(PredictMoveError);
-	});
-
-	test("currentNav: load_live_pricer → current_nav, parses last command's u64", async () => {
-		const { client, captured } = mockClient([
-			[new Uint8Array([0])], // load_live_pricer's Pricer bytes (opaque here)
-			[bcs.u64().serialize(999n).toBytes()], // current_nav
-		]);
-		const nav = await currentNav(client, config, '0xabc123', BTC);
-		expect(targets(captured.tx!)).toEqual([
-			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-			`${cfg.packages.predict}::expiry_market::current_nav`,
-		]);
-		expect(nav).toBe(999n);
 	});
 });
 

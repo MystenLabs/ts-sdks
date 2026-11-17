@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Order planning for a purchase form (`read.planMint`, `read.planSell`) and the pure limit helpers
 // behind it. Slippage is cents per contract, an absolute price move, never a percentage.
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
 	PredictClient,
 	type MarketDescriptor,
@@ -23,18 +23,45 @@ import {
 	maxMintNow,
 	sellLimits,
 } from '../../src/predict/queue.js';
+import { localMintQuote, localSellQuote } from '../../src/predict/quotes.js';
 import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
 import {
 	E_ORDER_FAILS_LIMITS,
 	MARKET,
-	MockAbort,
 	QUEUE_CFG as cfg,
+	cannedMintQuote,
+	cannedSellQuote,
+	fixedPricer,
 	moveCallTargets,
 	queueClient,
 	recordFields,
 	scenario,
+	testProvider,
 	type QueueScenario,
 } from './queue-fixtures.js';
+
+// The plans are tested against the scenario's canned quotes (`cannedMintQuote`): the off-chain
+// quote engine itself is tested in `quotes.test.ts`, and the pricer in `inputs.test.ts`.
+vi.mock('../../src/predict/quotes.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../../src/predict/quotes.js')>();
+	return { ...actual, localMintQuote: vi.fn(), localSellQuote: vi.fn() };
+});
+vi.mock('../../src/predict/inputs.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../../src/predict/inputs.js')>();
+	return { ...actual, pricerAt: vi.fn(() => fixedPricer()) };
+});
+
+// A client over the scenario, with its quotes served from it.
+function predictClient(s: QueueScenario, q: ReturnType<typeof queueClient>) {
+	vi.mocked(localMintQuote).mockImplementation((inputs) => cannedMintQuote(s, inputs));
+	vi.mocked(localSellQuote).mockImplementation((inputs) => cannedSellQuote(s, inputs));
+	return new PredictClient({
+		network: 'testnet',
+		client: q.client,
+		config: cfg,
+		pricingInputs: testProvider(),
+	});
+}
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const ACCOUNT_ID = deriveAccountIdFrom(toGeneratedConfig(cfg), OWNER);
@@ -52,7 +79,7 @@ const openRecord = (overrides: Parameters<typeof recordFields>[0] = {}) =>
 
 function client(s: QueueScenario) {
 	const q = queueClient(s);
-	return { pc: new PredictClient({ network: 'testnet', client: q.client, config: cfg }), ...q };
+	return { pc: predictClient(s, q), ...q };
 }
 
 function market(s: QueueScenario): MarketDescriptor {
@@ -260,8 +287,9 @@ describe('read.planMint', () => {
 	test('a visitor without an account gets a searched quote_mint plan', async () => {
 		const s = scenario();
 		const q = queueClient(s);
-		const pc = new PredictClient({ network: 'testnet', client: q.client, config: cfg });
+		const pc = predictClient(s, q);
 		s.missingObjects.add(pc.wrapperIdFor(OWNER));
+		vi.mocked(localMintQuote).mockClear();
 		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
 		expect(plan.quoteForAccount).toBe(false);
 		expect(plan.balance).toEqual({ hasAccount: false, available: null, covers: null });
@@ -271,9 +299,12 @@ describe('read.planMint', () => {
 		// At 42¢ a contract, 4.98 buys 11.85 contracts on the lot grid.
 		expect(plan.potentialPayout).toBe(11.85);
 		expect(plan.quote.cost).toBeLessThanOrEqual(4.98);
+		// Every quote was for no particular account: none carried a balance cap.
+		const calls = vi.mocked(localMintQuote).mock.calls.map(([inputs]) => inputs);
+		expect(calls.length).toBeGreaterThan(0);
+		expect(calls.every((inputs) => inputs.availableRaw === undefined)).toBe(true);
+		expect(calls.some((inputs) => inputs.request.shape === 'exact-cost')).toBe(false);
 		const targets = q.simulated.flatMap(moveCallTargets);
-		expect(targets).toContain('expiry_market::quote_mint');
-		expect(targets).not.toContain('expiry_market::quote_mint_exact_cost_for_account');
 		expect(targets).not.toContain('account::load_account');
 	});
 
@@ -284,7 +315,7 @@ describe('read.planMint', () => {
 			anonymousPricePerContract: 105_000_000n,
 		});
 		const q = queueClient(s);
-		const pc = new PredictClient({ network: 'testnet', client: q.client, config: cfg });
+		const pc = predictClient(s, q);
 		s.missingObjects.add(pc.wrapperIdFor(OWNER));
 		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
 		// Quantity as the first probe, 4.98 contracts, is a 0.498 premium, which the chain refuses.
@@ -302,7 +333,7 @@ describe('read.planMint', () => {
 			anonymousPricePerContract: 105_000_000n,
 		});
 		const q = queueClient(s);
-		const pc = new PredictClient({ network: 'testnet', client: q.client, config: cfg });
+		const pc = predictClient(s, q);
 		s.missingObjects.add(pc.wrapperIdFor(OWNER));
 		// 1.00 after the fee seeds at a 1.00 premium, but the next probe, 9.52 contracts, is a
 		// 0.952 premium. 0.48 fails at the seed.
@@ -318,21 +349,16 @@ describe('read.planMint', () => {
 
 	test("an account's budget below the minimum premium is refused before any quote", async () => {
 		const s = scenario();
-		const { pc, simulated } = client(s);
-		const before = simulated.length;
+		const { pc } = client(s);
+		vi.mocked(localMintQuote).mockClear();
 		const err = await pc.read
 			.planMint(OWNER, market(s), { amount: 0.5, slippageCents: 10 })
 			.catch((e) => e);
 		expect(err).toBeInstanceOf(PredictPreflightError);
 		expect(err.code).toBe('min-premium');
 		expect(err.message).toMatch(/at least 1 USDC/);
-		// The account's quote would abort EOrderFailsLimits, so the plan never sends it.
-		expect(
-			simulated
-				.slice(before)
-				.flatMap(moveCallTargets)
-				.filter((t) => t.includes('quote_mint')),
-		).toEqual([]);
+		// The account's quote would refuse with EOrderFailsLimits, so the plan never prices it.
+		expect(vi.mocked(localMintQuote)).not.toHaveBeenCalled();
 	});
 
 	test('subsidized limits pass the unsubsidized admission at zero and small slippage', async () => {
@@ -441,7 +467,7 @@ describe('read.planMint', () => {
 				all_in_cost: 4_970_000n,
 			},
 			accountQuoteAt: () => {
-				throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
+				throw new PredictMoveError('expiry_market', E_ORDER_FAILS_LIMITS, 'EOrderFailsLimits');
 			},
 		});
 		const { pc } = client(s);
@@ -663,6 +689,7 @@ describe('read.planMint', () => {
 		const exact = await pc.read.planMint(OWNER, market(s), { quantity: 10, slippageCents: 10 });
 		const placedExact = await pc.tx.enqueuePlan(OWNER, market(s), exact);
 		expect(placedExact.preview.totalDebit).toBe(exact.totalDebit);
+		// The Testnet ids record no Predict version 6, so placement is the version 5 call.
 		expect(moveCallTargets(placedExact.transaction)).toContain('queue::enqueue_exact_quantity');
 	});
 });
@@ -843,15 +870,14 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 
 	test('a sell above what the record holds is refused before any quote', async () => {
 		const s = scenario({ records: new Map([[7n, openRecord()]]) });
-		const { pc, simulated } = client(s);
+		const { pc } = client(s);
+		vi.mocked(localSellQuote).mockClear();
 		const err = await pc.read
 			.planSell(OWNER, market(s), { recordId: 7n, quantity: 6, slippageCents: 10 })
 			.catch((e) => e);
 		expect(err).toBeInstanceOf(PredictInputError);
 		expect(err.message).toMatch(/above the record's 5/);
-		expect(
-			simulated.flatMap(moveCallTargets).filter((t) => t.includes('quote_redeem_open')),
-		).toEqual([]);
+		expect(vi.mocked(localSellQuote)).not.toHaveBeenCalled();
 	});
 });
 

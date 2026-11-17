@@ -8,8 +8,8 @@
 //     codes against (commandResults[i].returnValues[j].bcs).
 //  2. Every config object id resolves on chain (a read returning data uses the
 //     registry, pool vault, feeds, protocol config, and the USDC coin type).
-//  3. The arity guard: our mint/redeem builders execute against the DEPLOYED
-//     entrypoints far enough that any failure is a semantic Move abort — never a
+//  3. The arity guard: the queued-order placement executes against the DEPLOYED
+//     entrypoint far enough that any failure is a semantic Move abort — never a
 //     VM verification / argument-arity error. This detects deployed-surface
 //     signature drift (argument count/type). It cannot detect swaps between
 //     same-typed arguments; those are pinned by the offline slot tests.
@@ -17,11 +17,11 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictClient, PredictMoveError, TESTNET_CONFIG } from '../../../src/predict/index.js';
-import { toGeneratedConfig } from '../../../src/predict/config/generated.js';
-// The trade builders are internal to the facade; the arity guard drives them directly.
-import { mintExactQuantity, redeemLive } from '../../../src/predict/tx/trade.js';
-// Pricer-free registry read, to assert the (underlying, expiry) → id mapping even when
-// the oracle is stale (NAV/price reads abort in that state — see isOracleUnavailable).
+import { toGeneratedConfig, toOrdersConfig } from '../../../src/predict/config/generated.js';
+import { PredictInputError } from '../../../src/predict/errors.js';
+// The queued-order thunks: the arity guard drives the placement directly.
+import { enqueueExactQuantity, enqueueExactQuantityV2 } from '../../../src/predict/tx/queue.js';
+// Pricer-free registry read, to assert the (underlying, expiry) → id mapping.
 import { expiryMarketId } from '../../../src/predict/reads/markets.js';
 // Generated move-calls: build the fresh wrapper (`account_registry::new`) and share it
 // (`account::share`) the same way `@mysten/deepbook-v3/account`'s `AccountContract` does, no hand-rolled targets.
@@ -102,38 +102,6 @@ function expectSemanticOrSuccess(outcome: unknown, label: string): void {
 	expect(text, `${label}: expected a Move abort, got: ${text}`).toMatch(/MoveAbort/i);
 }
 
-// A market is only priceable when its Block-Scholes / Pyth oracle inputs are fresh. On
-// testnet the oracle keeper is intermittent, so NAV / price reads can abort in the
-// `pricing` module with a stale/unavailable-oracle error. That is a market-liveness
-// condition, not an SDK fault — the read still built + simulated + decoded correctly —
-// so the publish gate tolerates it rather than flaking whenever the keeper is between
-// updates. Only the oracle-data codes are tolerated; config errors (wrong feed object:
-// EWrongPythFeed=7 / EWrongBlockScholesValueStore=8 / EWrongBlockScholesSVIStore=11) and
-// input/math/logic errors are deliberately NOT tolerated — those would signal a real SDK
-// or config bug and must still fail the gate. See pricing.move error constants.
-//
-// Matched by BOTH numeric code and name: the deployed `pricing` aborts currently surface
-// as plain small codes with a null name (verified live: code=4n, abortName=null), so the
-// numeric set is what fires today; the name set future-proofs against the module being
-// compiled with clever errors (which would pack the code and populate abortName).
-const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 12n, 13n]);
-const ORACLE_UNAVAILABLE_NAMES = new Set([
-	'EBlockScholesPriceStale', // 4
-	'EBlockScholesInputsInvalid', // 5
-	'EPythSpotInvalid', // 6
-	'ELivePricingExpired', // 9
-	'EBlockScholesSVIStale', // 10
-	'EBlockScholesPriceUnavailable', // 12
-	'EBlockScholesSVIUnavailable', // 13
-]);
-function isOracleUnavailable(e: unknown): boolean {
-	if (!(e instanceof PredictMoveError) || e.module !== 'pricing') return false;
-	return (
-		ORACLE_UNAVAILABLE_CODES.has(e.code) ||
-		(e.abortName != null && ORACLE_UNAVAILABLE_NAMES.has(e.abortName))
-	);
-}
-
 describe('testnet smoke (live deployment)', () => {
 	test('read.markets() — tradeable summaries, simulate plumbing end-to-end', async () => {
 		liveMarkets = await predict.read.markets();
@@ -165,79 +133,57 @@ describe('testnet smoke (live deployment)', () => {
 		// (BTC, this expiry) back to this exact market object. This resolution is
 		// pricer-free, so it holds regardless of oracle liveness.
 		expect(await expiryMarketId(client, config, cfg.underlyings.BTC, m.expiryMs)).toBe(m.id);
-		// The full facade summary additionally computes NAV via the live pricer; assert
-		// it when the oracle is fresh, tolerate a stale-oracle abort otherwise.
-		try {
-			const summary = await predict.read.market({ underlying: 'BTC', expiryMs: m.expiryMs });
-			expect(summary?.id).toBe(m.id);
-			expect(summary!.nav).toBeGreaterThanOrEqual(0);
-			expect(summary!.tickSize).toBe(m.tickSize);
-		} catch (e) {
-			if (!isOracleUnavailable(e)) throw e;
-		}
+		// The full facade summary computes NAV off chain from signed inputs, which this suite
+		// has no provider for: it refuses typed rather than reading a retired view.
+		await expect(predict.read.market({ underlying: 'BTC', expiryMs: m.expiryMs })).rejects.toThrow(
+			PredictInputError,
+		);
 	});
 
-	test('arity guard: mint_exact_quantity matches the deployed surface', async () => {
+	test('arity guard: the queued placement matches the deployed surface', async () => {
 		if (liveMarkets.length === 0) return;
 		const id = liveMarkets[0].id;
+		const orders = toOrdersConfig(cfg);
+		// The market's queue is created by a keeper after the market: skip until it exists.
+		const {
+			objects: [queue],
+		} = await client.core.getObjects({ objectIds: [predict.queueIdFor(id)] });
+		if (queue instanceof Error) return;
 		const { tx, wrapper } = freshWrapperTx();
+		const order = {
+			expiryMarketId: id,
+			wrapperId: wrapper,
+			// tick 1_000 is deep in the finite domain for any sane tick size
+			lowerTick: 1_000n,
+			higherTick: 1_001n,
+			quantityRaw: 1_000_000n, // $1 payout, 100 lots
+			maxCostRaw: 1_000_000n,
+			maxProbabilityRaw: 1_000_000_000n,
+		};
+		// A config on the version 6 packages places with no Propbook object.
 		tx.add(
-			mintExactQuantity(config, {
-				expiryMarketId: id,
-				wrapperId: wrapper,
-				// tick 1_000 is deep in the finite domain for any sane tick size
-				lowerTick: 1_000n,
-				higherTick: 1_001n,
-				quantityRaw: 1_000_000n, // $1 payout, 100 lots
-				...predictFeeds(),
-			}),
+			cfg.packages.predictV6
+				? enqueueExactQuantityV2(orders, order)
+				: enqueueExactQuantity(orders, { ...order, ...predictFeeds() }),
 		);
 		shareWrapper(tx, wrapper);
-		expectSemanticOrSuccess(await simulate(tx), `mint on ${id}`);
+		expectSemanticOrSuccess(await simulate(tx), `enqueue on ${id}`);
 	});
 
-	test('arity guard: redeem_live matches the deployed surface', async () => {
-		if (liveMarkets.length === 0) return;
-		const { tx, wrapper } = freshWrapperTx();
-		tx.add(
-			redeemLive(config, {
-				expiryMarketId: liveMarkets[0].id,
-				wrapperId: wrapper,
-				orderId: 1n, // no such order for a fresh account — semantic abort expected
-				closeQuantityRaw: 10_000n,
-				...predictFeeds(),
-			}),
-		);
-		shareWrapper(tx, wrapper);
-		expectSemanticOrSuccess(await simulate(tx), 'redeem_live');
-	});
-
-	test('read.price: live both-sides pricing for a grid strike (oracle-permitting)', async () => {
+	test('read.price prices off chain, so it needs signed inputs', async () => {
 		if (liveMarkets.length === 0) return;
 		const m = liveMarkets[0];
-		// A deep-ITM-for-UP strike: 1000 ticks above zero — any grid point works,
-		// the assertion is on plumbing + probability domain, not on moneyness.
-		const strike = m.tickSize * 1_000;
-		try {
-			const p = await predict.read.price({ underlying: 'BTC', expiryMs: m.expiryMs, strike });
-			expect(p.up).toBeGreaterThanOrEqual(0);
-			expect(p.up).toBeLessThanOrEqual(1);
-			expect(p.down).toBeGreaterThanOrEqual(0);
-			expect(p.down).toBeLessThanOrEqual(1);
-			// Complementary within chain rounding.
-			expect(Math.abs(p.up + p.down - 1)).toBeLessThan(0.05);
-		} catch (e) {
-			// Stale oracle → the SDK correctly surfaced a typed pricing abort (the
-			// build/simulate/decode path still ran); not a publish-gate failure.
-			if (!isOracleUnavailable(e)) throw e;
-		}
+		const strike = m.admissionTickSize * 1_000;
+		await expect(
+			predict.read.price({ underlying: 'BTC', expiryMs: m.expiryMs, strike }),
+		).rejects.toThrow(/pricingInputs/);
 	});
 
 	test('read.quoteMint: unfunded owner fails as a typed semantic abort (preflight)', async () => {
 		if (liveMarkets.length === 0) return;
 		const m = liveMarkets[0];
-		// SMOKE_SENDER never onboarded, so its derived wrapper doesn't exist:
-		// the dry-run fails at input resolution ("Object 0x… " from the node) —
+		// SMOKE_SENDER never onboarded, so its derived wrapper doesn't exist: the quote's
+		// balance read fails at input resolution ("Object 0x… " from the node) —
 		// while a funded-but-broke owner would surface a typed Move abort. Either
 		// way the quote fails EXACTLY like the real trade would (preflight), and
 		// this proves the build → simulate-with-events → error path live.
