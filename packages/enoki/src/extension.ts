@@ -52,8 +52,6 @@ export type EnokiSponsorAndExecuteTransactionOptions<
 export interface EnokiPrepareSponsoredTransactionOptions {
 	/** The transaction to prepare. Enoki is set as gas owner, paying from its address balance. */
 	transaction: Transaction;
-	/** The sender, set if the transaction doesn't already have one. */
-	sender?: string;
 }
 
 /**
@@ -109,26 +107,19 @@ export class EnokiClientExtension {
 	}
 
 	/**
-	 * Sets Enoki as the transaction's gas owner with an empty gas payment, and the sender if given.
+	 * Sets Enoki as the transaction's gas owner with an empty gas payment.
 	 * Doesn't build it, so a wallet can still resolve the rest. Build or have a wallet sign it, run
 	 * any checks, then pass the bytes and signature to `sponsorAndExecuteTransaction`.
 	 *
 	 * Safe to call on a transaction that's already prepared. Throws if the transaction already has
-	 * a different sender or gas owner, or a gas payment.
+	 * a different gas owner, or a gas payment.
 	 */
 	async prepareSponsoredTransaction({
 		transaction,
-		sender,
 	}: EnokiPrepareSponsoredTransactionOptions): Promise<Transaction> {
 		const sponsorAddress = await this.getSponsorAddress();
 		const data = transaction.getData();
 
-		if (sender) {
-			if (data.sender && normalizeSuiAddress(data.sender) !== normalizeSuiAddress(sender)) {
-				throw new Error(`Transaction sender is ${data.sender}, not ${sender}`);
-			}
-			transaction.setSenderIfNotSet(sender);
-		}
 		if (data.gasData.owner && normalizeSuiAddress(data.gasData.owner) !== sponsorAddress) {
 			throw new Error(
 				`Transaction gas owner is ${data.gasData.owner}, not Enoki's sponsor ${sponsorAddress}`,
@@ -163,7 +154,8 @@ export class EnokiClientExtension {
 		let signature: string;
 		if (options.signer) {
 			const { transaction, signer } = options;
-			await this.prepareSponsoredTransaction({ transaction, sender: signer.toSuiAddress() });
+			transaction.setSenderIfNotSet(signer.toSuiAddress());
+			await this.prepareSponsoredTransaction({ transaction });
 			bytes = await transaction.build({ client: this.#client });
 			({ signature } = await signer.signTransaction(bytes));
 		} else {
