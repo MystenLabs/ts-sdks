@@ -112,15 +112,33 @@ export class EnokiClientExtension {
 	 * Sets Enoki as the transaction's gas owner with an empty gas payment, and the sender if given.
 	 * Doesn't build it, so a wallet can still resolve the rest. Build or have a wallet sign it, run
 	 * any checks, then pass the bytes and signature to `sponsorAndExecuteTransaction`.
+	 *
+	 * Safe to call on a transaction that's already prepared. Throws if the transaction already has
+	 * a different sender or gas owner, or a gas payment.
 	 */
 	async prepareSponsoredTransaction({
 		transaction,
 		sender,
 	}: EnokiPrepareSponsoredTransactionOptions): Promise<Transaction> {
+		const sponsorAddress = await this.getSponsorAddress();
+		const data = transaction.getData();
+
 		if (sender) {
+			if (data.sender && normalizeSuiAddress(data.sender) !== normalizeSuiAddress(sender)) {
+				throw new Error(`Transaction sender is ${data.sender}, not ${sender}`);
+			}
 			transaction.setSenderIfNotSet(sender);
 		}
-		transaction.setGasOwner(await this.getSponsorAddress());
+		if (data.gasData.owner && normalizeSuiAddress(data.gasData.owner) !== sponsorAddress) {
+			throw new Error(
+				`Transaction gas owner is ${data.gasData.owner}, not Enoki's sponsor ${sponsorAddress}`,
+			);
+		}
+		if (data.gasData.payment && data.gasData.payment.length > 0) {
+			throw new Error('Sponsored transactions pay gas from the sponsor; remove the gas payment');
+		}
+
+		transaction.setGasOwner(sponsorAddress);
 		transaction.setGasPayment([]);
 		return transaction;
 	}
@@ -129,11 +147,12 @@ export class EnokiClientExtension {
 	 * Has Enoki sponsor and execute a transaction, and waits for it. Returns the same result as
 	 * `client.core.signAndExecuteTransaction`.
 	 *
-	 * With a `signer`, the transaction is built with Enoki as gas owner and an empty gas payment,
-	 * and signed here. With a `signature`, the bytes are sent as they are.
+	 * With a `signer`, the transaction is prepared with `prepareSponsoredTransaction`, built and
+	 * signed here. With a `signature`, the bytes are sent as they are.
 	 *
-	 * Enoki errors are thrown as `EnokiClientError`. If `isStaleTransactionError(error)`, call this
-	 * again to build and sign with the current sponsor address and gas price.
+	 * Enoki errors are thrown as `EnokiClientError`. If `isStaleTransactionError(error)`, the cached
+	 * sponsor address (and, with a `signer`, the transaction's gas owner or gas price) is updated,
+	 * so calling this again with the same transaction builds and signs with current values.
 	 */
 	async sponsorAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: EnokiSponsorAndExecuteTransactionOptions<Include>,
@@ -162,17 +181,8 @@ export class EnokiClientExtension {
 				allowedMoveCallTargets: options.allowedMoveCallTargets,
 			}));
 		} catch (error) {
-			if (error instanceof EnokiClientError) {
-				if (error.code === 'invalid_gas_owner') {
-					this.#sponsorAddress = undefined;
-				}
-				// The built transaction keeps its gas price, so update it for a retry with the same one.
-				const { referenceGasPrice } = (error.errors[0]?.data ?? {}) as {
-					referenceGasPrice?: string;
-				};
-				if (error.code === 'invalid_gas_price' && options.signer && referenceGasPrice) {
-					options.transaction.setGasPrice(BigInt(referenceGasPrice));
-				}
+			if (error instanceof EnokiClientError && error.requiresRebuild) {
+				this.#refreshFrom(error, options.signer ? options.transaction : undefined);
 			}
 			throw error;
 		}
@@ -182,6 +192,27 @@ export class EnokiClientExtension {
 			include: options.include,
 			signal: options.signal,
 		});
+	}
+
+	/** Updates the cached sponsor address, and the transaction if given, from a stale-transaction error. */
+	#refreshFrom(error: EnokiClientError, transaction?: Transaction) {
+		const { sponsorAddress, referenceGasPrice } = (error.errors[0]?.data ?? {}) as {
+			sponsorAddress?: string;
+			referenceGasPrice?: string;
+		};
+
+		if (error.code === 'invalid_gas_owner') {
+			if (sponsorAddress) {
+				const address = normalizeSuiAddress(sponsorAddress);
+				this.#sponsorAddress = Promise.resolve(address);
+				transaction?.setGasOwner(address);
+			} else {
+				this.#sponsorAddress = undefined;
+			}
+		}
+		if (error.code === 'invalid_gas_price' && referenceGasPrice) {
+			transaction?.setGasPrice(BigInt(referenceGasPrice));
+		}
 	}
 
 	#network(): EnokiDomainNetwork {
