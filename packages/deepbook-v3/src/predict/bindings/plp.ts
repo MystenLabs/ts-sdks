@@ -20,3 +20,11 @@ export const snapshotExpiryPricer = withShippedKeys(generated.snapshotExpiryPric
 	'bsValues',
 	'bsSvi',
 ]);
+
+// The options and argument types of the wrappers above, with the shipped keys. They replace the
+// generated types of the same names, which carry the capitalized keys.
+export type SnapshotExpiryPricerOptions = Parameters<typeof snapshotExpiryPricer>[0];
+export type SnapshotExpiryPricerArguments = Exclude<
+	SnapshotExpiryPricerOptions['arguments'],
+	readonly unknown[]
+>;

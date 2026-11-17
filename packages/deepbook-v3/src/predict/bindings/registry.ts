@@ -31,3 +31,31 @@ export const createAndShareExpiryMarketAt = withShippedKeys(
 	generated.createAndShareExpiryMarketAt,
 	[...CREATE_KEYS, 'expectedExpiry'],
 );
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Use `createAndShareExpiryMarketV2`. */
+export const createAndShareExpiryMarketWithBand = withShippedKeys(
+	generated.createAndShareExpiryMarketWithBand,
+	[...CREATE_KEYS, 'expectedExpiry', 'minEntryProbability', 'maxEntryProbability'],
+);
+
+// The options and argument types of the wrappers above, with the shipped keys. They replace the
+// generated types of the same names, which carry the capitalized keys.
+export type CreateAndShareExpiryMarketOptions = Parameters<typeof createAndShareExpiryMarket>[0];
+export type CreateAndShareExpiryMarketArguments = Exclude<
+	CreateAndShareExpiryMarketOptions['arguments'],
+	readonly unknown[]
+>;
+export type CreateAndShareExpiryMarketAtOptions = Parameters<
+	typeof createAndShareExpiryMarketAt
+>[0];
+export type CreateAndShareExpiryMarketAtArguments = Exclude<
+	CreateAndShareExpiryMarketAtOptions['arguments'],
+	readonly unknown[]
+>;
+export type CreateAndShareExpiryMarketWithBandOptions = Parameters<
+	typeof createAndShareExpiryMarketWithBand
+>[0];
+export type CreateAndShareExpiryMarketWithBandArguments = Exclude<
+	CreateAndShareExpiryMarketWithBandOptions['arguments'],
+	readonly unknown[]
+>;

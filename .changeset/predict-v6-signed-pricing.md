@@ -1,5 +1,5 @@
 ---
-'@mysten/deepbook-v3': minor
+'@mysten/deepbook-v3': major
 ---
 
 Support DeepBook Predict version 6, which prices every trade, settlement and pool valuation from
@@ -12,7 +12,8 @@ a market at the clock (`load_live_pricer`, `quote_mint*`, `quote_close*`, `quote
 `read.quoteMintCost`, `read.quoteSell`, `read.planMint`, `read.planSell` and the `nav` of
 `read.market` now compute their numbers in the SDK, with the same pricing and fee math, from inputs
 you supply. Pass a `PricingInputsProvider` as `pricingInputs` to `predict(...)` or `PredictClient`,
-or pass `inputs` on a single call. Those reads throw `PredictInputError` without one. The SDK never
+or pass `inputs` on a single call. Those reads throw `PredictInputError` without one, on every
+network, including those still on version 5, so wire a provider before moving to this release. The SDK never
 fetches Pyth or Block Scholes data itself. A refusal still throws the `PredictMoveError` the chain's
 quote raised, such as `EOrderFailsLimits` or `ELivePricingExpired`. Quotes now include the market's
 fee bands. The probability comes from the local pricer, which agrees with the chain to about 1e-4.

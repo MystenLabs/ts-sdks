@@ -14,6 +14,8 @@ import { PayoutNode } from '../../contracts/deepbook_predict/strike_payout_tree.
 /** A market's own state, from one object read. */
 export interface MarketObject {
 	marketId: string;
+	/** The object version read. Every trade, fill and settlement takes the market mutably and bumps it. */
+	version: string | null;
 	propbookUnderlyingId: number;
 	expiryMs: bigint;
 	tickSizeRaw: bigint;
@@ -53,6 +55,7 @@ export async function readMarketObject(
 	const c = x.config;
 	return {
 		marketId: normalizeSuiAddress(m.id),
+		version: object.version == null ? null : String(object.version),
 		propbookUnderlyingId: m.propbook_underlying_id,
 		expiryMs: BigInt(m.expiry),
 		tickSizeRaw: BigInt(x.tick_size),
@@ -162,4 +165,29 @@ export async function readPayoutBoundaries(
 		cursor = res.cursor;
 	}
 	throw new Error(`payout tree ${tableId} exceeded ${maxPages} pages: raise maxPages`);
+}
+
+/**
+ * A market's object and its whole payout tree as one consistent state. The tree's nodes are
+ * separate objects read page by page, so a trade landing between the reads could pair the cash of
+ * one state with the liability of another. Every trade, fill and settlement takes the market
+ * mutably, which bumps its version, so the read is kept only when the market's version is the same
+ * before and after the nodes, and retried otherwise (`attempts`, default 3).
+ */
+export async function readMarketWithBook(
+	client: ClientWithCoreApi,
+	marketId: string,
+	opts: { attempts?: number } = {},
+): Promise<MarketObject & { boundaries: PayoutBoundary[] }> {
+	const attempts = opts.attempts ?? 3;
+	for (let attempt = 0; attempt < attempts; attempt++) {
+		const market = await readMarketObject(client, marketId);
+		const boundaries = await readPayoutBoundaries(client, market.payout.tableId);
+		const { object } = await client.core.getObject({ objectId: marketId });
+		const after = object.version == null ? null : String(object.version);
+		if (after === market.version) return { ...market, boundaries };
+	}
+	throw new Error(
+		`market ${marketId} changed while its payout tree was read, ${attempts} times: retry the read`,
+	);
 }

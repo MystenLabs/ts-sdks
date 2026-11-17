@@ -319,3 +319,113 @@ export const trySettle = withShippedKeys(generated.trySettle, [
 	'pyth',
 	'bsValues',
 ]);
+
+// The order-flow admission and commit Predict version 6 retires. They take the companion's witness,
+// so only the order-flow package calls them. Their shipped keys are kept like the rest.
+const ADMISSION_KEYS = [
+	'market',
+	'config',
+	'account',
+	'propbookRegistry',
+	'pyth',
+	'bsValues',
+	'bsSvi',
+	'kind',
+	'lowerTick',
+	'higherTick',
+	'quantity',
+	'maxPremium',
+	'minQuantity',
+	'maxProbability',
+	'budget',
+	'orderFee',
+	'sviMaxAgeMs',
+	'channel',
+	'tauMs',
+	'deadlineMs',
+	'builder',
+	'receipt',
+	'closeQuantity',
+	'minProbability',
+	'minProceeds',
+] as const;
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. The companion calls `admitMintV2`. */
+export const admitMint = withShippedKeys(generated.admitMint, ADMISSION_KEYS);
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. The companion calls `admitMintV2`. */
+export const admitMintWithBuilder = withShippedKeys(generated.admitMintWithBuilder, ADMISSION_KEYS);
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. The companion calls `admitSellV2`. */
+export const admitSell = withShippedKeys(generated.admitSell, ADMISSION_KEYS);
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. The companion calls `admitSellV2`. */
+export const admitSellWithBuilder = withShippedKeys(generated.admitSellWithBuilder, ADMISSION_KEYS);
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. The companion calls `commitV2`. */
+export const commit = withShippedKeys(generated.commit, ['market', 'config', 'receipt', 'price']);
+
+// The options and argument types of the wrappers above, with the shipped keys. They replace the
+// generated types of the same names, which carry the capitalized keys.
+export type QuoteCloseWithBuilderFeeOptions = Parameters<typeof quoteCloseWithBuilderFee>[0];
+export type QuoteCloseWithBuilderFeeArguments = Exclude<
+	QuoteCloseWithBuilderFeeOptions['arguments'],
+	readonly unknown[]
+>;
+export type QuoteMintOptions = Parameters<typeof quoteMint>[0];
+export type QuoteMintArguments = Exclude<QuoteMintOptions['arguments'], readonly unknown[]>;
+export type QuoteMintForAccountOptions = Parameters<typeof quoteMintForAccount>[0];
+export type QuoteMintForAccountArguments = Exclude<
+	QuoteMintForAccountOptions['arguments'],
+	readonly unknown[]
+>;
+export type QuoteMintWithBuilderFeeOptions = Parameters<typeof quoteMintWithBuilderFee>[0];
+export type QuoteMintWithBuilderFeeArguments = Exclude<
+	QuoteMintWithBuilderFeeOptions['arguments'],
+	readonly unknown[]
+>;
+export type QuoteMintExactCostForAccountOptions = Parameters<
+	typeof quoteMintExactCostForAccount
+>[0];
+export type QuoteMintExactCostForAccountArguments = Exclude<
+	QuoteMintExactCostForAccountOptions['arguments'],
+	readonly unknown[]
+>;
+export type QuoteMintExactCostWithBuilderFeeOptions = Parameters<
+	typeof quoteMintExactCostWithBuilderFee
+>[0];
+export type QuoteMintExactCostWithBuilderFeeArguments = Exclude<
+	QuoteMintExactCostWithBuilderFeeOptions['arguments'],
+	readonly unknown[]
+>;
+export type LoadLivePricerOptions = Parameters<typeof loadLivePricer>[0];
+export type LoadLivePricerArguments = Exclude<
+	LoadLivePricerOptions['arguments'],
+	readonly unknown[]
+>;
+export type CurrentNavOptions = Parameters<typeof currentNav>[0];
+export type CurrentNavArguments = Exclude<CurrentNavOptions['arguments'], readonly unknown[]>;
+export type LiveOrderValueOptions = Parameters<typeof liveOrderValue>[0];
+export type LiveOrderValueArguments = Exclude<
+	LiveOrderValueOptions['arguments'],
+	readonly unknown[]
+>;
+export type SetReferenceTickOptions = Parameters<typeof setReferenceTick>[0];
+export type SetReferenceTickArguments = Exclude<
+	SetReferenceTickOptions['arguments'],
+	readonly unknown[]
+>;
+export type TrySettleOptions = Parameters<typeof trySettle>[0];
+export type TrySettleArguments = Exclude<TrySettleOptions['arguments'], readonly unknown[]>;
+export type AdmitMintOptions = Parameters<typeof admitMint>[0];
+export type AdmitMintArguments = Exclude<AdmitMintOptions['arguments'], readonly unknown[]>;
+export type AdmitMintWithBuilderOptions = Parameters<typeof admitMintWithBuilder>[0];
+export type AdmitMintWithBuilderArguments = Exclude<
+	AdmitMintWithBuilderOptions['arguments'],
+	readonly unknown[]
+>;
+export type AdmitSellOptions = Parameters<typeof admitSell>[0];
+export type AdmitSellArguments = Exclude<AdmitSellOptions['arguments'], readonly unknown[]>;
+export type AdmitSellWithBuilderOptions = Parameters<typeof admitSellWithBuilder>[0];
+export type AdmitSellWithBuilderArguments = Exclude<
+	AdmitSellWithBuilderOptions['arguments'],
+	readonly unknown[]
+>;
+export type CommitOptions = Parameters<typeof commit>[0];
+export type CommitArguments = Exclude<CommitOptions['arguments'], readonly unknown[]>;

@@ -19,6 +19,7 @@ import {
 import {
 	readFeeBands,
 	readMarketObject,
+	readMarketWithBook,
 	readPayoutBoundaries,
 } from '../../src/predict/reads/book.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
@@ -306,5 +307,46 @@ describe('market reads for the off-chain quotes', () => {
 			{ tick: 20n, localStart: 0n, localEnd: 2n },
 			{ tick: 30n, localStart: 1n, localEnd: 0n },
 		]);
+	});
+});
+
+describe('readMarketWithBook', () => {
+	// A market whose version moves on each read listed in `versions`, with an empty payout tree.
+	function client(versions: (string | undefined)[]) {
+		const s = scenario();
+		let reads = 0;
+		return {
+			reads: () => reads,
+			client: {
+				core: {
+					async getObject() {
+						const version = versions[Math.min(reads, versions.length - 1)];
+						reads++;
+						return { object: { version, content: marketObjectBytes(s) } };
+					},
+					async listDynamicFields() {
+						return { hasNextPage: false, cursor: null, dynamicFields: [] };
+					},
+				},
+			} as unknown as ReadClient,
+		};
+	}
+
+	test('keeps a read whose market version held across the tree', async () => {
+		const c = client(['7', '7']);
+		const m = await readMarketWithBook(c.client, MARKET);
+		expect(m.version).toBe('7');
+		expect(m.boundaries).toEqual([]);
+		expect(c.reads()).toBe(2);
+	});
+
+	test('reads again when a trade landed in between, and gives up after the attempts', async () => {
+		const retried = client(['7', '8', '8', '8']);
+		expect((await readMarketWithBook(retried.client, MARKET)).version).toBe('8');
+		expect(retried.reads()).toBe(4);
+		const busy = client(['1', '2', '3', '4', '5', '6', '7']);
+		await expect(readMarketWithBook(busy.client, MARKET, { attempts: 3 })).rejects.toThrow(
+			/changed while its payout tree was read/,
+		);
 	});
 });

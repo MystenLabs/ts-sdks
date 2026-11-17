@@ -509,10 +509,58 @@ describe('retired bindings keep their shipped argument keys', () => {
 						}),
 					),
 			],
+			[
+				(tx) =>
+					tx.add(
+						registryMoveCalls.createAndShareExpiryMarketWithBand({
+							config,
+							arguments: {
+								lifecycleCap: STAGE_CAP,
+								propbookUnderlyingId: 1,
+								cadenceId: 2,
+								expectedExpiry: null,
+								minEntryProbability: 3n,
+								maxEntryProbability: 4n,
+							},
+						}),
+					),
+				(tx) =>
+					tx.add(
+						generatedRegistry.createAndShareExpiryMarketWithBand({
+							config,
+							arguments: {
+								LifecycleCap: STAGE_CAP,
+								PropbookUnderlyingId: 1,
+								CadenceId: 2,
+								ExpectedExpiry: null,
+								MinEntryProbability: 3n,
+								MaxEntryProbability: 4n,
+							},
+						}),
+					),
+			],
 		];
 		for (const [shipped, generated] of cases) {
 			expect(built(shipped)).toBe(built(generated));
 		}
+		// The exported options type carries the shipped keys, so a typed options object passes.
+		const options: queueMoveCalls.EnqueueExactCostOptions = {
+			config: ordersConfig,
+			arguments: {
+				queue: QUEUE,
+				market: MARKET,
+				wrapper: WRAPPER,
+				auth: { $kind: 'Result', Result: 0 } as never,
+				pyth: PYTH,
+				bsValues: VALUES,
+				bsSvi: SVI,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 3n,
+				minQuantity: 4n,
+			},
+		};
+		expect(() => queueMoveCalls.enqueueExactCost(options)).not.toThrow();
 	});
 
 	test('every other export is the generated one', () => {

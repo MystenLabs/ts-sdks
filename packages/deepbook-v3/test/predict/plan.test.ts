@@ -23,6 +23,7 @@ import {
 	maxMintNow,
 	sellLimits,
 } from '../../src/predict/queue.js';
+import { pricerAt } from '../../src/predict/inputs.js';
 import { localMintQuote, localSellQuote } from '../../src/predict/quotes.js';
 import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
 import {
@@ -863,6 +864,19 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 		}
 		const err = await pc.read
 			.planSell(OWNER, market(s), { recordId: 7n, quantity: 2, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('past-cutoff');
+	});
+
+	test('a pricer the expired market cannot build is refused as past-cutoff too', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		vi.mocked(pricerAt).mockImplementationOnce(() => {
+			throw new PredictMoveError('pricing', 9n, 'ELivePricingExpired');
+		});
+		const err = await pc.read
+			.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 })
 			.catch((e) => e);
 		expect(err).toBeInstanceOf(PredictPreflightError);
 		expect(err.code).toBe('past-cutoff');

@@ -92,7 +92,7 @@ import {
 	readOracleBinding,
 	type OracleBinding,
 } from './reads/binding.js';
-import { readFeeBands, readMarketObject, readPayoutBoundaries } from './reads/book.js';
+import { readFeeBands, readMarketObject, readMarketWithBook } from './reads/book.js';
 import {
 	executionModeFor,
 	lazerPackages,
@@ -1232,17 +1232,19 @@ export class PredictClient {
 	// which moves, so it is read each time), its fee bands (kept for life, so cached) and, while
 	// inventory impact is enabled, its payout tree.
 	async #quoteMarket(marketId: string): Promise<QuoteMarket> {
-		const [market, feeBands] = await Promise.all([
+		const [first, feeBands] = await Promise.all([
 			readMarketObject(this.#client, marketId),
 			this.#feeBands(marketId),
 		]);
-		const book =
-			market.fees.inventoryImpactMaxRate > 0n
-				? {
-						base: market.payout.base,
-						boundaries: await readPayoutBoundaries(this.#client, market.payout.tableId),
-					}
-				: undefined;
+		// With inventory impact on, the charge reads the payout tree, which must be the same state as
+		// the market's own fields.
+		const market =
+			first.fees.inventoryImpactMaxRate > 0n
+				? await readMarketWithBook(this.#client, marketId)
+				: { ...first, boundaries: undefined };
+		const book = market.boundaries
+			? { base: market.payout.base, boundaries: market.boundaries }
+			: undefined;
 		return {
 			expiryMs: market.expiryMs,
 			tickSizeRaw: market.tickSizeRaw,
@@ -2578,7 +2580,8 @@ export class PredictClient {
 			const availableRaw = state.account?.availableRaw ?? null;
 			const lot = BigInt(this.cfg.units.positionLotSize);
 			const pricing: PricingOptions = { inputs: opts.inputs };
-			// One pricer for the quote and every probe the plan sizes with.
+			// One pricer for the quote and every probe the plan sizes with. A pricer that can't be built
+			// (a market past its expiry, say) is refused as the quote would be.
 			const quoter = await this.#mintQuoter(
 				m,
 				id,
@@ -2586,7 +2589,9 @@ export class PredictClient {
 				{ lowerTick, higherTick },
 				state.protocol.feeIncentiveSubsidyRate,
 				pricing,
-			);
+			).catch(async (error: unknown) => {
+				throw await this.#quoteRefusal(error);
+			});
 			// The account's own quote caps a budget at its balance. The anonymous one doesn't.
 			const forAccount = async (request: MintQuoteRequest) => quoter(request, availableRaw);
 			const anonymous = (request: AnonymousMintQuoteRequest) => quoter(request);
@@ -3037,17 +3042,15 @@ export class PredictClient {
 			if (!id) return null;
 			const state = await marketState(this.#client, this.#config, id);
 			this.#marketCache.set(`${m.underlying}:${expiryMs}`, { id, state });
+			// The cash and the payout tree are read as one state (`readMarketWithBook`).
 			const [object, pricer] = await Promise.all([
-				readMarketObject(this.#client, id),
+				readMarketWithBook(this.#client, id),
 				this.#localPricer(m, id, state.expiryMs, pricing),
 			]);
 			const navRaw = localNav({
 				cashBalance: object.cashBalance,
 				inventoryImpactReserve: object.inventoryImpactReserve,
-				book: {
-					base: object.payout.base,
-					boundaries: await readPayoutBoundaries(this.#client, object.payout.tableId),
-				},
+				book: { base: object.payout.base, boundaries: object.boundaries },
 				pricer,
 				tickSizeRaw: state.tickSizeRaw,
 			});
