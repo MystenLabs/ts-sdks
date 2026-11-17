@@ -2,12 +2,12 @@
 
 ## Entry points
 
-| Import                         | Contents                                                                                                                                                                                                                     |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@mysten/deepbook-v3`          | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                                            |
-| `@mysten/deepbook-v3/account`  | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on.                         |
-| `@mysten/deepbook-v3/sessions` | **Time-limited trading sessions** over a canonical Account (`SessionsContract`): grant an ephemeral address bounded authority until a fixed expiry. Covers the session lifecycle and the DeepBook Predict wrappers.          |
-| `@mysten/deepbook-v3/predict`  | **DeepBook Predict** — binary and range markets: market discovery, quotes, mint/redeem/claim, PLP, typed receipts and a client-side board pricer, with deployed ids for testnet and mainnet. See [PREDICT.md](./PREDICT.md). |
+| Import                         | Contents                                                                                                                                                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@mysten/deepbook-v3`          | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                                                                             |
+| `@mysten/deepbook-v3/account`  | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on.                                                          |
+| `@mysten/deepbook-v3/sessions` | **Time-limited trading sessions** over a canonical Account (`SessionsContract`): grant an ephemeral address bounded authority until a fixed expiry. Covers the session lifecycle and the DeepBook Predict wrappers.                                           |
+| `@mysten/deepbook-v3/predict`  | **DeepBook Predict** — binary and range markets: market discovery, off-chain quotes from signed inputs, queued orders, claims, PLP, typed receipts and a client-side board pricer, with deployed ids for testnet and mainnet. See [PREDICT.md](./PREDICT.md). |
 
 Subpaths are separate module graphs — importing `@mysten/deepbook-v3/account` does not load any spot
 or margin code.
@@ -95,9 +95,9 @@ const wrapperId = sessions.deriveAccountWrapperId(owner);
 // Owner-signed: grant an ephemeral key one hour of authority.
 tx.add(sessions.authorizeSession({ wrapperId, session: ephemeral, durationMs: 3_600_000 }));
 
-// Signed by the session key: a Predict mint. `pricer` is the result of a preceding
-// `expiry_market::load_live_pricer` command in the same transaction.
-tx.add(sessions.mintExactQuantity({ expiryMarketId, wrapperId, protocolConfig, pricer, ... }));
+// Signed by the session key: a queued Predict mint. With Sessions version 5 it names no oracle
+// object (see PREDICT.md, "Queued orders from a session key").
+tx.add(sessions.enqueueExactCost({ expiryMarketId, wrapperId, orderDesk, queueRegistry, protocolConfig, ... }));
 ```
 
 Notes that bite in practice:
