@@ -5,31 +5,24 @@
 /**
  * Pricing for Predict markets.
  *
- * This module reads canonical Propbook Pyth and Block Scholes feeds and computes
- * SVI-adjusted digital probabilities. Live reads require fresh, pricing-safe Block
- * Scholes spot, forward, and SVI observations. The latest forward is paired with
- * an exact source-timestamp spot from Propbook's bounded recent history. The live
- * forward comes from one of two admin-selected sources
- * (`PricingConfig.use_pyth_spot_for_forward`): a fresh positive Pyth spot carrying
- * the Block Scholes basis, or the Block Scholes forward directly. A load falls
- * back to the Block Scholes forward when the selected Pyth spot is stale or
- * unavailable; valuation prices on that fallback, while every live trade (mints,
- * mint quotes, and live redeems) refuses it through `assert_pyth_spot_fresh`.
- * Exact-history reads do not apply live freshness policy.
- *
- * Delayed execution splits that read in two. `load_vol` validates the same live
- * inputs when an order is admitted and returns the raw Block Scholes basis and SVI
- * its receipt stores; `pricer_at` later rebuilds a `Pricer` from them at the
- * order's committed Pyth tick. The `try_*` reads price exactly as `up_price` and
+ * This module computes SVI-adjusted digital probabilities from Block Scholes
+ * inputs and a Pyth spot that arrive inline, signed, in the transaction that needs
+ * them. `snap_v2` turns a `block_scholes::BsVol` into the `VolSnapshot` a receipt
+ * or the flush stores, and `pricer_at` builds a `Pricer` from a snapshot at a
+ * committed Pyth tick: the Block Scholes basis re-anchored on the Pyth spot, and
+ * the SVI rolled down to the tick. It returns `none` where the inputs leave
+ * Predict's pricing envelope. The `try_*` reads price exactly as `up_price` and
  * `range_price` do, and return `none` where those abort, so an order-flow fill
  * never aborts on a surface.
  *
- * A Propbook SVI store signs its parameters at the decimals the admin set on it,
- * `9` or `18`. Every load prices `a` and `b` at 1e18 either way, exactly when the
- * store is at 18. A receipt's snapshot keeps them at 1e9, so an admission at 18
- * also records the full-precision tuple in its market's SVI cache, a dynamic field
- * this module keeps on the market's UID (`SviKey`), and the fill prices from that
- * entry when it still holds it.
+ * Block Scholes signs SVI at `9` or `18` decimals. Pricing carries `a` and `b` at
+ * 1e18 either way, exactly when they were signed at 18. A snapshot keeps them at
+ * 1e9, so a snapshot from 18 decimals also records the full-precision tuple in its
+ * market's SVI cache, a dynamic field this module keeps on the market's UID
+ * (`SviKey`), and pricing reads that entry when it still holds it.
+ *
+ * Earlier package versions read Propbook's stores here. Those readers survive only
+ * as test fixtures (`load_live_pricer`, `load_vol`).
  */
 
 import { MoveStruct, MoveTuple, normalizeMoveArguments } from '../utils/index.js';
@@ -42,8 +35,8 @@ export const VolSnapshot = new MoveStruct({
 	name: `${$moduleName}::VolSnapshot`,
 	fields: {
 		/**
-		 * Canonical Propbook Pyth source for the market's underlying; commit finds this
-		 * feed in each Lazer update.
+		 * The market's Pyth Lazer feed, from its oracle binding at admission. Commit finds
+		 * this feed in each Lazer update.
 		 */
 		pyth_source_id: bcs.u32(),
 		/** The matched Block Scholes spot and forward, narrowed to Predict's width. */

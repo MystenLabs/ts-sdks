@@ -187,3 +187,11 @@ export const DelayedExecutionPolicyUpdated = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const BsTimingUpdated = new MoveStruct({
+	name: `${$moduleName}::BsTimingUpdated`,
+	fields: {
+		desk_id: bcs.Address,
+		timing: delayed_execution_config.BsTiming,
+		onchain_timestamp_ms: U64,
+	},
+});

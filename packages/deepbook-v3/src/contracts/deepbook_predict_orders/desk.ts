@@ -27,6 +27,7 @@
 
 import {
 	MoveStruct,
+	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 	type ConfigValue,
@@ -47,6 +48,10 @@ export const OrderDesk = new MoveStruct({
 		 */
 		version_watermark: U64,
 	},
+});
+export const BsTimingKey = new MoveTuple({
+	name: `${$moduleName}::BsTimingKey`,
+	fields: [bcs.bool()],
 });
 export const QueueRegistry = new MoveStruct({
 	name: `${$moduleName}::QueueRegistry`,
@@ -113,6 +118,43 @@ export function policy(options: PolicyOptions) {
 			package: packageAddress,
 			module: 'desk',
 			function: 'policy',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface BsTimingArguments {
+	desk?: RawTransactionArgument<string>;
+}
+export interface BsTimingOptions {
+	package?: string;
+	arguments?: BsTimingArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Return the Block Scholes timing commit applies, for SDK, keeper, and devInspect
+ * reads: the launch timing until `set_bs_timing` sets one.
+ */
+export function bsTiming(options: BsTimingOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['desk'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'desk',
+			function: 'bs_timing',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -326,6 +368,54 @@ export function setLimits(options: SetLimitsOptions) {
 			package: packageAddress,
 			module: 'desk',
 			function: 'set_limits',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetBsTimingArguments {
+	desk?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	valueLagMs: RawTransactionArgument<number | bigint>;
+	sviLagMs: RawTransactionArgument<number | bigint>;
+	gapWaitMs: RawTransactionArgument<number | bigint>;
+}
+export interface SetBsTimingOptions {
+	package?: string;
+	arguments: SetBsTimingArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Set which Block Scholes slots price a cohort: the spot and forward lag, the SVI
+ * lag, and the gap wait after which commit also accepts the next slot
+ * (`delayed_execution_config::BsTiming`). Commit reads it when it runs, so it
+ * applies to waiting cohorts too. Emits `BsTimingUpdated`.
+ */
+export function setBsTiming(options: SetBsTimingOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null, null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
+		string | null
+	)[];
+	const parameterNames = ['desk', 'AdminCap', 'config', 'valueLagMs', 'sviLagMs', 'gapWaitMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'desk',
+			function: 'set_bs_timing',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

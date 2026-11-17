@@ -12,9 +12,9 @@
  * obtain the witness or reach Predict with it. `release` and `try_pay_settled`
  * need no authority and are called directly.
  *
- * Admission takes an optional `BuilderFee` and passes it to Predict's
- * `_with_builder` admission, which records the code and the capped fee in the
- * receipt for the fill. An order that names none pays no builder fee.
+ * Admission takes an optional `BuilderFee` and passes it to Predict's oracle-free
+ * `_v2` admission, which records the code and the capped fee in the receipt for
+ * the fill. An order that names none pays no builder fee.
  */
 
 import { MoveTuple } from '../utils/index.js';

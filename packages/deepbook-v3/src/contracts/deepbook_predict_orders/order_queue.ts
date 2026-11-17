@@ -135,8 +135,9 @@ export const OrderEscrow = new MoveStruct({
 		/** Flat fee charged at placement. */
 		order_fee: U64,
 		/**
-		 * The admission dry run's pre-subsidy trading fee, capped at the budget. Bounds
-		 * the subsidy commit reserves.
+		 * The pre-subsidy trading fee bounding the subsidy commit reserves, capped at the
+		 * budget, as admission recorded it: the t₀ dry run's for orders placed before
+		 * version 6, `0` for a mint placed since, whose commit prices the bound at τ.
 		 */
 		subsidy_bound: U64,
 		/** The incentives commit reserved for the order, held with its escrow. */
@@ -616,6 +617,25 @@ export function reasonRecipientDenied(options: ReasonRecipientDeniedOptions = {}
 			package: packageAddress,
 			module: 'order_queue',
 			function: 'reason_recipient_denied',
+		});
+}
+export interface ReasonNoVolOptions {
+	package?: string;
+	arguments?: [];
+	config?: {
+		predictOrdersPackageId?: string;
+	};
+}
+export function reasonNoVol(options: ReasonNoVolOptions = {}) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order_queue',
+			function: 'reason_no_vol',
 		});
 }
 export interface StatusArguments {
