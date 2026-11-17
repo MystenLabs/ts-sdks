@@ -4,6 +4,10 @@
 import { setImmediate } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
+import { Transaction } from '@mysten/sui/transactions';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { WalletAccount } from '@mysten/wallet-standard';
 import { WalletConnectWallet } from '../src/wallet/index.js';
 
 vi.mock('@reown/appkit-universal-connector', () => ({
@@ -298,5 +302,108 @@ describe('WalletConnectWallet dApp metadata', () => {
 				}),
 			}),
 		);
+	});
+});
+
+describe('WalletConnectWallet transaction signing', () => {
+	const gasCoinId = `0x${'2'.padStart(64, '0')}`;
+	const digest = '11111111111111111111111111111111';
+	const account = { address } as WalletAccount;
+
+	// Fully specified (sender omitted on purpose) so it builds without network calls.
+	function makeTransaction() {
+		const tx = new Transaction();
+		tx.setGasPrice(1000);
+		tx.setGasBudget(10_000_000);
+		tx.setGasPayment([{ objectId: gasCoinId, version: '1', digest }]);
+		const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(1)]);
+		tx.transferObjects([coin], tx.pure.address(address));
+		return tx;
+	}
+
+	async function expectedBytes() {
+		const tx = makeTransaction();
+		tx.setSender(address);
+		return toBase64(await tx.build());
+	}
+
+	function createSigningWallet(client: Partial<ClientWithCoreApi> = {}) {
+		return new WalletConnectWallet({
+			metadata: {
+				id: 'walletconnect',
+				walletName: 'Wallet Connect',
+				icon: 'data:image/svg+xml;base64,PHN2Zy8+',
+				enabled: true,
+			},
+			projectId: 'test-project-id',
+			getClient: () => client as ClientWithCoreApi,
+		});
+	}
+
+	beforeEach(() => {
+		initMock.mockReset();
+	});
+
+	it('sends base64 BCS bytes with the sender set for sui_signTransaction', async () => {
+		const connector = makeConnector({
+			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+		});
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const wallet = createSigningWallet();
+		await wallet.init();
+
+		const result = await wallet.features['sui:signTransaction'].signTransaction({
+			transaction: makeTransaction(),
+			account,
+			chain: 'sui:testnet',
+		});
+
+		const [request, chain] = connector.request.mock.calls[0] as unknown as [
+			{ method: string; params: { transaction: string; address: string } },
+			string,
+		];
+		expect(request.method).toBe('sui_signTransaction');
+		expect(request.params.transaction).toBe(await expectedBytes());
+		expect(() => fromBase64(request.params.transaction)).not.toThrow();
+		expect(request.params.address).toBe(address);
+		expect(chain).toBe('sui:testnet');
+		expect(result).toEqual({ bytes: 'signed-bytes', signature: 'sig' });
+	});
+
+	it('sends base64 BCS bytes for sui_signAndExecuteTransaction', async () => {
+		const connector = makeConnector({ requestResult: { digest: 'tx-digest' } });
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const waitForTransaction = vi.fn(async () => ({
+			Transaction: { signatures: ['sig'], effects: { bcs: new Uint8Array([1, 2, 3]) } },
+		}));
+		const wallet = createSigningWallet({
+			core: { waitForTransaction } as unknown as ClientWithCoreApi['core'],
+		});
+		await wallet.init();
+
+		const result = await wallet.features['sui:signAndExecuteTransaction'].signAndExecuteTransaction(
+			{
+				transaction: makeTransaction(),
+				account,
+				chain: 'sui:testnet',
+			},
+		);
+
+		const [request] = connector.request.mock.calls[0] as unknown as [
+			{ method: string; params: { transaction: string; address: string } },
+		];
+		const bytes = await expectedBytes();
+		expect(request.method).toBe('sui_signAndExecuteTransaction');
+		expect(request.params.transaction).toBe(bytes);
+		expect(waitForTransaction).toHaveBeenCalledWith({
+			digest: 'tx-digest',
+			include: { effects: true },
+		});
+		expect(result).toEqual({
+			digest: 'tx-digest',
+			signature: 'sig',
+			bytes,
+			effects: toBase64(new Uint8Array([1, 2, 3])),
+		});
 	});
 });

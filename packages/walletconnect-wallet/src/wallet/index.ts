@@ -227,14 +227,30 @@ export class WalletConnectWallet implements Wallet {
 		this.#accounts = await this.#getPreviouslyAuthorizedAccounts();
 	}
 
+	// The WalletConnect Sui RPC spec expects `transaction` as base64-encoded BCS bytes, not the
+	// SDK's JSON format: https://docs.reown.com/advanced/multichain/rpc-reference/sui-rpc
+	async #buildTransaction(
+		transaction: { toJSON: () => Promise<string> },
+		address: string,
+		chain: string,
+	) {
+		const [, network] = chain.split(':');
+		const client = this.#getClient(network as SupportedNetwork);
+		const tx = Transaction.from(await transaction.toJSON());
+		tx.setSenderIfNotSet(address);
+		const bytes = await tx.build({ client });
+
+		return { client, bytes };
+	}
+
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
-		const tx = await transaction.toJSON();
+		const { bytes } = await this.#buildTransaction(transaction, account.address, chain);
 
 		const response = (await this.#connector?.request(
 			{
 				method: 'sui_signTransaction',
 				params: {
-					transaction: tx,
+					transaction: toBase64(bytes),
 					address: account.address,
 				},
 			},
@@ -252,16 +268,12 @@ export class WalletConnectWallet implements Wallet {
 		account,
 		chain,
 	}) => {
-		const [, network] = chain.split(':');
-		const client = this.#getClient(network as SupportedNetwork);
-		const data = await transaction.toJSON();
-		const parsedTransaction = Transaction.from(data);
-		const bytes = await parsedTransaction.build({ client });
+		const { client, bytes } = await this.#buildTransaction(transaction, account.address, chain);
 		const response = (await this.#connector?.request(
 			{
 				method: 'sui_signAndExecuteTransaction',
 				params: {
-					transaction: data,
+					transaction: toBase64(bytes),
 					address: account.address,
 				},
 			},
