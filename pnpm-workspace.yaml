@@ -68,12 +68,20 @@ verifyDepsBeforeRun: 'prompt'
 # come from @reown/appkit-wallet and @coinbase/cdp-sdk under
 # @mysten/walletconnect-wallet. Remove the exception once both move to zod 4.6.6
 # or later.
+#
+# picomatch has no published fix for
+# https://github.com/advisories/GHSA-fc5q-39xc-vjpf: every release up to 4.0.7,
+# the latest, is affected. It comes in through fast-glob, micromatch and
+# anymatch. Remove the exception and update picomatch once a fixed release is
+# out.
 auditConfig:
   # pnpm 10 (local development)
   ignoreCves:
     - CVE-2026-93687
     - CVE-2023-54404
+    - CVE-2026-112366
   # pnpm 11 (the audit CI job)
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
     - GHSA-mrhx-c7xc-m3w5
+    - GHSA-fc5q-39xc-vjpf
