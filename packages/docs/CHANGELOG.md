@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.92
+
+### Patch Changes
+
+- Updated dependencies [83ab0c5]
+  - @mysten/enoki@1.4.0
+
 ## 0.1.91
 
 ### Patch Changes
