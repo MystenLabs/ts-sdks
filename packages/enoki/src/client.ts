@@ -11,7 +11,7 @@ export type { EnokiNetwork, AuthProvider } from './EnokiClient/type.js';
 export {
 	enoki,
 	EnokiClientExtension,
-	type EnokiBuildSponsoredTransactionOptions,
+	type EnokiPrepareSponsoredTransactionOptions,
 	type EnokiExtensionOptions,
 	type EnokiSponsorAndExecuteTransactionOptions,
 } from './extension.js';

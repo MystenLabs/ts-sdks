@@ -39,8 +39,8 @@ export type EnokiSponsorAndExecuteTransactionOptions<
 		  }
 		| {
 				/**
-				 * Built transaction bytes (or base64), with Enoki as gas owner and an empty gas payment,
-				 * as `buildSponsoredTransaction` returns.
+				 * Built transaction bytes (or base64) of a transaction prepared with
+				 * `prepareSponsoredTransaction`.
 				 */
 				transaction: Uint8Array | string;
 				/** The sender's signature over the bytes. */
@@ -49,8 +49,8 @@ export type EnokiSponsorAndExecuteTransactionOptions<
 		  }
 	);
 
-export interface EnokiBuildSponsoredTransactionOptions {
-	/** The transaction to build. Enoki is set as gas owner, paying from its address balance. */
+export interface EnokiPrepareSponsoredTransactionOptions {
+	/** The transaction to prepare. Enoki is set as gas owner, paying from its address balance. */
 	transaction: Transaction;
 	/** The sender, set if the transaction doesn't already have one. */
 	sender?: string;
@@ -109,20 +109,20 @@ export class EnokiClientExtension {
 	}
 
 	/**
-	 * Builds a transaction with Enoki as gas owner and an empty gas payment. Run any checks on the
-	 * returned bytes, have the sender sign them however you like, then pass the bytes and signature
-	 * to `sponsorAndExecuteTransaction`.
+	 * Sets Enoki as the transaction's gas owner with an empty gas payment, and the sender if given.
+	 * Doesn't build it, so a wallet can still resolve the rest. Build or have a wallet sign it, run
+	 * any checks, then pass the bytes and signature to `sponsorAndExecuteTransaction`.
 	 */
-	async buildSponsoredTransaction({
+	async prepareSponsoredTransaction({
 		transaction,
 		sender,
-	}: EnokiBuildSponsoredTransactionOptions): Promise<Uint8Array> {
+	}: EnokiPrepareSponsoredTransactionOptions): Promise<Transaction> {
 		if (sender) {
 			transaction.setSenderIfNotSet(sender);
 		}
 		transaction.setGasOwner(await this.getSponsorAddress());
 		transaction.setGasPayment([]);
-		return transaction.build({ client: this.#client });
+		return transaction;
 	}
 
 	/**
@@ -144,7 +144,8 @@ export class EnokiClientExtension {
 		let signature: string;
 		if (options.signer) {
 			const { transaction, signer } = options;
-			bytes = await this.buildSponsoredTransaction({ transaction, sender: signer.toSuiAddress() });
+			await this.prepareSponsoredTransaction({ transaction, sender: signer.toSuiAddress() });
+			bytes = await transaction.build({ client: this.#client });
 			({ signature } = await signer.signTransaction(bytes));
 		} else {
 			bytes = options.transaction;
