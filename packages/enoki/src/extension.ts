@@ -7,7 +7,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
 
 import type { EnokiClientConfig } from './EnokiClient/index.js';
-import { EnokiClient, EnokiClientError } from './EnokiClient/index.js';
+import { EnokiClient, EnokiClientError, isStaleTransactionError } from './EnokiClient/index.js';
 import type { EnokiDomainNetwork } from './EnokiClient/type.js';
 
 export type EnokiExtensionOptions<Name extends string = 'enoki'> = Omit<
@@ -181,7 +181,7 @@ export class EnokiClientExtension {
 				allowedMoveCallTargets: options.allowedMoveCallTargets,
 			}));
 		} catch (error) {
-			if (error instanceof EnokiClientError && error.requiresRebuild) {
+			if (isStaleTransactionError(error)) {
 				this.#refreshFrom(error, options.signer ? options.transaction : undefined);
 			}
 			throw error;
