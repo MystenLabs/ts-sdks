@@ -23,7 +23,7 @@
 //   x  = k - m
 //   w  = a + b·(ρ·x + √(x² + σ²))            // a, b already rolled down
 //   d2 = −(k + w/2) / √w                       // clamped to ±8
-//   w′ = b·(ρ + x/√(x² + σ²))                  // SVI slope
+//   w′ = b·(ρ + x/√(x² + σ²))                  // SVI slope, floored to 1e-9 as the chain does
 //   price = N(d2) − φ(d2)·w′ / (2·√w)          // the skew correction, clamped [0,1]
 
 /** Rolled-down SVI parameters for one expiry, in decimal (NOT the chain's 1e9/1e18 integer
@@ -90,10 +90,16 @@ export function upProbability(inputs: PricerInputs, strike: number): number {
 	// load time), so this branch is unreachable in practice; return the variance→0 tail
 	// limit rather than throw, so a UI never crashes on a degenerate snapshot.
 	if (w <= 0) return k < 0 ? 1 : 0;
-	const sq = Math.sqrt(w);
+	// The chain takes `sqrt(w)` as the floored 1e9-scaled root of `w` at 1e18.
+	const sq = Math.max(Math.floor(Math.sqrt(w) * 1e9), 1) / 1e9;
 	const d2 = clampD2(-((k + w / 2) / sq));
 	const nd2 = normalCdf(d2);
-	const wPrime = b * (rho + km / root); // SVI slope × b
+	// SVI slope × b, which the chain carries at 1e9 and floors toward zero: on a surface whose
+	// `b · |slope|` is below 1e-9 it is zero, and the chain applies no skew correction at all.
+	const slope = rho + km / root;
+	const wPrimeRaw = Math.floor(Math.abs(b * slope) * 1e9);
+	if (wPrimeRaw === 0) return nd2 < 0 ? 0 : nd2 > 1 ? 1 : nd2;
+	const wPrime = (Math.sign(slope) * wPrimeRaw) / 1e9;
 	const price = nd2 - (normalPdf(d2) * wPrime) / (2 * sq); // skew correction
 	return price < 0 ? 0 : price > 1 ? 1 : price;
 }
