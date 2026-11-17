@@ -39,8 +39,8 @@ export type EnokiSponsorAndExecuteTransactionOptions<
 		  }
 		| {
 				/**
-				 * Built transaction bytes (or base64), with the sponsor address from `getSponsorAddress`
-				 * as gas owner and an empty gas payment.
+				 * Built transaction bytes (or base64), with Enoki as gas owner and an empty gas payment,
+				 * as `buildSponsoredTransaction` returns.
 				 */
 				transaction: Uint8Array | string;
 				/** The sender's signature over the bytes. */
@@ -48,6 +48,13 @@ export type EnokiSponsorAndExecuteTransactionOptions<
 				signer?: never;
 		  }
 	);
+
+export interface EnokiBuildSponsoredTransactionOptions {
+	/** The transaction to build. Enoki is set as gas owner, paying from its address balance. */
+	transaction: Transaction;
+	/** The sender, set if the transaction doesn't already have one. */
+	sender?: string;
+}
 
 /**
  * Adds Enoki sponsorship to a Sui client. Requires a private API key with sponsored transactions
@@ -102,6 +109,23 @@ export class EnokiClientExtension {
 	}
 
 	/**
+	 * Builds a transaction with Enoki as gas owner and an empty gas payment. Run any checks on the
+	 * returned bytes, have the sender sign them however you like, then pass the bytes and signature
+	 * to `sponsorAndExecuteTransaction`.
+	 */
+	async buildSponsoredTransaction({
+		transaction,
+		sender,
+	}: EnokiBuildSponsoredTransactionOptions): Promise<Uint8Array> {
+		if (sender) {
+			transaction.setSenderIfNotSet(sender);
+		}
+		transaction.setGasOwner(await this.getSponsorAddress());
+		transaction.setGasPayment([]);
+		return transaction.build({ client: this.#client });
+	}
+
+	/**
 	 * Has Enoki sponsor and execute a transaction, and waits for it. Returns the same result as
 	 * `client.core.signAndExecuteTransaction`.
 	 *
@@ -120,10 +144,7 @@ export class EnokiClientExtension {
 		let signature: string;
 		if (options.signer) {
 			const { transaction, signer } = options;
-			transaction.setSenderIfNotSet(signer.toSuiAddress());
-			transaction.setGasOwner(await this.getSponsorAddress());
-			transaction.setGasPayment([]);
-			bytes = await transaction.build({ client: this.#client });
+			bytes = await this.buildSponsoredTransaction({ transaction, sender: signer.toSuiAddress() });
 			({ signature } = await signer.signTransaction(bytes));
 		} else {
 			bytes = options.transaction;
