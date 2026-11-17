@@ -3,8 +3,8 @@
 
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { Transaction } from '@mysten/sui/transactions';
-import { normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
+import { TransactionDataBuilder, type Transaction } from '@mysten/sui/transactions';
+import { fromBase64, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
 
 import type { EnokiClientConfig } from './EnokiClient/index.js';
 import { EnokiClient, isStaleTransactionError } from './EnokiClient/index.js';
@@ -162,20 +162,27 @@ export class EnokiClientExtension {
 			signature = options.signature;
 		}
 
-		let digest: string;
+		const transactionBytes = typeof bytes === 'string' ? fromBase64(bytes) : bytes;
+		// Wait on the digest of the bytes that were signed, not one reported by the server.
+		const digest = TransactionDataBuilder.getDigestFromBytes(transactionBytes);
+
+		let response: { digest: string };
 		try {
-			({ digest } = await this.#enoki.sponsorAndExecuteTransaction({
+			response = await this.#enoki.sponsorAndExecuteTransaction({
 				network,
-				transactionBytes: typeof bytes === 'string' ? bytes : toBase64(bytes),
+				transactionBytes: toBase64(transactionBytes),
 				signature,
 				allowedAddresses: options.allowedAddresses,
 				allowedMoveCallTargets: options.allowedMoveCallTargets,
-			}));
+			});
 		} catch (error) {
 			if (isStaleTransactionError(error)) {
 				this.#sponsorAddress = undefined;
 			}
 			throw error;
+		}
+		if (response.digest !== digest) {
+			throw new Error(`Enoki returned digest ${response.digest}, but the transaction is ${digest}`);
 		}
 
 		return this.#client.core.waitForTransaction({
