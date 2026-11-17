@@ -22,6 +22,8 @@ import type {
 	GetZkLoginAddressesApiResponse,
 	GetZkLoginApiInput,
 	GetZkLoginApiResponse,
+	SponsorAndExecuteTransactionApiInput,
+	SponsorAndExecuteTransactionApiResponse,
 } from './type.js';
 
 const DEFAULT_API_URL = 'https://api.enoki.mystenlabs.com';
@@ -62,6 +64,22 @@ export class EnokiClientError extends Error {
 		this.status = status;
 		this.code = errors?.[0]?.code ?? 'unknown_error';
 	}
+
+	/**
+	 * True when the transaction must be built and signed again before retrying, because Enoki's
+	 * sponsor address or the reference gas price changed since it was built.
+	 */
+	get requiresRebuild(): boolean {
+		return this.code === 'invalid_gas_owner' || this.code === 'invalid_gas_price';
+	}
+}
+
+/**
+ * Whether a sponsorship failed because the transaction was built with a sponsor address or
+ * reference gas price that's no longer current. Build it again, have the sender sign it, and retry.
+ */
+export function isStaleTransactionError(error: unknown): error is EnokiClientError {
+	return error instanceof EnokiClientError && error.requiresRebuild;
 }
 
 /**
@@ -155,6 +173,30 @@ export class EnokiClient {
 				method: 'POST',
 				body: JSON.stringify({
 					signature: input.signature,
+				}),
+			},
+		);
+	}
+
+	/**
+	 * Sponsors and executes a transaction in one request. Build it with the sponsor address from
+	 * `getApp` as gas owner and an empty gas payment, and have the sender sign it. Requires a private
+	 * API key.
+	 *
+	 * On `invalid_gas_owner` or `invalid_gas_price`, rebuild with the value in the error's `data`,
+	 * sign again and retry. `already_sponsored` means Enoki has already sponsored this transaction.
+	 */
+	sponsorAndExecuteTransaction(input: SponsorAndExecuteTransactionApiInput) {
+		return this.#fetch<SponsorAndExecuteTransactionApiResponse>(
+			'transaction-blocks/sponsor/execute',
+			{
+				method: 'POST',
+				body: JSON.stringify({
+					network: input.network,
+					transactionBytes: input.transactionBytes,
+					signature: input.signature,
+					allowedAddresses: input.allowedAddresses,
+					allowedMoveCallTargets: input.allowedMoveCallTargets,
 				}),
 			},
 		);
