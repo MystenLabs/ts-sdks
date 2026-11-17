@@ -15,6 +15,8 @@ const config: SuiCodegenConfig = {
 			package: '@suins/subdomain-proxy',
 			path: '../../../suins-contracts/packages/temp_subdomain_proxy',
 		},
+		// Marketplace (auction/offer/listing) contracts
+		{ package: '@suins/auction', path: '../../../suins-contracts/packages/auction' },
 		// Pyth - only need State type to get upgrade_cap.package
 		{
 			package: '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837',
