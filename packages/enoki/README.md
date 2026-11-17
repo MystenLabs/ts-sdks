@@ -49,6 +49,39 @@ function LoginButton() {
 }
 ```
 
+### Sponsor transactions
+
+Add the `enoki()` extension to a Sui client on your backend, with a private API key that has
+sponsored transactions enabled. Enoki pays gas from its sponsor's address balance, so the sender
+doesn't need SUI.
+
+```ts
+import { enoki } from '@mysten/enoki';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+}).$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! }));
+
+// Builds with Enoki as gas owner, signs, and has Enoki sponsor and execute it
+const result = await client.enoki.sponsorAndExecuteTransaction({ transaction, signer });
+```
+
+To sign another way, such as with a wallet, or to check the transaction first, prepare it and send
+the signed bytes:
+
+```ts
+await client.enoki.prepareSponsoredTransaction({ transaction });
+const bytes = await transaction.build({ client });
+const { signature } = await signer.signTransaction(bytes);
+
+await client.enoki.sponsorAndExecuteTransaction({ transaction: bytes, signature });
+```
+
+If `isStaleTransactionError(error)` is true, the sponsor address or reference gas price changed
+since the transaction was built. Build a new transaction, sign it and try again.
+
 ### Low-level client usage
 
 Use the client-only entry point to call the Enoki API without loading wallet helpers or local
