@@ -7,7 +7,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
 
 import type { EnokiClientConfig } from './EnokiClient/index.js';
-import { EnokiClient, EnokiClientError, isStaleTransactionError } from './EnokiClient/index.js';
+import { EnokiClient, isStaleTransactionError } from './EnokiClient/index.js';
 import type { EnokiDomainNetwork } from './EnokiClient/type.js';
 
 export type EnokiExtensionOptions<Name extends string = 'enoki'> = Omit<
@@ -88,7 +88,7 @@ export class EnokiClientExtension {
 		this.#enoki = enoki;
 	}
 
-	/** Enoki's sponsor address on the client's network. Cached until Enoki reports it changed. */
+	/** Enoki's sponsor address on the client's network. Cached until a transaction is rejected as stale. */
 	getSponsorAddress(): Promise<string> {
 		if (!this.#sponsorAddress) {
 			const network = this.#network();
@@ -141,9 +141,8 @@ export class EnokiClientExtension {
 	 * With a `signer`, the transaction is prepared with `prepareSponsoredTransaction`, built and
 	 * signed here. With a `signature`, the bytes are sent as they are.
 	 *
-	 * Enoki errors are thrown as `EnokiClientError`. If `isStaleTransactionError(error)`, the cached
-	 * sponsor address (and, with a `signer`, the transaction's gas owner or gas price) is updated,
-	 * so calling this again with the same transaction builds and signs with current values.
+	 * Enoki errors are thrown as `EnokiClientError`. If `isStaleTransactionError(error)`, build a new
+	 * transaction, sign it and call this again; the sponsor address is fetched again.
 	 */
 	async sponsorAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: EnokiSponsorAndExecuteTransactionOptions<Include>,
@@ -174,7 +173,7 @@ export class EnokiClientExtension {
 			}));
 		} catch (error) {
 			if (isStaleTransactionError(error)) {
-				this.#refreshFrom(error, options.signer ? options.transaction : undefined);
+				this.#sponsorAddress = undefined;
 			}
 			throw error;
 		}
@@ -184,27 +183,6 @@ export class EnokiClientExtension {
 			include: options.include,
 			signal: options.signal,
 		});
-	}
-
-	/** Updates the cached sponsor address, and the transaction if given, from a stale-transaction error. */
-	#refreshFrom(error: EnokiClientError, transaction?: Transaction) {
-		const { sponsorAddress, referenceGasPrice } = (error.errors[0]?.data ?? {}) as {
-			sponsorAddress?: string;
-			referenceGasPrice?: string;
-		};
-
-		if (error.code === 'invalid_gas_owner') {
-			if (sponsorAddress) {
-				const address = normalizeSuiAddress(sponsorAddress);
-				this.#sponsorAddress = Promise.resolve(address);
-				transaction?.setGasOwner(address);
-			} else {
-				this.#sponsorAddress = undefined;
-			}
-		}
-		if (error.code === 'invalid_gas_price' && referenceGasPrice) {
-			transaction?.setGasPrice(BigInt(referenceGasPrice));
-		}
 	}
 
 	#network(): EnokiDomainNetwork {
