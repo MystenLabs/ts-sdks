@@ -21,6 +21,11 @@ export interface GetAppApiResponse {
 		name: string;
 		network: EnokiDomainNetwork;
 	}[];
+	/**
+	 * Enoki's sponsor address on each network it sponsors on. Use it as the gas owner for
+	 * `sponsorAndExecuteTransaction`.
+	 */
+	sponsorAddresses: Partial<Record<EnokiDomainNetwork, string>>;
 }
 
 export interface GetZkLoginApiInput {
@@ -96,6 +101,23 @@ export interface ExecuteSponsoredTransactionApiInput {
 }
 
 export interface ExecuteSponsoredTransactionApiResponse {
+	digest: string;
+}
+
+export interface SponsorAndExecuteTransactionApiInput {
+	network?: EnokiNetwork;
+	/**
+	 * Base64 BCS bytes of the built transaction, with the sponsor address from `getApp` as gas owner
+	 * and an empty gas payment.
+	 */
+	transactionBytes: string;
+	/** The sender's signature over `transactionBytes`. */
+	signature: string;
+	allowedAddresses?: string[];
+	allowedMoveCallTargets?: string[];
+}
+
+export interface SponsorAndExecuteTransactionApiResponse {
 	digest: string;
 }
 

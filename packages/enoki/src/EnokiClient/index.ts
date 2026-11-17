@@ -22,6 +22,8 @@ import type {
 	GetZkLoginAddressesApiResponse,
 	GetZkLoginApiInput,
 	GetZkLoginApiResponse,
+	SponsorAndExecuteTransactionApiInput,
+	SponsorAndExecuteTransactionApiResponse,
 } from './type.js';
 
 const DEFAULT_API_URL = 'https://api.enoki.mystenlabs.com';
@@ -155,6 +157,30 @@ export class EnokiClient {
 				method: 'POST',
 				body: JSON.stringify({
 					signature: input.signature,
+				}),
+			},
+		);
+	}
+
+	/**
+	 * Sponsors and executes a transaction in one request. Build it with the sponsor address from
+	 * `getApp` as gas owner and an empty gas payment, and have the sender sign it. Requires a private
+	 * API key.
+	 *
+	 * On `invalid_gas_owner` or `invalid_gas_price`, rebuild with the value in the error's `data`,
+	 * sign again and retry. `already_sponsored` means Enoki has already sponsored this transaction.
+	 */
+	sponsorAndExecuteTransaction(input: SponsorAndExecuteTransactionApiInput) {
+		return this.#fetch<SponsorAndExecuteTransactionApiResponse>(
+			'transaction-blocks/sponsor/execute',
+			{
+				method: 'POST',
+				body: JSON.stringify({
+					network: input.network,
+					transactionBytes: input.transactionBytes,
+					signature: input.signature,
+					allowedAddresses: input.allowedAddresses,
+					allowedMoveCallTargets: input.allowedMoveCallTargets,
 				}),
 			},
 		);
