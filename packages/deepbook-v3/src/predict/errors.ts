@@ -66,7 +66,8 @@ export interface MoveAbortError {
  * The error constants of the Predict modules the SDK's flows abort in, by module, as an array
  * indexed by the plain `u64` abort code (each module numbers its constants from 0 with no gaps).
  * Generated from the Move sources at deepbookv3 29117434 and checked against 43dbc952, the Mainnet
- * Version 5 sources. A published code never changes meaning: new codes only append, so an older
+ * Version 5 sources, then extended with the Version 6 codes (Predict 6, `deepbook_predict_orders`
+ * 3), which read no Propbook object. A published code never changes meaning: new codes only append, so an older
  * package version's codes are a prefix of its module's list. A code a later version drops from its
  * source keeps its name here, because the older versions still abort with it.
  * Keyed by module name only, as the abort location reports it, so a same-named module in an
@@ -98,6 +99,10 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'ENotRecordOwner',
 		'EEscrowMismatch',
 		'EWrongPrice',
+		// Predict v6: every retired Propbook-reading or live-pricer entry point.
+		'EUseV2',
+		// Predict v6: a committed or flushed `BsVol` off the binding, the expiry or the slot.
+		'EWrongVol',
 	],
 	protocol_config: [
 		'ETradingPaused',
@@ -120,6 +125,10 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EBuilderFeeCutoverNotReached',
 		// Predict v5: the settled-redeem keeper setters are retired and always abort with it.
 		'ESettledRedeemRetired',
+		// Predict v6: an underlying with no oracle binding reaches a signed-data path.
+		'EOracleBindingMissing',
+		// Predict v6: `set_oracle_binding` outside its bounds.
+		'EInvalidOracleBinding',
 	],
 	// The bounds Predict's admin setters check, so only an admin transaction aborts here.
 	config_constants: [
@@ -222,6 +231,8 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EBelowMinUsdcContribution',
 		'EContributionExceedsPriceCeiling',
 		'EInsufficientFeeIncentiveReserve',
+		// Predict v6: the retired `snapshot_expiry_pricer`.
+		'EUseV2',
 	],
 	lp_book: [
 		'ERequestNotFound',
@@ -250,6 +261,8 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'ENotRecordOwner',
 		'EMarketNotSettled',
 		'EMarketNotExpired',
+		// `deepbook_predict_orders` v3: the retired `queue::commit`.
+		'EUseV2',
 	],
 	desk: ['EPackageVersionDisabled', 'EVersionWatermarkNotAdvanced', 'EProtocolFrozen'],
 	order_queue: ['ERecordNotOpen'],
@@ -270,6 +283,8 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EUnsupportedPythChannel',
 		'EInvalidTiming',
 		'EInvalidLimits',
+		// `deepbook_predict_orders` v3: `desk::set_bs_timing` outside its bounds.
+		'EInvalidBsTiming',
 	],
 	// The math library (`deepbook_predict_math`).
 	lazer_price: ['EPropertyNotRequested', 'EGenerationAfterEnvelope', 'EFeedMissing'],
@@ -450,6 +465,14 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'expiry_market::EMintPaused': 'Minting is paused on this market.',
 	'expiry_market::EInvalidOrderTiming': 'This market no longer takes orders before its expiry.',
 	'expiry_market::EMarketNotSettled': "The market hasn't settled yet.",
+	'expiry_market::EUseV2':
+		'This entry point is retired. Update to an SDK that calls the version 2 entry points.',
+	'expiry_market::EWrongVol':
+		"The volatility data doesn't match this market's oracle binding, its expiry or the order's price time.",
+	'plp::EUseV2':
+		'This entry point is retired. Update to an SDK that calls the version 2 entry points.',
+	'queue::EUseV2':
+		'This entry point is retired. Update to an SDK that calls the version 2 entry points.',
 	'strike_exposure_config::EEntryProbabilityOutOfBounds':
 		"This strike's price is outside the market's entry range. Pick a strike nearer the money.",
 	'strike_exposure_config::EPremiumBelowMinimum':
@@ -501,6 +524,8 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'protocol_config::EProtocolFrozen': 'The protocol is frozen.',
 	'protocol_config::ETradingPaused': 'Trading is paused.',
 	'protocol_config::ESnapshotInProgress': 'A pool valuation is running. Try again in a moment.',
+	'protocol_config::EOracleBindingMissing':
+		"This market's underlying has no oracle binding yet, so it can't be priced on chain.",
 });
 
 /**

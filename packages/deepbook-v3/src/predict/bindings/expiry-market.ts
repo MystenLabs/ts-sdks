@@ -7,7 +7,7 @@
 import type { TransactionArgument } from '@mysten/sui/transactions';
 import * as generated from '../../contracts/deepbook_predict/expiry_market.js';
 import type { RawTransactionArgument } from '../../contracts/utils/index.js';
-import { renameArguments } from './rename.js';
+import { renameArguments, withShippedKeys } from './rename.js';
 
 export * from '../../contracts/deepbook_predict/expiry_market.js';
 
@@ -191,24 +191,131 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 	});
 }
 
-export interface QuoteCloseArguments {
-	market: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	receipt: TransactionArgument;
-	closeQuantity: RawTransactionArgument<number | bigint>;
-	builderCodeId: RawTransactionArgument<string | null>;
-}
-export interface QuoteCloseOptions extends Omit<generated.QuoteCloseOptions, 'arguments'> {
-	arguments: QuoteCloseArguments | Positional<generated.QuoteCloseOptions>;
-}
+// Predict v6 retires every view that read Propbook's objects or priced at a live `Pricer`: they keep
+// their signatures, abort `EUseV2`, and their parameters are underscore-prefixed, so codegen
+// capitalizes their keys. Their shipped keys are kept here. Price, quote and value off chain
+// instead (`pricerAt`, `quotes.*`, the client's reads with a `PricingInputsProvider`).
+
 /**
  * The close a sell fill prices, without the trader's floors. From Predict v5 it quotes a sell that
  * names no builder, whatever `builderCodeId` names; `quoteCloseWithBuilderFee` quotes one that
  * does. Changes nothing.
+ * @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a sell with `quotes.localSellQuote`.
  */
-export function quoteClose(options: QuoteCloseOptions) {
-	return generated.quoteClose({
-		...options,
-		arguments: renameArguments(options.arguments, { builderCodeId: 'BuilderCodeId' }),
-	});
-}
+export const quoteClose = withShippedKeys(generated.quoteClose, [
+	'market',
+	'pricer',
+	'receipt',
+	'closeQuantity',
+	'builderCodeId',
+]);
+export type QuoteCloseOptions = Parameters<typeof quoteClose>[0];
+export type QuoteCloseArguments = Exclude<QuoteCloseOptions['arguments'], readonly unknown[]>;
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a sell with `quotes.localSellQuote`. */
+export const quoteCloseWithBuilderFee = withShippedKeys(generated.quoteCloseWithBuilderFee, [
+	'market',
+	'config',
+	'pricer',
+	'receipt',
+	'closeQuantity',
+	'builderFeePerContract',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a mint with `quotes.localMintQuote`. */
+export const quoteMint = withShippedKeys(generated.quoteMint, [
+	'market',
+	'config',
+	'pricer',
+	'lowerTick',
+	'higherTick',
+	'maxPremium',
+	'minQuantity',
+	'exactQuantity',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a mint with `quotes.localMintQuote`. */
+export const quoteMintForAccount = withShippedKeys(generated.quoteMintForAccount, [
+	'market',
+	'wrapper',
+	'config',
+	'pricer',
+	'lowerTick',
+	'higherTick',
+	'maxPremium',
+	'minQuantity',
+	'exactQuantity',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a mint with `quotes.localMintQuote`. */
+export const quoteMintWithBuilderFee = withShippedKeys(generated.quoteMintWithBuilderFee, [
+	'market',
+	'wrapper',
+	'config',
+	'pricer',
+	'lowerTick',
+	'higherTick',
+	'maxPremium',
+	'minQuantity',
+	'exactQuantity',
+	'builderFeePerContract',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a mint with `quotes.localMintQuote`. */
+export const quoteMintExactCostForAccount = withShippedKeys(
+	generated.quoteMintExactCostForAccount,
+	['market', 'wrapper', 'config', 'pricer', 'lowerTick', 'higherTick', 'maxCost', 'minQuantity'],
+);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Quote a mint with `quotes.localMintQuote`. */
+export const quoteMintExactCostWithBuilderFee = withShippedKeys(
+	generated.quoteMintExactCostWithBuilderFee,
+	[
+		'market',
+		'wrapper',
+		'config',
+		'pricer',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+		'builderFeePerContract',
+	],
+);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Build a pricer off chain with `pricerAt`. */
+export const loadLivePricer = withShippedKeys(generated.loadLivePricer, [
+	'market',
+	'config',
+	'propbookRegistry',
+	'pyth',
+	'bsValues',
+	'bsSvi',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Value a market with `quotes.localNav`. */
+export const currentNav = withShippedKeys(generated.currentNav, ['market', 'pricer']);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. */
+export const liveOrderValue = withShippedKeys(generated.liveOrderValue, [
+	'market',
+	'pricer',
+	'orderId',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Use `setReferenceTickV2`. */
+export const setReferenceTick = withShippedKeys(generated.setReferenceTick, [
+	'market',
+	'config',
+	'propbookRegistry',
+	'pyth',
+]);
+
+/** @deprecated Retired by Predict version 6: aborts `EUseV2`. Use `trySettleV2`. */
+export const trySettle = withShippedKeys(generated.trySettle, [
+	'market',
+	'config',
+	'propbookRegistry',
+	'pyth',
+	'bsValues',
+]);

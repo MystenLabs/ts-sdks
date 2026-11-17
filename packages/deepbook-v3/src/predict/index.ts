@@ -31,11 +31,11 @@ export type {
 	PlpSupplyOptions,
 	PlpWithdrawOptions,
 	PoolSummary,
+	PricingOptions,
 	QueuedOrderOutcome,
 	QueuedOrderPlan,
 	QueuedOrderPreview,
 	QueuedOrderView,
-	RedeemQuote,
 	SellPlan,
 	SellQuote,
 	SlippageOptions,
@@ -61,13 +61,13 @@ export * as expiryMarketMoveCalls from './bindings/expiry-market.js';
 export * as marketLifecycleCapMoveCalls from '../contracts/deepbook_predict/market_lifecycle_cap.js';
 export * as marketManagerMoveCalls from '../contracts/deepbook_predict/market_manager.js';
 export * as pauseCapMoveCalls from '../contracts/deepbook_predict/pause_cap.js';
-export * as plpMoveCalls from '../contracts/deepbook_predict/plp.js';
+export * as plpMoveCalls from './bindings/plp.js';
 export * as poolValuationCapMoveCalls from '../contracts/deepbook_predict/pool_valuation_cap.js';
 export * as predictAccountMoveCalls from '../contracts/deepbook_predict/predict_account.js';
 export * as pricingMoveCalls from '../contracts/deepbook_predict/pricing.js';
 export * as protocolConfigMoveCalls from './bindings/protocol-config.js';
 export * as rangeCodecMoveCalls from '../contracts/deepbook_predict/range_codec.js';
-export * as registryMoveCalls from '../contracts/deepbook_predict/registry.js';
+export * as registryMoveCalls from './bindings/registry.js';
 export * as builderCodeEvents from '../contracts/deepbook_predict/builder_code_events.js';
 export * as configEvents from '../contracts/deepbook_predict/config_events.js';
 export * as orderEvents from '../contracts/deepbook_predict/order_events.js';
@@ -88,6 +88,9 @@ export * as delayedExecutionConfigMoveCalls from '../contracts/deepbook_predict_
 export * as queueEvents from '../contracts/deepbook_predict_orders/queue_events.js';
 export * as predictMathMoveCalls from '../contracts/deepbook_predict_math/math.js';
 export * as lazerPriceMoveCalls from '../contracts/deepbook_predict_math/lazer_price.js';
+// `block_scholes` (Predict version 6): the `BsVol` and `BsSpot` a commit, a flush and the
+// settlement fallback build from verified Block Scholes updates (`vols`, `vol_at`, `spot_at`).
+export * as blockScholesMoveCalls from '../contracts/deepbook_predict_math/block_scholes.js';
 
 // === Config ===
 export {
@@ -126,6 +129,24 @@ export type { Side } from './ticks.js';
 // market)` reads the chain's resolved pricer once, then prices a whole board locally.
 export * as pricing from './pricing.js';
 export type { PricerSnapshot } from './reads/pricing.js';
+
+// === Signed pricing inputs (Predict version 6) === the chain keeps no live price from version 6,
+// so prices, quotes and NAV are computed off chain from signed Pyth and Block Scholes data the
+// caller supplies: implement `PricingInputsProvider` and pass it to `PredictClient` /
+// `predict({ pricingInputs })`. `pricerAt` builds a market's pricer from one set of inputs, as the
+// chain's `pricing::pricer_at` does.
+export { pricerAt } from './inputs.js';
+export type {
+	PricingInputs,
+	PricingInputsProvider,
+	PricingInputsRequest,
+	ResolvedPricer,
+	SignedSvi,
+} from './inputs.js';
+// The off-chain quote engine the client's reads use: `quotes.localMintQuote`,
+// `quotes.localSellQuote`, `quotes.localNav`, `quotes.markedLiability`, `quotes.feeBandMultiplier`.
+export * as quotes from './quotes.js';
+export type { OracleBinding } from './reads/binding.js';
 
 // === Client-side cost === the deployed FEE math as an exact integer port, so a quote needs no
 // chain call: `cost.mintCost` (all-in debit for a quantity), `cost.mintCostForBudget` (the
@@ -194,20 +215,23 @@ export type {
 	RecordFundsReceipt,
 	QueuedRefundReceipt,
 	ExpiryPnlRealizedReceipt,
+	// Predict version 6.
+	BsTimingUpdateReceipt,
+	OracleBindingUpdateReceipt,
 } from './decode.js';
 // The signed sum of `decode.expiryPnlRealized` receipts: the pool's gross realized P&L, raw.
 export { realizedPnlRaw } from './decode.js';
 
-// The `/sessions` Predict wrappers take `pricer` as a PTB result of this call, so it has to
-// be reachable from the published surface for those builders to be composable at all.
-export { loadLivePricer, type MarketFeeds } from './tx/trade.js';
-// `loadLivePricer` takes the projected config, so the projection and its type have to be
-// reachable too — without them the `/sessions` Predict wrappers cannot be composed at all.
-// `toOrdersConfig` adds the order-flow companion and its desk, for `queueTx` and the companion
-// bindings; it throws while the config doesn't record delayed execution.
+// The Propbook object ids a version 5 placement names (`queueTx.enqueue*`).
+export type { MarketFeeds } from './tx/trade.js';
+// The projected config the generated bindings take. `toOrdersConfig` adds the order-flow companion
+// and its desk, for `queueTx` and the companion bindings; it throws while the config doesn't record
+// delayed execution. `usesPredictV6` tells whether a config calls the version 6 packages, which
+// place orders with no Propbook object.
 export {
 	toGeneratedConfig,
 	toOrdersConfig,
+	usesPredictV6,
 	type GeneratedConfig,
 	type OrdersGeneratedConfig,
 } from './config/generated.js';

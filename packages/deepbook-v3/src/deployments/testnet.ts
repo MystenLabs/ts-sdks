@@ -123,5 +123,8 @@ export const TESTNET_PREDICT: PredictIds = Object.freeze({
 	}),
 	oracle: Object.freeze({
 		pythLazerState: '0xe2b9096a5ea341a9f1eef126b2203727e29e73fdb0641ade2e1e32942f97e4d8',
+		blockScholesPackage: '0x9d2cf38611d971a0e918b93fc0113d279f5c923f43e62c407a9ad0f9d82f6698',
+		blockScholesSignerRegistry:
+			'0x94d0198a6fa973bb457603ed39b39b76c98468114808ad5b518745b7b957c414',
 	}),
 });

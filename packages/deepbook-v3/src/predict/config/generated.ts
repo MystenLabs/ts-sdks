@@ -31,9 +31,35 @@ export type GeneratedConfig = DeepbookPredictConfig &
 		accountRegistry: string;
 	};
 
+/**
+ * Whether `cfg` records the Predict version 6 publications, which read no Propbook object: both
+ * `packages.predictV6` and `packages.predictOrdersV3`. Throws `PredictInputError` on a config that
+ * records only one of them, because the two must move together: placement calls the order-flow
+ * package, which calls into Predict, and a PTB can't call an older Predict than the order-flow
+ * package links.
+ */
+export function usesPredictV6(cfg: PredictConfig): boolean {
+	const { predictV6, predictOrdersV3 } = cfg.packages;
+	if (Boolean(predictV6) !== Boolean(predictOrdersV3)) {
+		throw new PredictInputError(
+			`the config for ${cfg.network} records ${predictV6 ? '`packages.predictV6`' : '`packages.predictOrdersV3`'} ` +
+				'without the other: record both Predict version 6 and `deepbook_predict_orders` version 3, or neither',
+		);
+	}
+	return Boolean(predictV6);
+}
+
+/**
+ * The Predict call target: version 6 once the config records it (see {@link usesPredictV6}), else
+ * `packages.predict`.
+ */
+export function predictCallTarget(cfg: PredictConfig): string {
+	return usesPredictV6(cfg) ? cfg.packages.predictV6! : cfg.packages.predict;
+}
+
 export function toGeneratedConfig(cfg: PredictConfig): GeneratedConfig {
 	return {
-		predictPackageId: cfg.packages.predict,
+		predictPackageId: predictCallTarget(cfg),
 		predictPackageIdV1: cfg.packages.predictV1 ?? cfg.packages.predict,
 		accountPackageId: cfg.packages.account,
 		// The account bindings call this when present (see `account-bindings/latest.ts`).
@@ -83,11 +109,14 @@ export function toOrdersConfig(cfg: PredictConfig): OrdersGeneratedConfig {
 				'`deepbook_predict_orders` package, its order desk and its queue registry',
 		);
 	}
+	const v6 = usesPredictV6(cfg);
 	return {
 		...toGeneratedConfig(cfg),
-		predictOrdersPackageId: predictOrders,
+		// Version 6 is the call target of every order-flow call once recorded, so a PTB never mixes
+		// it with an older companion. Type tags keep the original ID.
+		predictOrdersPackageId: v6 ? cfg.packages.predictOrdersV3! : predictOrders,
 		predictOrdersPackageIdV1: predictOrdersV1 ?? predictOrders,
-		predictMathPackageId: predictMath,
+		predictMathPackageId: v6 ? (cfg.packages.predictMathV3 ?? predictMath) : predictMath,
 		orderDesk,
 		queueRegistry,
 	};
