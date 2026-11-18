@@ -7,7 +7,7 @@ import { TransactionDataBuilder, type Transaction } from '@mysten/sui/transactio
 import { fromBase64, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
 
 import type { EnokiClientConfig } from './EnokiClient/index.js';
-import { EnokiClient, isStaleTransactionError } from './EnokiClient/index.js';
+import { EnokiClient, EnokiClientError, isStaleTransactionError } from './EnokiClient/index.js';
 import type { EnokiDomainNetwork } from './EnokiClient/type.js';
 
 export type EnokiExtensionOptions<Name extends string = 'enoki'> = Omit<
@@ -52,6 +52,33 @@ export type EnokiSponsorAndExecuteTransactionOptions<
 export interface EnokiPrepareSponsoredTransactionOptions {
 	/** The transaction to prepare. Enoki is set as gas owner, paying from its address balance. */
 	transaction: Transaction;
+}
+
+export interface EnokiSponsorOptionsInput {
+	/** Sent with every request, added to the app's allowlist. The API key must allow it. */
+	allowedAddresses?: string[];
+	/** Sent with every request, added to the app's allowlist. The API key must allow it. */
+	allowedMoveCallTargets?: string[];
+}
+
+/** A transaction Enoki declined to sponsor, in the sponsor SDK's rejection shape. */
+export interface EnokiSponsorRejection {
+	$kind: 'Rejected';
+	issues: { code?: string; message: string }[];
+	policyIssues: { code?: string; message: string }[];
+	analysisIssues: { code?: string; message: string }[];
+	reason: 'POLICY_REJECTED';
+}
+
+/** The `address` and `signAndExecute` options for the sponsor SDK's `createSponsor`. */
+export interface EnokiSponsorOptions {
+	address: string;
+	signAndExecute(options: {
+		transaction: Uint8Array;
+		userSignatures: string[];
+		include?: SuiClientTypes.TransactionInclude;
+		signal?: AbortSignal;
+	}): Promise<EnokiSponsorRejection | SuiClientTypes.TransactionResult<{ effects: true }>>;
 }
 
 /**
@@ -194,6 +221,54 @@ export class EnokiClientExtension {
 			include: options.include,
 			signal: options.signal,
 		});
+	}
+
+	/**
+	 * Options for the sponsor SDK's `createSponsor` that make Enoki the sponsor: transactions are
+	 * checked by your local validators, then Enoki sponsors and executes them.
+	 *
+	 * ```ts
+	 * const sponsor = createSponsor({ ...(await client.enoki.getSponsorOptions()), client, validate });
+	 * ```
+	 *
+	 * Transactions Enoki declines (`invalid_transaction`) are returned as `Rejected`. Other Enoki
+	 * errors are thrown. The sponsor address is read once; if `isStaleTransactionError(error)`,
+	 * create the sponsor again.
+	 */
+	async getSponsorOptions({
+		allowedAddresses,
+		allowedMoveCallTargets,
+	}: EnokiSponsorOptionsInput = {}): Promise<EnokiSponsorOptions> {
+		return {
+			address: await this.getSponsorAddress(),
+			signAndExecute: async ({ transaction, userSignatures, include, signal }) => {
+				if (userSignatures.length !== 1) {
+					throw new Error('Enoki sponsorship takes exactly one user signature.');
+				}
+				try {
+					return await this.sponsorAndExecuteTransaction({
+						transaction,
+						signature: userSignatures[0],
+						include: { ...include, effects: true },
+						signal,
+						allowedAddresses,
+						allowedMoveCallTargets,
+					});
+				} catch (error) {
+					if (error instanceof EnokiClientError && error.code === 'invalid_transaction') {
+						const issues = error.errors.map(({ code, message }) => ({ code, message }));
+						return {
+							$kind: 'Rejected',
+							issues,
+							policyIssues: issues,
+							analysisIssues: [],
+							reason: 'POLICY_REJECTED',
+						};
+					}
+					throw error;
+				}
+			},
+		};
 	}
 
 	#network(): EnokiDomainNetwork {

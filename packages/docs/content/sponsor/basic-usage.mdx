@@ -159,6 +159,45 @@ replay prevention and rate limiting in your service.
 For a complete Hono server using this shape, see the
 [sponsor server example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/sponsor/examples/sponsor-server).
 
+## Use a remote sponsor
+
+The sponsor's key doesn't have to live in your service. If another service holds it and co-signs and
+executes in one step, pass its `address` and a `signAndExecute` function instead of a `signer`. Your
+validators still run first, and `signAndExecuteTransaction` returns the same results:
+
+```ts
+const sponsor = createSponsor({
+	address: sponsorAddress,
+	signAndExecute: ({ transaction, userSignatures, include, signal }) =>
+		remoteService.sponsorAndExecute({ transaction, userSignatures, include, signal }),
+	client,
+	validate: [allowedFunctions(['0x…::game::play']), gasBudget({ max: 50_000_000n })],
+});
+
+const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
+```
+
+`signAndExecute` receives the validated bytes, the user signatures, and an `include` that always
+asks for `effects`. It can return a `Rejected` result if the remote service declines the
+transaction. A remote sponsor can't sign without executing, so it has no `signTransaction`.
+
+For [Enoki](https://docs.enoki.mystenlabs.com), the `enoki()` client extension from `@mysten/enoki`
+provides both options:
+
+```ts
+import { enoki } from '@mysten/enoki';
+
+const client = suiClient.$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! }));
+
+const sponsor = createSponsor({
+	...(await client.enoki.getSponsorOptions()),
+	client,
+	validate: [allowedFunctions(['0x…::game::play']), gasBudget({ max: 50_000_000n })],
+});
+```
+
+Transactions Enoki declines come back as `Rejected`, alongside your validators' rejections.
+
 ## Gas and unresolved transactions
 
 When the client builds, the user already built and signed final bytes, so they must be resolved. The

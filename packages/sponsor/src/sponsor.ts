@@ -114,9 +114,7 @@ export type ValidationOptionsArg<T extends object> = {} extends T
 	? { validationOptions?: T }
 	: { validationOptions: T };
 
-export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readonly ValidateItem[]> {
-	/** The sponsor — pays gas and co-signs every sponsored transaction. */
-	signer: Signer;
+interface CreateSponsorBaseOptions<T extends readonly ValidateItem[]> {
 	/** Sui client used to build, simulate, and analyze transactions. */
 	client: ClientWithCoreApi;
 	/**
@@ -134,6 +132,53 @@ export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readon
 	/** Optional timing-attack mitigation delays. */
 	delay?: SponsorDelayConfig;
 }
+
+export interface CreateSponsorOptions<
+	T extends readonly ValidateItem[] = readonly ValidateItem[],
+> extends CreateSponsorBaseOptions<T> {
+	/** The sponsor — pays gas and co-signs every sponsored transaction. */
+	signer: Signer;
+}
+
+/**
+ * What a remote sponsor's `signAndExecute` receives: validated, user-signed bytes.
+ * `include` always has `effects` set.
+ */
+export type RemoteSignAndExecuteOptions = Omit<
+	SuiClientTypes.ExecuteTransactionOptions,
+	'transaction' | 'signatures' | 'include'
+> & {
+	transaction: Uint8Array;
+	userSignatures: string[];
+	include: SuiClientTypes.TransactionInclude & { effects: true };
+};
+
+/**
+ * Co-signs and executes a validated, user-signed transaction for a sponsor whose key
+ * lives elsewhere (for example a sponsorship service). Returns the execution result,
+ * or a {@link SponsorRejection} if the service declines it.
+ */
+export type RemoteSignAndExecute = (
+	options: RemoteSignAndExecuteOptions,
+) => Promise<SponsorRejection | SuiClientTypes.TransactionResult<{ effects: true }>>;
+
+export interface CreateRemoteSponsorOptions<
+	T extends readonly ValidateItem[] = readonly ValidateItem[],
+> extends CreateSponsorBaseOptions<T> {
+	/** The sponsor address that pays gas. */
+	address: string;
+	/** Co-signs and executes, in place of a local `signer`. */
+	signAndExecute: RemoteSignAndExecute;
+}
+
+/**
+ * A {@link Sponsor} backed by a remote `signAndExecute`. It can't sign without
+ * executing, so it has no `signTransaction`.
+ */
+export type RemoteSponsor<TOptions extends object = object> = Omit<
+	Sponsor<TOptions>,
+	'signTransaction'
+>;
 
 /** A transaction successfully signed by the sponsor (validation passed). */
 export interface SponsoredTransaction {
@@ -222,13 +267,25 @@ export type SignAndExecuteOptions<
 /** Create a {@link Sponsor} bound to a signer, client, and validation policy. */
 export function createSponsor<const T extends readonly ValidateItem[] = []>(
 	options: CreateSponsorOptions<T>,
+): Sponsor<SponsorOptions<T>>;
+/**
+ * Create a sponsor whose key lives elsewhere: transactions are validated locally,
+ * then `signAndExecute` co-signs and executes them.
+ */
+export function createSponsor<const T extends readonly ValidateItem[] = []>(
+	options: CreateRemoteSponsorOptions<T>,
+): RemoteSponsor<SponsorOptions<T>>;
+export function createSponsor<const T extends readonly ValidateItem[] = []>(
+	options: CreateSponsorOptions<T> | CreateRemoteSponsorOptions<T>,
 ): Sponsor<SponsorOptions<T>> {
 	const provided = (options.validate ?? []).flat() as Validator[];
 	// No explicit validators → run the recommended baseline.
 	const validators = provided.length > 0 ? provided : defaults();
 
 	return new Sponsor<SponsorOptions<T>>({
-		signer: options.signer,
+		...('signer' in options
+			? { signer: options.signer }
+			: { address: options.address, signAndExecute: options.signAndExecute }),
 		client: options.client,
 		validators,
 		delay: options.delay ?? {},
@@ -265,12 +322,14 @@ export function assertSponsorable(transaction: Transaction, sponsor: string): vo
 	}
 }
 
-interface SponsorConfig {
-	signer: Signer;
+type SponsorConfig = (
+	| { signer: Signer; address?: undefined; signAndExecute?: undefined }
+	| { signer?: undefined; address: string; signAndExecute: RemoteSignAndExecute }
+) & {
 	client: ClientWithCoreApi;
 	validators: Validator[];
 	delay: SponsorDelayConfig;
-}
+};
 
 /**
  * Validates transactions against a policy and signs them as the sponsor.
@@ -281,7 +340,9 @@ interface SponsorConfig {
  * sponsor's key: check the policy, then add the sponsor's signature.
  */
 export class Sponsor<TOptions extends object = object> {
-	#signer: Signer;
+	#signer?: Signer;
+	#address: string;
+	#signAndExecute?: RemoteSignAndExecute;
 	#client: ClientWithCoreApi;
 	#validators: Validator[];
 	#delay: SponsorDelayConfig;
@@ -290,6 +351,8 @@ export class Sponsor<TOptions extends object = object> {
 	/** Prefer {@link createSponsor}; the constructor takes pre-merged config. */
 	constructor(config: SponsorConfig) {
 		this.#signer = config.signer;
+		this.#address = normalizeSuiAddress(config.signer?.toSuiAddress() ?? config.address!);
+		this.#signAndExecute = config.signAndExecute;
 		this.#client = config.client;
 		this.#validators = config.validators;
 		this.#delay = config.delay;
@@ -297,7 +360,7 @@ export class Sponsor<TOptions extends object = object> {
 
 	/** The sponsor's (normalized) address. */
 	get address(): string {
-		return normalizeSuiAddress(this.#signer.toSuiAddress());
+		return this.#address;
 	}
 
 	/**
@@ -314,6 +377,9 @@ export class Sponsor<TOptions extends object = object> {
 	async signTransaction(
 		options: SignOptions & ValidationOptionsArg<TOptions>,
 	): Promise<SignTransactionResult> {
+		if (!this.#signer) {
+			throw new Error('A sponsor created with signAndExecute can only signAndExecuteTransaction.');
+		}
 		const sponsor = this.address;
 		const userSignatures = toSignatureArray(options.userSignature);
 
@@ -382,6 +448,10 @@ export class Sponsor<TOptions extends object = object> {
 	>(
 		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
 	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
+		if (this.#signAndExecute) {
+			return this.#remoteSignAndExecute(options);
+		}
+
 		const signed = await this.signTransaction(
 			options as SignOptions & ValidationOptionsArg<TOptions>,
 		);
@@ -405,6 +475,44 @@ export class Sponsor<TOptions extends object = object> {
 			signatures: signed.signatures!,
 			include: { ...include, effects: true } as Include & { effects: true },
 		});
+	}
+
+	/** Validates the user-signed bytes as `signTransaction` does, then hands them to `signAndExecute`. */
+	async #remoteSignAndExecute<Include extends Omit<SuiClientTypes.TransactionInclude, 'effects'>>(
+		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
+	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
+		const userSignatures = toSignatureArray(options.userSignature);
+		if (userSignatures.length === 0) {
+			throw new Error('signAndExecuteTransaction requires the user signature.');
+		}
+		const input = options.transaction as unknown;
+		if (input instanceof Transaction) {
+			throw new Error(
+				'A user signature requires the transaction as bytes or base64, not a Transaction.',
+			);
+		}
+		const bytes = input instanceof Uint8Array ? input : fromBase64(input as string);
+		assertSponsorable(Transaction.from(bytes), this.address);
+
+		const validationOptions = (options as { validationOptions?: object }).validationOptions ?? {};
+		const rejection = await this.#validate(bytes, validationOptions, userSignatures);
+		if (rejection) return rejection;
+
+		await this.#runDelay(this.#delay.beforeExecute);
+
+		const {
+			transaction: _transaction,
+			userSignature: _userSignature,
+			validationOptions: _validationOptions,
+			include,
+			...rest
+		} = options as SignAndExecuteOptions<Include> & { validationOptions?: unknown };
+		return (await this.#signAndExecute!({
+			...rest,
+			transaction: bytes,
+			userSignatures,
+			include: { ...include, effects: true },
+		})) as SignAndExecuteResult<Include & { effects: true }>;
 	}
 
 	/**
