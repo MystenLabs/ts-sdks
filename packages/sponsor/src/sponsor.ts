@@ -117,14 +117,9 @@ export type ValidationOptionsArg<T extends object> = {} extends T
 export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readonly ValidateItem[]> {
 	/** The sponsor — pays gas and co-signs every sponsored transaction. */
 	signer?: Signer;
-	/** The sponsor's address, when it co-signs through `signAndExecute` instead of a `signer`. */
+	/** With `signAndExecute`, in place of `signer`: the remote sponsor's address. */
 	address?: string;
-	/**
-	 * Co-signs and executes a validated, user-signed transaction in another service
-	 * that holds the sponsor's key, in place of a `signer`. May return a
-	 * {@link SponsorRejection} if that service declines the transaction. A sponsor
-	 * created this way can't `signTransaction`.
-	 */
+	/** In place of `signer`: co-signs and executes validated, user-signed bytes in another service. */
 	signAndExecute?: SignAndExecute;
 	/** Sui client used to build, simulate, and analyze transactions. */
 	client: ClientWithCoreApi;
@@ -144,7 +139,6 @@ export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readon
 	delay?: SponsorDelayConfig;
 }
 
-/** See {@link CreateSponsorOptions.signAndExecute}. `include` always has `effects` set. */
 export type SignAndExecute = (
 	options: Omit<
 		SuiClientTypes.ExecuteTransactionOptions,
@@ -274,7 +268,7 @@ function toSignatureArray(userSignature: string | string[] | undefined): string[
  *   unresolved inputs, an unset sender, and missing gas budget/price/payment, so
  *   the bytes the validators inspect are exactly what would execute.
  * - The gas owner isn't the sponsor (the sponsor-specific constraint that
- *   `isFullyResolved` doesn't know about). Skipped when `sponsor` is omitted.
+ *   `isFullyResolved` doesn't know about). Skipped without `sponsor`.
  */
 export function assertSponsorable(transaction: Transaction, sponsor?: string): void {
 	if (!transaction.isFullyResolved()) {
@@ -368,7 +362,6 @@ export class Sponsor<TOptions extends object = object> {
 		};
 	}
 
-	/** Builds or decodes the transaction and validates it: everything before the sponsor signs. */
 	async #check(
 		options: SignOptions & ValidationOptionsArg<TOptions>,
 	): Promise<SponsorRejection | { $kind: 'Checked'; bytes: Uint8Array; userSignatures: string[] }> {
@@ -408,8 +401,7 @@ export class Sponsor<TOptions extends object = object> {
 		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
 		// so verify it's a final, sponsor-owned transaction here rather than assume
 		// it (the sponsor-builds flow already guarantees this via `build()`).
-		// A remote sponsor checks the gas owner itself: it can only co-sign as its own address, and it
-		// reports a changed address as an error its callers recognize.
+		// A remote sponsor checks the gas owner itself.
 		assertSponsorable(tx, this.#signAndExecute ? undefined : sponsor);
 
 		// The user's signature isn't verified here: execution already enforces it

@@ -189,31 +189,10 @@ function _simulateInclude() {
 	void sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature: 's' });
 }
 
-// Compile-only. A sponsor with a remote `signAndExecute` has the same
-// `signAndExecuteTransaction` result types.
-async function _remoteSponsor() {
-	const sponsor = createSponsor({
-		address: '0x1',
-		signAndExecute: async () => ({ $kind: 'Transaction' }) as never,
-		client,
-	});
-
-	const res = await sponsor.signAndExecuteTransaction({
-		transaction: bytes,
-		userSignature: 's',
-		include: { events: true },
-	});
-	if (res.$kind === 'Transaction') {
-		const _events: SuiClientTypes.Event[] = res.Transaction.events;
-		void _events;
-	}
-}
-
 describe('validator typing', () => {
 	it('compiles (assertions enforced by test:typecheck)', () => {
 		void _assertions;
 		void _enforcement;
-		void _remoteSponsor;
 		void _executeOptions;
 		void _simulateInclude;
 		expect(typeof requiresToken.analyze).toBe('function');

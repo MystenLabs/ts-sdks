@@ -14,7 +14,5 @@ export {
 	type EnokiPrepareSponsoredTransactionOptions,
 	type EnokiExtensionOptions,
 	type EnokiSponsorOptions,
-	type EnokiSponsorOptionsInput,
-	type EnokiSponsorRejection,
 	type EnokiSponsorAndExecuteTransactionOptions,
 } from './extension.js';

@@ -218,11 +218,7 @@ export class EnokiClient {
 		}
 	}
 
-	/**
-	 * Enoki's sponsor address on a network. Works with a public API key. Cached for a minute, or
-	 * until this client sees a stale-transaction error, so a rotated address is picked up even by
-	 * clients that never see that error, such as a browser.
-	 */
+	/** Enoki's sponsor address. Works with a public key. Cached for a minute, or until a stale error. */
 	getSponsorAddress({ network }: { network: EnokiDomainNetwork }): Promise<string> {
 		const cached = this.#sponsorAddresses.get(network);
 		if (cached && cached.expiresAt > Date.now()) {
@@ -247,13 +243,8 @@ export class EnokiClient {
 	}
 
 	/**
-	 * Sets Enoki's sponsor as the transaction's gas owner with an empty gas payment, so Enoki pays
-	 * gas from its address balance. Doesn't build it, so a wallet can still resolve the rest. Works
-	 * with a public API key, so the browser can prepare a transaction that your backend then sends to
-	 * Enoki.
-	 *
-	 * Safe to call on a transaction that's already prepared. Throws if the transaction already has
-	 * a different gas owner, or a gas payment.
+	 * Sets Enoki's sponsor as gas owner with an empty gas payment, without building. Works with a
+	 * public key. Throws if the transaction has a different gas owner or a gas payment.
 	 */
 	async prepareSponsoredTransaction({
 		transaction,

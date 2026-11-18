@@ -54,22 +54,6 @@ export interface EnokiPrepareSponsoredTransactionOptions {
 	transaction: Transaction;
 }
 
-export interface EnokiSponsorOptionsInput {
-	/** Sent with every request, added to the app's allowlist. The API key must allow it. */
-	allowedAddresses?: string[];
-	/** Sent with every request, added to the app's allowlist. The API key must allow it. */
-	allowedMoveCallTargets?: string[];
-}
-
-/** A transaction Enoki declined to sponsor, in the sponsor SDK's rejection shape. */
-export interface EnokiSponsorRejection {
-	$kind: 'Rejected';
-	issues: { code?: string; message: string }[];
-	policyIssues: { code?: string; message: string }[];
-	analysisIssues: { code?: string; message: string }[];
-	reason: 'POLICY_REJECTED';
-}
-
 /** The `address` and `signAndExecute` options for the sponsor SDK's `createSponsor`. */
 export interface EnokiSponsorOptions {
 	address: string;
@@ -78,8 +62,19 @@ export interface EnokiSponsorOptions {
 		userSignatures: string[];
 		include?: SuiClientTypes.TransactionInclude;
 		signal?: AbortSignal;
-	}): Promise<EnokiSponsorRejection | SuiClientTypes.TransactionResult<{ effects: true }>>;
+	}): Promise<
+		| {
+				$kind: 'Rejected';
+				issues: Issue[];
+				policyIssues: Issue[];
+				analysisIssues: Issue[];
+				reason: 'POLICY_REJECTED';
+		  }
+		| SuiClientTypes.TransactionResult<{ effects: true }>
+	>;
 }
+
+type Issue = { code?: string; message: string };
 
 /**
  * Adds Enoki sponsorship to a Sui client. Requires a private API key with sponsored transactions
@@ -114,19 +109,12 @@ export class EnokiClientExtension {
 		this.#enoki = enoki;
 	}
 
-	/** Enoki's sponsor address on the client's network. Cached for a minute, or until a transaction is rejected as stale. */
+	/** Enoki's sponsor address on the client's network. */
 	getSponsorAddress(): Promise<string> {
 		return this.#enoki.getSponsorAddress({ network: this.#network() });
 	}
 
-	/**
-	 * Sets Enoki as the transaction's gas owner with an empty gas payment. Doesn't build it, so a
-	 * wallet can still resolve the rest. Build or have a wallet sign it, run any checks, then pass the
-	 * bytes and signature to `sponsorAndExecuteTransaction`.
-	 *
-	 * Safe to call on a transaction that's already prepared. Throws if the transaction already has
-	 * a different gas owner, or a gas payment.
-	 */
+	/** Sets Enoki as gas owner with an empty gas payment, without building. */
 	prepareSponsoredTransaction({
 		transaction,
 	}: EnokiPrepareSponsoredTransactionOptions): Promise<Transaction> {
@@ -185,21 +173,16 @@ export class EnokiClientExtension {
 	}
 
 	/**
-	 * Options for the sponsor SDK's `createSponsor` that make Enoki the sponsor: transactions are
-	 * checked by your local validators, then Enoki sponsors and executes them.
-	 *
-	 * ```ts
-	 * const sponsor = createSponsor({ ...(await client.enoki.getSponsorOptions()), client, validate });
-	 * ```
-	 *
-	 * Transactions Enoki declines (`invalid_transaction`) are returned as `Rejected`. Other Enoki
-	 * errors are thrown. The sponsor address is read when this is called, so create the sponsor per
-	 * request: that also picks up request allowlists and a rotated sponsor address.
+	 * Options that make Enoki the sponsor in the sponsor SDK's `createSponsor`. Create the sponsor
+	 * per request. Enoki's `invalid_transaction` is returned as `Rejected`.
 	 */
 	async getSponsorOptions({
 		allowedAddresses,
 		allowedMoveCallTargets,
-	}: EnokiSponsorOptionsInput = {}): Promise<EnokiSponsorOptions> {
+	}: {
+		allowedAddresses?: string[];
+		allowedMoveCallTargets?: string[];
+	} = {}): Promise<EnokiSponsorOptions> {
 		return {
 			address: await this.getSponsorAddress(),
 			signAndExecute: async ({ transaction, userSignatures, include, signal }) => {
