@@ -401,8 +401,11 @@ export class Sponsor<TOptions extends object = object> {
 		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
 		// so verify it's a final, sponsor-owned transaction here rather than assume
 		// it (the sponsor-builds flow already guarantees this via `build()`).
-		// A remote sponsor checks the gas owner itself.
+		// A remote sponsor checks the gas owner itself, but must never co-sign as the sender.
 		assertSponsorable(tx, this.#signAndExecute ? undefined : sponsor);
+		if (this.#signAndExecute && normalizeSuiAddress(tx.getData().sender ?? '0x0') === sponsor) {
+			throw new Error('Transaction sender must not be the sponsor address.');
+		}
 
 		// The user's signature isn't verified here: execution already enforces it
 		// (a bad signature never executes, so the sponsor risks nothing), and the

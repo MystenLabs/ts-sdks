@@ -544,6 +544,16 @@ describe('createSponsor with a remote signAndExecute', () => {
 		expect(calls).toHaveLength(1);
 	});
 
+	it('refuses bytes whose sender is the sponsor address', async () => {
+		const { sponsor, transaction } = await setup([validSender()], normalizeSuiAddress('0xdef'));
+		const tx = Transaction.from(transaction);
+		tx.setSender(address);
+		const bytes = await tx.build();
+		await expect(
+			sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature: 's' }),
+		).rejects.toThrow('sender must not be the sponsor');
+	});
+
 	it('does not call signAndExecute when a validator rejects', async () => {
 		const { sponsor, calls, transaction, userSignature } = await setup([gasBudget({ max: 1n })]);
 		const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
