@@ -51,10 +51,12 @@ changes: upgrade them together with `@mysten/sui`.
 
 ### Removed JSON-RPC APIs
 
-- **`@mysten/sui/jsonRpc` is removed**, including `SuiJsonRpcClient` and all JSON-RPC types such as
-  `ObjectOwner`. Follow [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), and
-  use the `SuiClientTypes` equivalents from `@mysten/sui/client` for the types.
-- **`getJsonRpcFullnodeUrl` is removed.** Pass the full node URL (for example
+- **`@mysten/sui/jsonRpc` no longer supports JSON-RPC.** Code that imports it still loads, but
+  `SuiJsonRpcClient`, `JsonRpcHTTPTransport` and the JSON-RPC error classes throw when constructed,
+  and `isSuiJsonRpcClient` returns `false`. Its types, such as `ObjectOwner`, are deprecated aliases
+  of `any`. Follow [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), and use
+  the `SuiClientTypes` equivalents from `@mysten/sui/client` for the types.
+- **`getJsonRpcFullnodeUrl` throws.** Pass the full node URL (for example
   `https://fullnode.mainnet.sui.io:443`) to `SuiGrpcClient`'s `baseUrl`.
 - **`normalizedTypeToMoveTypeSignature` is removed.** `getMoveFunction` already returns
   `OpenSignature`s.
@@ -87,20 +89,13 @@ changes: upgrade them together with `@mysten/sui`.
   tuples**, and `authenticatorObjInitialSharedVersion` and `randomnessObjInitialSharedVersion` are
   renamed to `authenticatorObjectInitialSharedVersion` and `randomnessObjectInitialSharedVersion`.
 - **`MoveLocation.function` is removed.** Use `location.functionName`.
-- **`bcs.TransactionEffects` decodes to named structs.** V2 `changedObjects` entries are
-  `{ objectId, inputState, outputState, idOperation }` and `unchangedConsensusObjects` entries are
-  `{ objectId, kind }` instead of `[objectId, ...]` tuples. Version and digest pairs are
-  `{ version, digest }`, `ObjectIn.Exist` is `{ version, digest, owner }`, `ObjectOut.ObjectWrite`
-  is `{ digest, owner }`, `MoveAbort` is `{ location, abortCode }`, and accumulator values are
-  `IntegerTuple: { first, second }` and `EventDigest: [{ eventIndex, digest }]`. In V1 effects,
-  `modifiedAtVersions` entries are `{ objectId, version }` and `created`, `mutated`, `unwrapped` and
-  `gasObject` are `{ reference, owner }`. The `InsufficientBalanceForWithdraw` error is renamed to
-  `InsufficientFundsForWithdraw`, and `congested_objects` to `congestedObjects`. The encoded bytes
-  are unchanged.
-- **Multisig BCS fields are camelCase.** `bcs.MultiSig`, `MultiSigStruct` and the `multisig`
-  returned by `parseSerializedSignature` use `multisigPk` instead of `multisig_pk`, and
-  `bcs.MultiSigPublicKey` uses `pkMap` instead of `pk_map`. The old names still work on
-  `parseSerializedSignature` results but are deprecated.
+- **`bcs.TransactionEffects` tuples are structs with named fields**, for example `changedObjects`
+  entries (`{ objectId, inputState, outputState, idOperation }`), `IntegerTuple`
+  (`{ first, second }`) and V1 `modifiedAtVersions` entries (`{ objectId, version }`).
+  `InsufficientBalanceForWithdraw` is renamed to `InsufficientFundsForWithdraw` and
+  `congested_objects` to `congestedObjects`. The encoded bytes are unchanged.
+- **Multisig BCS fields are camelCase:** `multisigPk` instead of `multisig_pk` and `pkMap` instead
+  of `pk_map`. The old names still work on `parseSerializedSignature` results but are deprecated.
 - **Execution error names in `effects.status` match `SuiGrpcClient` everywhere**, including
   `SuiGraphQLClient` and dApp Kit wallet results. For example, `InvalidBCSBytes` is now
   `InvalidBcsBytes`.
@@ -118,8 +113,10 @@ changes: upgrade them together with `@mysten/sui`.
 - **Network errors changed.** `SuiGrpcClient` reports `UNAVAILABLE` instead of `INTERNAL`, and
   `SuiGraphQLClient` throws `SuiGraphQLRequestError`, with the original error as `cause`, for
   network failures and malformed or unreadable bodies.
-- **The raw gRPC `getPackage` request has a required `selector`**, and requests without one throw.
-  Pass `selector: { oneofKind: undefined }` to keep the old behavior.
+- **Raw `client.movePackageService.getPackage` requests need a `selector`.** Pass
+  `selector: { oneofKind: undefined }` for the package at `packageId`, or build the request with
+  `GrpcTypes.GetPackageRequest.create({ packageId })` (`GrpcTypes` is exported from
+  `@mysten/sui/grpc`). Without it the request throws a `TypeError`.
 
 ### Signature verification
 
@@ -170,18 +167,22 @@ For wallet code that still reads the JSON-RPC dry-run shape, `dryRunFromSimulati
 
 ## Dependencies that still require 2.x
 
-Packages built for `@mysten/sui` 2.x usually run on 3.0 unchanged, so you can upgrade before every
-third-party dependency releases a version for 3.0. How a dependency lists `@mysten/sui` decides
-which copy it uses:
+You can upgrade before your dependencies release versions for 3.0. How a dependency lists
+`@mysten/sui` decides which copy it uses:
 
+- **A regular dependency on 2.x:** it installs its own 2.x copy and keeps working on it.
 - **A peer dependency on `^2`:** npm refuses to install it next to 3.0. pnpm and Yarn print a
   warning and give it your 3.0 copy.
-- **A regular dependency on 2.x:** it installs its own 2.x copy. Clients, `Transaction`s and signers
-  from your copy don't type-check where its API expects its own, and its `instanceof` checks on SDK
-  classes fail for your values.
 
-Run `npm ls @mysten/sui` or `pnpm why @mysten/sui` to see which copies you have. To use only yours,
-upgrade `@mysten/sui`, then add an override:
+Run `npm ls @mysten/sui` or `pnpm why @mysten/sui` to see which copies you have.
+
+Let packages keep their own 2.x copy where you can. Only values that cross between your code and the
+package are affected: clients, `Transaction`s and signers from your copy may not type-check where
+its API expects its own, and fail its `instanceof` checks on SDK classes. Packages that follow
+[Libraries built on `@mysten/sui`](#libraries-built-on-mystensui) accept them at runtime.
+
+If a package needs to use your copy, for example a peer dependency that npm won't install, add an
+override:
 
 ```json title="package.json (npm)"
 {
@@ -211,16 +212,13 @@ pnpm 9 ignores overrides in `pnpm-workspace.yaml`: put the same entry under `pnp
 
 Yarn still prints a peer dependency warning, which you can ignore.
 
-An override runs every package on 3.0, including packages built for 2.x, so the breaking changes
-above affect them the same way they affect your code. These show up most often:
+An override runs every package on 3.0, so every package must be compatible with it, as must a peer
+dependency that pnpm or Yarn gives your copy. The breaking changes above affect them the same way
+they affect your code. These show up most often:
 
-- **A package that imports `@mysten/sui/jsonRpc` fails to load, even if it never uses JSON-RPC.**
-  Node reports `Package subpath './jsonRpc' is not defined by "exports"`, and bundlers report that
-  `@mysten/sui/jsonRpc` can't be resolved or isn't exported. Stay on `@mysten/sui` 2.x until that
-  package releases a version for 3.0. The legacy `@mysten/dapp-kit` is one of these packages:
-  migrate to [`@mysten/dapp-kit-react`](/sui/migrations/sui-2.0/dapp-kit).
-- **A package that imports only types from `@mysten/sui/jsonRpc` loads, but fails to type-check with
-  `TS2307`.** With `skipLibCheck` enabled the error goes away and those types become `any`.
+- **A package that imports `@mysten/sui/jsonRpc` loads, but throws when it uses JSON-RPC.** Let it
+  keep its own 2.x copy until it releases a version for 3.0. The legacy `@mysten/dapp-kit` is one of
+  these packages: migrate to [`@mysten/dapp-kit-react`](/sui/migrations/sui-2.0/dapp-kit).
 - **Packages that call `verifyPersonalMessageSignature`, `verifyTransactionSignature` or their
   `isValid…` forms without a `client` verify offline, as in 2.x, and log a warning.** Signatures
   from address aliases are rejected.
@@ -235,8 +233,8 @@ If you publish a package that uses `@mysten/sui`, release a version for 3.0 that
 
 - **Lists `@mysten/sui@^3` in `peerDependencies`**, not `dependencies`, so apps keep a single copy.
   See [Building SDKs](/sui/sdk-building#use-mysten-packages-as-peer-dependencies).
-- **Doesn't import `@mysten/sui/jsonRpc`, even for types.** A runtime import stops the whole package
-  from loading on 3.0, and a type import breaks its published type declarations.
+- **Doesn't import `@mysten/sui/jsonRpc`.** On 3.0 its classes and functions throw and its types are
+  `any`.
 - **Accepts `ClientWithCoreApi`** from `@mysten/sui/client` instead of a specific client class, and
   reads through `client.core`.
 - **Doesn't use `instanceof` on SDK classes**, which fails for values from another copy of
