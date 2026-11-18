@@ -213,6 +213,35 @@ describe('GraphQL subscribe', () => {
 		expect(cancel).toHaveBeenCalledOnce();
 	});
 
+	it('ends promptly when a custom fetch ignores the abort signal', async () => {
+		const responders: ((response: Response) => void)[] = [];
+		const fetch = vi.fn(() => new Promise<Response>((resolve) => responders.push(resolve)));
+		const client = new SuiGraphQLClient({
+			url: 'https://example.com/graphql',
+			network: 'unknown',
+			fetch,
+		});
+		const abort = new AbortController();
+		const aborted = client.subscribe({ query: 'subscription { value }', signal: abort.signal });
+		const failure = aborted.next();
+		const returned = client.subscribe({ query: 'subscription { value }' });
+		const pending = returned.next();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const error = new Error('stop');
+		abort.abort(error);
+		await expect(failure).rejects.toBe(error);
+		await expect(returned.return(undefined)).resolves.toEqual({ value: undefined, done: true });
+		await expect(pending).resolves.toEqual({ value: undefined, done: true });
+
+		// Responses that arrive late are released.
+		const late = [sse([], false), sse([], false)];
+		responders.forEach((respond, i) => respond(late[i].response));
+		await vi.waitFor(() => {
+			for (const { cancel } of late) expect(cancel).toHaveBeenCalledOnce();
+		});
+	});
+
 	it('completes raw subscriptions when the server closes after its results', async () => {
 		const { client } = clientFor(sse(['event: next\ndata: {"data":{"value":1}}\n\n']).response);
 		expect(await collect(client.subscribe({ query: 'subscription { value }' }))).toEqual([

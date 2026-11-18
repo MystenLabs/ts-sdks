@@ -22,6 +22,11 @@ export async function* readGraphQLSSE<Result>(
 	response: Response,
 	signal: AbortSignal,
 ): AsyncGenerator<GraphQLQueryResult<Result>> {
+	// A custom `fetch` that ignores the signal can resolve after the abort.
+	if (signal.aborted) {
+		cancelBody(response);
+		signal.throwIfAborted();
+	}
 	if (!response.ok) {
 		cancelBody(response);
 		throw new SuiGraphQLRequestError(

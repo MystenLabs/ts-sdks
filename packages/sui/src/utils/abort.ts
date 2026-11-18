@@ -27,16 +27,30 @@ export function abortableAsyncGenerator<T>(
 	let returning = false;
 	async function* generate(): AsyncGenerator<T> {
 		const linked = linkedAbortController(signal);
+		const childSignal = linked.controller.signal;
 		controller = linked.controller;
+		// `run` can wait on work that ignores the signal, such as a custom `fetch`, so every wait is
+		// raced against the abort.
+		const aborted = new Promise<never>((_, reject) => {
+			childSignal.addEventListener('abort', () => reject(childSignal.reason), { once: true });
+		});
+		aborted.catch(() => {});
+		const inner = run(childSignal);
 		try {
-			controller.signal.throwIfAborted();
-			yield* run(controller.signal);
+			childSignal.throwIfAborted();
+			while (true) {
+				const result = await Promise.race([inner.next(), aborted]);
+				if (result.done) return;
+				yield result.value;
+			}
 		} catch (error) {
 			// A `next()` pending when the consumer calls `return()` ends the iteration instead.
 			if (!returning) throw error;
 		} finally {
-			controller.abort();
+			linked.controller.abort();
 			linked.dispose();
+			// Not awaited: it queues behind an inner `next()` that may never settle.
+			inner.return(undefined).catch(() => {});
 		}
 	}
 	const iterator = generate();
