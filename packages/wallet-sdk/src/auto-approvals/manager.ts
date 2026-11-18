@@ -140,6 +140,7 @@ export class AutoApprovalManager {
 
 			if (!accessLevel) {
 				issues.push({ message: `Access level could not be determined for object ${obj.objectId}` });
+				continue;
 			}
 
 			const ownedObjectsPermission = operation.permissions.ownedObjects?.find(
@@ -148,27 +149,14 @@ export class AutoApprovalManager {
 
 			if (!ownedObjectsPermission) {
 				issues.push({ message: `No permission found for object ${obj.objectId}` });
-			} else if (!compareAccessLevel(ownedObjectsPermission.accessLevel, accessLevel)) {
+			} else if (!hasSufficientAccess(ownedObjectsPermission.accessLevel, accessLevel)) {
 				issues.push({
-					message: `Insufficient access level for object ${obj.objectId}: required ${ownedObjectsPermission.accessLevel}, got ${accessLevel}`,
+					message: `Insufficient access level for object ${obj.objectId}: required ${accessLevel}, got ${ownedObjectsPermission.accessLevel}`,
 				});
 			}
 		}
 
 		return issues;
-
-		function compareAccessLevel(
-			required: 'read' | 'mutate' | 'transfer',
-			actual: 'read' | 'mutate' | 'transfer',
-		): boolean {
-			if (required === 'read') {
-				return true;
-			}
-			if (required === 'mutate') {
-				return actual === 'mutate' || actual === 'transfer';
-			}
-			return actual === 'transfer';
-		}
 	}
 
 	#canAutoApprove(analysis: AutoApprovalResult): AutoApprovalIssue[] {
@@ -432,4 +420,13 @@ function assertSuccessfulAnalysis(
 	if (analysis.status !== 'success') {
 		throw new Error('Transaction analysis failed');
 	}
+}
+
+const ACCESS_LEVEL_RANK = { read: 0, mutate: 1, transfer: 2 } as const;
+
+function hasSufficientAccess(
+	granted: keyof typeof ACCESS_LEVEL_RANK,
+	needed: keyof typeof ACCESS_LEVEL_RANK,
+): boolean {
+	return ACCESS_LEVEL_RANK[granted] >= ACCESS_LEVEL_RANK[needed];
 }
