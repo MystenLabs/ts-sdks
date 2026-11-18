@@ -82,6 +82,17 @@ await client.enoki.sponsorAndExecuteTransaction({ transaction: bytes, signature 
 If `isStaleTransactionError(error)` is true, the sponsor address or reference gas price changed
 since the transaction was built. Build a new transaction, sign it and try again.
 
+In a browser, prepare the transaction with an `EnokiClient` that uses your public API key, have the
+wallet sign it, and send the bytes and signature to your backend:
+
+```ts
+const enoki = new EnokiClient({ apiKey: 'your-public-api-key' });
+
+await enoki.prepareSponsoredTransaction({ transaction, network: 'mainnet' });
+const { bytes, signature } = await dAppKit.signTransaction({ transaction });
+// POST { bytes, signature } to your backend, which calls client.enoki.sponsorAndExecuteTransaction
+```
+
 ### Low-level client usage
 
 Use the client-only entry point to call the Enoki API without loading wallet helpers or local
