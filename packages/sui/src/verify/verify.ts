@@ -29,6 +29,8 @@ import { normalizeSuiAddress } from '../utils/sui-types.js';
  * Offline verification checks that the signer is `address` itself and can't verify zkLogin
  * signatures. It also accepts `address`'s own key after the account removed it from its alias set,
  * so use a client when that matters.
+ *
+ * Without `client` or `offline: true`, the helpers verify offline and log a warning.
  */
 export type VerifyOptions =
 	| { client: ClientWithCoreApi; offline?: false; address?: string; checkAddressAliases?: boolean }
@@ -147,16 +149,23 @@ function expectValid(result: CheckResult): PublicKey {
 	return result.publicKey;
 }
 
+let warnedNoClient = false;
+
 async function checkSignature(
 	bytes: Uint8Array,
 	signature: string,
 	scope: Scope,
 	options: VerifyOptions,
 ): Promise<CheckResult> {
+	// 2.x verified offline without a client; keep that for callers not yet migrated.
 	if (options?.offline !== true && !options?.client) {
-		throw new Error(
-			'Pass a client to verify signatures, or `offline: true` to verify without network access.',
-		);
+		if (!warnedNoClient) {
+			warnedNoClient = true;
+			console.warn(
+				'@mysten/sui/verify: no client given, verifying offline. Pass a client to check address aliases and zkLogin signatures, or `offline: true` to silence this warning.',
+			);
+		}
+		options = { offline: true, address: options?.address };
 	}
 
 	const invalid = { error: `Signature is not valid for the provided ${SCOPE_LABEL[scope]}` };

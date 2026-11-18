@@ -11,8 +11,9 @@ are not `TransactionData`. `verifyZkLoginSignature` is deprecated in favor of `v
 now checks address aliases too, and throws for undecodable transaction bytes instead of returning
 `success: false`.
 
-The personal message and transaction helpers in `@mysten/sui/verify` need a `client` or
-`offline: true`. With a client, the node verifies signatures and checks address aliases when an
-`address` is given; `offline: true` verifies locally and throws for zkLogin signatures.
+The personal message and transaction helpers in `@mysten/sui/verify` take a `client` or
+`offline: true`; without either they verify offline and log a warning. With a client, the node
+verifies signatures and checks address aliases when an `address` is given; `offline: true` verifies
+locally and throws for zkLogin signatures.
 `verifyPersonalMessageSignature` and `isValidPersonalMessageSignature` accept a string message, and
 `PublicKey.verifyAddress` normalizes the address it is given.

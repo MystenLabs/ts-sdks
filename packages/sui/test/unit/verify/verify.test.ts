@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
@@ -45,13 +45,10 @@ function mockClient(response: { valid: boolean; reason?: string } = { valid: tru
 }
 
 describe('verify helpers', () => {
-	it('require a client or offline: true', async () => {
-		const { signature } = await new Ed25519Keypair().signPersonalMessage(message);
-
+	it('require a client or offline: true (type only)', () => {
 		// @ts-expect-error a client or offline: true is required
-		await expect(verifyPersonalMessageSignature(message, signature, {})).rejects.toThrow(
-			'Pass a client to verify signatures, or `offline: true`',
-		);
+		const options: VerifyOptions = {};
+		expect(options).toEqual({});
 	});
 
 	it('does not accept checkAddressAliases offline (type only)', () => {
@@ -367,5 +364,65 @@ describe('verifySignature with malformed transaction bytes', () => {
 		}
 		expect(grpcVerify).not.toHaveBeenCalled();
 		expect(query).not.toHaveBeenCalled();
+	});
+});
+
+describe('verify helpers without a client or offline: true', () => {
+	// The warning is logged once per module instance, so load a fresh one for each test.
+	async function freshVerify() {
+		vi.resetModules();
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		return { ...(await import('../../../src/verify/index.js')), warn };
+	}
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('verify offline with no options, as in 2.x', async () => {
+		const { verifyPersonalMessageSignature, isValidTransactionSignature, warn } =
+			await freshVerify();
+		const keypair = new Ed25519Keypair();
+		const { signature } = await keypair.signPersonalMessage(message);
+		const { signature: txSignature } = await keypair.signTransaction(transaction);
+
+		expect(
+			// @ts-expect-error options are required
+			(await verifyPersonalMessageSignature(message, signature)).toSuiAddress(),
+		).toBe(keypair.toSuiAddress());
+		// @ts-expect-error options are required
+		expect(await isValidTransactionSignature(transaction, txSignature)).toBe(true);
+		// @ts-expect-error options are required
+		expect(await isValidTransactionSignature(message, txSignature)).toBe(false);
+		expect(warn).toHaveBeenCalledOnce();
+		expect(warn.mock.calls[0][0]).toContain('no client given, verifying offline');
+	});
+
+	it('check address offline when only address is given', async () => {
+		const { isValidPersonalMessageSignature, verifyTransactionSignature, warn } =
+			await freshVerify();
+		const keypair = new Ed25519Keypair();
+		const { signature } = await keypair.signPersonalMessage(message);
+		const { signature: txSignature } = await keypair.signTransaction(transaction);
+		const other = new Ed25519Keypair().toSuiAddress();
+
+		// @ts-expect-error a client or offline: true is required
+		const own: VerifyOptions = { address: keypair.toSuiAddress() };
+		// @ts-expect-error a client or offline: true is required
+		const notOwn: VerifyOptions = { address: other };
+		expect(await isValidPersonalMessageSignature(message, signature, own)).toBe(true);
+		expect(await isValidPersonalMessageSignature(message, signature, notOwn)).toBe(false);
+		await expect(verifyTransactionSignature(transaction, txSignature, notOwn)).rejects.toThrow(
+			'Signature is not valid for the provided address',
+		);
+		expect(warn).toHaveBeenCalledOnce();
+	});
+
+	it('still throw for zkLogin', async () => {
+		const { isValidPersonalMessageSignature } = await freshVerify();
+		// @ts-expect-error options are required
+		await expect(isValidPersonalMessageSignature(message, zkLoginSig)).rejects.toThrow(
+			'zkLogin signatures cannot be verified offline',
+		);
 	});
 });
