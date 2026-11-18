@@ -342,7 +342,7 @@ type SponsorConfig = (
 export class Sponsor<TOptions extends object = object> {
 	#signer?: Signer;
 	#address: string;
-	#signAndExecute?: RemoteSignAndExecute;
+	#signAndExecute: RemoteSignAndExecute;
 	#client: ClientWithCoreApi;
 	#validators: Validator[];
 	#delay: SponsorDelayConfig;
@@ -352,7 +352,8 @@ export class Sponsor<TOptions extends object = object> {
 	constructor(config: SponsorConfig) {
 		this.#signer = config.signer;
 		this.#address = normalizeSuiAddress(config.signer?.toSuiAddress() ?? config.address!);
-		this.#signAndExecute = config.signAndExecute;
+		this.#signAndExecute =
+			config.signAndExecute ?? ((options) => this.#signAndExecuteWithSigner(options));
 		this.#client = config.client;
 		this.#validators = config.validators;
 		this.#delay = config.delay;
@@ -436,14 +437,15 @@ export class Sponsor<TOptions extends object = object> {
 	>(
 		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
 	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
-		if (this.#signAndExecute) {
-			return this.#remoteSignAndExecute(options);
+		const userSignatures = toSignatureArray(options.userSignature);
+		if (userSignatures.length === 0) {
+			throw new Error('signAndExecuteTransaction requires the user signature.');
 		}
+		const bytes = this.#userSignedBytes(options.transaction);
 
-		const signed = await this.signTransaction(
-			options as SignOptions & ValidationOptionsArg<TOptions>,
-		);
-		if (signed.$kind === 'Rejected') return signed;
+		const validationOptions = (options as { validationOptions?: object }).validationOptions ?? {};
+		const rejection = await this.#validate(bytes, validationOptions, userSignatures);
+		if (rejection) return rejection;
 
 		await this.#runDelay(this.#delay.beforeExecute);
 
@@ -457,43 +459,26 @@ export class Sponsor<TOptions extends object = object> {
 			include,
 			...rest
 		} = options as SignAndExecuteOptions<Include> & { validationOptions?: unknown };
-		return this.#client.core.executeTransaction<Include & { effects: true }>({
-			...rest,
-			transaction: signed.bytes,
-			signatures: signed.signatures!,
-			include: { ...include, effects: true } as Include & { effects: true },
-		});
-	}
-
-	/** Validates the user-signed bytes as `signTransaction` does, then hands them to `signAndExecute`. */
-	async #remoteSignAndExecute<Include extends Omit<SuiClientTypes.TransactionInclude, 'effects'>>(
-		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
-	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
-		const userSignatures = toSignatureArray(options.userSignature);
-		if (userSignatures.length === 0) {
-			throw new Error('signAndExecuteTransaction requires the user signature.');
-		}
-		const bytes = this.#userSignedBytes(options.transaction);
-
-		const validationOptions = (options as { validationOptions?: object }).validationOptions ?? {};
-		const rejection = await this.#validate(bytes, validationOptions, userSignatures);
-		if (rejection) return rejection;
-
-		await this.#runDelay(this.#delay.beforeExecute);
-
-		const {
-			transaction: _transaction,
-			userSignature: _userSignature,
-			validationOptions: _validationOptions,
-			include,
-			...rest
-		} = options as SignAndExecuteOptions<Include> & { validationOptions?: unknown };
-		return (await this.#signAndExecute!({
+		return (await this.#signAndExecute({
 			...rest,
 			transaction: bytes,
 			userSignatures,
 			include: { ...include, effects: true },
 		})) as SignAndExecuteResult<Include & { effects: true }>;
+	}
+
+	/** Co-signs with the local signer and executes: the default `signAndExecute`. */
+	async #signAndExecuteWithSigner({
+		transaction,
+		userSignatures,
+		...rest
+	}: RemoteSignAndExecuteOptions): Promise<SuiClientTypes.TransactionResult<{ effects: true }>> {
+		const { signature } = await this.#signer!.signTransaction(transaction);
+		return this.#client.core.executeTransaction({
+			...rest,
+			transaction,
+			signatures: [...userSignatures, signature],
+		});
 	}
 
 	/**
