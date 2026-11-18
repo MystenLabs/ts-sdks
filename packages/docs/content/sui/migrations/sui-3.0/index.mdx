@@ -124,11 +124,12 @@ changes: upgrade them together with `@mysten/sui`.
 ### Signature verification
 
 - **`verifyPersonalMessageSignature`, `verifyTransactionSignature`,
-  `isValidPersonalMessageSignature` and `isValidTransactionSignature` need a `client` or
-  `offline: true`, and throw without one.** The `isValid…` forms throw too, rather than returning
-  `false`. With a client, the node verifies the signature and accepts the address's
-  [address aliases](/sui/cryptography#address-aliases). With `offline: true`, zkLogin signatures
-  throw. See [Online or offline](/sui/cryptography#online-or-offline) for which to choose.
+  `isValidPersonalMessageSignature` and `isValidTransactionSignature` require a `client` or
+  `offline: true`.** Without either it's a type error; at runtime they verify offline and log a
+  warning. With a client, the node verifies the signature, accepts the address's
+  [address aliases](/sui/cryptography#address-aliases) and checks zkLogin signatures. With
+  `offline: true`, zkLogin signatures throw. See
+  [Online or offline](/sui/cryptography#online-or-offline) for which to choose.
 
 ## Other packages
 
@@ -221,8 +222,8 @@ above affect them the same way they affect your code. These show up most often:
 - **A package that imports only types from `@mysten/sui/jsonRpc` loads, but fails to type-check with
   `TS2307`.** With `skipLibCheck` enabled the error goes away and those types become `any`.
 - **Packages that call `verifyPersonalMessageSignature`, `verifyTransactionSignature` or their
-  `isValid…` forms without a `client` throw.** If they catch the error, they treat every signature
-  as invalid. Test any flow that checks a signature.
+  `isValid…` forms without a `client` verify offline, as in 2.x, and log a warning.** Signatures
+  from address aliases are rejected.
 - **Packages that call the raw gRPC `getPackage` without a `selector` throw.** This also happens
   without an override, when a package with its own 2.x copy makes the call on a client you pass it.
 
