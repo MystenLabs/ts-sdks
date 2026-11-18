@@ -638,8 +638,6 @@ describe('AutoApprovalManager', () => {
 					],
 					accessLevel: needed ? { [NFT_ID]: needed } : {},
 				}),
-				issues: [],
-				ownIssues: [],
 			};
 		}
 
