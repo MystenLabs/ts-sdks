@@ -479,6 +479,13 @@ createSponsor({
 This is mitigation, not prevention. `beforeSimulate` runs once before the analysis resolves (where
 simulation, if any, happens). Default is off.
 
+### Remote sponsors
+
+If another service holds the sponsor's key and co-signs and executes in one step, pass a `signer`
+with `toSuiAddress` and `signAndExecuteTransaction` (a `RemoteSigner`). Validators still run first
+(keep `defaults()` in `validate` unless the service runs the same checks); `signTransaction` throws.
+For Enoki, use `client.enoki.getSponsorSigner()` from `@mysten/enoki`.
+
 ### Validation without a local signer
 
 Remote gas pools can use the same policy engine through `validationPolicy`:

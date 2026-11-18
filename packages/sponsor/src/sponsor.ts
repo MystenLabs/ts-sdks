@@ -116,7 +116,7 @@ export type ValidationOptionsArg<T extends object> = {} extends T
 
 export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readonly ValidateItem[]> {
 	/** The sponsor — pays gas and co-signs every sponsored transaction. */
-	signer: Signer;
+	signer: Signer | RemoteSigner;
 	/** Sui client used to build, simulate, and analyze transactions. */
 	client: ClientWithCoreApi;
 	/**
@@ -133,6 +133,17 @@ export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readon
 	validate?: T;
 	/** Optional timing-attack mitigation delays. */
 	delay?: SponsorDelayConfig;
+}
+
+/** A sponsor whose key is held elsewhere: it co-signs and executes in one step, and can't `signTransaction`. */
+export interface RemoteSigner {
+	toSuiAddress(): string;
+	signAndExecuteTransaction(options: {
+		transaction: Uint8Array;
+		client: ClientWithCoreApi;
+		additionalSignatures: string[];
+		signal?: AbortSignal;
+	}): Promise<SponsorRejection | SuiClientTypes.TransactionResult<{ effects: true }>>;
 }
 
 /** A transaction successfully signed by the sponsor (validation passed). */
@@ -266,7 +277,7 @@ export function assertSponsorable(transaction: Transaction, sponsor: string): vo
 }
 
 interface SponsorConfig {
-	signer: Signer;
+	signer: Signer | RemoteSigner;
 	client: ClientWithCoreApi;
 	validators: Validator[];
 	delay: SponsorDelayConfig;
@@ -281,7 +292,7 @@ interface SponsorConfig {
  * sponsor's key: check the policy, then add the sponsor's signature.
  */
 export class Sponsor<TOptions extends object = object> {
-	#signer: Signer;
+	#signer: Signer | RemoteSigner;
 	#client: ClientWithCoreApi;
 	#validators: Validator[];
 	#delay: SponsorDelayConfig;
@@ -314,6 +325,26 @@ export class Sponsor<TOptions extends object = object> {
 	async signTransaction(
 		options: SignOptions & ValidationOptionsArg<TOptions>,
 	): Promise<SignTransactionResult> {
+		if (!('signTransaction' in this.#signer)) {
+			throw new Error('A remote signer can only signAndExecuteTransaction.');
+		}
+		const checked = await this.#check(options);
+		if (checked.$kind === 'Rejected') return checked;
+		const { bytes, userSignatures } = checked;
+
+		const { signature } = await this.#signer.signTransaction(bytes);
+		return {
+			$kind: 'Signed',
+			bytes,
+			sponsorSignature: signature,
+			digest: TransactionDataBuilder.getDigestFromBytes(bytes),
+			signatures: userSignatures.length > 0 ? [...userSignatures, signature] : undefined,
+		};
+	}
+
+	async #check(
+		options: SignOptions & ValidationOptionsArg<TOptions>,
+	): Promise<SponsorRejection | { $kind: 'Checked'; bytes: Uint8Array; userSignatures: string[] }> {
 		const sponsor = this.address;
 		const userSignatures = toSignatureArray(options.userSignature);
 
@@ -361,14 +392,7 @@ export class Sponsor<TOptions extends object = object> {
 		const rejection = await this.#validate(bytes, validationOptions, userSignatures);
 		if (rejection) return rejection;
 
-		const { signature } = await this.#signer.signTransaction(bytes);
-		return {
-			$kind: 'Signed',
-			bytes,
-			sponsorSignature: signature,
-			digest: TransactionDataBuilder.getDigestFromBytes(bytes),
-			signatures: userSignatures.length > 0 ? [...userSignatures, signature] : undefined,
-		};
+		return { $kind: 'Checked', bytes, userSignatures };
 	}
 
 	/**
@@ -382,10 +406,12 @@ export class Sponsor<TOptions extends object = object> {
 	>(
 		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
 	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
-		const signed = await this.signTransaction(
-			options as SignOptions & ValidationOptionsArg<TOptions>,
-		);
+		if (toSignatureArray(options.userSignature).length === 0) {
+			throw new Error('signAndExecuteTransaction requires the user signature.');
+		}
+		const signed = await this.#check(options as SignOptions & ValidationOptionsArg<TOptions>);
 		if (signed.$kind === 'Rejected') return signed;
+		const { bytes, userSignatures } = signed;
 
 		await this.#runDelay(this.#delay.beforeExecute);
 
@@ -399,10 +425,28 @@ export class Sponsor<TOptions extends object = object> {
 			include,
 			...rest
 		} = options as SignAndExecuteOptions<Include> & { validationOptions?: unknown };
+		if (!('signTransaction' in this.#signer)) {
+			const result = await this.#signer.signAndExecuteTransaction({
+				transaction: bytes,
+				client: this.#client,
+				additionalSignatures: userSignatures,
+				signal: rest.signal,
+			});
+			if (result.$kind === 'Rejected' || !include || Object.keys(include).length === 0) {
+				return result as SignAndExecuteResult<Include & { effects: true }>;
+			}
+			return this.#client.core.waitForTransaction<Include & { effects: true }>({
+				digest: TransactionDataBuilder.getDigestFromBytes(bytes),
+				include: { ...include, effects: true } as Include & { effects: true },
+				signal: rest.signal,
+			});
+		}
+
+		const { signature } = await this.#signer.signTransaction(bytes);
 		return this.#client.core.executeTransaction<Include & { effects: true }>({
 			...rest,
-			transaction: signed.bytes,
-			signatures: signed.signatures!,
+			transaction: bytes,
+			signatures: [...userSignatures, signature],
 			include: { ...include, effects: true } as Include & { effects: true },
 		});
 	}

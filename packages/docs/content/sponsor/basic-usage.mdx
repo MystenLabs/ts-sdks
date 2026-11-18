@@ -159,6 +159,57 @@ replay prevention and rate limiting in your service.
 For a complete Hono server using this shape, see the
 [sponsor server example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/sponsor/examples/sponsor-server).
 
+## Use a remote sponsor
+
+The sponsor's key doesn't have to live in your service. If another service holds it and co-signs and
+executes in one step, pass a `signer` with `toSuiAddress` and `signAndExecuteTransaction`. Your
+validators still run first, and `signAndExecuteTransaction` returns the same results:
+
+```ts
+const sponsor = createSponsor({
+	signer: {
+		toSuiAddress: () => sponsorAddress,
+		signAndExecuteTransaction: ({ transaction, additionalSignatures, signal }) =>
+			remoteService.sponsorAndExecute({
+				transaction,
+				userSignatures: additionalSignatures,
+				signal,
+			}),
+	},
+	client,
+	validate: [defaults(), myValidator],
+});
+```
+
+Keep `defaults()` unless the remote service runs the same checks: any `validate` list replaces it.
+The remote signer can return a `Rejected` result if it declines the transaction. It can't sign
+without executing, so the sponsor's `signTransaction` throws.
+
+### Enoki
+
+For [Enoki](https://docs.enoki.mystenlabs.com), `getSponsorSigner` from the `enoki()` client
+extension in `@mysten/enoki` returns that signer. Create the sponsor for each request: that picks up
+request allowlists and a rotated sponsor address, and it's cheap because the address is cached.
+
+```ts
+import { enoki } from '@mysten/enoki';
+
+const client = suiClient.$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! }));
+
+// per request
+const sponsor = createSponsor({
+	signer: await client.enoki.getSponsorSigner({ allowedAddresses: [userAddress] }),
+	client,
+	validate: [myValidator],
+});
+const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
+```
+
+Enoki runs `defaults()` itself, along with a gas budget limit, a check of the sender's signature and
+the app's allowlists, so validators here are for checks of your own. Request allowlists like
+`allowedAddresses` need the matching options on the Enoki API key. Transactions Enoki declines come
+back as `Rejected`, alongside your validators' rejections.
+
 ## Gas and unresolved transactions
 
 When the client builds, the user already built and signed final bytes, so they must be resolved. The

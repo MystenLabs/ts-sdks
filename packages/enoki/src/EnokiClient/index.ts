@@ -1,6 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { Transaction } from '@mysten/sui/transactions';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
+
 import type {
 	CreateSponsoredTransactionApiInput,
 	CreateSponsoredTransactionApiResponse,
@@ -12,6 +15,7 @@ import type {
 	CreateZkLoginZkpApiResponse,
 	DeleteSubnameApiInput,
 	DeleteSubnameApiResponse,
+	EnokiDomainNetwork,
 	ExecuteSponsoredTransactionApiInput,
 	ExecuteSponsoredTransactionApiResponse,
 	GetAppApiInput,
@@ -27,6 +31,7 @@ import type {
 } from './type.js';
 
 const DEFAULT_API_URL = 'https://api.enoki.mystenlabs.com';
+const SPONSOR_ADDRESS_TTL_MS = 60_000;
 const ZKLOGIN_HEADER = 'zklogin-jwt';
 
 export interface EnokiClientConfig {
@@ -90,6 +95,10 @@ export class EnokiClient {
 	#apiUrl: string;
 	#apiKey: string;
 	#additionalEpochs: number | undefined;
+	#sponsorAddresses = new Map<
+		EnokiDomainNetwork,
+		{ address: Promise<string>; expiresAt: number }
+	>();
 
 	constructor(config: EnokiClientConfig) {
 		this.#version = 'v1';
@@ -186,20 +195,79 @@ export class EnokiClient {
 	 * On `invalid_gas_owner` or `invalid_gas_price`, rebuild with the value in the error's `data`,
 	 * sign again and retry. `already_sponsored` means Enoki has already sponsored this transaction.
 	 */
-	sponsorAndExecuteTransaction(input: SponsorAndExecuteTransactionApiInput) {
-		return this.#fetch<SponsorAndExecuteTransactionApiResponse>(
-			'transaction-blocks/sponsor/execute',
-			{
-				method: 'POST',
-				body: JSON.stringify({
-					network: input.network,
-					transactionBytes: input.transactionBytes,
-					signature: input.signature,
-					allowedAddresses: input.allowedAddresses,
-					allowedMoveCallTargets: input.allowedMoveCallTargets,
-				}),
-			},
-		);
+	async sponsorAndExecuteTransaction(input: SponsorAndExecuteTransactionApiInput) {
+		try {
+			return await this.#fetch<SponsorAndExecuteTransactionApiResponse>(
+				'transaction-blocks/sponsor/execute',
+				{
+					method: 'POST',
+					body: JSON.stringify({
+						network: input.network,
+						transactionBytes: input.transactionBytes,
+						signature: input.signature,
+						allowedAddresses: input.allowedAddresses,
+						allowedMoveCallTargets: input.allowedMoveCallTargets,
+					}),
+				},
+			);
+		} catch (error) {
+			if (isStaleTransactionError(error)) {
+				this.#sponsorAddresses.delete(input.network === 'testnet' ? 'testnet' : 'mainnet');
+			}
+			throw error;
+		}
+	}
+
+	/** Enoki's sponsor address. Works with a public key. Cached for a minute, or until a stale error. */
+	getSponsorAddress({ network }: { network: EnokiDomainNetwork }): Promise<string> {
+		const cached = this.#sponsorAddresses.get(network);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.address;
+		}
+
+		const address = this.getApp().then(({ sponsorAddresses }) => {
+			const sponsorAddress = sponsorAddresses?.[network];
+			if (!sponsorAddress) {
+				throw new Error(`Enoki does not sponsor transactions on ${network}`);
+			}
+			return normalizeSuiAddress(sponsorAddress);
+		});
+		const entry = { address, expiresAt: Date.now() + SPONSOR_ADDRESS_TTL_MS };
+		address.catch(() => {
+			if (this.#sponsorAddresses.get(network) === entry) {
+				this.#sponsorAddresses.delete(network);
+			}
+		});
+		this.#sponsorAddresses.set(network, entry);
+		return address;
+	}
+
+	/**
+	 * Sets Enoki's sponsor as gas owner with an empty gas payment, without building. Works with a
+	 * public key. Throws if the transaction has a different gas owner or a gas payment.
+	 */
+	async prepareSponsoredTransaction({
+		transaction,
+		network,
+	}: {
+		transaction: Transaction;
+		network: EnokiDomainNetwork;
+	}): Promise<Transaction> {
+		const sponsorAddress = await this.getSponsorAddress({ network });
+		const { gasData } = transaction.getData();
+
+		if (gasData.owner && normalizeSuiAddress(gasData.owner) !== sponsorAddress) {
+			throw new Error(
+				`Transaction gas owner is ${gasData.owner}, not Enoki's sponsor ${sponsorAddress}`,
+			);
+		}
+		if (gasData.payment && gasData.payment.length > 0) {
+			throw new Error('Sponsored transactions pay gas from the sponsor; remove the gas payment');
+		}
+
+		transaction.setGasOwner(sponsorAddress);
+		transaction.setGasPayment([]);
+		return transaction;
 	}
 
 	getSubnames(input: GetSubnamesApiInput) {

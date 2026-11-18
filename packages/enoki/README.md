@@ -49,6 +49,57 @@ function LoginButton() {
 }
 ```
 
+### Sponsor transactions
+
+Add the `enoki()` extension to a Sui client on your backend, with a private API key that has
+sponsored transactions enabled. Enoki pays gas from its sponsor's address balance, so the sender
+doesn't need SUI.
+
+```ts
+import { enoki } from '@mysten/enoki';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+}).$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! }));
+
+// Builds with Enoki as gas owner, signs, and has Enoki sponsor and execute it
+const result = await client.enoki.sponsorAndExecuteTransaction({ transaction, signer });
+```
+
+To sign another way, such as with a wallet, or to check the transaction first, prepare it and send
+the signed bytes:
+
+```ts
+transaction.setSenderIfNotSet(signer.toSuiAddress());
+await client.enoki.prepareSponsoredTransaction({ transaction });
+const bytes = await transaction.build({ client });
+const { signature } = await signer.signTransaction(bytes);
+
+await client.enoki.sponsorAndExecuteTransaction({ transaction: bytes, signature });
+```
+
+If `isStaleTransactionError(error)` is true, the sponsor address or reference gas price changed
+since the transaction was built. Create a new `Transaction`, sign it and try again; one that was
+already built keeps its gas owner and gas price.
+
+In a browser, prepare the transaction with an `EnokiClient` that uses your public API key, have the
+wallet sign it, and send the bytes and signature to your backend:
+
+```ts
+import { EnokiClient } from '@mysten/enoki';
+
+const enoki = new EnokiClient({ apiKey: 'your-public-api-key' });
+
+await enoki.prepareSponsoredTransaction({ transaction, network: 'mainnet' });
+const { bytes, signature } = await dAppKit.signTransaction({ transaction });
+// POST { bytes, signature } to your backend, which calls client.enoki.sponsorAndExecuteTransaction
+```
+
+The sponsor address is cached for up to a minute, so after Enoki rotates it a retry may fail until
+the cache refreshes.
+
 ### Low-level client usage
 
 Use the client-only entry point to call the Enoki API without loading wallet helpers or local

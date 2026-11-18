@@ -13,5 +13,6 @@ export {
 	EnokiClientExtension,
 	type EnokiPrepareSponsoredTransactionOptions,
 	type EnokiExtensionOptions,
+	type EnokiSponsorSigner,
 	type EnokiSponsorAndExecuteTransactionOptions,
 } from './extension.js';

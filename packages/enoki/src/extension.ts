@@ -4,10 +4,10 @@
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import { TransactionDataBuilder, type Transaction } from '@mysten/sui/transactions';
-import { fromBase64, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
 import type { EnokiClientConfig } from './EnokiClient/index.js';
-import { EnokiClient, isStaleTransactionError } from './EnokiClient/index.js';
+import { EnokiClient, EnokiClientError } from './EnokiClient/index.js';
 import type { EnokiDomainNetwork } from './EnokiClient/type.js';
 
 export type EnokiExtensionOptions<Name extends string = 'enoki'> = Omit<
@@ -54,6 +54,27 @@ export interface EnokiPrepareSponsoredTransactionOptions {
 	transaction: Transaction;
 }
 
+/** A sponsor SDK `RemoteSigner` backed by Enoki: pass it as `createSponsor`'s `signer`. */
+export interface EnokiSponsorSigner {
+	toSuiAddress(): string;
+	signAndExecuteTransaction(options: {
+		transaction: Uint8Array;
+		additionalSignatures: string[];
+		signal?: AbortSignal;
+	}): Promise<
+		| {
+				$kind: 'Rejected';
+				issues: Issue[];
+				policyIssues: Issue[];
+				analysisIssues: Issue[];
+				reason: 'POLICY_REJECTED';
+		  }
+		| SuiClientTypes.TransactionResult<{ effects: true }>
+	>;
+}
+
+type Issue = { code?: string; message: string };
+
 /**
  * Adds Enoki sponsorship to a Sui client. Requires a private API key with sponsored transactions
  * enabled.
@@ -81,60 +102,22 @@ export function enoki<const Name extends string = 'enoki'>({
 export class EnokiClientExtension {
 	#client: ClientWithCoreApi;
 	#enoki: EnokiClient;
-	#sponsorAddress?: Promise<string>;
 
 	constructor({ client, enoki }: { client: ClientWithCoreApi; enoki: EnokiClient }) {
 		this.#client = client;
 		this.#enoki = enoki;
 	}
 
-	/** Enoki's sponsor address on the client's network. Cached until a transaction is rejected as stale. */
+	/** Enoki's sponsor address on the client's network. */
 	getSponsorAddress(): Promise<string> {
-		if (!this.#sponsorAddress) {
-			const network = this.#network();
-			const promise = this.#enoki.getApp().then(({ sponsorAddresses }) => {
-				const address = sponsorAddresses?.[network];
-				if (!address) {
-					throw new Error(`Enoki does not sponsor transactions on ${network}`);
-				}
-				return normalizeSuiAddress(address);
-			});
-			this.#sponsorAddress = promise;
-			promise.catch(() => {
-				if (this.#sponsorAddress === promise) {
-					this.#sponsorAddress = undefined;
-				}
-			});
-		}
-		return this.#sponsorAddress;
+		return this.#enoki.getSponsorAddress({ network: this.#network() });
 	}
 
-	/**
-	 * Sets Enoki as the transaction's gas owner with an empty gas payment.
-	 * Doesn't build it, so a wallet can still resolve the rest. Build or have a wallet sign it, run
-	 * any checks, then pass the bytes and signature to `sponsorAndExecuteTransaction`.
-	 *
-	 * Safe to call on a transaction that's already prepared. Throws if the transaction already has
-	 * a different gas owner, or a gas payment.
-	 */
-	async prepareSponsoredTransaction({
+	/** Sets Enoki as gas owner with an empty gas payment, without building. */
+	prepareSponsoredTransaction({
 		transaction,
 	}: EnokiPrepareSponsoredTransactionOptions): Promise<Transaction> {
-		const sponsorAddress = await this.getSponsorAddress();
-		const data = transaction.getData();
-
-		if (data.gasData.owner && normalizeSuiAddress(data.gasData.owner) !== sponsorAddress) {
-			throw new Error(
-				`Transaction gas owner is ${data.gasData.owner}, not Enoki's sponsor ${sponsorAddress}`,
-			);
-		}
-		if (data.gasData.payment && data.gasData.payment.length > 0) {
-			throw new Error('Sponsored transactions pay gas from the sponsor; remove the gas payment');
-		}
-
-		transaction.setGasOwner(sponsorAddress);
-		transaction.setGasPayment([]);
-		return transaction;
+		return this.#enoki.prepareSponsoredTransaction({ transaction, network: this.#network() });
 	}
 
 	/**
@@ -169,22 +152,14 @@ export class EnokiClientExtension {
 		// Wait on the digest of the bytes that were signed, not one reported by the server.
 		const digest = TransactionDataBuilder.getDigestFromBytes(transactionBytes);
 
-		let response: { digest: string };
-		try {
-			options.signal?.throwIfAborted();
-			response = await this.#enoki.sponsorAndExecuteTransaction({
-				network,
-				transactionBytes: toBase64(transactionBytes),
-				signature,
-				allowedAddresses: options.allowedAddresses,
-				allowedMoveCallTargets: options.allowedMoveCallTargets,
-			});
-		} catch (error) {
-			if (isStaleTransactionError(error)) {
-				this.#sponsorAddress = undefined;
-			}
-			throw error;
-		}
+		options.signal?.throwIfAborted();
+		const response = await this.#enoki.sponsorAndExecuteTransaction({
+			network,
+			transactionBytes: toBase64(transactionBytes),
+			signature,
+			allowedAddresses: options.allowedAddresses,
+			allowedMoveCallTargets: options.allowedMoveCallTargets,
+		});
 		if (response.digest !== digest) {
 			throw new Error(`Enoki returned digest ${response.digest}, but the transaction is ${digest}`);
 		}
@@ -194,6 +169,50 @@ export class EnokiClientExtension {
 			include: options.include,
 			signal: options.signal,
 		});
+	}
+
+	/**
+	 * A signer that makes Enoki the sponsor in the sponsor SDK's `createSponsor`. Create the sponsor
+	 * per request. Enoki's `invalid_transaction` is returned as `Rejected`.
+	 */
+	async getSponsorSigner({
+		allowedAddresses,
+		allowedMoveCallTargets,
+	}: {
+		allowedAddresses?: string[];
+		allowedMoveCallTargets?: string[];
+	} = {}): Promise<EnokiSponsorSigner> {
+		const address = await this.getSponsorAddress();
+		return {
+			toSuiAddress: () => address,
+			signAndExecuteTransaction: async ({ transaction, additionalSignatures, signal }) => {
+				if (additionalSignatures.length !== 1) {
+					throw new Error('Enoki sponsorship takes exactly one user signature.');
+				}
+				try {
+					return await this.sponsorAndExecuteTransaction({
+						transaction,
+						signature: additionalSignatures[0],
+						include: { effects: true },
+						signal,
+						allowedAddresses,
+						allowedMoveCallTargets,
+					});
+				} catch (error) {
+					if (error instanceof EnokiClientError && error.code === 'invalid_transaction') {
+						const issues = error.errors.map(({ code, message }) => ({ code, message }));
+						return {
+							$kind: 'Rejected',
+							issues,
+							policyIssues: issues,
+							analysisIssues: [],
+							reason: 'POLICY_REJECTED',
+						};
+					}
+					throw error;
+				}
+			},
+		};
 	}
 
 	#network(): EnokiDomainNetwork {
