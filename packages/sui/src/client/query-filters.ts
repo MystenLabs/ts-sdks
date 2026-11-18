@@ -141,10 +141,7 @@ export async function resolveTransactionFilter(
 	}
 
 	if (filter.function != null) {
-		const [pkg, module, fn] = filter.function.split('::');
-		resolved.function = [await resolvePackage(mvr, pkg, signal), module, fn]
-			.filter((segment) => segment != null)
-			.join('::');
+		resolved.function = await resolvePackagePath(mvr, filter.function, signal);
 	}
 
 	return resolved;
@@ -170,21 +167,14 @@ export async function resolveEventFilter(
 	}
 
 	if (filter.emitModule != null) {
-		const [pkg, module] = filter.emitModule.split('::');
-		resolved.emitModule = [await resolvePackage(mvr, pkg, signal), module]
-			.filter((segment) => segment != null)
-			.join('::');
+		resolved.emitModule = await resolvePackagePath(mvr, filter.emitModule, signal);
 	}
 
 	if (filter.eventType != null) {
 		const eventType = filter.eventType;
-		const segments = eventType.split('::');
 
-		if (segments.length <= 2) {
-			const [pkg, module] = segments;
-			resolved.eventType = [await resolvePackage(mvr, pkg, signal), module]
-				.filter((segment) => segment != null)
-				.join('::');
+		if (eventType.split('::').length <= 2) {
+			resolved.eventType = await resolvePackagePath(mvr, eventType, signal);
 		} else {
 			resolved.eventType = (await mvr.resolveType({ type: eventType, signal })).type;
 		}
@@ -232,12 +222,17 @@ export function validateEventFilter(filter: SuiClientTypes.EventFilter) {
 	}
 }
 
-async function resolvePackage(
+/** Resolves the package segment of a `package[::module[::name]]` path, keeping the rest. */
+async function resolvePackagePath(
 	mvr: SuiClientTypes.MvrMethods,
-	pkg: string,
+	path: string,
 	signal?: AbortSignal,
 ): Promise<string> {
-	return normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package);
+	const [pkg, ...rest] = path.split('::');
+	const resolved = normalizeSuiAddress(
+		(await mvr.resolvePackage({ package: pkg, signal })).package,
+	);
+	return [resolved, ...rest].join('::');
 }
 
 function assertAtMostOne(filter: Record<string, unknown>, predicates: string[], subject: string) {
