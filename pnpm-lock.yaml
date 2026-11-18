@@ -1330,9 +1330,6 @@ importers:
       '@mysten/wallet-standard':
         specifier: workspace:^
         version: link:../wallet-standard
-      valibot:
-        specifier: ^1.4.2
-        version: 1.4.2(typescript@7.0.2)
     devDependencies:
       '@mysten/dapp-kit-react':
         specifier: workspace:^
