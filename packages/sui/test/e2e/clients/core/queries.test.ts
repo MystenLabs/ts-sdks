@@ -81,10 +81,12 @@ describe('Core API - Queries', () => {
 
 	describe('listTransactions', () => {
 		it('all clients return same data: no filter', async () => {
+			// The fullnode JSON-RPC index orders transactions within a checkpoint by local
+			// execution order rather than checkpoint order, so only the other transports agree
 			await toolbox.expectAllClientsReturnSameData(
 				(client) => client.core.listTransactions({ limit: 3 }),
 				stripCursors,
-				{ exclude: EXCLUDE },
+				{ exclude: [...EXCLUDE, 'jsonrpc'] },
 			);
 		});
 
