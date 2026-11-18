@@ -743,10 +743,15 @@ export function resolveVerifySignatureOptions(options: SuiClientTypes.VerifySign
 	const checkAddressAliases = options.checkAddressAliases ?? true;
 
 	if (options.transaction) {
+		let serialized;
 		try {
-			bcs.TransactionData.parse(options.transaction);
+			serialized = bcs.TransactionData.serialize(bcs.TransactionData.parse(options.transaction));
 		} catch (cause) {
 			throw new Error('Invalid transaction bytes', { cause });
+		}
+		// Parsing ignores trailing bytes.
+		if (serialized.toBytes().length !== options.transaction.length) {
+			throw new Error('Invalid transaction bytes');
 		}
 		return {
 			intentScope: 'TransactionData' as const,

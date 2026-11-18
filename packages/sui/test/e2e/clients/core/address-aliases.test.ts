@@ -21,14 +21,10 @@ describe('Core API - Address aliases', () => {
 	const message = new TextEncoder().encode(personalMessage);
 
 	async function execute(tx: Transaction, signer = owner.keypair) {
-		const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
-			transaction: tx,
-			signer,
-		});
+		const result = await toolbox.signAndExecuteTransaction({ transaction: tx, signer });
 		if (result.$kind !== 'Transaction') {
 			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
 		}
-		await toolbox.waitForTransaction({ digest: result.Transaction.digest });
 	}
 
 	beforeAll(async () => {

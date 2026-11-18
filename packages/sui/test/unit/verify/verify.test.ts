@@ -44,6 +44,15 @@ function mockClient(response: { valid: boolean; reason?: string } = { valid: tru
 	return { client, verifySignature };
 }
 
+function grpcCoreWith(verifySignature: ReturnType<typeof vi.fn>) {
+	const client = { signatureVerificationService: { verifySignature } } as unknown as SuiGrpcClient;
+	return new GrpcCoreClient({ client, base: client, network: 'localnet' });
+}
+
+function grpcCore(response: Record<string, unknown>) {
+	return grpcCoreWith(vi.fn().mockResolvedValue({ response }));
+}
+
 describe('verify helpers', () => {
 	it('require a client or offline: true (type only)', () => {
 		// @ts-expect-error a client or offline: true is required
@@ -114,8 +123,10 @@ describe('verify helpers', () => {
 		expect(await isValidPersonalMessageSignature(message, signature, options)).toBe(false);
 	});
 
-	it('reports malformed transaction bytes as invalid', async () => {
-		const bytes = new Uint8Array([1, 2, 3]);
+	it.each([
+		['undecodable', new Uint8Array([1, 2, 3])],
+		['with trailing bytes', new Uint8Array([...transaction, 0xff])],
+	])('reports %s transaction bytes as invalid', async (_, bytes) => {
 		const { signature } = await new Ed25519Keypair().signTransaction(bytes);
 		const client = new SuiGraphQLClient({
 			url: 'https://graphql.invalid/graphql',
@@ -232,20 +243,13 @@ describe('verify helpers', () => {
 });
 
 describe('GrpcCoreClient.verifySignature', () => {
-	function grpcCore(response: Record<string, unknown>) {
-		const client = {
-			signatureVerificationService: { verifySignature: vi.fn().mockResolvedValue({ response }) },
-		} as unknown as SuiGrpcClient;
-		return new GrpcCoreClient({ client, base: client, network: 'localnet' });
-	}
 	const options = { personalMessage: 'hello', signature: 'AA==', address: '0x1' };
 
 	it('checks aliases by default', async () => {
-		const verifySignature = vi.fn().mockResolvedValue({ response: { isValid: true } });
-		const client = {
-			signatureVerificationService: { verifySignature },
-		} as unknown as SuiGrpcClient;
-		const core = new GrpcCoreClient({ client, base: client, network: 'localnet' });
+		const verifySignature = vi
+			.fn()
+			.mockResolvedValue({ response: { isValid: true, addressAliasesChecked: true } });
+		const core = grpcCoreWith(verifySignature);
 		expect(await core.verifySignature(options)).toEqual({ valid: true });
 		expect(await core.verifySignature({ ...options, checkAddressAliases: false })).toEqual({
 			valid: true,
@@ -257,18 +261,39 @@ describe('GrpcCoreClient.verifySignature', () => {
 	});
 
 	it('maps an invalid signature', async () => {
-		expect(await grpcCore({ isValid: false, reason: 'bad' }).verifySignature(options)).toEqual({
+		expect(
+			await grpcCore({
+				isValid: false,
+				reason: 'bad',
+				addressAliasesChecked: true,
+			}).verifySignature(options),
+		).toEqual({
+			valid: false,
+			reason: 'bad',
+		});
+	});
+
+	it.each([
+		['absent on a valid verdict', { isValid: true }],
+		['absent on an invalid verdict', { isValid: false, reason: 'bad' }],
+		['false', { isValid: true, addressAliasesChecked: false }],
+	])('throws when the alias check marker is %s and aliases are checked', async (_, response) => {
+		await expect(grpcCore(response).verifySignature(options)).rejects.toThrow(
+			'The node does not support checking address aliases',
+		);
+	});
+
+	it('accepts a server without the alias check marker when aliases are not checked', async () => {
+		const exact = { ...options, checkAddressAliases: false };
+		expect(await grpcCore({ isValid: true }).verifySignature(exact)).toEqual({ valid: true });
+		expect(await grpcCore({ isValid: false, reason: 'bad' }).verifySignature(exact)).toEqual({
 			valid: false,
 			reason: 'bad',
 		});
 	});
 
 	function rejecting(code: string) {
-		const verifySignature = vi.fn().mockRejectedValue(new RpcError('rejected', code));
-		const client = {
-			signatureVerificationService: { verifySignature },
-		} as unknown as SuiGrpcClient;
-		return new GrpcCoreClient({ client, base: client, network: 'localnet' });
+		return grpcCoreWith(vi.fn().mockRejectedValue(new RpcError('rejected', code)));
 	}
 
 	it('reports an unparseable signature as invalid', async () => {
@@ -294,13 +319,7 @@ describe('verifySignature without a verdict', () => {
 	const options = { personalMessage: 'hello', signature: 'AA==', address: '0x1' };
 
 	it('throws on gRPC when the response has no isValid', async () => {
-		const client = {
-			signatureVerificationService: {
-				verifySignature: vi.fn().mockResolvedValue({ response: {} }),
-			},
-		} as unknown as SuiGrpcClient;
-		const core = new GrpcCoreClient({ client, base: client, network: 'localnet' });
-		await expect(core.verifySignature(options)).rejects.toThrow('verdict');
+		await expect(grpcCore({}).verifySignature(options)).rejects.toThrow('verdict');
 	});
 
 	it('throws on GraphQL when verifySignature is null', async () => {
@@ -347,19 +366,17 @@ describe('GraphQLCoreClient.verifySignature errors', () => {
 });
 
 describe('verifySignature with malformed transaction bytes', () => {
-	const options = { transaction: new Uint8Array([1, 2, 3]), signature: 'AA==', address: '0x1' };
-
-	it('throws on both transports without asking the node', async () => {
+	it.each([
+		['undecodable bytes', new Uint8Array([1, 2, 3])],
+		['trailing bytes', new Uint8Array([...transaction, 0xff])],
+	])('throws for %s on both transports without asking the node', async (_, bytes) => {
+		const options = { transaction: bytes, signature: 'AA==', address: '0x1' };
 		const grpcVerify = vi.fn();
-		const grpcClient = {
-			signatureVerificationService: { verifySignature: grpcVerify },
-		} as unknown as SuiGrpcClient;
-		const grpc = new GrpcCoreClient({ client: grpcClient, base: grpcClient, network: 'localnet' });
 		const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
 		const query = vi.fn();
 		graphql.query = query as never;
 
-		for (const core of [grpc, graphql.core]) {
+		for (const core of [grpcCoreWith(grpcVerify), graphql.core]) {
 			await expect(core.verifySignature(options)).rejects.toThrow('Invalid transaction bytes');
 		}
 		expect(grpcVerify).not.toHaveBeenCalled();

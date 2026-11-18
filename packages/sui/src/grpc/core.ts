@@ -861,6 +861,10 @@ export class GrpcCoreClient extends CoreClient {
 		if (typeof response.isValid !== 'boolean') {
 			throw new Error('The node returned no signature verification verdict');
 		}
+		// Nodes without alias support ignore the request flag and check the exact address only.
+		if (checkAddressAliases && response.addressAliasesChecked !== true) {
+			throw new Error('The node does not support checking address aliases');
+		}
 		return response.isValid
 			? { valid: true }
 			: { valid: false, reason: response.reason ?? 'Signature is not valid' };

@@ -233,8 +233,9 @@ async function checkSignature(
 
 function isTransactionData(bytes: Uint8Array) {
 	try {
-		bcs.TransactionData.parse(bytes);
-		return true;
+		// Parsing ignores trailing bytes.
+		const serialized = bcs.TransactionData.serialize(bcs.TransactionData.parse(bytes));
+		return serialized.toBytes().length === bytes.length;
 	} catch {
 		return false;
 	}

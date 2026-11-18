@@ -6,10 +6,10 @@ Add `client.verifySignature`, which verifies a `personalMessage` or `transaction
 `address` on the node, accepting signatures from the address's current address aliases
 (`checkAddressAliases: false` for a strict check), and `client.getAddressAliases`. Both are on
 `SuiGrpcClient`, `SuiGraphQLClient` and `client.core`, and `CoreClient` has a new abstract
-`verifySignature` method. `verifySignature` requires `address` and throws for transaction bytes that
-are not `TransactionData`. `verifyZkLoginSignature` is deprecated in favor of `verifySignature`,
-now checks address aliases too, and throws for undecodable transaction bytes instead of returning
-`success: false`.
+`verifySignature` method. `verifySignature` requires `address`, throws for transaction bytes that
+are not exactly one `TransactionData`, and throws when the node can't check address aliases.
+`verifyZkLoginSignature` is deprecated in favor of `verifySignature`, now checks address aliases
+too, and throws for undecodable transaction bytes instead of returning `success: false`.
 
 The personal message and transaction helpers in `@mysten/sui/verify` take a `client` or
 `offline: true`; without either they verify offline and log a warning. With a client, the node
