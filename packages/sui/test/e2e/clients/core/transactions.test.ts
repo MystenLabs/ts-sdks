@@ -556,66 +556,31 @@ describe('Core API - Transactions', () => {
 			},
 		);
 
-		testWithAllClients(
-			'should report a real gas payment when gas is selected from address balance',
-			async (client) => {
-				const { address } = await toolbox.getSigner({ addressBalance: 200_000_000n });
-				const tx = new Transaction();
-				const [obj] = tx.moveCall({
-					target: `${packageId}::test_objects::create_simple_object`,
-					arguments: [tx.pure.u64(42)],
-				});
-				tx.transferObjects([obj], tx.pure.address(address));
-				tx.setSender(address);
-				tx.setGasPayment([]);
-				tx.setGasBudget(50_000_000n);
-				const bytes = await tx.build({ client });
-
-				const result = await client.core.simulateTransaction({
-					transaction: bytes,
-					include: { effects: true },
-				});
-				expect(result.$kind).toBe('Transaction');
-
-				expect(result.gasPaymentMocked).toBe(false);
-				expect(result.Transaction?.effects?.gasObject).toBeNull();
-			},
-		);
-
-		testWithAllClients(
-			'should simulate with a mocked gas payment when gas selection is disabled',
-			async (client) => {
-				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
-				const tx = new Transaction();
-				const [obj] = tx.moveCall({
-					target: `${packageId}::test_objects::create_simple_object`,
-					arguments: [tx.pure.u64(42)],
-				});
-				tx.transferObjects([obj], tx.pure.address(address));
-				tx.setSender(address);
-				tx.setGasPayment([]);
-				tx.setGasBudget(50_000_000n);
-				const bytes = await tx.build({ client });
-
-				const result = await client.core.simulateTransaction({
-					transaction: bytes,
-					include: { effects: true },
-					doGasSelection: false,
-				});
-				expect(result.$kind).toBe('Transaction');
-
-				expect(result.gasPaymentMocked).toBe(true);
-				expect(result.Transaction?.effects?.gasObject?.objectId).toBe(MOCKED_GAS_OBJECT_ID);
-			},
-		);
-
 		// A transaction that already pays gas from the sender's address balance as given (empty
 		// gas payment, replay protected, balance covers the budget) is simulated as it would
 		// execute, even with gas selection disabled.
-		testWithAllClients(
-			'should pay gas from address balance when gas selection is disabled and the balance covers the budget',
-			async (client) => {
-				const { address } = await toolbox.getSigner({ addressBalance: 200_000_000n });
+		for (const { name, funding, doGasSelection, mocked } of [
+			{
+				name: 'should report a real gas payment when gas is selected from address balance',
+				funding: { addressBalance: 200_000_000n },
+				doGasSelection: undefined,
+				mocked: false,
+			},
+			{
+				name: 'should simulate with a mocked gas payment when gas selection is disabled',
+				funding: { coins: [1_000_000_000n] },
+				doGasSelection: false,
+				mocked: true,
+			},
+			{
+				name: 'should pay gas from address balance when gas selection is disabled and the balance covers the budget',
+				funding: { addressBalance: 200_000_000n },
+				doGasSelection: false,
+				mocked: false,
+			},
+		]) {
+			testWithAllClients(name, async (client) => {
+				const { address } = await toolbox.getSigner(funding);
 				const tx = new Transaction();
 				const [obj] = tx.moveCall({
 					target: `${packageId}::test_objects::create_simple_object`,
@@ -630,14 +595,18 @@ describe('Core API - Transactions', () => {
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,
 					include: { effects: true },
-					doGasSelection: false,
+					doGasSelection,
 				});
 				expect(result.$kind).toBe('Transaction');
 
-				expect(result.gasPaymentMocked).toBe(false);
-				expect(result.Transaction?.effects?.gasObject).toBeNull();
-			},
-		);
+				expect(result.gasPaymentMocked).toBe(mocked);
+				if (mocked) {
+					expect(result.Transaction?.effects?.gasObject?.objectId).toBe(MOCKED_GAS_OBJECT_ID);
+				} else {
+					expect(result.Transaction?.effects?.gasObject).toBeNull();
+				}
+			});
+		}
 
 		testWithAllClients(
 			'should report a mocked gas payment for failed simulations',
