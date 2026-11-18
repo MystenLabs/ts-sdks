@@ -171,7 +171,7 @@ const sponsor = createSponsor({
 	signAndExecute: ({ transaction, userSignatures, include, signal }) =>
 		remoteService.sponsorAndExecute({ transaction, userSignatures, include, signal }),
 	client,
-	validate: [allowedFunctions(['0x…::game::play']), gasBudget({ max: 50_000_000n })],
+	validate: [myValidator],
 });
 
 const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
@@ -192,11 +192,12 @@ const client = suiClient.$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! 
 const sponsor = createSponsor({
 	...(await client.enoki.getSponsorOptions()),
 	client,
-	validate: [allowedFunctions(['0x…::game::play']), gasBudget({ max: 50_000_000n })],
+	validate: [myValidator],
 });
 ```
 
-Transactions Enoki declines come back as `Rejected`, alongside your validators' rejections.
+Enoki already enforces the app's allowlists and gas limits, so use validators for checks of your
+own. Transactions Enoki declines come back as `Rejected`, alongside your validators' rejections.
 
 ## Gas and unresolved transactions
 
