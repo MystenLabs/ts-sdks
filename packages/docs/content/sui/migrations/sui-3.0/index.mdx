@@ -113,10 +113,10 @@ changes: upgrade them together with `@mysten/sui`.
 - **Network errors changed.** `SuiGrpcClient` reports `UNAVAILABLE` instead of `INTERNAL`, and
   `SuiGraphQLClient` throws `SuiGraphQLRequestError`, with the original error as `cause`, for
   network failures and malformed or unreadable bodies.
-- **Raw `client.movePackageService.getPackage` requests need a `selector`.** Pass
-  `selector: { oneofKind: undefined }` for the package at `packageId`, or build the request with
-  `GrpcTypes.GetPackageRequest.create({ packageId })` (`GrpcTypes` is exported from
-  `@mysten/sui/grpc`). Without it the request throws a `TypeError`.
+- **The raw gRPC `GetPackageRequest` type has a required `selector`.** Existing
+  `client.movePackageService.getPackage({ packageId })` calls still work. To satisfy the type, build
+  the request with `GrpcTypes.GetPackageRequest.create({ packageId })` (from `@mysten/sui/grpc`) or
+  pass `selector: { oneofKind: undefined }`.
 
 ### Signature verification
 
@@ -222,8 +222,6 @@ they affect your code. These show up most often:
 - **Packages that call `verifyPersonalMessageSignature`, `verifyTransactionSignature` or their
   `isValid…` forms without a `client` verify offline, as in 2.x, and log a warning.** Signatures
   from address aliases are rejected.
-- **Packages that call the raw gRPC `getPackage` without a `selector` throw.** This also happens
-  without an override, when a package with its own 2.x copy makes the call on a client you pass it.
 
 Test the flows that use each dependency, and remove the override once every dependency supports 3.0.
 
