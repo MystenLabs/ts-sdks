@@ -218,7 +218,7 @@ describe('mapping', () => {
 		);
 	});
 
-	it("reads a page's nested event pages concurrently", async () => {
+	it("reads a page's nested event pages one transaction at a time", async () => {
 		const events = Array.from({ length: 50 }, (_, i) => event(1, i).node);
 		const edges = ['a', 'b'].map((digest) =>
 			transaction(1, { digest, node: { effects: { events: { nodes: events } } } }),
@@ -246,7 +246,8 @@ describe('mapping', () => {
 				include: { events: true },
 			}),
 		);
-		expect(maxInFlight).toBe(2);
+		expect(maxInFlight).toBe(1);
+		expect(server.sent('getTransactionEvents')).toHaveLength(2);
 	});
 
 	it('maps genesis with transaction details', async () => {

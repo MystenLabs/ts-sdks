@@ -238,9 +238,11 @@ function checkpointsWithTransactionsFamily(
 			}
 			endCursor = page.pageInfo.endCursor;
 		}
-		const completed = await Promise.all(
-			nodes.map((transaction) => completePages(client, transaction, signal)),
-		);
+		// One at a time: each transaction may read nested pages of its own.
+		const completed = [];
+		for (const transaction of nodes) {
+			completed.push(await completePages(client, transaction, signal));
+		}
 		return { ...node, transactions: { ...first, nodes: completed } };
 	}
 
@@ -376,12 +378,11 @@ function transactionsFamily(
 				}),
 				(data) => data.transactions,
 			);
-			const edges = await Promise.all(
-				page.edges.map(async (edge) => ({
-					...edge,
-					node: await completePages(client, edge.node, signal),
-				})),
-			);
+			// One at a time: each transaction may read nested pages of its own.
+			const edges = [];
+			for (const edge of page.edges) {
+				edges.push({ ...edge, node: await completePages(client, edge.node, signal) });
+			}
 			return { ...page, edges };
 		},
 		subscribe: (signal, { after, start }, onOpen) =>
