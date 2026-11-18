@@ -199,6 +199,20 @@ const sponsor = createSponsor({
 Enoki already enforces the app's allowlists and gas limits, so use validators for checks of your
 own. Transactions Enoki declines come back as `Rejected`, alongside your validators' rejections.
 
+To add to the app's allowlists for one request, such as allowing the signed-in user's address, pass
+them to `getSponsorOptions` and create the sponsor for that request. Creating a sponsor is cheap,
+and the sponsor address is cached:
+
+```ts
+const sponsor = createSponsor({
+	...(await client.enoki.getSponsorOptions({ allowedAddresses: [userAddress] })),
+	client,
+	validate: [myValidator],
+});
+```
+
+The Enoki API key needs the matching request allowlist options enabled.
+
 ## Gas and unresolved transactions
 
 When the client builds, the user already built and signed final bytes, so they must be resolved. The
