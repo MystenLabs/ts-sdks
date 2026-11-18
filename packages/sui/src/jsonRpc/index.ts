@@ -14,6 +14,11 @@ function unsupported(): never {
 
 /** @deprecated JSON-RPC is no longer supported by @mysten/sui. Use SuiGrpcClient or SuiGraphQLClient instead. */
 export class SuiJsonRpcClient {
+	// Lets published declarations that read 2.x members (`SuiJsonRpcClient['getObject']`) still compile.
+	[key: string]: any;
+	// Keeps the class nominal so `isSuiJsonRpcClient` doesn't narrow other clients to `never`.
+	declare protected readonly __jsonRpcRemoved: never;
+
 	constructor(..._args: unknown[]) {
 		unsupported();
 	}
@@ -35,10 +40,16 @@ export class SuiHTTPTransportError extends Error {
 }
 
 /** @deprecated JSON-RPC is no longer supported by @mysten/sui. Use SuiGrpcClient or SuiGraphQLClient instead. */
-export class JsonRpcError extends SuiHTTPTransportError {}
+export class JsonRpcError extends SuiHTTPTransportError {
+	declare code: number;
+	declare type: string;
+}
 
 /** @deprecated JSON-RPC is no longer supported by @mysten/sui. Use SuiGrpcClient or SuiGraphQLClient instead. */
-export class SuiHTTPStatusError extends SuiHTTPTransportError {}
+export class SuiHTTPStatusError extends SuiHTTPTransportError {
+	declare status: number;
+	declare statusText: string;
+}
 
 /** @deprecated JSON-RPC is no longer supported by @mysten/sui. Use SuiGrpcClient or SuiGraphQLClient instead. */
 export function getJsonRpcFullnodeUrl(..._args: unknown[]): never {
