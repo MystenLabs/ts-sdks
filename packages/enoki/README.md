@@ -72,6 +72,7 @@ To sign another way, such as with a wallet, or to check the transaction first, p
 the signed bytes:
 
 ```ts
+transaction.setSenderIfNotSet(signer.toSuiAddress());
 await client.enoki.prepareSponsoredTransaction({ transaction });
 const bytes = await transaction.build({ client });
 const { signature } = await signer.signTransaction(bytes);

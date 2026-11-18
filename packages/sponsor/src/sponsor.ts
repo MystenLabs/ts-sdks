@@ -406,6 +406,9 @@ export class Sponsor<TOptions extends object = object> {
 	>(
 		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
 	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
+		if (toSignatureArray(options.userSignature).length === 0) {
+			throw new Error('signAndExecuteTransaction requires the user signature.');
+		}
 		const signed = await this.#check(options as SignOptions & ValidationOptionsArg<TOptions>);
 		if (signed.$kind === 'Rejected') return signed;
 		const { bytes, userSignatures } = signed;

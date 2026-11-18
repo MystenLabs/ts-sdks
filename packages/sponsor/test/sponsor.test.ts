@@ -530,6 +530,9 @@ describe('createSponsor with a remote signer', () => {
 		expect(result.$kind).toBe('Transaction');
 		expect(calls[0]).toMatchObject({ transaction, additionalSignatures: [userSignature] });
 		await expect(sponsor.signTransaction({ transaction, userSignature })).rejects.toThrow();
+		await expect(
+			sponsor.signAndExecuteTransaction({ transaction, userSignature: [] }),
+		).rejects.toThrow();
 	});
 
 	it('does not call the remote signer when a validator rejects', async () => {
