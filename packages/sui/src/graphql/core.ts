@@ -15,6 +15,7 @@ import type {
 	GetTransactionObjectChangesQueryVariables,
 	Event_FieldsFragment,
 	Object_Owner_FieldsFragment,
+	Transaction_EventFragment,
 	Transaction_FieldsFragment,
 } from './generated/queries.js';
 
@@ -709,12 +710,16 @@ export class GraphQLCoreClient extends CoreClient {
 		const nodes = transactions.edges.map((edge) => edge.node);
 		if (descending) nodes.reverse();
 
+		// One transaction at a time, so a page can't start dozens of nested reads at once
+		const completed = [];
+		for (const transaction of nodes) {
+			completed.push(
+				parseTransaction(await this.#withAllPages(transaction, options.signal), options.include),
+			);
+		}
+
 		return {
-			transactions: await Promise.all(
-				nodes.map(async (transaction) =>
-					parseTransaction(await this.#withAllPages(transaction, options.signal), options.include),
-				),
-			),
+			transactions: completed,
 			...listPageCursors(transactions, descending),
 		};
 	}
@@ -1096,11 +1101,11 @@ export function parseGraphQLCheckpoint(
 	};
 }
 
-/** The event fields shared by `EVENT_FIELDS` and the events nested in `TRANSACTION_FIELDS`. */
-type GraphQLEventFields = Pick<Event_FieldsFragment, 'transactionModule' | 'sender' | 'contents'>;
-
 /** `source` names the response in the error thrown when required fields are missing. */
-function parseGraphQLEventFields(event: GraphQLEventFields, source: string): SuiClientTypes.Event {
+function parseGraphQLEventFields(
+	event: Transaction_EventFragment,
+	source: string,
+): SuiClientTypes.Event {
 	const packageId = event.transactionModule?.package?.address;
 	const module = event.transactionModule?.name;
 	const eventType = event.contents?.type?.repr;

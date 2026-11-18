@@ -28,20 +28,5 @@ fragment EVENT_FIELDS on Event {
 			}
 		}
 	}
-	transactionModule {
-		package {
-			address
-		}
-		name
-	}
-	sender {
-		address
-	}
-	contents {
-		type {
-			repr
-		}
-		bcs
-		json
-	}
+	...TRANSACTION_EVENT
 }

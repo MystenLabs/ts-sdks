@@ -521,17 +521,8 @@ export const Checkpoint_FieldsFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"CHECKPOINT_FIELDS"}) as unknown as TypedDocumentString<Checkpoint_FieldsFragment, unknown>;
-export const Event_FieldsFragmentDoc = new TypedDocumentString(`
-    fragment EVENT_FIELDS on Event {
-  sequenceNumber
-  transaction {
-    digest
-    effects {
-      checkpoint {
-        sequenceNumber
-      }
-    }
-  }
+export const Transaction_EventFragmentDoc = new TypedDocumentString(`
+    fragment TRANSACTION_EVENT on Event {
   transactionModule {
     package {
       address
@@ -549,7 +540,38 @@ export const Event_FieldsFragmentDoc = new TypedDocumentString(`
     json
   }
 }
-    `, {"fragmentName":"EVENT_FIELDS"}) as unknown as TypedDocumentString<Event_FieldsFragment, unknown>;
+    `, {"fragmentName":"TRANSACTION_EVENT"}) as unknown as TypedDocumentString<Transaction_EventFragment, unknown>;
+export const Event_FieldsFragmentDoc = new TypedDocumentString(`
+    fragment EVENT_FIELDS on Event {
+  sequenceNumber
+  transaction {
+    digest
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+  ...TRANSACTION_EVENT
+}
+    fragment TRANSACTION_EVENT on Event {
+  transactionModule {
+    package {
+      address
+    }
+    name
+  }
+  sender {
+    address
+  }
+  contents {
+    type {
+      repr
+    }
+    bcs
+    json
+  }
+}`, {"fragmentName":"EVENT_FIELDS"}) as unknown as TypedDocumentString<Event_FieldsFragment, unknown>;
 export const Object_Owner_FieldsFragmentDoc = new TypedDocumentString(`
     fragment OBJECT_OWNER_FIELDS on Owner {
   __typename
@@ -685,26 +707,6 @@ export const Transaction_Object_ChangeFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"TRANSACTION_OBJECT_CHANGE"}) as unknown as TypedDocumentString<Transaction_Object_ChangeFragment, unknown>;
-export const Transaction_EventFragmentDoc = new TypedDocumentString(`
-    fragment TRANSACTION_EVENT on Event {
-  transactionModule {
-    package {
-      address
-    }
-    name
-  }
-  sender {
-    address
-  }
-  contents {
-    type {
-      repr
-    }
-    bcs
-    json
-  }
-}
-    `, {"fragmentName":"TRANSACTION_EVENT"}) as unknown as TypedDocumentString<Transaction_EventFragment, unknown>;
 export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
     fragment TRANSACTION_FIELDS on Transaction {
   digest
@@ -1049,6 +1051,9 @@ export const ListEventsDocument = new TypedDocumentString(`
       }
     }
   }
+  ...TRANSACTION_EVENT
+}
+fragment TRANSACTION_EVENT on Event {
   transactionModule {
     package {
       address
