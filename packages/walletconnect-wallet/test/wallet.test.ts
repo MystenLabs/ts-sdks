@@ -370,6 +370,26 @@ describe('WalletConnectWallet transaction signing', () => {
 		expect(result).toEqual({ bytes: 'signed-bytes', signature: 'sig' });
 	});
 
+	it('passes the client to toJSON so transaction intents can be resolved', async () => {
+		const connector = makeConnector({
+			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+		});
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const client = {} as ClientWithCoreApi;
+		const wallet = createSigningWallet(client);
+		await wallet.init();
+		const tx = makeTransaction();
+		const toJSON = vi.fn((options?: { client?: ClientWithCoreApi }) => tx.toJSON(options));
+
+		await wallet.features['sui:signTransaction'].signTransaction({
+			transaction: { toJSON },
+			account,
+			chain: 'sui:testnet',
+		});
+
+		expect(toJSON).toHaveBeenCalledWith({ client });
+	});
+
 	it('sends base64 BCS bytes for sui_signAndExecuteTransaction', async () => {
 		const connector = makeConnector({ requestResult: { digest: 'tx-digest' } });
 		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
