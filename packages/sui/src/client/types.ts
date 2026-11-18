@@ -636,15 +636,8 @@ export namespace SuiClientTypes {
 		endCheckpoint?: CheckpointNumber;
 	}
 
-	export interface ListTransactionsOptions<
-		Include extends TransactionInclude = {},
-	> extends LedgerQueryOptions {
-		filter?: TransactionFilter;
-		include?: Include & TransactionInclude;
-	}
-
-	export interface ListTransactionsResponse<out Include extends TransactionInclude = {}> {
-		transactions: TransactionResult<Include>[];
+	/** Pagination fields shared by `listTransactions`, `listEvents` and `listCheckpoints`. */
+	export interface LedgerQueryResponse {
 		/**
 		 * Whether more items may be available after this page.
 		 *
@@ -667,6 +660,19 @@ export namespace SuiClientTypes {
 		 * keep the fixed bound and replace the moving one with `endCursor`.
 		 */
 		endCursor: string | null;
+	}
+
+	export interface ListTransactionsOptions<
+		Include extends TransactionInclude = {},
+	> extends LedgerQueryOptions {
+		filter?: TransactionFilter;
+		include?: Include & TransactionInclude;
+	}
+
+	export interface ListTransactionsResponse<
+		out Include extends TransactionInclude = {},
+	> extends LedgerQueryResponse {
+		transactions: TransactionResult<Include>[];
 	}
 
 	export interface ListEventsOptions extends LedgerQueryOptions {
@@ -683,30 +689,8 @@ export namespace SuiClientTypes {
 		eventIndex: number;
 	}
 
-	export interface ListEventsResponse {
+	export interface ListEventsResponse extends LedgerQueryResponse {
 		events: EventEntry[];
-		/**
-		 * Whether more items may be available after this page.
-		 *
-		 * Servers can bound how much of the ledger a single request scans, on gRPC and GraphQL
-		 * alike, so a query can return fewer items than `limit` (even none) with
-		 * `hasNextPage: true`; continuing from `endCursor` always makes progress through the
-		 * scanned range.
-		 */
-		hasNextPage: boolean;
-		/**
-		 * Cursor at the first returned item. After a descending read of the most recent
-		 * items, pass as `after` to poll for items added since.
-		 */
-		startCursor: string | null;
-		/**
-		 * Position to continue from: the last returned item on a final page, otherwise the
-		 * server's scan position, which can be past the last item or set on an empty page.
-		 * Continue the query by passing it as `after` (ascending) or `before` (descending).
-		 * When paging a window (`after` + `before`),
-		 * keep the fixed bound and replace the moving one with `endCursor`.
-		 */
-		endCursor: string | null;
 	}
 
 	export interface ListCheckpointsOptions extends LedgerQueryOptions {}
@@ -723,30 +707,8 @@ export namespace SuiClientTypes {
 		timestampMs: number;
 	}
 
-	export interface ListCheckpointsResponse {
+	export interface ListCheckpointsResponse extends LedgerQueryResponse {
 		checkpoints: Checkpoint[];
-		/**
-		 * Whether more items may be available after this page.
-		 *
-		 * Servers can bound how much of the ledger a single request scans, on gRPC and GraphQL
-		 * alike, so a query can return fewer items than `limit` (even none) with
-		 * `hasNextPage: true`; continuing from `endCursor` always makes progress through the
-		 * scanned range.
-		 */
-		hasNextPage: boolean;
-		/**
-		 * Cursor at the first returned item. After a descending read of the most recent
-		 * items, pass as `after` to poll for items added since.
-		 */
-		startCursor: string | null;
-		/**
-		 * Position to continue from: the last returned item on a final page, otherwise the
-		 * server's scan position, which can be past the last item or set on an empty page.
-		 * Continue the query by passing it as `after` (ascending) or `before` (descending).
-		 * When paging a window (`after` + `before`),
-		 * keep the fixed bound and replace the moving one with `endCursor`.
-		 */
-		endCursor: string | null;
 	}
 
 	export interface GetReferenceGasPriceOptions extends CoreClientMethodOptions {}
