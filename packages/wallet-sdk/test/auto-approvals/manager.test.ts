@@ -622,8 +622,6 @@ describe('AutoApprovalManager', () => {
 			const flows = outflows.map(({ coinType, amount }) => ({ coinType, amount: -amount }));
 			return {
 				status: 'success',
-				issues: [],
-				ownIssues: [],
 				result: autoApprovalAnalysis({
 					senderAddresses: [sender],
 					senderBalanceFlows: flows,
@@ -716,8 +714,6 @@ describe('AutoApprovalManager', () => {
 
 		const result = manager.checkTransaction({
 			status: 'success',
-			issues: [],
-			ownIssues: [],
 			result: autoApprovalAnalysis({
 				ownedObjects: [
 					{
@@ -737,8 +733,6 @@ describe('AutoApprovalManager', () => {
 		const manager = managerWithBalanceSettings();
 		const analysis: AutoApprovalResult = {
 			status: 'success',
-			issues: [],
-			ownIssues: [],
 			result: autoApprovalAnalysis(),
 		};
 
