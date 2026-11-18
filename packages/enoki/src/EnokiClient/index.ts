@@ -31,6 +31,7 @@ import type {
 } from './type.js';
 
 const DEFAULT_API_URL = 'https://api.enoki.mystenlabs.com';
+const SPONSOR_ADDRESS_TTL_MS = 60_000;
 const ZKLOGIN_HEADER = 'zklogin-jwt';
 
 export interface EnokiClientConfig {
@@ -94,7 +95,10 @@ export class EnokiClient {
 	#apiUrl: string;
 	#apiKey: string;
 	#additionalEpochs: number | undefined;
-	#sponsorAddresses = new Map<EnokiDomainNetwork, Promise<string>>();
+	#sponsorAddresses = new Map<
+		EnokiDomainNetwork,
+		{ address: Promise<string>; expiresAt: number }
+	>();
 
 	constructor(config: EnokiClientConfig) {
 		this.#version = 'v1';
@@ -215,27 +219,30 @@ export class EnokiClient {
 	}
 
 	/**
-	 * Enoki's sponsor address on a network. Works with a public API key. Cached until this
-	 * client sees a stale-transaction error.
+	 * Enoki's sponsor address on a network. Works with a public API key. Cached for a minute, or
+	 * until this client sees a stale-transaction error, so a rotated address is picked up even by
+	 * clients that never see that error, such as a browser.
 	 */
 	getSponsorAddress({ network }: { network: EnokiDomainNetwork }): Promise<string> {
-		let address = this.#sponsorAddresses.get(network);
-		if (!address) {
-			const promise = this.getApp().then(({ sponsorAddresses }) => {
-				const sponsorAddress = sponsorAddresses?.[network];
-				if (!sponsorAddress) {
-					throw new Error(`Enoki does not sponsor transactions on ${network}`);
-				}
-				return normalizeSuiAddress(sponsorAddress);
-			});
-			promise.catch(() => {
-				if (this.#sponsorAddresses.get(network) === promise) {
-					this.#sponsorAddresses.delete(network);
-				}
-			});
-			this.#sponsorAddresses.set(network, promise);
-			address = promise;
+		const cached = this.#sponsorAddresses.get(network);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.address;
 		}
+
+		const address = this.getApp().then(({ sponsorAddresses }) => {
+			const sponsorAddress = sponsorAddresses?.[network];
+			if (!sponsorAddress) {
+				throw new Error(`Enoki does not sponsor transactions on ${network}`);
+			}
+			return normalizeSuiAddress(sponsorAddress);
+		});
+		const entry = { address, expiresAt: Date.now() + SPONSOR_ADDRESS_TTL_MS };
+		address.catch(() => {
+			if (this.#sponsorAddresses.get(network) === entry) {
+				this.#sponsorAddresses.delete(network);
+			}
+		});
+		this.#sponsorAddresses.set(network, entry);
 		return address;
 	}
 

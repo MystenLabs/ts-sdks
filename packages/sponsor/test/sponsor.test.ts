@@ -627,10 +627,20 @@ describe('createSponsor with a remote signAndExecute', () => {
 		).rejects.toThrow('can only signAndExecuteTransaction');
 	});
 
-	it('requires a signer, or an address and signAndExecute', () => {
+	it('requires a signer, or an address and signAndExecute, but not both', () => {
 		expect(() => createSponsor({ client: offlineClient, ...offline })).toThrow(
 			'needs a signer, or an address and signAndExecute',
 		);
+		const { signAndExecute } = remote();
+		expect(() =>
+			createSponsor({
+				signer: new Ed25519Keypair(),
+				address: sponsorAddress,
+				signAndExecute,
+				client: offlineClient,
+				...offline,
+			}),
+		).toThrow('but not both');
 	});
 });
 

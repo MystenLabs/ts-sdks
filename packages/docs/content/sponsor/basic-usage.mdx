@@ -171,37 +171,43 @@ const sponsor = createSponsor({
 	signAndExecute: ({ transaction, userSignatures, include, signal }) =>
 		remoteService.sponsorAndExecute({ transaction, userSignatures, include, signal }),
 	client,
-	validate: [myValidator],
+	validate: [defaults(), myValidator],
 });
 
 const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
 ```
 
-`signAndExecute` receives the validated bytes, the user signatures, and an `include` that always
-asks for `effects`. It can return a `Rejected` result if the remote service declines the
-transaction. A remote sponsor can't sign without executing, so it has no `signTransaction`.
+Keep `defaults()` unless you know the remote service runs the same checks: any `validate` list
+replaces it. `signAndExecute` receives the validated bytes, the user signatures, and an `include`
+that always asks for `effects`. It can return a `Rejected` result if the remote service declines the
+transaction. A remote sponsor can't sign without executing, so its `signTransaction` throws.
 
-For [Enoki](https://docs.enoki.mystenlabs.com), the `enoki()` client extension from `@mysten/enoki`
-provides both options:
+### Enoki
+
+For [Enoki](https://docs.enoki.mystenlabs.com), `getSponsorOptions` from the `enoki()` client
+extension in `@mysten/enoki` provides both options. Create the sponsor for each request: that picks
+up request allowlists and a rotated sponsor address, and it's cheap because the address is cached.
 
 ```ts
 import { enoki } from '@mysten/enoki';
 
 const client = suiClient.$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! }));
 
+// per request
 const sponsor = createSponsor({
 	...(await client.enoki.getSponsorOptions()),
 	client,
 	validate: [myValidator],
 });
+const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
 ```
 
-Enoki already enforces the app's allowlists and gas limits, so use validators for checks of your
-own. Transactions Enoki declines come back as `Rejected`, alongside your validators' rejections.
+Enoki runs `defaults()` itself, along with a gas budget limit, a check of the sender's signature and
+the app's allowlists, so validators here are for checks of your own. Transactions Enoki declines
+come back as `Rejected`, alongside your validators' rejections.
 
 To add to the app's allowlists for one request, such as allowing the signed-in user's address, pass
-them to `getSponsorOptions` and create the sponsor for that request. Creating a sponsor is cheap,
-and the sponsor address is cached:
+them to `getSponsorOptions`. The Enoki API key needs the matching request allowlist options enabled.
 
 ```ts
 const sponsor = createSponsor({
@@ -210,8 +216,6 @@ const sponsor = createSponsor({
 	validate: [myValidator],
 });
 ```
-
-The Enoki API key needs the matching request allowlist options enabled.
 
 ## Gas and unresolved transactions
 

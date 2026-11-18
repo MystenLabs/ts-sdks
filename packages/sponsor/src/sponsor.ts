@@ -146,9 +146,13 @@ export interface CreateSponsorOptions<T extends readonly ValidateItem[] = readon
 
 /** See {@link CreateSponsorOptions.signAndExecute}. `include` always has `effects` set. */
 export type SignAndExecute = (
-	options: Omit<SuiClientTypes.ExecuteTransactionOptions, 'transaction' | 'signatures'> & {
+	options: Omit<
+		SuiClientTypes.ExecuteTransactionOptions,
+		'transaction' | 'signatures' | 'include'
+	> & {
 		transaction: Uint8Array;
 		userSignatures: string[];
+		include: SuiClientTypes.TransactionInclude & { effects: true };
 	},
 ) => Promise<SponsorRejection | SuiClientTypes.TransactionResult<{ effects: true }>>;
 
@@ -244,8 +248,14 @@ export function createSponsor<const T extends readonly ValidateItem[] = []>(
 	// No explicit validators → run the recommended baseline.
 	const validators = provided.length > 0 ? provided : defaults();
 
-	if (!options.signer && !(options.address && options.signAndExecute)) {
-		throw new Error('createSponsor needs a signer, or an address and signAndExecute.');
+	if (
+		options.signer
+			? options.address !== undefined || options.signAndExecute !== undefined
+			: !(options.address && options.signAndExecute)
+	) {
+		throw new Error(
+			'createSponsor needs a signer, or an address and signAndExecute, but not both.',
+		);
 	}
 
 	return new Sponsor<SponsorOptions<T>>({

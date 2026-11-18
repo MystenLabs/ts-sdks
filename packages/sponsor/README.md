@@ -479,6 +479,26 @@ createSponsor({
 This is mitigation, not prevention. `beforeSimulate` runs once before the analysis resolves (where
 simulation, if any, happens). Default is off.
 
+### Remote sponsors
+
+If another service holds the sponsor's key and co-signs and executes in one step (for example
+Enoki), pass its `address` and a `signAndExecute` function instead of a `signer`:
+
+```ts
+const sponsor = createSponsor({
+	address: sponsorAddress,
+	signAndExecute: ({ transaction, userSignatures, include, signal }) =>
+		remoteService.sponsorAndExecute({ transaction, userSignatures, include, signal }),
+	client,
+	validate: [defaults(), myValidator],
+});
+```
+
+Validators run first, and `signAndExecuteTransaction` returns the same results; `signAndExecute` may
+also return a `Rejected` result. Such a sponsor can't sign without executing, so its
+`signTransaction` throws. For Enoki, `client.enoki.getSponsorOptions()` from `@mysten/enoki`
+provides both options.
+
 ### Validation without a local signer
 
 Remote gas pools can use the same policy engine through `validationPolicy`:

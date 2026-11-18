@@ -80,18 +80,24 @@ await client.enoki.sponsorAndExecuteTransaction({ transaction: bytes, signature 
 ```
 
 If `isStaleTransactionError(error)` is true, the sponsor address or reference gas price changed
-since the transaction was built. Build a new transaction, sign it and try again.
+since the transaction was built. Create a new `Transaction`, sign it and try again; one that was
+already built keeps its gas owner and gas price.
 
 In a browser, prepare the transaction with an `EnokiClient` that uses your public API key, have the
 wallet sign it, and send the bytes and signature to your backend:
 
 ```ts
+import { EnokiClient } from '@mysten/enoki';
+
 const enoki = new EnokiClient({ apiKey: 'your-public-api-key' });
 
 await enoki.prepareSponsoredTransaction({ transaction, network: 'mainnet' });
 const { bytes, signature } = await dAppKit.signTransaction({ transaction });
 // POST { bytes, signature } to your backend, which calls client.enoki.sponsorAndExecuteTransaction
 ```
+
+The sponsor address is cached for up to a minute, so after Enoki rotates it a retry may fail until
+the cache refreshes.
 
 ### Low-level client usage
 

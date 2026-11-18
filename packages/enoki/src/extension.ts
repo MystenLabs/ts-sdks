@@ -193,8 +193,8 @@ export class EnokiClientExtension {
 	 * ```
 	 *
 	 * Transactions Enoki declines (`invalid_transaction`) are returned as `Rejected`. Other Enoki
-	 * errors are thrown. The sponsor address is read once; if `isStaleTransactionError(error)`,
-	 * create the sponsor again.
+	 * errors are thrown. The sponsor address is read when this is called, so create the sponsor per
+	 * request: that also picks up request allowlists and a rotated sponsor address.
 	 */
 	async getSponsorOptions({
 		allowedAddresses,
