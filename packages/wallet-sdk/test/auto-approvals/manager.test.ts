@@ -585,4 +585,95 @@ describe('AutoApprovalManager', () => {
 		// new manager should have deducted from remaining transactions
 		expect(settings?.remainingTransactions).toEqual(9);
 	});
+
+	describe('owned object access levels', () => {
+		const NFT_TYPE = '0xabc::nft::NFT';
+		const NFT_ID = normalizeSuiAddress('0xa11');
+		const levels = ['read', 'mutate', 'transfer'] as const;
+		type Level = (typeof levels)[number];
+
+		function managerWithObjectPermission(granted: Level) {
+			const manager = new AutoApprovalManager({
+				policy: JSON.stringify({
+					schemaVersion: '1.0.0',
+					operations: [
+						{
+							id: 'test-operation',
+							description: 'Test operation',
+							permissions: {
+								ownedObjects: [
+									{
+										$kind: 'ObjectType',
+										description: 'NFTs',
+										objectType: NFT_TYPE,
+										accessLevel: granted,
+									},
+								],
+							},
+						},
+					],
+					suggestedSettings: {},
+				} satisfies AutoApprovalPolicy),
+				state: null,
+			});
+			manager.updateSettings({
+				approvedOperations: ['test-operation'],
+				expiration: Date.now() + 1000 * 60 * 60,
+				remainingTransactions: 1,
+				sharedBudget: null,
+				coinBudgets: {},
+			});
+			return manager;
+		}
+
+		function analysisUsingObject(needed: Level | undefined): AutoApprovalResult {
+			return {
+				status: 'success',
+				result: autoApprovalAnalysis({
+					ownedObjects: [
+						{
+							objectId: NFT_ID,
+							type: NFT_TYPE,
+						} as unknown as AutoApprovalAnalysis['ownedObjects'][number],
+					],
+					accessLevel: needed ? { [NFT_ID]: needed } : {},
+				}),
+			};
+		}
+
+		for (const granted of levels) {
+			for (const needed of levels) {
+				const allowed = levels.indexOf(granted) >= levels.indexOf(needed);
+
+				test(`${granted} permission ${allowed ? 'allows' : 'rejects'} ${needed} access`, () => {
+					const result = managerWithObjectPermission(granted).checkTransaction(
+						analysisUsingObject(needed),
+					);
+
+					expect(result.matchesPolicy).toBe(allowed);
+					expect(result.canAutoApprove).toBe(allowed);
+					expect(result.policyIssues).toEqual(
+						allowed
+							? []
+							: [
+									{
+										message: `Insufficient access level for object ${NFT_ID}: required ${needed}, got ${granted}`,
+									},
+								],
+					);
+				});
+			}
+		}
+
+		test('rejects objects whose access level could not be determined', () => {
+			const result = managerWithObjectPermission('transfer').checkTransaction(
+				analysisUsingObject(undefined),
+			);
+
+			expect(result.canAutoApprove).toBe(false);
+			expect(result.policyIssues).toEqual([
+				{ message: `Access level could not be determined for object ${NFT_ID}` },
+			]);
+		});
+	});
 });
