@@ -119,7 +119,8 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   are unchanged.
 - **Multisig BCS fields are camelCase.** `bcs.MultiSig`, `MultiSigStruct` and the `multisig`
   returned by `parseSerializedSignature` use `multisigPk` instead of `multisig_pk`, and
-  `bcs.MultiSigPublicKey` uses `pkMap` instead of `pk_map`.
+  `bcs.MultiSigPublicKey` uses `pkMap` instead of `pk_map`. The old names still work on
+  `parseSerializedSignature` results but are deprecated.
 - **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.** Add it to the
   `readMask` paths of requests whose results you parse.
 

@@ -52,6 +52,18 @@ export type MultiSigStruct = {
 	multisigPk: MultiSigPublicKeyStruct;
 };
 
+/** A `MultiSigStruct` returned by `parseSerializedSignature`, with the pre-3.0 field names. */
+export type ParsedMultiSigStruct = MultiSigStruct & {
+	multisigPk: ParsedMultiSigPublicKeyStruct;
+	/** @deprecated Use `multisigPk` */
+	multisig_pk: ParsedMultiSigPublicKeyStruct;
+};
+
+type ParsedMultiSigPublicKeyStruct = MultiSigPublicKeyStruct & {
+	/** @deprecated Use `pkMap` */
+	pk_map: PubkeyEnumWeightPair[];
+};
+
 type ParsedPartialMultiSigSignature = {
 	signatureScheme: SignatureScheme;
 	signature: Uint8Array;

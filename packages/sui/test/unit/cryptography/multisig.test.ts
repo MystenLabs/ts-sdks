@@ -101,6 +101,35 @@ describe('Multisig scenarios', () => {
 		expect(await publicKey2.verifyTransaction(bytes, multisig)).toEqual(true);
 	});
 
+	it('keeps deprecated multisig_pk and pk_map aliases on parsed signatures', async () => {
+		const k1 = new Ed25519Keypair();
+		const k2 = new Secp256k1Keypair();
+		const publicKey = MultiSigPublicKey.fromPublicKeys({
+			threshold: 1,
+			publicKeys: [
+				{ publicKey: k1.getPublicKey(), weight: 1 },
+				{ publicKey: k2.getPublicKey(), weight: 1 },
+			],
+		});
+		const { signature } = await k1.signPersonalMessage(new TextEncoder().encode('hello'));
+		const serialized = publicKey.combinePartialSignatures([signature]);
+
+		const parsed = parseSerializedSignature(serialized);
+		if (parsed.signatureScheme !== 'MultiSig') {
+			throw new Error('Expected signature scheme to be MultiSig');
+		}
+		const { multisig } = parsed;
+
+		expect(multisig.multisig_pk).toEqual(multisig.multisigPk);
+		expect(multisig.multisig_pk.pk_map).toEqual(multisig.multisigPk.pkMap);
+		expect(new MultiSigPublicKey(multisig.multisig_pk).toSuiAddress()).toEqual(
+			publicKey.toSuiAddress(),
+		);
+		expect(toBase64(bcs.MultiSig.serialize(multisig).toBytes())).toEqual(
+			toBase64(parsed.bytes.slice(1)),
+		);
+	});
+
 	it('providing false number of signatures to combining via different methods', async () => {
 		const k1 = new Ed25519Keypair();
 		const pk1 = k1.getPublicKey();

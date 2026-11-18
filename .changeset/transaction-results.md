@@ -41,4 +41,4 @@ Transaction results changed shape and match across transports:
   `congested_objects` to `congestedObjects`. The encoded bytes are unchanged.
 - `bcs.MultiSig` and `bcs.MultiSigPublicKey` fields are camelCase: `multisig_pk` is `multisigPk`
   and `pk_map` is `pkMap`, including in `MultiSigStruct` and the `multisig` returned by
-  `parseSerializedSignature`.
+  `parseSerializedSignature`, which keeps the old names as deprecated aliases.
