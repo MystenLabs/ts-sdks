@@ -4,7 +4,7 @@
 export { createSponsor, Sponsor, validationPolicy } from './sponsor.js';
 export type {
 	CreateSponsorOptions,
-	SignAndExecute,
+	RemoteSigner,
 	SponsorOptions,
 	SponsorProvidedOptions,
 	ValidationOptionsArg,

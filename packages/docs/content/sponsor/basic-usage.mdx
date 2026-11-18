@@ -162,31 +162,34 @@ For a complete Hono server using this shape, see the
 ## Use a remote sponsor
 
 The sponsor's key doesn't have to live in your service. If another service holds it and co-signs and
-executes in one step, pass its `address` and a `signAndExecute` function instead of a `signer`. Your
+executes in one step, pass a `signer` with `toSuiAddress` and `signAndExecuteTransaction`. Your
 validators still run first, and `signAndExecuteTransaction` returns the same results:
 
 ```ts
 const sponsor = createSponsor({
-	address: sponsorAddress,
-	signAndExecute: ({ transaction, userSignatures, include, signal }) =>
-		remoteService.sponsorAndExecute({ transaction, userSignatures, include, signal }),
+	signer: {
+		toSuiAddress: () => sponsorAddress,
+		signAndExecuteTransaction: ({ transaction, additionalSignatures, signal }) =>
+			remoteService.sponsorAndExecute({
+				transaction,
+				userSignatures: additionalSignatures,
+				signal,
+			}),
+	},
 	client,
 	validate: [defaults(), myValidator],
 });
-
-const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
 ```
 
-Keep `defaults()` unless you know the remote service runs the same checks: any `validate` list
-replaces it. `signAndExecute` receives the validated bytes, the user signatures, and an `include`
-that always asks for `effects`. It can return a `Rejected` result if the remote service declines the
-transaction. A remote sponsor can't sign without executing, so its `signTransaction` throws.
+Keep `defaults()` unless the remote service runs the same checks: any `validate` list replaces it.
+The remote signer can return a `Rejected` result if it declines the transaction. It can't sign
+without executing, so the sponsor's `signTransaction` throws.
 
 ### Enoki
 
-For [Enoki](https://docs.enoki.mystenlabs.com), `getSponsorOptions` from the `enoki()` client
-extension in `@mysten/enoki` provides both options. Create the sponsor for each request: that picks
-up request allowlists and a rotated sponsor address, and it's cheap because the address is cached.
+For [Enoki](https://docs.enoki.mystenlabs.com), `getSponsorSigner` from the `enoki()` client
+extension in `@mysten/enoki` returns that signer. Create the sponsor for each request: that picks up
+request allowlists and a rotated sponsor address, and it's cheap because the address is cached.
 
 ```ts
 import { enoki } from '@mysten/enoki';
@@ -195,7 +198,7 @@ const client = suiClient.$extend(enoki({ apiKey: process.env.ENOKI_PRIVATE_KEY! 
 
 // per request
 const sponsor = createSponsor({
-	...(await client.enoki.getSponsorOptions()),
+	signer: await client.enoki.getSponsorSigner({ allowedAddresses: [userAddress] }),
 	client,
 	validate: [myValidator],
 });
@@ -203,19 +206,9 @@ const result = await sponsor.signAndExecuteTransaction({ transaction, userSignat
 ```
 
 Enoki runs `defaults()` itself, along with a gas budget limit, a check of the sender's signature and
-the app's allowlists, so validators here are for checks of your own. Transactions Enoki declines
-come back as `Rejected`, alongside your validators' rejections.
-
-To add to the app's allowlists for one request, such as allowing the signed-in user's address, pass
-them to `getSponsorOptions`. The Enoki API key needs the matching request allowlist options enabled.
-
-```ts
-const sponsor = createSponsor({
-	...(await client.enoki.getSponsorOptions({ allowedAddresses: [userAddress] })),
-	client,
-	validate: [myValidator],
-});
-```
+the app's allowlists, so validators here are for checks of your own. Request allowlists like
+`allowedAddresses` need the matching options on the Enoki API key. Transactions Enoki declines come
+back as `Rejected`, alongside your validators' rejections.
 
 ## Gas and unresolved transactions
 

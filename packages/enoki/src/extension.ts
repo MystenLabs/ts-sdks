@@ -54,13 +54,12 @@ export interface EnokiPrepareSponsoredTransactionOptions {
 	transaction: Transaction;
 }
 
-/** The `address` and `signAndExecute` options for the sponsor SDK's `createSponsor`. */
-export interface EnokiSponsorOptions {
-	address: string;
-	signAndExecute(options: {
+/** A sponsor SDK `RemoteSigner` backed by Enoki: pass it as `createSponsor`'s `signer`. */
+export interface EnokiSponsorSigner {
+	toSuiAddress(): string;
+	signAndExecuteTransaction(options: {
 		transaction: Uint8Array;
-		userSignatures: string[];
-		include?: SuiClientTypes.TransactionInclude;
+		additionalSignatures: string[];
 		signal?: AbortSignal;
 	}): Promise<
 		| {
@@ -173,27 +172,28 @@ export class EnokiClientExtension {
 	}
 
 	/**
-	 * Options that make Enoki the sponsor in the sponsor SDK's `createSponsor`. Create the sponsor
+	 * A signer that makes Enoki the sponsor in the sponsor SDK's `createSponsor`. Create the sponsor
 	 * per request. Enoki's `invalid_transaction` is returned as `Rejected`.
 	 */
-	async getSponsorOptions({
+	async getSponsorSigner({
 		allowedAddresses,
 		allowedMoveCallTargets,
 	}: {
 		allowedAddresses?: string[];
 		allowedMoveCallTargets?: string[];
-	} = {}): Promise<EnokiSponsorOptions> {
+	} = {}): Promise<EnokiSponsorSigner> {
+		const address = await this.getSponsorAddress();
 		return {
-			address: await this.getSponsorAddress(),
-			signAndExecute: async ({ transaction, userSignatures, include, signal }) => {
-				if (userSignatures.length !== 1) {
+			toSuiAddress: () => address,
+			signAndExecuteTransaction: async ({ transaction, additionalSignatures, signal }) => {
+				if (additionalSignatures.length !== 1) {
 					throw new Error('Enoki sponsorship takes exactly one user signature.');
 				}
 				try {
 					return await this.sponsorAndExecuteTransaction({
 						transaction,
-						signature: userSignatures[0],
-						include: { ...include, effects: true },
+						signature: additionalSignatures[0],
+						include: { effects: true },
 						signal,
 						allowedAddresses,
 						allowedMoveCallTargets,

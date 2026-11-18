@@ -11,11 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { analyze, createAnalyzer } from '../src/index.js';
 import type { Validator } from '../src/index.js';
 import { assertSponsorable, createSponsor } from '../src/sponsor.js';
-import type {
-	SignAndExecute,
-	SignTransactionResult,
-	SponsoredTransaction,
-} from '../src/sponsor.js';
+import type { RemoteSigner, SignTransactionResult, SponsoredTransaction } from '../src/sponsor.js';
 import {
 	gasBudget,
 	onlySenderWithdrawals,
@@ -501,7 +497,7 @@ describe('Sponsor.signAndExecuteTransaction', () => {
 	});
 });
 
-describe('createSponsor with a remote signAndExecute', () => {
+describe('createSponsor with a remote signer', () => {
 	const address = normalizeSuiAddress('0xabc');
 
 	async function setup(validate: Validator[]) {
@@ -511,50 +507,37 @@ describe('createSponsor with a remote signAndExecute', () => {
 			sponsor: address,
 		}).build();
 		const { signature: userSignature } = await senderKey.signTransaction(transaction);
-		const calls: Parameters<SignAndExecute>[0][] = [];
-		const sponsor = createSponsor({
-			address,
-			signAndExecute: async (options) => {
+		const calls: Parameters<RemoteSigner['signAndExecuteTransaction']>[0][] = [];
+		const signer: RemoteSigner = {
+			toSuiAddress: () => address,
+			signAndExecuteTransaction: async (options) => {
 				calls.push(options);
 				return { $kind: 'Transaction', Transaction: {} } as never;
 			},
-			client: offlineClient,
-			validate,
-		});
-		return { sponsor, calls, transaction, userSignature };
+		};
+		return {
+			sponsor: createSponsor({ signer, client: offlineClient, validate }),
+			calls,
+			transaction,
+			userSignature,
+		};
 	}
 
-	it('validates, then hands the bytes to signAndExecute', async () => {
+	it('validates, then has the remote signer sign and execute', async () => {
 		const { sponsor, calls, transaction, userSignature } = await setup([validSender()]);
 		const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
 
 		expect(result.$kind).toBe('Transaction');
-		expect(calls[0]).toMatchObject({
-			transaction,
-			userSignatures: [userSignature],
-			include: { effects: true },
-		});
+		expect(calls[0]).toMatchObject({ transaction, additionalSignatures: [userSignature] });
 		await expect(sponsor.signTransaction({ transaction, userSignature })).rejects.toThrow();
 	});
 
-	it('does not call signAndExecute when a validator rejects', async () => {
+	it('does not call the remote signer when a validator rejects', async () => {
 		const { sponsor, calls, transaction, userSignature } = await setup([gasBudget({ max: 1n })]);
 		const result = await sponsor.signAndExecuteTransaction({ transaction, userSignature });
 
 		expect(result.$kind).toBe('Rejected');
 		expect(calls).toHaveLength(0);
-	});
-
-	it('needs a signer, or an address and signAndExecute, but not both', () => {
-		expect(() => createSponsor({ client: offlineClient })).toThrow();
-		expect(() =>
-			createSponsor({
-				signer: new Ed25519Keypair(),
-				address,
-				signAndExecute: async () => ({}) as never,
-				client: offlineClient,
-			}),
-		).toThrow();
 	});
 });
 
