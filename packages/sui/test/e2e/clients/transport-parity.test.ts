@@ -26,12 +26,6 @@ const INCLUDE = {
 type Fixture = 'crossPackageEvent' | 'perEpochConfig' | 'sponsored' | 'insufficientBalance';
 type Signer = Awaited<ReturnType<TestToolbox['getSigner']>>;
 
-async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
-	const frames: T[] = [];
-	for await (const frame of stream) frames.push(frame);
-	return frames;
-}
-
 /**
  * Error messages are worded by each server and are not compared. Everything else about the error
  * must match.
@@ -211,10 +205,10 @@ describe('transport parity of transaction mappings', () => {
 	it('returns the same checkpoints with transactions, matching streamTransactions on each transport', async () => {
 		const include = { transactions: INCLUDE };
 		await toolbox.expectAllClientsReturnSameData(async (client) => {
-			const checkpoints = (await collect(client.core.streamCheckpoints({ ...range, include }))).map(
-				(frame) => frame.checkpoint,
-			);
-			const transactions = await collect(
+			const checkpoints = (
+				await Array.fromAsync(client.core.streamCheckpoints({ ...range, include }))
+			).map((frame) => frame.checkpoint);
+			const transactions = await Array.fromAsync(
 				client.core.streamTransactions({ ...range, include: INCLUDE }),
 			);
 			expect(checkpoints.flatMap((checkpoint) => checkpoint.transactions)).toEqual(

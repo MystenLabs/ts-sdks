@@ -49,12 +49,6 @@ async function waitFor(predicate: () => boolean, timeout = 30_000) {
 	}
 }
 
-async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
-	const frames: T[] = [];
-	for await (const frame of stream) frames.push(frame);
-	return frames;
-}
-
 async function take<T>(stream: AsyncIterable<T>, count: number): Promise<T[]> {
 	const frames: T[] = [];
 	for await (const frame of stream) {
@@ -366,10 +360,12 @@ describe('ledger streams', () => {
 	describe('finite reads', () => {
 		it('returns the same checkpoint headers as listCheckpoints on both transports, in both directions', async () => {
 			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(await collect(client.core.streamCheckpoints(range()))).map((frame) => frame.checkpoint),
+				(await Array.fromAsync(client.core.streamCheckpoints(range()))).map(
+					(frame) => frame.checkpoint,
+				),
 			);
 			for (const kind of KINDS) {
-				const ascending = (await collect(client(kind).core.streamCheckpoints(range()))).map(
+				const ascending = (await Array.fromAsync(client(kind).core.streamCheckpoints(range()))).map(
 					(frame) => frame.checkpoint,
 				);
 				expect(ascending[0].sequenceNumber).toBe(firstCheckpoint);
@@ -381,7 +377,9 @@ describe('ledger streams', () => {
 					}),
 					NAMES[kind],
 				).toEqual(ascending);
-				const descending = await collect(client(kind).core.streamCheckpoints(range('descending')));
+				const descending = await Array.fromAsync(
+					client(kind).core.streamCheckpoints(range('descending')),
+				);
 				expect(
 					descending.map((frame) => frame.checkpoint),
 					NAMES[kind],
@@ -396,14 +394,14 @@ describe('ledger streams', () => {
 				include: ALL_INCLUDES,
 			});
 			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(await collect(client.core.streamTransactions(options()))).map(
+				(await Array.fromAsync(client.core.streamTransactions(options()))).map(
 					(frame) => frame.transaction,
 				),
 			);
 			for (const kind of KINDS) {
-				const ascending = (await collect(client(kind).core.streamTransactions(options()))).map(
-					(frame) => frame.transaction,
-				);
+				const ascending = (
+					await Array.fromAsync(client(kind).core.streamTransactions(options()))
+				).map((frame) => frame.transaction);
 				expect(ascending.map((tx) => tx.Transaction?.digest)).toEqual(digests);
 				for (const tx of ascending) expect(tx.Transaction?.events).toHaveLength(3);
 				expect(
@@ -414,7 +412,7 @@ describe('ledger streams', () => {
 					}),
 					NAMES[kind],
 				).toEqual(ascending);
-				const descending = await collect(
+				const descending = await Array.fromAsync(
 					client(kind).core.streamTransactions({ ...options(), ...range('descending') }),
 				);
 				expect(
@@ -427,10 +425,10 @@ describe('ledger streams', () => {
 		it('streams every event of a transaction with more than 50 events, matching listEvents on both transports', async () => {
 			const options = () => ({ ...range(), filter: { sender: manySigner.address } });
 			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(await collect(client.core.streamEvents(options()))).map((frame) => frame.event),
+				(await Array.fromAsync(client.core.streamEvents(options()))).map((frame) => frame.event),
 			);
 			for (const kind of KINDS) {
-				const events = (await collect(client(kind).core.streamEvents(options()))).map(
+				const events = (await Array.fromAsync(client(kind).core.streamEvents(options()))).map(
 					(frame) => frame.event,
 				);
 				expect(events.map((event) => event.eventIndex)).toEqual(
@@ -456,7 +454,7 @@ describe('ledger streams', () => {
 					include: { transaction: true, bcs: true } as const,
 					signal: signal(),
 				};
-				const ascending = await collect(client(kind).core.streamTransactions(options));
+				const ascending = await Array.fromAsync(client(kind).core.streamTransactions(options));
 				const transactions = ascending.map(
 					(frame) => frame.transaction.Transaction ?? frame.transaction.FailedTransaction,
 				);
@@ -469,7 +467,7 @@ describe('ledger streams', () => {
 				for (const tx of transactions) {
 					expect(tx.transaction.sender).toBe(bcs.TransactionData.parse(tx.bcs).V1.sender);
 				}
-				const descending = await collect(
+				const descending = await Array.fromAsync(
 					client(kind).core.streamTransactions({
 						order: 'descending',
 						start: { checkpoint: '2' },
@@ -482,7 +480,7 @@ describe('ledger streams', () => {
 						(frame) => frame.transaction.Transaction ?? frame.transaction.FailedTransaction,
 					),
 				).toEqual([...transactions].reverse());
-				const resumed = await collect(
+				const resumed = await Array.fromAsync(
 					client(kind).core.streamTransactions({
 						start: { resumeToken: ascending[0].resumeToken },
 						end: options.end,
@@ -501,14 +499,14 @@ describe('ledger streams', () => {
 		it('returns identical events and preserves event order within each transaction', async () => {
 			await toolbox.expectAllClientsReturnSameData(async (client) =>
 				(
-					await collect(
+					await Array.fromAsync(
 						client.core.streamEvents({ ...range(), filter: { sender: signer.address } }),
 					)
 				).map((frame) => frame.event),
 			);
 			for (const kind of KINDS) {
 				const ascending = (
-					await collect(
+					await Array.fromAsync(
 						client(kind).core.streamEvents({ ...range(), filter: { sender: signer.address } }),
 					)
 				).map((frame) => frame.event);
@@ -516,7 +514,7 @@ describe('ledger streams', () => {
 					digests.flatMap((digest) => [digest, digest, digest]),
 				);
 				expect(ascending.map((event) => event.eventIndex)).toEqual([0, 1, 2, 0, 1, 2, 0, 1, 2]);
-				const descending = await collect(
+				const descending = await Array.fromAsync(
 					client(kind).core.streamEvents({
 						...range('descending'),
 						filter: { sender: signer.address },
@@ -532,10 +530,12 @@ describe('ledger streams', () => {
 		describe.each(KINDS)('%s', (kind) => {
 			it('resumes from event tokens to exactly the remaining items', async () => {
 				const filter = { sender: manySigner.address };
-				const frames = await collect(client(kind).core.streamEvents({ ...range(), filter }));
+				const frames = await Array.fromAsync(
+					client(kind).core.streamEvents({ ...range(), filter }),
+				);
 				expect(frames).toHaveLength(MANY_EVENTS);
 				for (let i = 0; i < frames.length; i += 7) {
-					const remainder = await collect(
+					const remainder = await Array.fromAsync(
 						client(kind).core.streamEvents({
 							start: { resumeToken: frames[i].resumeToken },
 							end: range().end,
@@ -739,7 +739,7 @@ describe('ledger streams', () => {
 				delivered.transactions.find((result) => result.Transaction?.digest === digest),
 			).toEqual(fetched);
 			// Every transaction of the live checkpoint, as a bounded read of it returns them.
-			const [read] = await collect(
+			const [read] = await Array.fromAsync(
 				client(kind).core.streamCheckpoints({
 					start: { checkpoint },
 					end: { checkpoint: (BigInt(checkpoint) + 1n).toString() },
@@ -909,7 +909,7 @@ describe('ledger streams', () => {
 
 	describe('GraphQL subscribe', () => {
 		it('finishes a raw GraphQL operation when Sui closes the SSE response', async () => {
-			const results = await collect(
+			const results = await Array.fromAsync(
 				toolbox.graphqlClient.subscribe<{ chainIdentifier: string }>({
 					query: 'query { chainIdentifier }',
 					signal: signal(),
