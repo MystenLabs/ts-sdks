@@ -504,11 +504,11 @@ describe('Sponsor.signAndExecuteTransaction', () => {
 describe('createSponsor with a remote signAndExecute', () => {
 	const address = normalizeSuiAddress('0xabc');
 
-	async function setup(validate: Validator[]) {
+	async function setup(validate: Validator[], gasOwner = address) {
 		const senderKey = new Ed25519Keypair();
 		const transaction = await resolvedTransaction({
 			sender: senderKey.toSuiAddress(),
-			sponsor: address,
+			sponsor: gasOwner,
 		}).build();
 		const { signature: userSignature } = await senderKey.signTransaction(transaction);
 		const calls: Parameters<SignAndExecute>[0][] = [];
@@ -535,6 +535,13 @@ describe('createSponsor with a remote signAndExecute', () => {
 			include: { effects: true },
 		});
 		await expect(sponsor.signTransaction({ transaction, userSignature })).rejects.toThrow();
+	});
+
+	it('leaves the gas-owner check to signAndExecute', async () => {
+		const other = normalizeSuiAddress('0xdef');
+		const { sponsor, calls, transaction, userSignature } = await setup([validSender()], other);
+		await sponsor.signAndExecuteTransaction({ transaction, userSignature });
+		expect(calls).toHaveLength(1);
 	});
 
 	it('does not call signAndExecute when a validator rejects', async () => {

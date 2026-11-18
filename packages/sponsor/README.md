@@ -482,8 +482,9 @@ simulation, if any, happens). Default is off.
 ### Remote sponsors
 
 If another service holds the sponsor's key and co-signs and executes in one step, pass its `address`
-and a `signAndExecute` function instead of a `signer`. Validators still run first; `signTransaction`
-throws. For Enoki, use `client.enoki.getSponsorOptions()` from `@mysten/enoki`.
+and a `signAndExecute` function instead of a `signer`. Validators still run first (keep `defaults()`
+in `validate` unless the service runs the same checks); `signTransaction` throws. For Enoki, use
+`client.enoki.getSponsorOptions()` from `@mysten/enoki`.
 
 ### Validation without a local signer
 
