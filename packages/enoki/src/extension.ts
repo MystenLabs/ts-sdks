@@ -114,7 +114,7 @@ export class EnokiClientExtension {
 		this.#enoki = enoki;
 	}
 
-	/** Enoki's sponsor address on the client's network. Cached until a transaction is rejected as stale. */
+	/** Enoki's sponsor address on the client's network. Cached for a minute, or until a transaction is rejected as stale. */
 	getSponsorAddress(): Promise<string> {
 		return this.#enoki.getSponsorAddress({ network: this.#network() });
 	}

@@ -248,16 +248,6 @@ export function createSponsor<const T extends readonly ValidateItem[] = []>(
 	// No explicit validators → run the recommended baseline.
 	const validators = provided.length > 0 ? provided : defaults();
 
-	if (
-		options.signer
-			? options.address !== undefined || options.signAndExecute !== undefined
-			: !(options.address && options.signAndExecute)
-	) {
-		throw new Error(
-			'createSponsor needs a signer, or an address and signAndExecute, but not both.',
-		);
-	}
-
 	return new Sponsor<SponsorOptions<T>>({
 		signer: options.signer,
 		address: options.address,
@@ -284,14 +274,15 @@ function toSignatureArray(userSignature: string | string[] | undefined): string[
  *   unresolved inputs, an unset sender, and missing gas budget/price/payment, so
  *   the bytes the validators inspect are exactly what would execute.
  * - The gas owner isn't the sponsor (the sponsor-specific constraint that
- *   `isFullyResolved` doesn't know about).
+ *   `isFullyResolved` doesn't know about). Skipped when `sponsor` is omitted.
  */
-export function assertSponsorable(transaction: Transaction, sponsor: string): void {
+export function assertSponsorable(transaction: Transaction, sponsor?: string): void {
 	if (!transaction.isFullyResolved()) {
 		throw new Error(
 			'Transaction is not fully resolved; it must be fully built (sender, gas, and all inputs set) before sponsoring.',
 		);
 	}
+	if (sponsor === undefined) return;
 	const { owner } = transaction.getData().gasData;
 	if (!owner || normalizeSuiAddress(owner) !== sponsor) {
 		throw new Error('Transaction gas owner must be the sponsor address.');
@@ -326,6 +317,13 @@ export class Sponsor<TOptions extends object = object> {
 
 	/** Prefer {@link createSponsor}; the constructor takes pre-merged config. */
 	constructor(config: SponsorConfig) {
+		if (
+			config.signer
+				? config.address !== undefined || config.signAndExecute !== undefined
+				: !(config.address && config.signAndExecute)
+		) {
+			throw new Error('A sponsor needs a signer, or an address and signAndExecute, but not both.');
+		}
 		this.#signer = config.signer;
 		this.#address = config.address;
 		this.#signAndExecute = config.signAndExecute;
@@ -410,7 +408,9 @@ export class Sponsor<TOptions extends object = object> {
 		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
 		// so verify it's a final, sponsor-owned transaction here rather than assume
 		// it (the sponsor-builds flow already guarantees this via `build()`).
-		assertSponsorable(tx, sponsor);
+		// A remote sponsor checks the gas owner itself: it can only co-sign as its own address, and it
+		// reports a changed address as an error its callers recognize.
+		assertSponsorable(tx, this.#signAndExecute ? undefined : sponsor);
 
 		// The user's signature isn't verified here: execution already enforces it
 		// (a bad signature never executes, so the sponsor risks nothing), and the

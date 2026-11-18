@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { analyze, createAnalyzer } from '../src/index.js';
 import type { Validator } from '../src/index.js';
-import { assertSponsorable, createSponsor } from '../src/sponsor.js';
+import { assertSponsorable, createSponsor, Sponsor } from '../src/sponsor.js';
 import type {
 	SignAndExecute,
 	SignTransactionResult,
@@ -593,7 +593,7 @@ describe('createSponsor with a remote signAndExecute', () => {
 		expect(result).toEqual(rejection);
 	});
 
-	it('rejects bytes whose gas owner is not the sponsor address before calling signAndExecute', async () => {
+	it('leaves the gas-owner check to signAndExecute, which reports a changed address itself', async () => {
 		const { bytes, signature } = await signedBytes(normalizeSuiAddress('0xdef'));
 		const { calls, signAndExecute } = remote();
 		const sponsor = createSponsor({
@@ -603,10 +603,8 @@ describe('createSponsor with a remote signAndExecute', () => {
 			...offline,
 		});
 
-		await expect(
-			sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature: signature }),
-		).rejects.toThrow('gas owner must be the sponsor');
-		expect(calls).toHaveLength(0);
+		await sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature: signature });
+		expect(calls).toHaveLength(1);
 	});
 
 	it('can not signTransaction', async () => {
@@ -641,6 +639,14 @@ describe('createSponsor with a remote signAndExecute', () => {
 				...offline,
 			}),
 		).toThrow('but not both');
+		expect(
+			() =>
+				new Sponsor({
+					client: offlineClient,
+					validators: [],
+					delay: {},
+				} as unknown as ConstructorParameters<typeof Sponsor>[0]),
+		).toThrow('needs a signer');
 	});
 });
 
