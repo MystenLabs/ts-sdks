@@ -13,6 +13,11 @@ import {
 	SubscribeCheckpointsResponse,
 	SubscriptionService,
 } from '../../../src/grpc/proto/sui/rpc/v2/subscription_service.js';
+import {
+	GetPackageRequest,
+	GetPackageResponse,
+	MovePackageService,
+} from '../../../src/grpc/proto/sui/rpc/v2/move_package_service.js';
 import { isNonRetryable, pullServerStreaming } from '../../../src/grpc/pull-call.js';
 import { frame } from './grpc-web-frame.js';
 
@@ -370,5 +375,29 @@ describe('baseUrl', () => {
 	it('fails the first request of a path fetch cannot resolve', async () => {
 		const t = new GrpcWebFetchTransport({ baseUrl: '/grpc' });
 		await rejection(t.unary(method, {}, t.mergeOptions({})).response);
+	});
+});
+
+describe('on-demand stream request with an unset oneof', () => {
+	it('sends the same body as one built with create()', async () => {
+		const getPackage = MovePackageService.methods.find(
+			(m) => m.name === 'GetPackage',
+		) as MethodInfo<GetPackageRequest, GetPackageResponse>;
+		let sent: Uint8Array | undefined;
+		const t = new GrpcWebFetchTransport({
+			baseUrl: 'http://localhost',
+			fetch: (async (_url: string, init: RequestInit) => {
+				sent = new Uint8Array(init.body as ArrayBuffer);
+				return grpcWeb(null, { 'grpc-status': '0' });
+			}) as typeof globalThis.fetch,
+		});
+
+		// Valid before `selector` was added to `GetPackageRequest`.
+		const call = pullServerStreaming(t)!(getPackage, { packageId: '0x2' } as GetPackageRequest);
+		await drain(call.responses);
+
+		expect(sent).toEqual(
+			frame(0, GetPackageRequest.toBinary(GetPackageRequest.create({ packageId: '0x2' }))),
+		);
 	});
 });

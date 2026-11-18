@@ -198,7 +198,9 @@ export class GrpcWebPullCall<
 
 	async #open(input: I, url: string): Promise<void> {
 		const body = createGrpcWebRequestBody(
-			this.#method.I.toBinary(input, this.#options.binaryOptions),
+			// protobuf-ts's encoder requires every oneof to be set; create() fills unset ones so requests
+			// built before a oneof was added still send.
+			this.#method.I.toBinary(this.#method.I.create(input), this.#options.binaryOptions),
 			'binary',
 		) as BodyInit;
 		const headers = createGrpcWebRequestHeader(
