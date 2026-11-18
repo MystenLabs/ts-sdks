@@ -190,7 +190,7 @@ function _simulateInclude() {
 }
 
 // Compile-only. A sponsor with a remote `signAndExecute` has the same
-// `signAndExecuteTransaction`, but no `signTransaction`, and the two forms don't mix.
+// `signAndExecuteTransaction` result types.
 async function _remoteSponsor() {
 	const sponsor = createSponsor({
 		address: '0x1',
@@ -207,12 +207,6 @@ async function _remoteSponsor() {
 		const _events: SuiClientTypes.Event[] = res.Transaction.events;
 		void _events;
 	}
-
-	// @ts-expect-error a remote sponsor can't sign without executing
-	void sponsor.signTransaction({ transaction: bytes, userSignature: 's' });
-
-	// @ts-expect-error `signer` and `signAndExecute` are alternatives
-	void createSponsor({ signer, address: '0x1', signAndExecute: async () => ({}) as never, client });
 }
 
 describe('validator typing', () => {

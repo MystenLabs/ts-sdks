@@ -12,10 +12,8 @@ import { analyze, createAnalyzer } from '../src/index.js';
 import type { Validator } from '../src/index.js';
 import { assertSponsorable, createSponsor } from '../src/sponsor.js';
 import type {
-	RemoteSignAndExecute,
-	RemoteSignAndExecuteOptions,
+	SignAndExecute,
 	SignTransactionResult,
-	Sponsor,
 	SponsoredTransaction,
 } from '../src/sponsor.js';
 import {
@@ -514,13 +512,13 @@ describe('createSponsor with a remote signAndExecute', () => {
 	}
 
 	function remote(
-		result: Awaited<ReturnType<RemoteSignAndExecute>> = {
+		result: Awaited<ReturnType<SignAndExecute>> = {
 			$kind: 'Transaction',
 			Transaction: { digest: 'digest' },
-		} as unknown as Awaited<ReturnType<RemoteSignAndExecute>>,
+		} as unknown as Awaited<ReturnType<SignAndExecute>>,
 	) {
-		const calls: RemoteSignAndExecuteOptions[] = [];
-		const signAndExecute: RemoteSignAndExecute = async (options) => {
+		const calls: Parameters<SignAndExecute>[0][] = [];
+		const signAndExecute: SignAndExecute = async (options) => {
 			calls.push(options);
 			return result;
 		};
@@ -611,7 +609,7 @@ describe('createSponsor with a remote signAndExecute', () => {
 		expect(calls).toHaveLength(0);
 	});
 
-	it('has no signTransaction', async () => {
+	it('can not signTransaction', async () => {
 		const { bytes, signature } = await signedBytes();
 		const { signAndExecute } = remote();
 		const sponsor = createSponsor({
@@ -622,11 +620,17 @@ describe('createSponsor with a remote signAndExecute', () => {
 		});
 
 		await expect(
-			(sponsor as unknown as Sponsor).signTransaction({
+			sponsor.signTransaction({
 				transaction: bytes,
 				userSignature: signature,
 			}),
 		).rejects.toThrow('can only signAndExecuteTransaction');
+	});
+
+	it('requires a signer, or an address and signAndExecute', () => {
+		expect(() => createSponsor({ client: offlineClient, ...offline })).toThrow(
+			'needs a signer, or an address and signAndExecute',
+		);
 	});
 });
 
