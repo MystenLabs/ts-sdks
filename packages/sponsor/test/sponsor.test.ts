@@ -504,11 +504,11 @@ describe('Sponsor.signAndExecuteTransaction', () => {
 describe('createSponsor with a remote signAndExecute', () => {
 	const address = normalizeSuiAddress('0xabc');
 
-	async function setup(validate: Validator[], gasOwner = address) {
+	async function setup(validate: Validator[]) {
 		const senderKey = new Ed25519Keypair();
 		const transaction = await resolvedTransaction({
 			sender: senderKey.toSuiAddress(),
-			sponsor: gasOwner,
+			sponsor: address,
 		}).build();
 		const { signature: userSignature } = await senderKey.signTransaction(transaction);
 		const calls: Parameters<SignAndExecute>[0][] = [];
@@ -535,23 +535,6 @@ describe('createSponsor with a remote signAndExecute', () => {
 			include: { effects: true },
 		});
 		await expect(sponsor.signTransaction({ transaction, userSignature })).rejects.toThrow();
-	});
-
-	it('leaves the gas-owner check to signAndExecute', async () => {
-		const other = normalizeSuiAddress('0xdef');
-		const { sponsor, calls, transaction, userSignature } = await setup([validSender()], other);
-		await sponsor.signAndExecuteTransaction({ transaction, userSignature });
-		expect(calls).toHaveLength(1);
-	});
-
-	it('refuses bytes whose sender is the sponsor address', async () => {
-		const { sponsor, transaction } = await setup([validSender()], normalizeSuiAddress('0xdef'));
-		const tx = Transaction.from(transaction);
-		tx.setSender(address);
-		const bytes = await tx.build();
-		await expect(
-			sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature: 's' }),
-		).rejects.toThrow('sender must not be the sponsor');
 	});
 
 	it('does not call signAndExecute when a validator rejects', async () => {

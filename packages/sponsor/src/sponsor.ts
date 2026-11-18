@@ -268,15 +268,14 @@ function toSignatureArray(userSignature: string | string[] | undefined): string[
  *   unresolved inputs, an unset sender, and missing gas budget/price/payment, so
  *   the bytes the validators inspect are exactly what would execute.
  * - The gas owner isn't the sponsor (the sponsor-specific constraint that
- *   `isFullyResolved` doesn't know about). Skipped without `sponsor`.
+ *   `isFullyResolved` doesn't know about).
  */
-export function assertSponsorable(transaction: Transaction, sponsor?: string): void {
+export function assertSponsorable(transaction: Transaction, sponsor: string): void {
 	if (!transaction.isFullyResolved()) {
 		throw new Error(
 			'Transaction is not fully resolved; it must be fully built (sender, gas, and all inputs set) before sponsoring.',
 		);
 	}
-	if (sponsor === undefined) return;
 	const { owner } = transaction.getData().gasData;
 	if (!owner || normalizeSuiAddress(owner) !== sponsor) {
 		throw new Error('Transaction gas owner must be the sponsor address.');
@@ -401,11 +400,7 @@ export class Sponsor<TOptions extends object = object> {
 		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
 		// so verify it's a final, sponsor-owned transaction here rather than assume
 		// it (the sponsor-builds flow already guarantees this via `build()`).
-		// A remote sponsor checks the gas owner itself, but must never co-sign as the sender.
-		assertSponsorable(tx, this.#signAndExecute ? undefined : sponsor);
-		if (this.#signAndExecute && normalizeSuiAddress(tx.getData().sender ?? '0x0') === sponsor) {
-			throw new Error('Transaction sender must not be the sponsor address.');
-		}
+		assertSponsorable(tx, sponsor);
 
 		// The user's signature isn't verified here: execution already enforces it
 		// (a bad signature never executes, so the sponsor risks nothing), and the
