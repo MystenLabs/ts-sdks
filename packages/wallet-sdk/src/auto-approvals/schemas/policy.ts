@@ -10,7 +10,7 @@ const BasePermissionSchema = v.object({
 	description: v.string(),
 });
 
-const CoinTypeSchema = v.pipe(
+const StructTagSchema = v.pipe(
 	v.string(),
 	v.transform((coinType) => normalizeStructTag(coinType)),
 );
@@ -18,14 +18,14 @@ const CoinTypeSchema = v.pipe(
 const ObjectTypePermissionSchema = v.object({
 	...BasePermissionSchema.entries,
 	$kind: v.literal('ObjectType'),
-	objectType: v.string(),
+	objectType: StructTagSchema,
 	accessLevel: AccessLevelSchema,
 });
 
 const CoinBalancePermissionSchema = v.object({
 	...BasePermissionSchema.entries,
 	$kind: v.literal('CoinBalance'),
-	coinType: CoinTypeSchema,
+	coinType: StructTagSchema,
 });
 
 const AnyBalancesPermissionSchema = v.object({
@@ -56,7 +56,7 @@ export const AutoApprovalSettingsSchema = v.looseObject({
 	// TODO: figure out a better name
 	remainingTransactions: v.nullable(v.number()),
 	sharedBudget: v.nullable(v.number()),
-	coinBudgets: v.record(CoinTypeSchema, v.string()),
+	coinBudgets: v.record(StructTagSchema, v.string()),
 });
 
 export const AutoApprovalPolicySchema = v.object({

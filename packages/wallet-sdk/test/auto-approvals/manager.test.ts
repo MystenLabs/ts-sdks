@@ -10,12 +10,13 @@ import {
 	autoApprovalAnalyzer,
 	AutoApprovalManager,
 	AutoApprovalPolicy,
+	type AutoApprovalSettings,
 	operationType,
 	type AutoApprovalAnalysis,
 	type AutoApprovalResult,
 } from '../../src/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { MIST_PER_SUI, normalizeSuiAddress } from '@mysten/sui/utils';
+import { MIST_PER_SUI, normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import { DEFAULT_SENDER, FRAMEWORK_MOVE_FUNCTIONS } from '../mocks/mockData.js';
 
@@ -584,5 +585,171 @@ describe('AutoApprovalManager', () => {
 
 		// new manager should have deducted from remaining transactions
 		expect(settings?.remainingTransactions).toEqual(9);
+	});
+
+	describe('budgets', () => {
+		const COIN_A = normalizeStructTag('0xa::a::A');
+		const COIN_B = normalizeStructTag('0xb::b::B');
+		const sender = normalizeSuiAddress('0x1');
+
+		function managerWithBudgets(
+			settings: Pick<AutoApprovalSettings, 'sharedBudget' | 'coinBudgets'>,
+		) {
+			const manager = new AutoApprovalManager({
+				policy: JSON.stringify({
+					schemaVersion: '1.0.0',
+					operations: [
+						{
+							id: 'test-operation',
+							description: 'Test operation',
+							permissions: { anyBalance: { $kind: 'AnyBalance', description: 'Any coin' } },
+						},
+					],
+					suggestedSettings: {},
+				} satisfies AutoApprovalPolicy),
+				state: null,
+			});
+			manager.updateSettings({
+				approvedOperations: ['test-operation'],
+				expiration: Date.now() + 1000 * 60 * 60,
+				remainingTransactions: null,
+				...settings,
+			});
+			return manager;
+		}
+
+		function spending(outflows: { coinType: string; amount: bigint; value: number }[]) {
+			const flows = outflows.map(({ coinType, amount }) => ({ coinType, amount: -amount }));
+			return {
+				status: 'success',
+				issues: [],
+				ownIssues: [],
+				result: autoApprovalAnalysis({
+					senderAddresses: [sender],
+					senderBalanceFlows: flows,
+					balanceFlows: { byAddress: { [sender]: flows }, sender: flows, sponsor: null },
+					coinValues: {
+						total: outflows.reduce((sum, { value }) => sum + value, 0),
+						coinTypesWithoutPrice: [],
+						coinTypes: outflows.map(({ coinType, amount, value }) => ({
+							coinType,
+							decimals: 0,
+							price: value / Number(amount),
+							amount,
+							convertedAmount: value,
+						})),
+					},
+				}),
+			} satisfies AutoApprovalResult;
+		}
+
+		test('shared budget covers the combined value of all coin types', () => {
+			const manager = managerWithBudgets({ sharedBudget: 10, coinBudgets: {} });
+
+			expect(
+				manager.checkTransaction(
+					spending([
+						{ coinType: COIN_A, amount: 4n, value: 4 },
+						{ coinType: COIN_B, amount: 4n, value: 4 },
+					]),
+				).canAutoApprove,
+			).toBe(true);
+
+			const overBudget = manager.checkTransaction(
+				spending([
+					{ coinType: COIN_A, amount: 8n, value: 8 },
+					{ coinType: COIN_B, amount: 8n, value: 8 },
+				]),
+			);
+			expect(overBudget.canAutoApprove).toBe(false);
+			expect(overBudget.settingsIssues).toEqual([{ message: 'Insufficient shared budget' }]);
+		});
+
+		test('rejects shared-budget spends when no shared budget is configured', () => {
+			const manager = managerWithBudgets({ sharedBudget: null, coinBudgets: {} });
+			const result = manager.checkTransaction(
+				spending([{ coinType: COIN_A, amount: 1n, value: 0 }]),
+			);
+
+			expect(result.canAutoApprove).toBe(false);
+			expect(result.settingsIssues).toEqual([{ message: 'No shared budget configured' }]);
+		});
+
+		test('treats an empty coin budget as zero', () => {
+			const manager = managerWithBudgets({ sharedBudget: null, coinBudgets: { [COIN_A]: '' } });
+			const result = manager.checkTransaction(
+				spending([{ coinType: COIN_A, amount: 1n, value: 1 }]),
+			);
+
+			expect(result.canAutoApprove).toBe(false);
+			expect(result.settingsIssues).toEqual([
+				{ message: `Insufficient budget for coin type ${COIN_A}` },
+			]);
+		});
+	});
+
+	test('matches owned objects against policy types written in short form', () => {
+		const objectId = normalizeSuiAddress('0xa11');
+		const manager = new AutoApprovalManager({
+			policy: JSON.stringify({
+				schemaVersion: '1.0.0',
+				operations: [
+					{
+						id: 'test-operation',
+						description: 'Test operation',
+						permissions: {
+							ownedObjects: [
+								{
+									$kind: 'ObjectType',
+									description: 'Kiosk caps',
+									objectType: '0x2::kiosk::KioskOwnerCap',
+									accessLevel: 'read',
+								},
+							],
+						},
+					},
+				],
+				suggestedSettings: {},
+			} satisfies AutoApprovalPolicy),
+			state: null,
+		});
+
+		const result = manager.checkTransaction({
+			status: 'success',
+			issues: [],
+			ownIssues: [],
+			result: autoApprovalAnalysis({
+				ownedObjects: [
+					{
+						objectId,
+						type: normalizeStructTag('0x2::kiosk::KioskOwnerCap'),
+					} as unknown as AutoApprovalAnalysis['ownedObjects'][number],
+				],
+				accessLevel: { [objectId]: 'read' },
+			}),
+		});
+
+		expect(result.matchesPolicy).toBe(true);
+		expect(result.policyIssues).toEqual([]);
+	});
+
+	test('applyTransactionEffects rejects results for a different transaction', () => {
+		const manager = managerWithBalanceSettings();
+		const analysis: AutoApprovalResult = {
+			status: 'success',
+			issues: [],
+			ownIssues: [],
+			result: autoApprovalAnalysis(),
+		};
+
+		manager.commitTransaction(analysis);
+
+		expect(() =>
+			manager.applyTransactionEffects(analysis, {
+				digest: 'other-digest',
+				balanceChanges: [],
+			} as unknown as Parameters<AutoApprovalManager['applyTransactionEffects']>[1]),
+		).toThrow('does not match analyzed digest');
+		expect(manager.getState().pendingDigests).toEqual(['test-digest']);
 	});
 });

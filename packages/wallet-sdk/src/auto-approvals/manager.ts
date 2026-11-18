@@ -202,31 +202,41 @@ export class AutoApprovalManager {
 			issues.push({ message: 'Operation type not approved for auto-approval' });
 		}
 
+		let usesSharedBudget = false;
+		let sharedBudgetSpend = 0;
+
 		for (const outflow of getSenderOutflows(analysis)) {
-			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
-				const coinBudget = this.#state.settings.coinBudgets[outflow.coinType];
+			const coinBudget = this.#state.settings.coinBudgets[outflow.coinType];
 
-				if (coinBudget) {
-					if (BigInt(coinBudget) < outflow.amount) {
-						issues.push({
-							message: `Insufficient budget for coin type ${outflow.coinType}`,
-						});
-					}
-				}
-			} else {
-				const coinAmount = analysis.result.coinValues.coinTypes.find(
-					(ct) => ct.coinType === outflow.coinType,
-				);
-
-				if (!coinAmount) {
-					issues.push({
-						message: `No budget configured for coin type ${outflow.coinType}`,
-					});
-				} else if ((this.#state.settings.sharedBudget ?? 0) < coinAmount.convertedAmount) {
+			if (coinBudget !== undefined) {
+				if (BigInt(coinBudget) < outflow.amount) {
 					issues.push({
 						message: `Insufficient budget for coin type ${outflow.coinType}`,
 					});
 				}
+				continue;
+			}
+
+			const coinAmount = analysis.result.coinValues.coinTypes.find(
+				(ct) => ct.coinType === outflow.coinType,
+			);
+
+			if (!coinAmount) {
+				issues.push({
+					message: `No budget configured for coin type ${outflow.coinType}`,
+				});
+				continue;
+			}
+
+			usesSharedBudget = true;
+			sharedBudgetSpend += coinAmount.convertedAmount;
+		}
+
+		if (usesSharedBudget) {
+			if (this.#state.settings.sharedBudget === null) {
+				issues.push({ message: 'No shared budget configured' });
+			} else if (this.#state.settings.sharedBudget < sharedBudgetSpend) {
+				issues.push({ message: 'Insufficient shared budget' });
 			}
 		}
 
@@ -331,6 +341,12 @@ export class AutoApprovalManager {
 		result: SuiClientTypes.Transaction<{ balanceChanges: true }>,
 	): void {
 		assertSuccessfulAnalysis(analysis);
+
+		if (result.digest !== analysis.result.digest) {
+			throw new Error(
+				`Transaction digest ${result.digest} does not match analyzed digest ${analysis.result.digest}`,
+			);
+		}
 
 		this.#removePendingDigest(result.digest);
 
