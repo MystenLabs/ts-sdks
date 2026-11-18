@@ -4,10 +4,10 @@
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import { TransactionDataBuilder, type Transaction } from '@mysten/sui/transactions';
-import { fromBase64, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
 import type { EnokiClientConfig } from './EnokiClient/index.js';
-import { EnokiClient, EnokiClientError, isStaleTransactionError } from './EnokiClient/index.js';
+import { EnokiClient, EnokiClientError } from './EnokiClient/index.js';
 import type { EnokiDomainNetwork } from './EnokiClient/type.js';
 
 export type EnokiExtensionOptions<Name extends string = 'enoki'> = Omit<
@@ -108,7 +108,6 @@ export function enoki<const Name extends string = 'enoki'>({
 export class EnokiClientExtension {
 	#client: ClientWithCoreApi;
 	#enoki: EnokiClient;
-	#sponsorAddress?: Promise<string>;
 
 	constructor({ client, enoki }: { client: ClientWithCoreApi; enoki: EnokiClient }) {
 		this.#client = client;
@@ -117,51 +116,21 @@ export class EnokiClientExtension {
 
 	/** Enoki's sponsor address on the client's network. Cached until a transaction is rejected as stale. */
 	getSponsorAddress(): Promise<string> {
-		if (!this.#sponsorAddress) {
-			const network = this.#network();
-			const promise = this.#enoki.getApp().then(({ sponsorAddresses }) => {
-				const address = sponsorAddresses?.[network];
-				if (!address) {
-					throw new Error(`Enoki does not sponsor transactions on ${network}`);
-				}
-				return normalizeSuiAddress(address);
-			});
-			this.#sponsorAddress = promise;
-			promise.catch(() => {
-				if (this.#sponsorAddress === promise) {
-					this.#sponsorAddress = undefined;
-				}
-			});
-		}
-		return this.#sponsorAddress;
+		return this.#enoki.getSponsorAddress({ network: this.#network() });
 	}
 
 	/**
-	 * Sets Enoki as the transaction's gas owner with an empty gas payment.
-	 * Doesn't build it, so a wallet can still resolve the rest. Build or have a wallet sign it, run
-	 * any checks, then pass the bytes and signature to `sponsorAndExecuteTransaction`.
+	 * Sets Enoki as the transaction's gas owner with an empty gas payment. Doesn't build it, so a
+	 * wallet can still resolve the rest. Build or have a wallet sign it, run any checks, then pass the
+	 * bytes and signature to `sponsorAndExecuteTransaction`.
 	 *
 	 * Safe to call on a transaction that's already prepared. Throws if the transaction already has
 	 * a different gas owner, or a gas payment.
 	 */
-	async prepareSponsoredTransaction({
+	prepareSponsoredTransaction({
 		transaction,
 	}: EnokiPrepareSponsoredTransactionOptions): Promise<Transaction> {
-		const sponsorAddress = await this.getSponsorAddress();
-		const data = transaction.getData();
-
-		if (data.gasData.owner && normalizeSuiAddress(data.gasData.owner) !== sponsorAddress) {
-			throw new Error(
-				`Transaction gas owner is ${data.gasData.owner}, not Enoki's sponsor ${sponsorAddress}`,
-			);
-		}
-		if (data.gasData.payment && data.gasData.payment.length > 0) {
-			throw new Error('Sponsored transactions pay gas from the sponsor; remove the gas payment');
-		}
-
-		transaction.setGasOwner(sponsorAddress);
-		transaction.setGasPayment([]);
-		return transaction;
+		return this.#enoki.prepareSponsoredTransaction({ transaction, network: this.#network() });
 	}
 
 	/**
@@ -196,22 +165,14 @@ export class EnokiClientExtension {
 		// Wait on the digest of the bytes that were signed, not one reported by the server.
 		const digest = TransactionDataBuilder.getDigestFromBytes(transactionBytes);
 
-		let response: { digest: string };
-		try {
-			options.signal?.throwIfAborted();
-			response = await this.#enoki.sponsorAndExecuteTransaction({
-				network,
-				transactionBytes: toBase64(transactionBytes),
-				signature,
-				allowedAddresses: options.allowedAddresses,
-				allowedMoveCallTargets: options.allowedMoveCallTargets,
-			});
-		} catch (error) {
-			if (isStaleTransactionError(error)) {
-				this.#sponsorAddress = undefined;
-			}
-			throw error;
-		}
+		options.signal?.throwIfAborted();
+		const response = await this.#enoki.sponsorAndExecuteTransaction({
+			network,
+			transactionBytes: toBase64(transactionBytes),
+			signature,
+			allowedAddresses: options.allowedAddresses,
+			allowedMoveCallTargets: options.allowedMoveCallTargets,
+		});
 		if (response.digest !== digest) {
 			throw new Error(`Enoki returned digest ${response.digest}, but the transaction is ${digest}`);
 		}
