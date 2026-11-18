@@ -157,7 +157,12 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 					transport,
 					family.subscribe,
 					{ readMask, filter },
-					{ signal, isItem, coalesceProgress: true },
+					{
+						signal,
+						isItem,
+						coalesceProgress: true,
+						validate: (frame) => family.position(frame, family.item(frame)),
+					},
 				),
 		};
 	}

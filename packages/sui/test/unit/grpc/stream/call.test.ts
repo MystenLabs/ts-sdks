@@ -11,7 +11,11 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 
 function open(
 	ledger: FakeLedger,
-	options: { maxResponses?: number; coalesceProgress?: boolean } = {},
+	options: {
+		maxResponses?: number;
+		coalesceProgress?: boolean;
+		validate?: (frame: LiveFrame) => void;
+	} = {},
 ) {
 	const controller = new AbortController();
 	const call = openLedgerCall(
@@ -185,6 +189,26 @@ describe.each(['pull', 'push'] satisfies Delivery[])('ledger calls (%s)', (deliv
 		await settle();
 		expect((await call.next()).value?.watermark?.checkpoint).toBe(2n);
 		expect((await call.next()).value?.event?.checkpoint).toBe(3n);
+		await call.return();
+	});
+
+	it('validates a progress response before coalescing can drop it', async () => {
+		const malformed = progress(mark('a'), 1);
+		delete malformed.watermark!.cursorPosition;
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', [
+			event(1),
+			malformed,
+			progress(mark('b'), 2),
+		]);
+		const { events } = GRPC_FAMILIES;
+		const { call } = open(ledger, {
+			coalesceProgress: true,
+			validate: (frame) => events.position(frame, events.item(frame)),
+		});
+		call.readAhead(true);
+		await settle();
+		expect((await call.next()).value?.event?.checkpoint).toBe(1n);
+		expect(await rejection(call.next())).toMatchObject({ code: 'Protocol' });
 		await call.return();
 	});
 });

@@ -38,6 +38,8 @@ export interface LedgerCallOptions<T> {
 	isItem(response: T): boolean;
 	/** Keep only the newest of consecutive queued progress responses. */
 	coalesceProgress?: boolean;
+	/** Throws for a malformed response, which then fails the call in its place. */
+	validate?(response: T): void;
 	/** Defaults to `MAX_QUEUED_RESPONSES`. */
 	maxResponses?: number;
 }
@@ -71,6 +73,7 @@ class BoundedQueue<T> {
 	readonly #isItem: (response: T) => boolean;
 	readonly #maxResponses: number;
 	readonly #coalesceProgress: boolean;
+	readonly #validate: ((response: T) => void) | undefined;
 	#responses: T[] = [];
 	#head = 0;
 
@@ -78,6 +81,7 @@ class BoundedQueue<T> {
 		this.#isItem = options.isItem;
 		this.#maxResponses = options.maxResponses ?? MAX_QUEUED_RESPONSES;
 		this.#coalesceProgress = options.coalesceProgress ?? false;
+		this.#validate = options.validate;
 	}
 
 	get length() {
@@ -86,6 +90,8 @@ class BoundedQueue<T> {
 
 	/** Returns false when the queue is full. */
 	push(response: T): boolean {
+		// Before coalescing, which would drop it unchecked.
+		this.#validate?.(response);
 		const last = this.#responses.length - 1;
 		if (
 			this.#coalesceProgress &&
@@ -181,9 +187,18 @@ abstract class QueuedLedgerCall<T> implements LedgerCall<T> {
 	}
 
 	protected enqueue(response: T) {
-		if (this.queue.push(response)) return;
+		let queued: boolean;
+		try {
+			queued = this.queue.push(response);
+		} catch (error) {
+			return this.#fail(error);
+		}
 		// The consumer fell behind; the stream reconnects and resumes from its last frame.
-		const error = new RpcError('Ledger stream buffer limit reached', 'ABORTED');
+		if (!queued) this.#fail(new RpcError('Ledger stream buffer limit reached', 'ABORTED'));
+	}
+
+	/** Responses queued before the failure are delivered first. */
+	#fail(error: unknown) {
 		this.end(error);
 		this.#linked.controller.abort(error);
 	}
