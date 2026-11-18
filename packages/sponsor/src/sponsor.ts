@@ -384,25 +384,17 @@ export class Sponsor<TOptions extends object = object> {
 		const userSignatures = toSignatureArray(options.userSignature);
 
 		let bytes: Uint8Array;
-		let tx: Transaction;
 
 		if (userSignatures.length > 0) {
-			// Signed: the bytes are final (Uint8Array or base64). Use them exactly —
-			// never rebuild — so the user's signature stays valid.
-			const input = options.transaction;
-			if (input instanceof Transaction) {
-				throw new Error(
-					'A user signature requires the transaction as bytes or base64, not a Transaction.',
-				);
-			}
-			bytes = input instanceof Uint8Array ? input : fromBase64(input);
-			tx = Transaction.from(bytes);
+			// Signed: the bytes are final. Use them exactly — never rebuild — so the
+			// user's signature stays valid.
+			bytes = this.#userSignedBytes(options.transaction);
 		} else {
 			const sender = 'sender' in options ? options.sender : undefined;
-			tx =
-				options.transaction instanceof Transaction
-					? options.transaction
-					: Transaction.from(options.transaction);
+			const input = options.transaction;
+			// Structural, like `Transaction.from`, so a Transaction from another copy of
+			// @mysten/sui still counts.
+			const tx = typeof input === 'object' && 'getData' in input ? input : Transaction.from(input);
 			if (sender) tx.setSenderIfNotSet(sender);
 			tx.setGasOwner(sponsor);
 			// Pay gas from the sponsor's address balance (empty payment); the resolver
@@ -411,12 +403,8 @@ export class Sponsor<TOptions extends object = object> {
 			tx.setGasPayment([]);
 
 			bytes = await tx.build({ client: this.#client });
+			assertSponsorable(tx, sponsor);
 		}
-
-		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
-		// so verify it's a final, sponsor-owned transaction here rather than assume
-		// it (the sponsor-builds flow already guarantees this via `build()`).
-		assertSponsorable(tx, sponsor);
 
 		// The user's signature isn't verified here: execution already enforces it
 		// (a bad signature never executes, so the sponsor risks nothing), and the
@@ -485,14 +473,7 @@ export class Sponsor<TOptions extends object = object> {
 		if (userSignatures.length === 0) {
 			throw new Error('signAndExecuteTransaction requires the user signature.');
 		}
-		const input = options.transaction as unknown;
-		if (input instanceof Transaction) {
-			throw new Error(
-				'A user signature requires the transaction as bytes or base64, not a Transaction.',
-			);
-		}
-		const bytes = input instanceof Uint8Array ? input : fromBase64(input as string);
-		assertSponsorable(Transaction.from(bytes), this.address);
+		const bytes = this.#userSignedBytes(options.transaction);
 
 		const validationOptions = (options as { validationOptions?: object }).validationOptions ?? {};
 		const rejection = await this.#validate(bytes, validationOptions, userSignatures);
@@ -513,6 +494,25 @@ export class Sponsor<TOptions extends object = object> {
 			userSignatures,
 			include: { ...include, effects: true },
 		})) as SignAndExecuteResult<Include & { effects: true }>;
+	}
+
+	/**
+	 * Decodes user-signed bytes (or base64) and checks they're a final transaction
+	 * this sponsor pays for. They're taken as-is, never rebuilt, so this is where
+	 * that's verified rather than assumed.
+	 */
+	#userSignedBytes(transaction: unknown): Uint8Array {
+		if (typeof transaction === 'string') {
+			transaction = fromBase64(transaction);
+		}
+		if (!ArrayBuffer.isView(transaction)) {
+			throw new Error(
+				'A user signature requires the transaction as bytes or base64, not a Transaction.',
+			);
+		}
+		const bytes = transaction as Uint8Array;
+		assertSponsorable(Transaction.from(bytes), this.address);
+		return bytes;
 	}
 
 	/**
