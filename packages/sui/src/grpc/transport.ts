@@ -19,12 +19,9 @@ import {
 } from '../client/protocol-version.js';
 import { assertClientUrl } from '../client/utils.js';
 import { GrpcWebPullCall } from './grpc-web-pull.js';
-import { toNetworkRpcError } from './network-error.js';
+import { abortRpcError, plainMessageErrors, toNetworkRpcError } from './network-error.js';
 import { PULL_SERVER_STREAMING } from './pull-call.js';
 import type { PullServerStreamingTransport, ServerStreamingIterableCall } from './pull-call.js';
-
-// A failed call rejects four promises with the same error, so it is only decoded once.
-const decodedErrors = new WeakSet<RpcError>();
 
 // `grpc-message` is percent-encoded on the wire and the upstream transport does not decode it:
 // https://github.com/timostamm/protobuf-ts/pull/739
@@ -38,9 +35,10 @@ function decodeGrpcStatusMessage(message: string): string {
 	}
 }
 
+// A failed call rejects four promises with the same error, so it is only decoded once.
 function decodeStatusMessageOnce(error: RpcError): void {
-	if (decodedErrors.has(error)) return;
-	decodedErrors.add(error);
+	if (plainMessageErrors.has(error)) return;
+	plainMessageErrors.add(error);
 	error.message = decodeGrpcStatusMessage(error.message);
 }
 
@@ -97,14 +95,19 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 	}
 }
 
-// Upstream erases fetch and body-read failures into INTERNAL; code them as UNAVAILABLE instead.
+// Upstream erases fetch and body-read failures into INTERNAL; code network failures as
+// UNAVAILABLE instead, and keep an aborted call's reason.
+function fetchFailure(error: unknown, signal: AbortSignal | null | undefined): unknown {
+	return signal?.aborted ? abortRpcError(error) : toNetworkRpcError(error, signal);
+}
+
 function networkFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 	return async (input, init) => {
 		let response: Response;
 		try {
 			response = await fetch(input, init);
 		} catch (error) {
-			throw toNetworkRpcError(error, init?.signal);
+			throw fetchFailure(error, init?.signal);
 		}
 		// Other bodies, such as node-fetch's Node.js streams, are left to upstream.
 		if (typeof response.body?.getReader !== 'function') return response;
@@ -138,7 +141,7 @@ async function* readBody(
 		try {
 			result = await reader.read();
 		} catch (error) {
-			throw toNetworkRpcError(error, signal);
+			throw fetchFailure(error, signal);
 		}
 		if (result.done) return;
 		yield result.value;

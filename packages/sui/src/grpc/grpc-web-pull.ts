@@ -24,7 +24,7 @@ import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { MethodInfo, RpcMetadata, RpcStatus } from '@protobuf-ts/runtime-rpc';
 
-import { toNetworkRpcError } from './network-error.js';
+import { abortRpcError, toNetworkRpcError } from './network-error.js';
 import { markNonRetryable } from './pull-call.js';
 import type { ServerStreamingIterableCall } from './pull-call.js';
 
@@ -336,10 +336,10 @@ export class GrpcWebPullCall<
 
 	#toError(reason: unknown): RpcError {
 		let error: RpcError;
-		if (reason instanceof RpcError) error = reason;
+		if (reason instanceof RpcError && reason !== this.#controller.signal.reason) error = reason;
 		else if (this.#controller.signal.aborted) {
 			// Coded from the caller's abort reason by `normalizeError`.
-			error = new RpcError(abortMessage(reason), code(GrpcStatusCode.CANCELLED));
+			error = abortRpcError(reason);
 		} else {
 			// A request that can't be serialized or a response that can't be decoded fails every attempt.
 			error = markNonRetryable(
@@ -354,11 +354,6 @@ export class GrpcWebPullCall<
 		this.#normalizeError(error, this.#userSignal);
 		return error;
 	}
-}
-
-function abortMessage(reason: unknown): string {
-	if (typeof reason === 'string') return reason;
-	return reason instanceof Error ? reason.message : 'The operation was aborted';
 }
 
 function cancelQuietly(stream: { cancel(): Promise<void> } | null | undefined) {

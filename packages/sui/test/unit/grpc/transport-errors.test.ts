@@ -340,7 +340,8 @@ describe('gRPC transport error normalization', () => {
 		]);
 
 		for (const error of [fromResponse, fromStatus, fromTrailers]) {
-			expect(error.message).toBe('retry /a/b');
+			// The caller's own text was never percent-encoded, so it is not decoded.
+			expect(error.message).toBe('retry /a%2Fb');
 			expect(error.code).toBe('UNAVAILABLE');
 		}
 	});

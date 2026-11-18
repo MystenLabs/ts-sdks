@@ -172,6 +172,28 @@ describe.each(Object.entries(calls))('%s errors', (_, call) => {
 	});
 });
 
+const abortableCalls = {
+	unary: (t: GrpcWebFetchTransport, abort: AbortSignal) =>
+		t.unary(method, {}, t.mergeOptions({ abort })).status,
+	serverStreaming: (t: GrpcWebFetchTransport, abort: AbortSignal) =>
+		drain(t.serverStreaming(method, {}, t.mergeOptions({ abort })).responses),
+	'on-demand stream': (t: GrpcWebFetchTransport, abort: AbortSignal) =>
+		pullServerStreaming(t)!(method, {}, { abort }).responses.next(),
+};
+
+describe.each(Object.entries(abortableCalls))('%s aborts', (_, call) => {
+	it.each([
+		['an RpcError', new RpcError('cancel /objects/a%2Fb', 'INTERNAL')],
+		['an Error', new Error('cancel /objects/a%2Fb')],
+	])('keeps the message of %s reason as given', async (_, reason) => {
+		const abort = new AbortController();
+		const pending = call(transport(server(() => 'hang')), abort.signal);
+		abort.abort(reason);
+		const error = await rejection(pending);
+		expect(error.message).toBe('cancel /objects/a%2Fb');
+	});
+});
+
 describe('on-demand stream', () => {
 	it('reads and decodes only as messages are requested', async () => {
 		const b = body([...messages(10), trailer()]);
