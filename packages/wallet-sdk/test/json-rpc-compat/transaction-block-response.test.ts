@@ -12,6 +12,7 @@ import {
 	mappableIncludeFor,
 	transactionBlockResponseFromExecution,
 } from '../../src/json-rpc-compat/index.js';
+import { compiledModule } from './compiled-module.js';
 
 const EVERY_SECTION = {
 	balanceChanges: true,
@@ -355,37 +356,6 @@ describe('execution context', () => {
 });
 
 describe('published object changes', () => {
-	/**
-	 * Minimal Move `CompiledModule` bytes naming one module. `readMoveModuleName`
-	 * reads the header, the module-handle table and the identifier table only, so
-	 * nothing else has to be there.
-	 */
-	function compiledModule(name: string): number[] {
-		const identifier = [name.length, ...new TextEncoder().encode(name)];
-
-		return [
-			0xa1,
-			0x1c,
-			0xeb,
-			0x0b,
-			6,
-			0,
-			0,
-			0, // magic, version
-			2,
-			0x1,
-			0,
-			2,
-			0x7,
-			2,
-			identifier.length, // module-handle and identifier tables
-			0,
-			0, // one module handle, naming identifier 0
-			...identifier,
-			0, // self module handle index
-		];
-	}
-
 	/** An execution of `commands` whose only change is writing a new package. */
 	function packageWritingExecution(commands: (tx: Transaction) => void): MappableTransaction {
 		const tx = new Transaction();
@@ -433,7 +403,7 @@ describe('published object changes', () => {
 	test('carry the module names of a publish command', () => {
 		const executed = packageWritingExecution((tx) => {
 			tx.publish({
-				modules: [compiledModule('demo')],
+				modules: [Array.from(compiledModule('demo'))],
 				dependencies: [FRAMEWORK],
 			});
 		});
@@ -447,7 +417,7 @@ describe('published object changes', () => {
 				target: `${FRAMEWORK}::package::authorize_upgrade`,
 			});
 			tx.upgrade({
-				modules: [compiledModule('demo_v2')],
+				modules: [Array.from(compiledModule('demo_v2'))],
 				dependencies: [FRAMEWORK],
 				package: PACKAGE_ID,
 				ticket,
@@ -463,7 +433,7 @@ describe('published object changes', () => {
 				target: `${FRAMEWORK}::package::authorize_upgrade`,
 			});
 			tx.upgrade({
-				modules: [compiledModule('demo_v2')],
+				modules: [Array.from(compiledModule('demo_v2'))],
 				dependencies: [FRAMEWORK],
 				package: PACKAGE_ID,
 				ticket,
