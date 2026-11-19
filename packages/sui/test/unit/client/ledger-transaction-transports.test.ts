@@ -1,9 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from 'vitest';
-import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
-import { SuiGraphQLClient } from '../../../src/graphql/index.js';
+import { describe, expect, it } from 'vitest';
 import { Input_Mutability } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
 import {
 	EndOfEpochTransactionKind_Kind as EndOfEpochKind,
@@ -11,6 +9,7 @@ import {
 	TransactionExpiration_TransactionExpirationKind as ExpirationKind,
 	TransactionKind_Kind as Kind,
 } from '../../../src/grpc/proto/sui/rpc/v2/transaction.js';
+import { readFromBoth, transactionClients } from './fixtures/transaction-clients.js';
 import { address, cases, digest, header } from './fixtures/transaction-kinds.js';
 import type { GrpcKind } from './fixtures/transaction-kinds.js';
 
@@ -64,53 +63,24 @@ const newerEndOfEpoch = {
 	},
 };
 
-function clients(
+/** Wire responses carrying `tx`, as gRPC and as GraphQL's `transactionJson`. */
+function responses(
 	tx: GrpcTransaction | undefined,
 	json: unknown = tx ? GrpcTransaction.toJson(tx) : undefined,
 ) {
-	const grpc = new SuiGrpcClient({ network: 'localnet', baseUrl: 'http://localhost' });
-	const grpcRequest = vi.fn(async () => ({
-		response: {
-			transaction: GrpcTypes.ExecutedTransaction.create({
-				digest,
-				checkpoint: 10n,
-				transaction: tx,
-				effects: { status: { success: true } },
-			}),
-		},
-	}));
-	grpc.ledgerService.getTransaction = grpcRequest as never;
-	const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
-	const graphqlRequest = vi.fn(async () => ({
-		data: {
-			transaction: {
-				digest,
-				transactionJson: json,
-				signatures: [],
-				effects: { status: 'SUCCESS', checkpoint: { sequenceNumber: 10 } },
-			},
-		},
-	}));
-	graphql.query = graphqlRequest as never;
-	return { grpc, graphql, grpcRequest, graphqlRequest };
+	return { grpc: { transaction: tx }, graphql: { transactionJson: json } };
 }
 
 async function readBoth(tx: GrpcTransaction | undefined, json?: unknown) {
-	const { grpc, graphql } = clients(tx, json);
-	return Promise.all(
-		[grpc, graphql].map(async (client) => {
-			const result = await client.core.getTransaction({
-				digest,
-				include: { transaction: true },
-			});
-			return result.Transaction!.transaction;
-		}),
-	);
+	const [fromGrpc, fromGraphQL] = await readFromBoth(responses(tx, json), { transaction: true });
+	return [fromGrpc.Transaction!.transaction, fromGraphQL.Transaction!.transaction] as const;
 }
 
 describe('ledger transaction data across transports', () => {
 	it('does not request BCS unless asked', async () => {
-		const { grpc, graphql, grpcRequest, graphqlRequest } = clients(programmable);
+		const { grpc, graphql, grpcRequest, graphqlRequest } = transactionClients(
+			responses(programmable),
+		);
 		for (const client of [grpc, graphql]) {
 			await client.core.getTransaction({ digest, include: { transaction: true } });
 		}
@@ -224,7 +194,7 @@ describe('ledger transaction data across transports', () => {
 	});
 
 	it('rejects missing requested transaction data', async () => {
-		const { grpc, graphql } = clients(undefined);
+		const { grpc, graphql } = transactionClients(responses(undefined));
 		for (const client of [grpc, graphql]) {
 			await expect(
 				client.core.getTransaction({ digest, include: { transaction: true } }),

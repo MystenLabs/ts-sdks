@@ -1,18 +1,21 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export type SharedObjectRef = {
-	/** Hex code as string representing the object id */
-	objectId: string;
-
-	/** The version the object was shared at */
-	initialSharedVersion: number | string;
-
+/** How a transaction accesses a shared object input. */
+export type SharedObjectAccess = {
 	/** Whether reference is mutable */
 	mutable: boolean;
 
 	/** Set for the non-exclusive write access that system transactions take (`mutable` is false). */
 	mutability?: 'NonExclusiveWrite';
+};
+
+export type SharedObjectRef = SharedObjectAccess & {
+	/** Hex code as string representing the object id */
+	objectId: string;
+
+	/** The version the object was shared at */
+	initialSharedVersion: number | string;
 };
 
 export type SuiObjectRef = {

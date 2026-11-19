@@ -4,6 +4,7 @@
 import { fromBase64, toBase64 } from '@mysten/bcs';
 
 import type { bcs } from '../bcs/index.js';
+import type { SharedObjectAccess } from '../bcs/types.js';
 import {
 	assertAllowedProposersNotEmpty,
 	assertAllowedProposersStrictlyIncreasing,
@@ -419,10 +420,7 @@ export function transactionToGrpcJson(transaction: Transaction): unknown {
 	return GrpcTransactionType.toJson(grpcTransaction);
 }
 
-function grpcSharedObjectAccess(input: Input): {
-	mutable: boolean;
-	mutability?: 'NonExclusiveWrite';
-} {
+function grpcSharedObjectAccess(input: Input): SharedObjectAccess {
 	switch (input.mutability) {
 		case Input_Mutability.IMMUTABLE:
 			return { mutable: false };

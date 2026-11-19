@@ -1,13 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
 import { parseTransactionEffectsBcs } from '../../../src/client/utils.js';
-import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { parseTransactionEffects } from '../../../src/grpc/core.js';
-import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import { UnchangedConsensusObject_UnchangedConsensusObjectKind as UnchangedKind } from '../../../src/grpc/proto/sui/rpc/v2/effects.js';
 import {
 	CommandArgumentError_CommandArgumentErrorKind as CommandArgumentKind,
@@ -16,41 +14,12 @@ import {
 	TypeArgumentError_TypeArgumentErrorKind as TypeArgumentKind,
 } from '../../../src/grpc/proto/sui/rpc/v2/execution_status.js';
 import { normalizeSuiAddress } from '../../../src/utils/index.js';
+import { readFromBoth } from './fixtures/transaction-clients.js';
+import { digest } from './fixtures/transaction-kinds.js';
 
-const digest = '11111111111111111111111111111111';
 const caller = normalizeSuiAddress('0xabc');
 const sender = normalizeSuiAddress('0x5');
 const eventType = `${normalizeSuiAddress('0x2')}::token::TokenPolicyCreated<${caller}::coin::C>`;
-
-/** Both clients, each answering `getTransaction` with the given wire data. */
-function clients(grpcTransaction: object, graphqlTransaction: object) {
-	const grpc = new SuiGrpcClient({ network: 'localnet', baseUrl: 'http://localhost' });
-	grpc.ledgerService.getTransaction = vi.fn(async () => ({
-		response: {
-			transaction: GrpcTypes.ExecutedTransaction.create({
-				digest,
-				checkpoint: 10n,
-				transaction: { sender },
-				...grpcTransaction,
-			}),
-		},
-	})) as never;
-	const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
-	graphql.query = vi.fn(async () => ({
-		data: {
-			transaction: { digest, sender: { address: sender }, signatures: [], ...graphqlTransaction },
-		},
-	})) as never;
-	return [grpc, graphql] as const;
-}
-
-async function readBoth(grpcTransaction: object, graphqlTransaction: object, include = {}) {
-	return Promise.all(
-		clients(grpcTransaction, graphqlTransaction).map((client) =>
-			client.core.getTransaction({ digest, include }),
-		),
-	);
-}
 
 function graphqlFailure(executionError: object) {
 	return {
@@ -73,34 +42,35 @@ function graphqlFailure(executionError: object) {
 
 describe('transaction mappers across transports', () => {
 	it('reads an event package and module from the call that emitted it, not from its type', async () => {
-		const [fromGrpc, fromGraphQL] = await readBoth(
+		const [fromGrpc, fromGraphQL] = await readFromBoth(
 			{
-				effects: { status: { success: true } },
-				events: {
-					events: [
-						{
-							packageId: caller,
-							module: 'caller',
-							sender,
-							eventType,
-							contents: { value: new Uint8Array([1]) },
-						},
-					],
-				},
-			},
-			{
-				effects: {
-					status: 'SUCCESS',
-					checkpoint: { sequenceNumber: 10 },
+				grpc: {
 					events: {
-						pageInfo: { hasNextPage: false },
-						nodes: [
+						events: [
 							{
-								transactionModule: { name: 'caller', package: { address: '0xabc' } },
-								sender: { address: sender },
-								contents: { type: { repr: eventType }, bcs: 'AQ==', json: null },
+								packageId: caller,
+								module: 'caller',
+								sender,
+								eventType,
+								contents: { value: new Uint8Array([1]) },
 							},
 						],
+					},
+				},
+				graphql: {
+					effects: {
+						status: 'SUCCESS',
+						checkpoint: { sequenceNumber: 10 },
+						events: {
+							pageInfo: { hasNextPage: false },
+							nodes: [
+								{
+									transactionModule: { name: 'caller', package: { address: '0xabc' } },
+									sender: { address: sender },
+									contents: { type: { repr: eventType }, bcs: 'AQ==', json: null },
+								},
+							],
+						},
 					},
 				},
 			},
@@ -121,8 +91,8 @@ describe('transaction mappers across transports', () => {
 	});
 
 	it('reports the failing command of errors other than Move aborts', async () => {
-		const [fromGrpc, fromGraphQL] = await readBoth(
-			{
+		const [fromGrpc, fromGraphQL] = await readFromBoth({
+			grpc: {
 				effects: {
 					status: {
 						success: false,
@@ -134,8 +104,10 @@ describe('transaction mappers across transports', () => {
 					},
 				},
 			},
-			graphqlFailure({ message: 'Error in 6th command, Insufficient coin balance for operation.' }),
-		);
+			graphql: graphqlFailure({
+				message: 'Error in 6th command, Insufficient coin balance for operation.',
+			}),
+		});
 
 		const errors = [fromGrpc, fromGraphQL].map((result) => result.FailedTransaction!.status.error);
 		for (const error of errors) {

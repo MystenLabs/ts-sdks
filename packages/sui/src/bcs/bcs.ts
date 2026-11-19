@@ -6,7 +6,7 @@ import { bcs, fromBase58, fromBase64, toBase58, toBase64, toHex } from '@mysten/
 
 import { isValidSuiAddress, normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { TypeTagSerializer } from './type-tag-serializer.js';
-import type { TypeTag as TypeTagType } from './types.js';
+import type { SharedObjectAccess, TypeTag as TypeTagType } from './types.js';
 
 function unsafe_u64(options?: BcsTypeOptions<number>) {
 	return bcs
@@ -136,10 +136,8 @@ export const SharedObjectRef = SharedObjectRefStruct.transform({
 		mutable,
 		mutability,
 		...ref
-	}: Omit<typeof SharedObjectRefStruct.$inferInput, 'mutability'> & {
-		mutable: boolean;
-		mutability?: 'NonExclusiveWrite';
-	}): typeof SharedObjectRefStruct.$inferInput => ({
+	}: Omit<typeof SharedObjectRefStruct.$inferInput, 'mutability'> &
+		SharedObjectAccess): typeof SharedObjectRefStruct.$inferInput => ({
 		...ref,
 		mutability: {
 			[mutability ?? (mutable ? 'Mutable' : 'Immutable')]: true,
@@ -148,12 +146,7 @@ export const SharedObjectRef = SharedObjectRefStruct.transform({
 	output: ({
 		mutability,
 		...ref
-	}): {
-		objectId: string;
-		initialSharedVersion: string;
-		mutable: boolean;
-		mutability?: 'NonExclusiveWrite';
-	} =>
+	}): { objectId: string; initialSharedVersion: string } & SharedObjectAccess =>
 		mutability.$kind === 'NonExclusiveWrite'
 			? { ...ref, mutable: false, mutability: 'NonExclusiveWrite' }
 			: { ...ref, mutable: mutability.$kind === 'Mutable' },

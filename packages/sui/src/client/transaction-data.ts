@@ -106,7 +106,7 @@ export function grpcTransactionToLedgerTransactionData(
 	// Validated outside the catch, so a bad header throws instead of becoming an `Unknown` kind.
 	const normalizedHeader = normalizeHeader(header);
 	try {
-		return grpcKindToTransactionData(grpcTx.kind, header);
+		return grpcKindToTransactionData(grpcTx.kind, header, normalizedHeader);
 	} catch {
 		return ledgerTransactionData(normalizedHeader, UNKNOWN_KIND);
 	}
@@ -115,6 +115,7 @@ export function grpcTransactionToLedgerTransactionData(
 function grpcKindToTransactionData(
 	grpcKind: GrpcTransactionKind | undefined,
 	header: HeaderInput,
+	normalizedHeader: TransactionHeader,
 ): SuiClientTypes.TransactionData {
 	const kind = grpcKind?.kind;
 	if (
@@ -133,7 +134,7 @@ function grpcKindToTransactionData(
 				: { $kind: 'ProgrammableSystemTransaction', ProgrammableSystemTransaction: body },
 		);
 	}
-	return ledgerTransactionData(normalizeHeader(header), grpcSystemKind(grpcKind));
+	return ledgerTransactionData(normalizedHeader, grpcSystemKind(grpcKind));
 }
 
 function ledgerTransactionData(
