@@ -157,7 +157,6 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@0no-co/graphqlsp": "^1.17.3",
 		"@graphql-codegen/add": "^7.1.0",
 		"@graphql-codegen/cli": "^7.4.6",
 		"@graphql-codegen/typed-document-node": "^7.1.0",
