@@ -1,5 +1,32 @@
 # @mysten/walletconnect-wallet
 
+## 2.0.0
+
+### Patch Changes
+
+- 659c915: Serialize and build with `restrictedMoveCalls: []` for both `signTransaction` and
+  `signAndExecuteTransaction`, since the bytes go to the remote wallet to approve, so the adapter
+  doesn't refuse calls on the wallet's behalf.
+- Updated dependencies [233b207]
+- Updated dependencies [98cb619]
+- Updated dependencies [e39d2a9]
+- Updated dependencies [d4e4406]
+- Updated dependencies [693482d]
+- Updated dependencies [233b207]
+- Updated dependencies [1bf4878]
+- Updated dependencies [1871849]
+- Updated dependencies [19d3a1c]
+- Updated dependencies [52660ab]
+- Updated dependencies [f43f64d]
+- Updated dependencies [f43f64d]
+- Updated dependencies [659c915]
+- Updated dependencies [2cb1611]
+- Updated dependencies [faf8d74]
+- Updated dependencies [f43f64d]
+- Updated dependencies [e39d2a9]
+  - @mysten/sui@3.0.0
+  - @mysten/wallet-standard@0.22.0
+
 ## 1.3.0
 
 ### Minor Changes

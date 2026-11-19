@@ -1,5 +1,18 @@
 # @mysten/wallet-standard
 
+## 0.22.0
+
+### Minor Changes
+
+- f43f64d: Require `@mysten/sui@^3` as a peer dependency.
+- f43f64d: Export the legacy JSON-RPC response types used by the deprecated
+  `sui:signAndExecuteTransactionBlock` feature as the deprecated `SuiJsonRpcTypes` namespace (for
+  example `SuiJsonRpcTypes.SuiTransactionBlockResponse`), replacing the imports from the removed
+  `@mysten/sui/jsonRpc`.
+- e39d2a9: `SuiJsonRpcTypes.SuiWithdrawFrom` matches JSON-RPC's serialization, including
+  `{ senderAllowance: { funder, allowance } }` for allowance-funded withdrawals, unlike the
+  `'sender' | 'sponsor'` type in the removed `@mysten/sui/jsonRpc`.
+
 ## 0.21.38
 
 ## 0.21.37

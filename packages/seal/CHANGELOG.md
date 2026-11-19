@@ -1,5 +1,27 @@
 # @mysten/seal
 
+## 2.0.0
+
+### Patch Changes
+
+- faf8d74: `SessionKey.setPersonalMessageSignature` checks the signature against the session's
+  address, and network errors during verification are no longer reported as an invalid signature.
+- Updated dependencies [233b207]
+- Updated dependencies [98cb619]
+- Updated dependencies [e39d2a9]
+- Updated dependencies [d4e4406]
+- Updated dependencies [693482d]
+- Updated dependencies [233b207]
+- Updated dependencies [1bf4878]
+- Updated dependencies [1871849]
+- Updated dependencies [19d3a1c]
+- Updated dependencies [52660ab]
+- Updated dependencies [f43f64d]
+- Updated dependencies [659c915]
+- Updated dependencies [2cb1611]
+- Updated dependencies [faf8d74]
+  - @mysten/sui@3.0.0
+
 ## 1.5.4
 
 ## 1.5.3

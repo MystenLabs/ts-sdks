@@ -1,5 +1,11 @@
 # @mysten/hashi
 
+## 0.7.0
+
+### Minor Changes
+
+- f43f64d: Require `@mysten/sui@^3` as a peer dependency.
+
 ## 0.6.30
 
 ## 0.6.29

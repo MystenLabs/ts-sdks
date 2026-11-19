@@ -1,5 +1,11 @@
 # @mysten/aws-kms-signer
 
+## 0.4.0
+
+### Minor Changes
+
+- f43f64d: Require `@mysten/sui@^3` as a peer dependency.
+
 ## 0.3.35
 
 ## 0.3.34
