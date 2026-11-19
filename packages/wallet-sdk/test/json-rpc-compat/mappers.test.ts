@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toBase58 } from '@mysten/bcs';
+import { SimulationError } from '@mysten/sui/client';
 import type { SuiClientTypes } from '@mysten/sui/client';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { Transaction } from '@mysten/sui/transactions';
 import type { SuiJsonRpcTypes } from '@mysten/wallet-standard';
 import { describe, expect, test } from 'vitest';
 
@@ -101,6 +104,52 @@ function programmable(dryRun: ReturnType<typeof dryRunFromSimulation>) {
 		throw new Error('Expected a programmable transaction');
 	}
 	return transaction;
+}
+
+/** The Core API status of a clever abort that declares error code 3, read through GraphQL. */
+async function graphQLCleverAbort(): Promise<SuiClientTypes.ExecutionStatus> {
+	const client = new SuiGraphQLClient({
+		url: 'https://graphql.test.invalid',
+		network: 'unknown',
+		fetch: async () =>
+			Response.json({
+				data: {
+					simulateTransaction: {
+						effects: {
+							transaction: {
+								transactionBcs: null,
+								effects: {
+									epoch: { epochId: 1 },
+									status: 'FAILURE',
+									executionError: {
+										message: 'MoveAbort in 1st command',
+										// GraphQL reports the declared code in place of the raw abort code.
+										abortCode: '3',
+										identifier: 'ENotAllowed',
+										constant: 'not allowed',
+										sourceLineNumber: 42,
+										instructionOffset: 6,
+										module: { name: 'm', package: { address: PACKAGE } },
+										function: { name: 'f' },
+									},
+								},
+							},
+						},
+					},
+				},
+			}),
+	});
+	const tx = new Transaction();
+	tx.moveCall({ target: `${PACKAGE}::m::f` });
+	tx.setSender(SENDER);
+	tx.setGasBudget(1000);
+	tx.setGasPayment([]);
+
+	const error = await tx.build({ client }).catch((e) => e);
+	if (!(error instanceof SimulationError) || !error.executionError) {
+		throw new Error('Expected a simulation error', { cause: error });
+	}
+	return { success: false, error: error.executionError };
 }
 
 describe('fullnode fidelity', () => {
@@ -234,19 +283,8 @@ describe('fullnode fidelity', () => {
 		]);
 	});
 
-	test('reports a clever abort with its error code and line', () => {
-		const status = {
-			success: false,
-			error: {
-				$kind: 'MoveAbort',
-				message: 'aborted',
-				MoveAbort: {
-					abortCode: '9223372079804448767',
-					location: { package: PACKAGE, module: 'm', functionName: 'f' },
-					cleverError: { errorCode: 3, lineNumber: 42 },
-				},
-			},
-		} as SuiClientTypes.ExecutionStatus;
+	test('reports a clever abort with its error code and line', async () => {
+		const status = await graphQLCleverAbort();
 
 		const abortError: SuiJsonRpcTypes.SuiMoveAbort | null | undefined = dryRunFromSimulation(
 			simulation({ status }),
@@ -260,34 +298,29 @@ describe('fullnode fidelity', () => {
 		});
 	});
 
-	test('reads clever abort details from the top-level status, not the effects status', () => {
-		const location = { package: PACKAGE, module: 'm', functionName: 'f' };
-		const status = {
-			success: false,
-			error: {
-				$kind: 'MoveAbort',
-				message: 'aborted at line 42',
-				MoveAbort: {
-					abortCode: '9223372079804448767',
-					location,
-					cleverError: { errorCode: 3, lineNumber: 42 },
-				},
-			},
-		} as SuiClientTypes.ExecutionStatus;
+	test('reads clever abort details from the top-level status, not the effects status', async () => {
+		const status = await graphQLCleverAbort();
 		const sim = simulation({ status });
-		// GraphQL parses the effects status from BCS, which has no clever error details.
+		// GraphQL parses the effects status from BCS, which has the raw abort code and no clever
+		// error details.
 		sim.effects.status = {
 			success: false,
 			error: {
 				$kind: 'MoveAbort',
 				message: 'aborted',
-				MoveAbort: { abortCode: '9223372079804448767', location },
+				MoveAbort: {
+					abortCode: BigInt('0xc003002a00000001').toString(),
+					location: { package: PACKAGE, module: 'm', functionName: 'f' },
+				},
 			},
 		} as SuiClientTypes.ExecutionStatus;
 
 		const { effects } = dryRunFromSimulation(sim);
 
-		expect(effects.status).toEqual({ status: 'failure', error: 'aborted at line 42' });
+		expect(effects.status).toEqual({
+			status: 'failure',
+			error: `MoveAbort in 1st command, 'ENotAllowed': not allowed, in '${PACKAGE}::m::f' (line 42)`,
+		});
 		expect(effects.abortError).toEqual({
 			error_code: 3,
 			function: 'f',
