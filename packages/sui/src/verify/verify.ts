@@ -3,8 +3,6 @@
 
 import { fromBase64 } from '@mysten/bcs';
 
-import { bcs } from '../bcs/index.js';
-
 import type { PublicKey, SignatureFlag, SignatureScheme } from '../cryptography/index.js';
 import { parseSerializedSignature, SIGNATURE_FLAG_TO_SCHEME } from '../cryptography/index.js';
 import { Ed25519PublicKey } from '../keypairs/ed25519/publickey.js';
@@ -15,6 +13,7 @@ import { Secp256r1PublicKey } from '../keypairs/secp256r1/publickey.js';
 import { MultiSigPublicKey } from '../multisig/publickey.js';
 import { ZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import type { ClientWithCoreApi } from '../client/core.js';
+import { assertTransactionDataBytes } from '../client/utils.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 
 /**
@@ -64,8 +63,9 @@ export async function isValidSignature(
 /**
  * Whether `signature` is a valid signature over the personal message `message` (a string is UTF-8
  * encoded, as in `client.verifySignature`). Returns `false` for an invalid signature, or one from a
- * signer not authorized for `address`. Throws for a network error, or a zkLogin signature offline.
- * `checkAddressAliases` is ignored without `address`.
+ * signer not authorized for `address`. Throws for a network error, when the node can't check
+ * address aliases, or for a zkLogin signature offline. `checkAddressAliases` is ignored without
+ * `address`.
  */
 export async function isValidPersonalMessageSignature(
 	message: Uint8Array | string,
@@ -81,7 +81,8 @@ export async function isValidPersonalMessageSignature(
 /**
  * Whether `signature` is a valid signature over the transaction bytes. Returns `false` for an
  * invalid signature, or one from a signer not authorized for `address`. Throws for a network error,
- * or a zkLogin signature offline. `checkAddressAliases` is ignored without `address`.
+ * when the node can't check address aliases, or for a zkLogin signature offline.
+ * `checkAddressAliases` is ignored without `address`.
  */
 export async function isValidTransactionSignature(
 	transaction: Uint8Array,
@@ -169,6 +170,8 @@ async function checkSignature(
 	}
 
 	const invalid = { error: `Signature is not valid for the provided ${SCOPE_LABEL[scope]}` };
+	// `verifySignature` throws for malformed transaction bytes; here they are invalid, offline too.
+	if (scope === 'TransactionData' && !isTransactionData(bytes)) return invalid;
 	const parsed = tryParseSignature(signature, options.offline ? {} : { client: options.client });
 	if (!parsed) return invalid;
 	const address = options.address ? normalizeSuiAddress(options.address) : undefined;
@@ -194,9 +197,6 @@ async function checkSignature(
 		}
 		return { publicKey };
 	}
-
-	// `verifySignature` throws for undecodable transaction bytes; here they are invalid, as offline.
-	if (scope === 'TransactionData' && !isTransactionData(bytes)) return invalid;
 
 	const { publicKey } = parsed;
 	// Without an address, check the signature against its own signer.
@@ -233,9 +233,8 @@ async function checkSignature(
 
 function isTransactionData(bytes: Uint8Array) {
 	try {
-		// Parsing ignores trailing bytes.
-		const serialized = bcs.TransactionData.serialize(bcs.TransactionData.parse(bytes));
-		return serialized.toBytes().length === bytes.length;
+		assertTransactionDataBytes(bytes);
+		return true;
 	} catch {
 		return false;
 	}

@@ -863,7 +863,9 @@ export class GrpcCoreClient extends CoreClient {
 		}
 		// Nodes without alias support ignore the request flag and check the exact address only.
 		if (checkAddressAliases && response.addressAliasesChecked !== true) {
-			throw new Error('The node does not support checking address aliases');
+			throw new Error(
+				'The node does not support checking address aliases; pass `checkAddressAliases: false` to verify the exact address only.',
+			);
 		}
 		return response.isValid
 			? { valid: true }

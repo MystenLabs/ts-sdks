@@ -174,9 +174,9 @@ const { valid, reason } = await client.verifySignature({
 
 `valid` is `false` when the signature is invalid or malformed, or its signer isn't authorized for
 `address`. `reason` says why, for logs only: its text differs between gRPC and GraphQL. The call
-throws for network errors. Use a client for the network the account is on. The signer can be one of
-the account's [address aliases](#address-aliases), so a valid result identifies the account, not the
-signer's key.
+throws for network errors, and when the node can't check address aliases. Use a client for the
+network the account is on. The signer can be one of the account's
+[address aliases](#address-aliases), so a valid result identifies the account, not the signer's key.
 
 Transaction signatures work the same way:
 
