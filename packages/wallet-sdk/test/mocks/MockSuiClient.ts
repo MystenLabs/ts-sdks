@@ -359,6 +359,12 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('listEvents not implemented in MockSuiClient');
 	}
 
+	async listCheckpoints(
+		_options: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse> {
+		throw new Error('listCheckpoints not implemented in MockSuiClient');
+	}
+
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		_options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
