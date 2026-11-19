@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
+import type { MethodInfo, RpcTransport } from '@protobuf-ts/runtime-rpc';
 
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
-import { GetPackageRequest } from '../../../src/grpc/proto/sui/rpc/v2/move_package_service.js';
+import {
+	GetPackageRequest,
+	MovePackageService,
+} from '../../../src/grpc/proto/sui/rpc/v2/move_package_service.js';
+import { withClientProtocolVersion } from '../../../src/grpc/transport.js';
 
 const packageId = '0x2';
 
@@ -37,5 +42,50 @@ describe('requests with an unset oneof', () => {
 
 		expect(bodies).toHaveLength(2);
 		expect(bodies[0]).toEqual(bodies[1]);
+	});
+
+	describe('with a caller-supplied transport', () => {
+		const getPackage = MovePackageService.methods.find(
+			(method) => method.name === 'GetPackage',
+		) as MethodInfo<GetPackageRequest, object>;
+
+		function recordingTransport(inputs: object[]): RpcTransport {
+			const record = (_method: unknown, input: object) => {
+				inputs.push(input);
+				throw new Error('sent');
+			};
+
+			return {
+				mergeOptions: (options) => options ?? {},
+				unary: record,
+				serverStreaming: record,
+				clientStreaming: record,
+				duplex: record,
+			} as RpcTransport;
+		}
+
+		it('passes the request through create() for a unary call', () => {
+			const inputs: object[] = [];
+			const client = new SuiGrpcClient({
+				network: 'testnet',
+				transport: recordingTransport(inputs),
+			});
+
+			expect(() =>
+				client.movePackageService.getPackage({ packageId } as GetPackageRequest),
+			).toThrow('sent');
+			expect(inputs).toEqual([GetPackageRequest.create({ packageId })]);
+			expect((inputs[0] as GetPackageRequest).selector.oneofKind).toBeUndefined();
+		});
+
+		it('passes the request through create() for a server-streaming call', () => {
+			const inputs: object[] = [];
+			const transport = withClientProtocolVersion(recordingTransport(inputs));
+
+			expect(() =>
+				transport.serverStreaming(getPackage, { packageId } as GetPackageRequest, {}),
+			).toThrow('sent');
+			expect(inputs).toEqual([GetPackageRequest.create({ packageId })]);
+		});
 	});
 });

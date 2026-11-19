@@ -156,9 +156,7 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		// protobuf-ts's encoder requires every oneof to be set; create() fills unset ones so requests
-		// built before a oneof was added still send.
-		const call = super.unary(method, method.I.create(input), options);
+		const call = super.unary(method, input, options);
 
 		normalizeRejections([call.headers, call.response, call.status, call.trailers], options.abort);
 
@@ -170,7 +168,7 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
-		const call = super.serverStreaming(method, method.I.create(input), options);
+		const call = super.serverStreaming(method, input, options);
 
 		// A finite stream is often read through `responses` without awaiting `status`.
 		call.responses.onError((error) => normalizeGrpcError(error, options.abort));
@@ -180,7 +178,10 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 	}
 }
 
-/** Adds SDK metadata without mutating the caller's transport or its default options. */
+/**
+ * Adds SDK metadata and request defaults without mutating the caller's transport or its default
+ * options. Wraps every transport `SuiGrpcClient` uses, including a caller-supplied one.
+ */
 export function withClientProtocolVersion(transport: RpcTransport): RpcTransport {
 	return {
 		mergeOptions(options) {
@@ -193,8 +194,11 @@ export function withClientProtocolVersion(transport: RpcTransport): RpcTransport
 				},
 			};
 		},
-		unary: transport.unary.bind(transport),
-		serverStreaming: transport.serverStreaming.bind(transport),
+		// protobuf-ts's encoder requires every oneof to be set; create() fills unset ones so requests
+		// built before a oneof was added still send.
+		unary: (method, input, options) => transport.unary(method, method.I.create(input), options),
+		serverStreaming: (method, input, options) =>
+			transport.serverStreaming(method, method.I.create(input), options),
 		clientStreaming: transport.clientStreaming.bind(transport),
 		duplex: transport.duplex.bind(transport),
 	};
