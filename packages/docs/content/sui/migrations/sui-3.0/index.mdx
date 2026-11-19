@@ -58,6 +58,10 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   `SuiClientTypes.OpenSignature`.
 - **`normalizedTypeToMoveTypeSignature` is removed** from `@mysten/sui/transactions`. Use
   `getMoveFunction`, which already returns `OpenSignature`s.
+- **BCS schemas changed.** Shared object inputs decoded with `bcs.SharedObjectRef` can have
+  `mutability: 'NonExclusiveWrite'`, `bcs.Owner` has a new `Party` variant, and the
+  `bcs.MoveObjectType` variant `AccumulatorBalanceWrapper` is renamed to
+  `SuiBalanceAccumulatorField`. Handle the new variants wherever you switch on these types.
 - **`GraphQLSimulateTransactionOptions` is removed** from `@mysten/sui/graphql`. Use
   `SuiClientTypes.SimulateTransactionOptions`, which now includes `doGasSelection`.
 - **`CoreClient` has a new abstract `listCheckpoints` method.** Custom `CoreClient` subclasses, such
