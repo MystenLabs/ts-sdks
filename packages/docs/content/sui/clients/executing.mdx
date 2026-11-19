@@ -101,6 +101,24 @@ Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransacti
 | `objectTypes`    | Map of object ID to type for all changed objects                   |
 | `bcs`            | Raw BCS-encoded transaction bytes                                  |
 
+Each entry in `effects.changedObjects`, and `effects.gasObject`, carries its `objectType`, so you
+can find objects of a given type without also requesting `objectTypes`:
+
+```typescript
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	include: { effects: true },
+});
+
+const created = result.Transaction?.effects.changedObjects.filter(
+	(change) => change.idOperation === 'Created' && change.objectType?.endsWith('::counter::Counter'),
+);
+```
+
+`objectType` is a fully normalized type string (`0x000…0002::coin::Coin<0x000…0002::sui::SUI>`), or
+`null` when the type is unknown, such as for effects decoded with `parseTransactionEffectsBcs`.
+
 ## `waitForTransaction`
 
 Reads are served from indexed state, which trails execution slightly. Wait before reading a

@@ -520,6 +520,8 @@ function parseTransactionEffectsV1({
 			outputDigest: change.outputState === 'DoesNotExist' ? null : reference.digest,
 			outputOwner: change.outputOwner,
 			idOperation: change.idOperation,
+			// BCS effects do not carry object types
+			objectType: null,
 		};
 	};
 
@@ -625,6 +627,8 @@ function parseTransactionEffectsV2({
 				outputOwner:
 					change.outputState.$kind === 'ObjectWrite' ? change.outputState.ObjectWrite[1] : null,
 				idOperation: change.idOperation.$kind,
+				// BCS effects do not carry object types
+				objectType: null,
 			};
 		},
 	);
