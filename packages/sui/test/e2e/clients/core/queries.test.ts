@@ -699,6 +699,18 @@ describe('Core API - Queries', () => {
 			abortedDigest = aborted.FailedTransaction.digest;
 			actorDigests.push(abortedDigest);
 			await recordCheckpoint(abortedDigest);
+
+			// List queries can trail what `waitForTransaction` checks, so wait until every transport
+			// lists all of the actor's transactions before the exact-match tests run.
+			await vi.waitFor(
+				async () => {
+					for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+						const result = await client.core.listTransactions({ filter: { sender: actorAddress } });
+						expect(digestsOf(result)).toEqual(actorDigests);
+					}
+				},
+				{ timeout: 10_000, interval: 250 },
+			);
 		});
 
 		describe('affectedAddress and affectedObject', () => {
@@ -754,12 +766,18 @@ describe('Core API - Queries', () => {
 						limit: 1,
 					});
 
-				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
-					// The sponsor's match shows this client's index has the transaction.
-					expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
-					expect(digestsOf(await affectingSender(client))).toEqual([digest]);
-					expect(digestsOf(await sentBy(client))).toEqual([digest]);
-				}
+				// List queries can trail what `waitForTransaction` checks, so retry until they include it.
+				await vi.waitFor(
+					async () => {
+						for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+							// The sponsor's match shows this client's index has the transaction.
+							expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
+							expect(digestsOf(await affectingSender(client))).toEqual([digest]);
+							expect(digestsOf(await sentBy(client))).toEqual([digest]);
+						}
+					},
+					{ timeout: 10_000, interval: 250 },
+				);
 				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
 					attempts: 3,
 				});
