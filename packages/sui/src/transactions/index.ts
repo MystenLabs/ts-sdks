@@ -46,6 +46,13 @@ export type {
 	TransactionPlugin,
 } from './resolve.js';
 
+export {
+	DEFAULT_RESTRICTED_MOVE_CALLS,
+	findRestrictedMoveCalls,
+	type RestrictedMoveCall,
+	validateRestrictedMoveCalls,
+} from './restricted-move-calls.js';
+
 export { Arguments } from './Arguments.js';
 
 export { isArgument } from './utils.js';

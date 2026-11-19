@@ -35,8 +35,6 @@ export { restrictedMoveCalls } from './rules/restricted-move-calls.js';
 export type {
 	RestrictedMoveCall,
 	RestrictedMoveCallsOptions,
-	RestrictedTarget,
-	RestrictionLevel,
 } from './rules/restricted-move-calls.js';
 
 export { analyzers } from './rules/index.js';

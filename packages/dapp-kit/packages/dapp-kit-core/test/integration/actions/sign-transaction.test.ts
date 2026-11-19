@@ -12,6 +12,7 @@ import { createMockWallets, MockWallet } from '../../mocks/mock-wallet.js';
 import { createDAppKit, DAppKit } from '../../../src/index.js';
 import { createInMemoryStorage } from '../../../src/utils/storage.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 import { getWallets } from '@mysten/wallet-standard';
 import type { ReadonlyWalletAccount } from '@mysten/wallet-standard';
 import { createMockAccount } from '../../mocks/mock-account.js';
@@ -28,12 +29,15 @@ describe('[Integration] signTransaction action', () => {
 		return unregister;
 	}
 
-	function setup(accounts: ReadonlyWalletAccount[] = [createMockAccount(), createMockAccount()]) {
+	function setup(
+		accounts: ReadonlyWalletAccount[] = [createMockAccount(), createMockAccount()],
+		restrictedMoveCalls?: string[],
+	) {
 		dAppKit = createDAppKit({
 			networks: TEST_NETWORKS,
 			defaultNetwork: TEST_DEFAULT_NETWORK,
 			createClient(network) {
-				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] });
+				return new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network], restrictedMoveCalls });
 			},
 			storage: createInMemoryStorage(),
 			storageKey: 'test-storage-key',
@@ -66,6 +70,35 @@ describe('[Integration] signTransaction action', () => {
 		const [input] = wallets[0].mocks.signTransaction.mock.calls[0];
 		expect(input.account.address).toBe(uiWallet.accounts[0].address);
 		expect(input.chain).toBe(`sui:${TEST_DEFAULT_NETWORK}`);
+	});
+
+	test('Rejects restricted Move calls by default', async () => {
+		const [uiWallet] = setup();
+		wallets[0].mocks.signTransaction.mockImplementation(async (input) => ({
+			bytes: await input.transaction.toJSON(),
+			signature: 'SIG',
+		}));
+
+		await dAppKit.connectWallet({ wallet: uiWallet });
+
+		const transaction = new Transaction();
+		transaction.moveCall({ target: '0x2::address_alias::add' });
+		await expect(dAppKit.signTransaction({ transaction })).rejects.toThrow('restricted Move calls');
+	});
+
+	test('Hands restricted Move calls to the wallet when the client allows them', async () => {
+		const [uiWallet] = setup(undefined, []);
+		wallets[0].mocks.signTransaction.mockImplementation(async (input) => ({
+			bytes: await input.transaction.toJSON(),
+			signature: 'SIG',
+		}));
+
+		await dAppKit.connectWallet({ wallet: uiWallet });
+
+		const transaction = new Transaction();
+		transaction.moveCall({ target: '0x2::address_alias::add' });
+		const { bytes } = await dAppKit.signTransaction({ transaction });
+		expect(bytes).toContain('address_alias');
 	});
 
 	test('Signs with an explicitly provided account belonging to the connected wallet', async () => {

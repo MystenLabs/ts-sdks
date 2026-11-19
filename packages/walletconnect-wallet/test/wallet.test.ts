@@ -399,10 +399,12 @@ describe('WalletConnectWallet transaction signing', () => {
 		await wallet.init();
 		const tx = makeTransaction();
 		let senderAtSerialization: string | null | undefined;
-		const toJSON = vi.fn((options?: { client?: ClientWithCoreApi }) => {
-			senderAtSerialization = tx.getData().sender;
-			return tx.toJSON(options);
-		});
+		const toJSON = vi.fn(
+			(options?: { client?: ClientWithCoreApi; restrictedMoveCalls?: readonly string[] }) => {
+				senderAtSerialization = tx.getData().sender;
+				return tx.toJSON(options);
+			},
+		);
 
 		// Mirrors a plain `Transaction`, which also exposes `setSenderIfNotSet`.
 		const transaction = {
@@ -416,7 +418,7 @@ describe('WalletConnectWallet transaction signing', () => {
 			chain: 'sui:testnet',
 		});
 
-		expect(toJSON).toHaveBeenCalledWith({ client });
+		expect(toJSON).toHaveBeenCalledWith({ client, restrictedMoveCalls: [] });
 		expect(senderAtSerialization).toBe(address);
 	});
 
@@ -455,6 +457,69 @@ describe('WalletConnectWallet transaction signing', () => {
 			signature: 'sig',
 			bytes,
 			effects: toBase64(new Uint8Array([1, 2, 3])),
+		});
+	});
+
+	describe('forwards restricted calls to the remote wallet', () => {
+		function makeAliasTransaction() {
+			const tx = makeTransaction();
+			tx.moveCall({ target: '0x2::address_alias::enable' });
+			return tx;
+		}
+
+		async function expectedAliasBytes() {
+			const tx = makeAliasTransaction();
+			tx.setSender(address);
+			return toBase64(await tx.build({ restrictedMoveCalls: [] }));
+		}
+
+		function restrictingClient(core: Partial<ClientWithCoreApi['core']> = {}) {
+			return {
+				core: { restrictedMoveCalls: ['0x2::address_alias'], ...core },
+			} as unknown as ClientWithCoreApi;
+		}
+
+		it('for sui_signTransaction', async () => {
+			const connector = makeConnector({
+				requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+			});
+			initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+			const { wallet } = createSigningWallet(restrictingClient());
+			await wallet.init();
+
+			await wallet.features['sui:signTransaction'].signTransaction({
+				transaction: makeAliasTransaction(),
+				account,
+				chain: 'sui:testnet',
+			});
+
+			const [request] = connector.request.mock.calls[0] as unknown as [
+				{ params: { transaction: string } },
+			];
+			expect(request.params.transaction).toBe(await expectedAliasBytes());
+		});
+
+		it('for sui_signAndExecuteTransaction', async () => {
+			const connector = makeConnector({ requestResult: { digest: 'tx-digest' } });
+			initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+			const waitForTransaction = vi.fn(async () => ({
+				Transaction: { signatures: ['sig'], effects: { bcs: new Uint8Array([1]) } },
+			}));
+			const { wallet } = createSigningWallet(
+				restrictingClient({ waitForTransaction } as unknown as ClientWithCoreApi['core']),
+			);
+			await wallet.init();
+
+			await wallet.features['sui:signAndExecuteTransaction'].signAndExecuteTransaction({
+				transaction: makeAliasTransaction(),
+				account,
+				chain: 'sui:testnet',
+			});
+
+			const [request] = connector.request.mock.calls[0] as unknown as [
+				{ params: { transaction: string } },
+			];
+			expect(request.params.transaction).toBe(await expectedAliasBytes());
 		});
 	});
 });
