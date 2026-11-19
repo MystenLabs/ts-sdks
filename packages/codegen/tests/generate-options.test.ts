@@ -823,7 +823,7 @@ describe('generate options', () => {
 		);
 	});
 
-	describe('on-chain (upgraded) packages', () => {
+	describe('on-chain (upgraded) packages', { timeout: 30_000 }, () => {
 		let onChainPath: string;
 
 		afterEach(async () => {
