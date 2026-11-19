@@ -90,9 +90,12 @@ export function decodeToken(value: string): StreamToken {
 	}
 	// Re-encoding rejects trailing bytes and non-canonical BCS or base64.
 	if (encodeToken(token) !== value) throw invalidToken();
-	validatePosition(token.position);
-	if (token.range.$kind === 'Finite' && token.range.end.$kind === 'Cursor') {
-		validatePosition(token.range.end.position);
+	const { range } = token;
+	const end = range.$kind === 'Finite' && range.end.$kind === 'Cursor' ? range.end.position : null;
+	for (const position of end ? [token.position, end] : [token.position]) {
+		validatePosition(position);
+		// gRPC reports a ledger position for every frame.
+		if (token.transport === 'grpc' && position.kind === 'Progress') throw invalidToken();
 	}
 	return token;
 }

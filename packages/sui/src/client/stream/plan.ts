@@ -8,6 +8,7 @@ import { SuiStreamError } from './errors.js';
 import {
 	boundaryPosition,
 	comparePositions,
+	insideCheckpoint,
 	maxCoverage,
 	nextUncovered,
 	positionBytes,
@@ -360,8 +361,29 @@ export function compareBounds(
 	end: Bound,
 	order: SuiClientTypes.Order,
 ): number | undefined {
-	const comparison = comparePositions(boundPosition(start, order), boundPosition(end, order));
-	return comparison === undefined ? undefined : comparison * (order === 'ascending' ? 1 : -1);
+	const [first, last] = [boundPosition(start, order), boundPosition(end, order)];
+	const comparison = comparePositions(first, last);
+	if (comparison === undefined) return undefined;
+	const ordered = comparison * (order === 'ascending' ? 1 : -1);
+	// Points inside a checkpoint can't be told apart without its item counts: (c, n) may be c + 1.
+	if (ordered > 0 && mayCoincide(first, last)) return 0;
+	return ordered;
+}
+
+/**
+ * Whether two positions may name one point: both in one checkpoint, or a boundary inside c and the
+ * boundary before c + 1.
+ */
+function mayCoincide(a: StreamPosition, b: StreamPosition): boolean {
+	if (a.checkpoint === b.checkpoint) return true;
+	const [low, high] = a.checkpoint! < b.checkpoint! ? [a, b] : [b, a];
+	return (
+		high.checkpoint === low.checkpoint! + 1n &&
+		high.kind === 'Boundary' &&
+		!insideCheckpoint(high) &&
+		low.kind === 'Boundary' &&
+		insideCheckpoint(low)
+	);
 }
 
 /**

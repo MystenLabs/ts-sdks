@@ -693,3 +693,13 @@ function parseTransactionEffectsV2({
 		auxiliaryDataDigest: effects.auxDataDigest,
 	};
 }
+
+/** The base `fetch` resolves relative URLs against, if any. */
+export function pageBase(): string | undefined {
+	try {
+		return typeof document !== 'undefined' ? document.baseURI : globalThis.location?.href;
+	} catch {
+		// Deno's `location` getter throws when run without `--location`.
+		return undefined;
+	}
+}

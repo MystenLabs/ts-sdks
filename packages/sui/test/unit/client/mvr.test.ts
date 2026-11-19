@@ -101,4 +101,30 @@ describe('MvrClient cancellation', () => {
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});
+
+	it('sends requests when reading the page location throws', async () => {
+		// Deno run without `--location` throws on any read of `location`.
+		Object.defineProperty(globalThis, 'location', {
+			configurable: true,
+			get() {
+				throw new ReferenceError('Access to "location", run again with --location <href>.');
+			},
+		});
+		try {
+			const cause = new TypeError('fetch failed');
+			const fetchImpl = vi.fn(async () => {
+				throw cause;
+			});
+			const mvr = createClient(fetchImpl as unknown as typeof fetch);
+
+			await expect(mvr.resolveType({ type: '@mvr/demo::foo::Bar' })).rejects.toBe(cause);
+			expect(fetchImpl).toHaveBeenCalledWith(
+				expect.stringMatching(/^https:\/\/mvr\.example\//),
+				expect.anything(),
+			);
+		} finally {
+			delete (globalThis as { location?: unknown }).location;
+			vi.unstubAllGlobals();
+		}
+	});
 });

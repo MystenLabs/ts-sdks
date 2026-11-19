@@ -26,7 +26,11 @@ const token: StreamToken = {
 	chain: 'test-chain',
 	filter: filterHash({ sender: '0x1' }),
 	coverage: { $kind: 'Through', checkpoint: 122n },
-	position: progressPosition(new Uint8Array([255, 0, 128, 1])),
+	position: boundaryPosition(123n, {
+		cursor: new Uint8Array([255, 0, 128, 1]),
+		transactionIndex: 2n,
+		eventIndex: 0,
+	}),
 	range: { $kind: 'Follow' },
 };
 
@@ -42,7 +46,14 @@ function expectInvalid(value: string) {
 describe('resume token format', () => {
 	it.each<[string, Partial<StreamToken>]>([
 		['a follow range', {}],
-		['GraphQL with unknown coverage', { transport: 'graphql', coverage: { $kind: 'Unknown' } }],
+		[
+			'GraphQL progress with unknown coverage',
+			{
+				transport: 'graphql',
+				coverage: { $kind: 'Unknown' },
+				position: progressPosition(new Uint8Array([255, 0, 128, 1])),
+			},
+		],
 		['coverage before genesis', { coverage: { $kind: 'None' } }],
 		['a boundary position', { position: boundaryPosition(5n) }],
 	])('round-trips %s', (_, overrides) => {
@@ -73,7 +84,7 @@ describe('resume token format', () => {
 		const small = encodeToken({ ...token, filter: filterHash('x') });
 		const large = encodeToken({ ...token, filter: filterHash('x'.repeat(10_000)) });
 		expect(large.length).toBe(small.length);
-		expect(small.length).toBeLessThan(120);
+		expect(small.length).toBeLessThan(150);
 	});
 
 	it('hashes filters independently of key order and undefined fields', () => {
@@ -144,6 +155,7 @@ describe('rejecting tokens this SDK did not produce', () => {
 			boundaryPosition(5n, { coverage: { $kind: 'Through', checkpoint: 5n } }),
 		],
 		['an event index without a transaction index', itemPosition(5n, { eventIndex: 1 })],
+		['gRPC progress without a ledger position', progressPosition(new Uint8Array([1]))],
 	])('rejects a position this SDK cannot have produced: %s', (_, position) => {
 		expect(() => decodeToken(encodeToken({ ...token, position }))).toThrow(SuiStreamError);
 	});

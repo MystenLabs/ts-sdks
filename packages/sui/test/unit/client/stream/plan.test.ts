@@ -4,7 +4,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { SuiStreamError } from '../../../../src/client/stream/errors.js';
-import { progressPosition } from '../../../../src/client/stream/position.js';
+import {
+	boundaryPosition,
+	progressPosition,
+	type StreamPosition,
+} from '../../../../src/client/stream/position.js';
 import { compareBounds } from '../../../../src/client/stream/plan.js';
 import { decodeToken, encodeToken } from '../../../../src/client/stream/token.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
@@ -178,6 +182,69 @@ describe('option errors', () => {
 		expect(adapter.calls).toMatchObject({ initialize: 1, indexedTip: 1, pages: [] });
 		expect(log.filter((status) => status.startsWith('Retrying'))).toEqual([]);
 	});
+
+	it('reads start and end tokens that name one point in two forms as an empty range', async () => {
+		const token = decodeToken(await followToken());
+		const at = (position: StreamPosition) => encodeToken({ ...token, position });
+		// Just before (4, 3) is just before 5 when checkpoint 4 has three transactions.
+		const inside = boundaryPosition(4n, { cursor: new Uint8Array([1]), transactionIndex: 3n });
+		const { error } = await failure({
+			start: { resumeToken: await at(boundaryPosition(5n)) },
+			end: { resumeToken: await at(inside) },
+		});
+		expect(error).toBeUndefined();
+	});
+
+	it.each(['ascending', 'descending'] as const)(
+		'treats a boundary inside a checkpoint and the next checkpoint as possibly equal, %s',
+		(order) => {
+			const inside = {
+				position: boundaryPosition(4n, { cursor: new Uint8Array([1]), transactionIndex: 3n }),
+			};
+			const next = { position: boundaryPosition(5n) };
+			const [start, end] = order === 'ascending' ? [next, inside] : [inside, next];
+			expect(compareBounds(start, end, order)).toBe(0);
+			// The other way round, items of checkpoint 4 may lie between them.
+			expect(compareBounds(end, start, order)).toBe(-1);
+		},
+	);
+
+	it.each(['ascending', 'descending'] as const)(
+		'reads a start after the end within one checkpoint as an empty %s range',
+		(order) => {
+			const cursor = new Uint8Array([1]);
+			// (5, 0, 2) and (5, 2) are the same point when transaction 1 has no events; only the
+			// event counts, which the SDK doesn't have, would tell.
+			const event = {
+				position: boundaryPosition(5n, { cursor, transactionIndex: 0n, eventIndex: 2 }),
+			};
+			const later = { position: boundaryPosition(5n, { cursor, transactionIndex: 2n }) };
+			const [start, end] = order === 'ascending' ? [later, event] : [event, later];
+			expect(compareBounds(start, end, order)).toBe(0);
+			expect(compareBounds(end, start, order)).toBe(-1);
+		},
+	);
+
+	it('reads a start inside checkpoint 6 and an end at checkpoint 6 as an empty range', () => {
+		// (6, 1) is checkpoint 6's start when its transaction 0 has no events.
+		const start = {
+			position: boundaryPosition(6n, { cursor: new Uint8Array([1]), transactionIndex: 1n }),
+		};
+		expect(compareBounds(start, { checkpoint: 6n }, 'ascending')).toBe(0);
+		expect(compareBounds({ checkpoint: 5n }, start, 'descending')).toBe(0);
+	});
+
+	it.each(['ascending', 'descending'] as const)(
+		'still rejects a %s start a checkpoint past the end',
+		(order) => {
+			const inside = {
+				position: boundaryPosition(4n, { cursor: new Uint8Array([1]), transactionIndex: 3n }),
+			};
+			const past = { position: boundaryPosition(6n) };
+			const [start, end] = order === 'ascending' ? [past, inside] : [inside, past];
+			expect(compareBounds(start, end, order)).toBe(1);
+		},
+	);
 
 	it('rejects reversed bounds after resolving them', async () => {
 		const later = await tokenAt({ start: { checkpoint: 8 } }, 1, { live: [] });

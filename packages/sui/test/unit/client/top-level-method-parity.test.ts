@@ -12,16 +12,16 @@ import { SuiGrpcClient } from '../../../src/grpc/client.js';
  * Methods that intentionally stay on `client.core`. `resolveTransactionPlugin` and
  * `createLedgerStreamAdapter` are internal hooks rather than something application code reaches
  * for.
- *
- * The ledger stream methods are not forwarded yet; remove them once the transport clients do.
  */
-const CORE_ONLY_METHODS = new Set([
-	'resolveTransactionPlugin',
-	'createLedgerStreamAdapter',
-	'streamCheckpoints',
-	'streamTransactions',
-	'streamEvents',
-]);
+const CORE_ONLY_METHODS = new Set(['resolveTransactionPlugin', 'createLedgerStreamAdapter']);
+
+/**
+ * The ledger stream methods are forwarded by the transport PRs that implement them; remove a
+ * transport from this map when its forwards land.
+ */
+const NOT_YET_FORWARDED: Record<string, string[]> = {
+	SuiGraphQLClient: ['streamCheckpoints', 'streamTransactions', 'streamEvents'],
+};
 
 /**
  * Collect the methods callable on `client.core`.
@@ -70,7 +70,10 @@ describe.each([
 
 	it('exposes every Core API method as a top-level method', () => {
 		const prototype = ClientClass.prototype as unknown as Record<string, unknown>;
-		const missing = methods.filter((method) => typeof prototype[method] !== 'function');
+		const pending = NOT_YET_FORWARDED[_name] ?? [];
+		const missing = methods.filter(
+			(method) => typeof prototype[method] !== 'function' && !pending.includes(method),
+		);
 
 		// Core API methods are forwarded by hand, so a method added to the Core API without a
 		// matching forward is reachable only through client.core. Add the forward rather than
