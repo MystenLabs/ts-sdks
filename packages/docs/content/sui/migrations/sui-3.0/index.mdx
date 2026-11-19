@@ -14,6 +14,7 @@ questions:
   - What changed in @mysten/sui 3.0?
   - How do I migrate from SuiJsonRpcClient in @mysten/sui 3.0?
   - Do I need to update other @mysten packages for @mysten/sui 3.0?
+  - Can I use @mysten/sui 3.0 before my dependencies support it?
 answer: >-
   @mysten/sui 3.0 removes the deprecated JSON-RPC transport. Move to SuiGrpcClient or
   SuiGraphQLClient using the existing JSON-RPC migration guide, then check a short list of smaller
@@ -34,152 +35,121 @@ goal:
       label: Needs answer summary for AI citation
 ---
 
-`@mysten/sui` 3.0 removes the JSON-RPC transport, which was deprecated in 2.0. If you still use
-`SuiJsonRpcClient`, move to [`SuiGrpcClient`](/sui/clients/grpc) (recommended) or
-[`SuiGraphQLClient`](/sui/clients/graphql) by following
-[Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), which maps every JSON-RPC
-method to its replacement. Code that already runs on gRPC or GraphQL needs few or no changes.
+`@mysten/sui` 3.0 removes the JSON-RPC transport. If you still use `SuiJsonRpcClient`, move to
+[`SuiGrpcClient`](/sui/clients/grpc) (recommended) or [`SuiGraphQLClient`](/sui/clients/graphql) by
+following [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), which maps every
+JSON-RPC method to its replacement. Code that already runs on gRPC or GraphQL needs few or no
+changes.
 
-Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new release that requires
-`@mysten/sui@^3`: a major release, or a minor release for packages still on 0.x.
-`@mysten/dapp-kit-react` also gets a major release, because it depends on `@mysten/dapp-kit-core`
-2.0. Apart from the items below, these packages have no API changes: upgrade them together with
-`@mysten/sui`.
+Every `@mysten/*` package with a peer dependency on `@mysten/sui`, except the legacy
+`@mysten/dapp-kit`, gets a new release that requires `@mysten/sui@^3`: a major release, or a minor
+release for packages still on 0.x. `@mysten/dapp-kit-react` also gets a major release, because it
+depends on `@mysten/dapp-kit-core` 2.0. Apart from the items below, these releases have no breaking
+changes: upgrade them together with `@mysten/sui`.
+
+The legacy `@mysten/dapp-kit` has a peer dependency on `@mysten/sui` and uses JSON-RPC, so it can't
+run on 3.0 or keep a 2.x copy of its own.
+[Migrate to `@mysten/dapp-kit-react`](/sui/migrations/sui-2.0/dapp-kit) before upgrading.
 
 ## Breaking changes
 
 ### Removed JSON-RPC APIs
 
-- **`@mysten/sui/jsonRpc` is removed**, including `SuiJsonRpcClient`, `JsonRpcHTTPTransport`, and
-  all JSON-RPC request and response types. Follow
-  [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration).
-- **`getJsonRpcFullnodeUrl` is removed.** Pass the full node URL (for example
+- **`@mysten/sui/jsonRpc` no longer supports JSON-RPC.** Code that imports it still loads, but
+  `SuiJsonRpcClient`, `JsonRpcHTTPTransport` and the JSON-RPC error classes throw when constructed,
+  and `isSuiJsonRpcClient` returns `false`. Its types, such as `ObjectOwner`, are deprecated aliases
+  of `any`. Follow [Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration), and use
+  the `SuiClientTypes` equivalents from `@mysten/sui/client` for the types.
+- **`getJsonRpcFullnodeUrl` throws.** Pass the full node URL (for example
   `https://fullnode.mainnet.sui.io:443`) to `SuiGrpcClient`'s `baseUrl`.
-- **JSON-RPC types such as `ObjectOwner` and `SuiMoveNormalizedType` are removed.** Use the
-  `SuiClientTypes` equivalents from `@mysten/sui/client`, such as `SuiClientTypes.ObjectOwner` and
-  `SuiClientTypes.OpenSignature`.
-- **`normalizedTypeToMoveTypeSignature` is removed** from `@mysten/sui/transactions`. Use
-  `getMoveFunction`, which already returns `OpenSignature`s.
+- **`normalizedTypeToMoveTypeSignature` is removed.** `getMoveFunction` already returns
+  `OpenSignature`s.
+- **Untyped pure values are no longer supported.** `SuiJsonRpcClient` serialized `UnresolvedPure`
+  inputs, such as raw Move call arguments in v1 transaction JSON restored with `Transaction.from`,
+  from the Move function signature; `SuiGrpcClient` and `SuiGraphQLClient` reject them. Pass typed
+  values such as `tx.pure.u64(...)` instead.
 
 ### Core API
 
-- **Custom `CoreClient` subclasses and hand-built mocks need updating:**
-  - Implement the new abstract `listCheckpoints` and `verifySignature` methods.
-  - Set the new required `sender` field on `SuiClientTypes.Transaction` values.
-  - Give `SuiClientTypes.TransactionData` values a `kind` and the `$kind` discriminants described
-    below.
-  - Make `listDynamicFields` generic over its `include` option, like `getObjects`. Loops that pass a
-    page's cursor back in may need a `SuiClientTypes.ListDynamicFieldsResponse` annotation.
-- **`listDynamicFields` returns a dynamic object field's child object as its value.** With
-  `include: { value: true }`, `SuiGrpcClient` now sets a dynamic object field's `value` to the child
-  object's type and BCS content, as `SuiGraphQLClient` already did, instead of the child's ID. Read
-  the ID from `childId`.
-- **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
-  and `before` can be used together, and the validation errors have new messages. Update code that
-  matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
-  [Querying](/sui/clients/querying) for the current rules.
-- **`SuiGraphQLClient` page cursors match `SuiGrpcClient`.** In `listTransactions` and `listEvents`,
-  a final page's `endCursor` is its last item's cursor, and an empty final page has `null` cursors.
+- **`listDynamicFields` pagination loops may need a type annotation.** If a loop that passes the
+  cursor back in fails with `TS7022`, annotate the page as
+  `SuiClientTypes.ListDynamicFieldsResponse`.
+- **On `SuiGrpcClient`, `listDynamicFields` with `include: { value: true }` returns a dynamic object
+  field's child object as its value**, matching `SuiGraphQLClient`: `value.bcs` is the child
+  object's BCS contents instead of its ID. Read the child's ID from `childId`.
+- **On `SuiGraphQLClient`, an empty last page of `listTransactions` or `listEvents` has `null`
+  cursors**, as on `SuiGrpcClient`. When polling, keep your previous cursor
+  (`cursor = page.endCursor ?? cursor`).
+- **On `SuiGraphQLClient`, a transaction's `events` take `packageId` and `module` from the Move call
+  that emitted the event**, as `listEvents` and `SuiGrpcClient` do, rather than from the event type.
 
 ### Transaction data and BCS
 
-- **Transaction data (`include: { transaction: true }`) has a `kind`, and
-  `SuiClientTypes.TransactionData` is a read type.** Programmable transactions are
-  `kind.ProgrammableTransaction`, system transactions such as genesis and consensus commits map to
-  their own variants, and kinds the SDK does not recognize map to
-  `{ $kind: 'Unknown', Unknown: true }`. `inputs` and `commands` stay at the top level for
-  programmable and programmable system transactions and are empty for other kinds. Inputs, commands,
-  and expirations carry their `$kind` (narrow with `input.$kind === 'Pure'` rather than
-  `'Pure' in input`), shared object inputs can have `mutability: 'NonExclusiveWrite'`, and
-  builder-only unresolved inputs and intents are gone. Decode transaction bytes into this type with
-  `parseTransactionDataBcs`; `parseTransactionBcs` returns the builder's snapshot. See
-  [transaction data](/sui/clients/executing#transaction-data).
-- **BCS schemas changed.** Shared object inputs decoded with `bcs.SharedObjectRef` can have
-  `mutability: 'NonExclusiveWrite'`, `bcs.Owner` has a new `Party` variant, and the
-  `bcs.MoveObjectType` variant `AccumulatorBalanceWrapper` is renamed to
-  `SuiBalanceAccumulatorField`, with a new `BalanceAccumulatorField` variant. Handle the new
-  variants wherever you switch on these types. System transaction kinds decoded with
-  `bcs.TransactionKind` use named fields where they used tuples: `ChangeEpoch.systemPackages`
-  entries are `{ version, modules, dependencies }`, cancelled transactions in consensus commit
-  prologues are `{ digest, assignments }` with `{ objectId, version }` assignments (plus
-  `startVersion` in `CancelledTransactionsV2`), and stored execution time observations are
-  `{ key, observations }` with `{ validator, duration }` observations. The
-  `authenticatorObjInitialSharedVersion` and `randomnessObjInitialSharedVersion` fields are renamed
-  to `authenticatorObjectInitialSharedVersion` and `randomnessObjectInitialSharedVersion`. The
-  encoded bytes are unchanged.
-- **`MoveLocation.function` is removed.** Use `location.functionName`.
-- **Execution error names match across transports.** Errors decoded from BCS effects, including
-  GraphQL's, now report `InvalidBcsBytes`, `InvalidUsageOfPureArgument`,
-  `ConsensusObjectOperationNotAllowed` and `PackageIdDoesNotMatch` (previously `InvalidBCSBytes`,
-  `InvalidUsageOfPureArg`, `SharedObjectOperationNotAllowed` and `PackageIDDoesNotMatch`), as gRPC
-  does. Update code that matches on the old names.
-- **`bcs.TransactionEffects` decodes to named structs.** V2 `changedObjects` entries are
-  `{ objectId, inputState, outputState, idOperation }` and `unchangedConsensusObjects` entries are
-  `{ objectId, kind }` instead of `[objectId, ...]` tuples. Version and digest pairs are
-  `{ version, digest }`, `ObjectIn.Exist` is `{ version, digest, owner }`, `ObjectOut.ObjectWrite`
-  is `{ digest, owner }`, `MoveAbort` is `{ location, abortCode }`, and accumulator values are
-  `IntegerTuple: { first, second }` and `EventDigest: [{ eventIndex, digest }]`. In V1 effects,
-  `modifiedAtVersions` entries are `{ objectId, version }` and `created`, `mutated`, `unwrapped` and
-  `gasObject` are `{ reference, owner }`. The `InsufficientBalanceForWithdraw` error is renamed to
-  `InsufficientFundsForWithdraw`, and `congested_objects` to `congestedObjects`. The encoded bytes
-  are unchanged.
-- **Multisig BCS fields are camelCase.** `bcs.MultiSig`, `MultiSigStruct` and the `multisig`
-  returned by `parseSerializedSignature` use `multisigPk` instead of `multisig_pk`, and
-  `bcs.MultiSigPublicKey` uses `pkMap` instead of `pk_map`. The old names still work on
-  `parseSerializedSignature` results but are deprecated.
-- **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.** Add it to the
-  `readMask` paths of requests whose results you parse.
+- **Transaction data (`include: { transaction: true }`) has a `kind`.** Inputs and commands carry
+  `$kind`, so narrow with `input.$kind === 'Pure'` rather than `'Pure' in input`. Decode transaction
+  bytes into this type with `parseTransactionDataBcs`. See
+  [transaction data](/sui/clients/executing#transaction-data). It is no longer the builder's
+  serialized type, so to rebuild a `Transaction` from a query result, request
+  `include: { bcs: true }` and pass the result's `bcs` to `Transaction.from`.
+- **`bcs.Owner` has a `Party` variant, and `bcs.MoveObjectType`'s `AccumulatorBalanceWrapper` is
+  renamed to `SuiBalanceAccumulatorField`.**
+- **System transaction kinds decoded with `bcs.TransactionKind` use named fields instead of
+  tuples**, and `authenticatorObjInitialSharedVersion` and `randomnessObjInitialSharedVersion` are
+  renamed to `authenticatorObjectInitialSharedVersion` and `randomnessObjectInitialSharedVersion`.
+- **`SuiClientTypes.MoveLocation.function` (the function index) is removed.** Use
+  `location.functionName`.
+- **`bcs.TransactionEffects` tuples are structs with named fields**, for example `changedObjects`
+  entries (`{ objectId, inputState, outputState, idOperation }`), `IntegerTuple`
+  (`{ first, second }`) and V1 `modifiedAtVersions` entries (`{ objectId, version }`).
+  `InsufficientBalanceForWithdraw` is renamed to `InsufficientFundsForWithdraw` and
+  `congested_objects` to `congestedObjects`. The encoded bytes are unchanged.
+- **Multisig BCS fields are camelCase:** `multisigPk` instead of `multisig_pk` and `pkMap` instead
+  of `pk_map`. The old names still work on `parseSerializedSignature` results but are deprecated.
+- **Execution error names in `effects.status` match `SuiGrpcClient` everywhere**, including
+  `SuiGraphQLClient` and dApp Kit wallet results: `InvalidBcsBytes`, `InvalidUsageOfPureArgument`,
+  `ConsensusObjectOperationNotAllowed` and `PackageIdDoesNotMatch` replace `InvalidBCSBytes`,
+  `InvalidUsageOfPureArg`, `SharedObjectOperationNotAllowed` and `PackageIDDoesNotMatch`.
+- **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.**
+- **`parseTransactionBcs` returns the transaction builder's `TransactionData`** from
+  `@mysten/sui/transactions`, not `SuiClientTypes.TransactionData`. Use `parseTransactionDataBcs`
+  where you need the client type.
 
 ### Transports
 
-- **The raw gRPC `GetPackageRequest` type requires a `selector`.** TypeScript calls to
-  `client.movePackageService.getPackage` that only set `packageId` pass
-  `selector: { oneofKind: undefined }` to read the package stored at `packageId`. At runtime an
-  omitted `selector` is still sent unset.
-- **gRPC network failures report `UNAVAILABLE`.** Network failures in `SuiGrpcClient` calls now
-  report the `UNAVAILABLE` status code instead of `INTERNAL`. Update code that matches on these
-  codes.
-- **gRPC `baseUrl` is validated.** `SuiGrpcClient` and `GrpcWebFetchTransport` throw when `baseUrl`
-  is neither an absolute http(s) URL nor a path starting with `/`.
-- **The gRPC-web transport uses the binary wire format by default.** Both `SuiGrpcClient` and
-  `GrpcWebFetchTransport` from `@mysten/sui/grpc` now send `application/grpc-web+proto` instead of
-  base64 `application/grpc-web-text`. If a proxy in front of your full node only supports the text
-  format, pass `format: 'text'`.
-- **`SuiGraphQLClient` throws `SuiGraphQLRequestError` for network failures.** Network failures and
-  response bodies that can't be read or parsed now throw `SuiGraphQLRequestError` instead of the
-  underlying error, which is its `cause`. Its `reason` property is set when retrying can help.
-- **`SuiGraphQLClient` checks `url` when it is constructed.** It must be an absolute http(s) URL or
-  a path starting with `/`; anything else throws.
+- **gRPC-web uses the binary format by default.** If a proxy in front of your full node only
+  supports `application/grpc-web-text`, pass `format: 'text'`.
+- **Client URLs are checked at construction.** A GraphQL `url` or gRPC `baseUrl` that is neither an
+  absolute http(s) URL nor a path starting with `/` throws when the client is created.
+- **Network errors changed.** `SuiGrpcClient` reports `UNAVAILABLE` instead of `INTERNAL`, and
+  `SuiGraphQLClient` throws `SuiGraphQLRequestError`, with the original error as `cause`, for
+  network failures and malformed or unreadable bodies.
+- **The raw gRPC `GetPackageRequest` type requires a `selector`.** Existing
+  `client.movePackageService.getPackage({ packageId })` calls still work at runtime. To satisfy the
+  type, pass `selector: { oneofKind: undefined }` or build the request with
+  `GrpcTypes.GetPackageRequest.create({ packageId })`.
 
 ### Signature verification
 
-- **The `@mysten/sui/verify` personal message and transaction functions need a `client` or
-  `offline: true`.** Pass a client to verify on the node, or `offline: true` to verify locally. See
-  [Online or offline](/sui/cryptography#online-or-offline) for which to choose. To verify on the
-  node without loading keypair code, use
-  `client.verifySignature({ personalMessage, signature, address })` instead.
-  - With a client, a signature from one of `address`'s
-    [address aliases](/sui/cryptography#address-aliases) is valid. Pass `checkAddressAliases: false`
-    to accept only the address's own key.
-  - Offline verification ignores address aliases, so it rejects a valid signature from an alias. It
-    throws for zkLogin signatures.
-- **The deprecated `verifyZkLoginSignature` checks address aliases.** It accepts a signature from
-  one of `address`'s address aliases, and rejects one from a key the account removed from its
-  aliases.
+- **`verifyPersonalMessageSignature`, `verifyTransactionSignature`,
+  `isValidPersonalMessageSignature` and `isValidTransactionSignature` require a `client` or
+  `offline: true`.** Without either it's a type error; at runtime they verify offline and log a
+  warning. With a client, the node verifies the signature and checks zkLogin signatures; with
+  `address`, it also accepts the address's [address aliases](/sui/cryptography#address-aliases), and
+  throws on nodes that can't check them unless you pass `checkAddressAliases: false`. With
+  `offline: true`, zkLogin signatures throw. See
+  [Online or offline](/sui/cryptography#online-or-offline) for which to choose.
+- **With a client, the public key the verify helpers return may belong to one of the address's
+  aliases.** Use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
+- **`verifyZkLoginSignature` accepts signatures from the address's aliases** and throws on nodes
+  that can't check address aliases. It's deprecated: use `client.core.verifySignature`.
 
 ## Other packages
 
-- **`@mysten-incubation/sponsor`'s `userSignatureMatchesSender` verifies signatures on the node.**
-  It accepts signatures from the sender's address aliases. If the node can't be reached, the
-  validator fails with `ANALYSIS_FAILED`.
-- **`@mysten/seal`'s `SessionKey.setPersonalMessageSignature` now checks the signer.** The signature
-  must come from the session key's address or one of its address aliases; a valid signature from any
-  other account is rejected with `InvalidPersonalMessageSignatureError`.
-
-`@mysten/wallet-standard` and `@mysten/kiosk` no longer import types from `@mysten/sui/jsonRpc`. If
-your code names legacy response types such as `SuiTransactionBlockResponse`, import them from the
-`SuiJsonRpcTypes` namespace in `@mysten/wallet-standard` instead. In `@mysten/kiosk`,
-`TransferPolicy.owner` is now typed as `SuiClientTypes.ObjectOwner`; narrow it on `$kind`.
+- **`@mysten-incubation/sponsor`'s `userSignatureMatchesSender` verifies on the node**, and fails
+  with `ANALYSIS_FAILED` if the node can't be reached.
+- **`@mysten/wallet-standard` and `@mysten/kiosk` no longer use JSON-RPC types.** Import legacy
+  response types from the `SuiJsonRpcTypes` namespace in `@mysten/wallet-standard`.
+  `TransferPolicy.owner` in `@mysten/kiosk` is a `SuiClientTypes.ObjectOwner`.
 
 Wallets that still implement the deprecated `sui:signAndExecuteTransactionBlock` feature can build
 its legacy response from a gRPC or GraphQL execution with `@mysten/wallet-sdk/json-rpc-compat`:
@@ -190,8 +160,8 @@ import {
 	transactionBlockResponseFromExecution,
 } from '@mysten/wallet-sdk/json-rpc-compat';
 
-// `input` is the dApp's `sui:signAndExecuteTransactionBlock` input; `bytes` and `signature` are what
-// the wallet signed.
+// `input` is the dApp's `sui:signAndExecuteTransactionBlock` input; `bytes` (a `Uint8Array`) and
+// `signature` are what the wallet signed.
 const result = await client.core.executeTransaction({
 	transaction: bytes,
 	signatures: [signature],
@@ -206,9 +176,84 @@ return transactionBlockResponseFromExecution(result.Transaction ?? result.Failed
 ```
 
 For wallet code that still reads the JSON-RPC dry-run shape, `dryRunFromSimulation` builds a
-`DryRunTransactionBlockResponse` from a `simulateTransaction` result simulated with
+`DryRunTransactionBlockResponse` from the simulated transaction
+(`result.Transaction ?? result.FailedTransaction`) of a `simulateTransaction` call made with
 `include: { balanceChanges: true, effects: true, events: true, objectTypes: true, transaction: true }`.
-The legacy types are in the `SuiJsonRpcTypes` namespace of `@mysten/wallet-standard`.
+
+## Dependencies that still require 2.x
+
+You can upgrade before your dependencies release versions for 3.0. How a dependency lists
+`@mysten/sui` decides which copy it uses:
+
+- **A regular dependency on 2.x:** it installs its own 2.x copy and keeps working on it.
+- **A peer dependency on `^2`:** npm refuses to install it next to 3.0. pnpm and Yarn print a
+  warning and give it your 3.0 copy.
+
+Run `npm ls @mysten/sui` or `pnpm why @mysten/sui` to see which copies you have.
+
+Let packages keep their own 2.x copy where you can. Only values that cross between your code and the
+package are affected:
+
+- Clients, `Transaction`s and signers from your copy may not type-check where its API expects its
+  own, and fail its `instanceof` checks on SDK classes. A package that accepts `ClientWithCoreApi`
+  and doesn't use `instanceof` on SDK classes accepts them at runtime.
+- A package that calls methods on your 3.0 client gets 3.0 results, with the [Core API](#core-api)
+  and [transaction data](#transaction-data-and-bcs) changes above.
+
+If a package needs to use your copy, for example a peer dependency that npm won't install, add an
+override:
+
+```json title="package.json (npm)"
+{
+	"overrides": {
+		"@mysten/sui": "$@mysten/sui"
+	}
+}
+```
+
+`$@mysten/sui` reuses the version in your own `dependencies`.
+
+```yaml title="pnpm-workspace.yaml (pnpm 10.5 and later)"
+overrides:
+  '@mysten/sui': '$@mysten/sui'
+```
+
+Earlier pnpm versions ignore overrides in `pnpm-workspace.yaml`: put the same entry under
+`pnpm.overrides` in `package.json` instead. pnpm resolves `$@mysten/sui` from the root
+`package.json`, so if only a workspace package depends on `@mysten/sui`, write the range instead,
+for example `^3.0.0`.
+
+```json title="package.json (Yarn, Bun)"
+{
+	"resolutions": {
+		"@mysten/sui": "^3.0.0"
+	}
+}
+```
+
+Yarn still prints a peer dependency warning, which you can ignore.
+
+An override applies to every package, so all of them run on 3.0, as does a peer dependency that pnpm
+or Yarn gives your copy. The breaking changes above affect these packages as they affect your code.
+Most often, a package that imports `@mysten/sui/jsonRpc` loads, but throws when it uses JSON-RPC. It
+needs a release for 3.0; until then, don't add an override, so that a regular dependency keeps its
+own 2.x copy.
+
+Test the flows that use each dependency, and remove the override once every dependency supports 3.0.
+
+## Libraries built on `@mysten/sui`
+
+If you publish a package that uses `@mysten/sui`, release a version for 3.0 that:
+
+- **Lists `@mysten/sui@^3` in `peerDependencies`**, not `dependencies`, so apps keep a single copy.
+  See [Building SDKs](/sui/sdk-building#use-mysten-packages-as-peer-dependencies).
+- **Doesn't import `@mysten/sui/jsonRpc`.** On 3.0 its classes and `getJsonRpcFullnodeUrl` throw,
+  and its types are `any`.
+- **Accepts `ClientWithCoreApi`** from `@mysten/sui/client` instead of a specific client class, and
+  reads through `client.core`.
+- **Doesn't use `instanceof` on SDK classes**, which fails for values from another copy of
+  `@mysten/sui`. Use `isTransaction` from `@mysten/sui/transactions`, `isSuiGrpcClient` from
+  `@mysten/sui/grpc` and `isSuiGraphQLClient` from `@mysten/sui/graphql`.
 
 ## New in 3.0
 
@@ -223,6 +268,5 @@ The legacy types are in the `SuiJsonRpcTypes` namespace of `@mysten/wallet-stand
   See [Resumable ledger streams](/sui/clients/streaming).
 - `client.core.listDynamicFields({ include: { value: true } })` returns each field's value with the
   listing, on every client.
-- `verifySignature`, which verifies a personal message or transaction signature on the node and
-  checks address aliases, and `getAddressAliases`. `verifyZkLoginSignature` is deprecated in favor
-  of `verifySignature`.
+- `client.core.verifySignature`, which verifies a personal message or transaction signature on the
+  node and checks address aliases, and `client.core.getAddressAliases`.
