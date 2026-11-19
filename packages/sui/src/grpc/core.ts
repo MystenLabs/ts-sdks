@@ -24,6 +24,7 @@ import {
 import type {
 	ExecutionError as GrpcExecutionError,
 	MoveAbort as GrpcMoveAbort,
+	MoveLocation as GrpcMoveLocation,
 } from './proto/sui/rpc/v2/execution_status.js';
 import {
 	ExecutionError_ExecutionErrorKind,
@@ -59,6 +60,8 @@ import {
 	SimulateTransactionResponse,
 } from './proto/sui/rpc/v2/transaction_execution_service.js';
 import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
+import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
+import type { Event } from './proto/sui/rpc/v2/event.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
@@ -685,19 +688,7 @@ export class GrpcCoreClient extends CoreClient {
 			: undefined;
 		const call = this.#client.ledgerService.listEvents(
 			{
-				readMask: {
-					paths: [
-						'package_id',
-						'module',
-						'sender',
-						'event_type',
-						'contents',
-						'json',
-						'checkpoint',
-						'transaction_digest',
-						'event_index',
-					],
-				},
+				readMask: { paths: EVENT_READ_MASK_PATHS },
 				filter: toGrpcEventFilter(filter),
 				startCheckpoint: range.start,
 				endCheckpoint: range.end,
@@ -711,29 +702,7 @@ export class GrpcCoreClient extends CoreClient {
 			call.responses,
 			pagination.limit,
 			(frame) => frame.event,
-			(event): SuiClientTypes.EventEntry => {
-				if (
-					!event.packageId ||
-					!event.module ||
-					!event.sender ||
-					!event.eventType ||
-					!event.transactionDigest ||
-					event.eventIndex == null
-				) {
-					throw new Error('listEvents response is missing expected event fields');
-				}
-				return {
-					packageId: normalizeSuiAddress(event.packageId),
-					module: event.module,
-					sender: normalizeSuiAddress(event.sender),
-					eventType: normalizeStructTag(event.eventType),
-					bcs: event.contents?.value ?? new Uint8Array(),
-					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
-					checkpoint: event.checkpoint?.toString() ?? null,
-					transactionDigest: event.transactionDigest,
-					eventIndex: event.eventIndex,
-				};
-			},
+			(event) => parseGrpcEvent(event, 'listEvents'),
 		);
 
 		return { events: items, ...page };
@@ -746,9 +715,7 @@ export class GrpcCoreClient extends CoreClient {
 		const range = resolveCheckpointRange(options);
 		const call = this.#client.ledgerService.listCheckpoints(
 			{
-				readMask: {
-					paths: ['sequence_number', 'digest', 'summary.epoch', 'summary.timestamp'],
-				},
+				readMask: { paths: CHECKPOINT_READ_MASK_PATHS },
 				startCheckpoint: range.start,
 				endCheckpoint: range.end,
 				// Request one extra item as lookahead (see collectListPage)
@@ -761,25 +728,7 @@ export class GrpcCoreClient extends CoreClient {
 			call.responses,
 			pagination.limit,
 			(frame) => frame.checkpoint,
-			(checkpoint): SuiClientTypes.Checkpoint => {
-				const timestamp = checkpoint.summary?.timestamp;
-				if (
-					checkpoint.sequenceNumber == null ||
-					!checkpoint.digest ||
-					checkpoint.summary?.epoch == null ||
-					!timestamp
-				) {
-					throw new Error('listCheckpoints response is missing expected checkpoint fields');
-				}
-				return {
-					sequenceNumber: checkpoint.sequenceNumber.toString(),
-					digest: checkpoint.digest,
-					epoch: checkpoint.summary.epoch.toString(),
-					timestampMs: Number(
-						timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000)),
-					),
-				};
-			},
+			(checkpoint) => parseGrpcCheckpoint(checkpoint, 'listCheckpoints'),
 		);
 
 		return { checkpoints: items, ...page };
@@ -1031,6 +980,74 @@ export class GrpcCoreClient extends CoreClient {
 	}
 }
 
+export const CHECKPOINT_READ_MASK_PATHS = [
+	'sequence_number',
+	'digest',
+	'summary.epoch',
+	'summary.timestamp',
+];
+
+export const EVENT_READ_MASK_PATHS = [
+	'package_id',
+	'module',
+	'sender',
+	'event_type',
+	'contents',
+	'json',
+	'checkpoint',
+	'transaction_digest',
+	'event_index',
+];
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGrpcCheckpoint(
+	checkpoint: Checkpoint,
+	source: string,
+): SuiClientTypes.Checkpoint {
+	const timestamp = checkpoint.summary?.timestamp;
+	if (
+		checkpoint.sequenceNumber == null ||
+		!checkpoint.digest ||
+		checkpoint.summary?.epoch == null ||
+		!timestamp
+	) {
+		throw new Error(`${source} response is missing expected checkpoint fields`);
+	}
+	return {
+		sequenceNumber: checkpoint.sequenceNumber.toString(),
+		digest: checkpoint.digest,
+		epoch: checkpoint.summary.epoch.toString(),
+		timestampMs: Number(
+			timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000)),
+		),
+	};
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGrpcEvent(event: Event, source: string): SuiClientTypes.EventEntry {
+	if (
+		!event.packageId ||
+		!event.module ||
+		!event.sender ||
+		!event.eventType ||
+		!event.transactionDigest ||
+		event.eventIndex == null
+	) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+	return {
+		packageId: normalizeSuiAddress(event.packageId),
+		module: event.module,
+		sender: normalizeSuiAddress(event.sender),
+		eventType: normalizeStructTag(event.eventType),
+		bcs: event.contents?.value ?? new Uint8Array(),
+		json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+		checkpoint: event.checkpoint?.toString() ?? null,
+		transactionDigest: event.transactionDigest,
+		eventIndex: event.eventIndex,
+	};
+}
+
 /**
  * Collects one page from a streaming ledger query (listTransactions, listEvents,
  * listCheckpoints) that was sent with a limit of `limit + 1`. The extra item is a lookahead:
@@ -1105,13 +1122,20 @@ function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): Quer
 	};
 }
 
-function transactionReadMaskPaths(
+/**
+ * The read mask paths `parseGrpcTransactionResponse` needs for `include`. `prefix` places them
+ * under a field, such as `'transaction.'` for a simulation response. A simulation also needs
+ * `command_outputs` for command results and `transaction.effects.gas_object.object_id` to tell
+ * whether its gas payment was mocked; add those yourself.
+ */
+export function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
 ): string[] {
 	const paths = [
 		'digest',
 		'transaction.digest',
+		'transaction.sender',
 		'signatures',
 		'effects.status',
 		'effects.epoch',
@@ -1120,12 +1144,7 @@ function transactionReadMaskPaths(
 	];
 
 	if (include?.transaction) {
-		paths.push(
-			'transaction.sender',
-			'transaction.gas_payment',
-			'transaction.expiration',
-			'transaction.kind',
-		);
+		paths.push('transaction.gas_payment', 'transaction.expiration', 'transaction.kind');
 	}
 	if (include?.bcs) {
 		paths.push('transaction.bcs');
@@ -1265,7 +1284,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				SizeError: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					size: Number(details.sizeError.size ?? 0n),
 					maxSize: Number(details.sizeError.maxSize ?? 0n),
 				},
@@ -1278,7 +1297,10 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				command,
 				CommandArgumentError: {
 					argument: details.commandArgumentError.argument ?? 0,
-					name: mapErrorName(details.commandArgumentError.kind),
+					name: mapErrorName(
+						CommandArgumentError_CommandArgumentErrorKind,
+						details.commandArgumentError.kind,
+					),
 				},
 			};
 
@@ -1289,7 +1311,10 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				command,
 				TypeArgumentError: {
 					typeArgument: details.typeArgumentError.typeArgument ?? 0,
-					name: mapErrorName(details.typeArgumentError.kind),
+					name: mapErrorName(
+						TypeArgumentError_TypeArgumentErrorKind,
+						details.typeArgumentError.kind,
+					),
 				},
 			};
 
@@ -1299,7 +1324,10 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				PackageUpgradeError: {
-					name: mapErrorName(details.packageUpgradeError.kind),
+					name: mapErrorName(
+						PackageUpgradeError_PackageUpgradeErrorKind,
+						details.packageUpgradeError.kind,
+					),
 					packageId: details.packageUpgradeError.packageId,
 					digest: details.packageUpgradeError.digest,
 				},
@@ -1322,7 +1350,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				CoinDenyListError: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					coinType: details.coinDenyListError.coinType!,
 					address: details.coinDenyListError.address,
 				},
@@ -1334,7 +1362,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				CongestedObjects: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					objects: details.congestedObjects.objects,
 				},
 			};
@@ -1345,7 +1373,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				message,
 				command,
 				ObjectIdError: {
-					name: mapErrorName(error.kind),
+					name: mapErrorName(ExecutionError_ExecutionErrorKind, error.kind),
 					objectId: details.objectId,
 				},
 			};
@@ -1363,7 +1391,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 function parseMoveAbort(abort: GrpcMoveAbort): SuiClientTypes.MoveAbort {
 	return {
 		abortCode: String(abort.abortCode ?? 0n),
-		location: { ...abort.location },
+		location: abort.location && parseMoveLocation(abort.location),
 		cleverError: abort.cleverError
 			? {
 					errorCode:
@@ -1383,18 +1411,22 @@ function parseMoveAbort(abort: GrpcMoveAbort): SuiClientTypes.MoveAbort {
 	};
 }
 
-function mapErrorName(
-	kind:
-		| ExecutionError_ExecutionErrorKind
-		| CommandArgumentError_CommandArgumentErrorKind
-		| TypeArgumentError_TypeArgumentErrorKind
-		| PackageUpgradeError_PackageUpgradeErrorKind
-		| undefined,
-): string {
+/** Without the function index, which GraphQL does not report. */
+function parseMoveLocation(location: GrpcMoveLocation): SuiClientTypes.MoveLocation {
+	return {
+		package: location.package,
+		module: location.module,
+		functionName: location.functionName,
+		instruction: location.instruction,
+	};
+}
+
+/** The PascalCase name of a protobuf enum value, from that enum's reverse mapping. */
+function mapErrorName(names: Record<number, string>, kind: number | undefined): string {
 	if (kind == null) {
 		return 'Unknown';
 	}
-	const name = CommandArgumentError_CommandArgumentErrorKind[kind];
+	const name = names[kind];
 	if (!name || name.endsWith('_UNKNOWN')) {
 		return 'Unknown';
 	}
@@ -1626,8 +1658,16 @@ export function parseGrpcTransactionResponse<
 						},
 			};
 
+	const sender = transaction.transaction?.sender;
+	if (!sender) {
+		throw new Error(
+			'Transaction sender is missing from gRPC response; include `transaction.sender` in the read mask',
+		);
+	}
+
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
+		sender: normalizeSuiAddress(sender),
 		epoch: transaction.effects?.epoch?.toString() ?? null,
 		timestampMs: transaction.timestamp
 			? Number(transaction.timestamp.seconds) * 1000 +
@@ -1658,7 +1698,7 @@ export function parseGrpcTransactionResponse<
 					packageId: normalizeSuiAddress(event.packageId!),
 					module: event.module!,
 					sender: normalizeSuiAddress(event.sender!),
-					eventType: event.eventType!,
+					eventType: normalizeStructTag(event.eventType!),
 					bcs: event.contents?.value ?? new Uint8Array(),
 					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
 				})) ?? [])

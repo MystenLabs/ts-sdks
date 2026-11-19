@@ -6,6 +6,7 @@ export {
 	GrpcCoreClient,
 	parseGrpcSimulateTransactionResponse,
 	parseGrpcTransactionResponse,
+	transactionReadMaskPaths,
 } from './core.js';
 export type {
 	GrpcExecuteTransactionOptions,

@@ -41,8 +41,13 @@ export function buildTransactionResult(
 		);
 	}
 
+	if (!transaction.sender) {
+		throw new Error('The transaction data returned by the wallet has no sender');
+	}
+
 	const txResult: SuiClientTypes.Transaction<{ effects: true; transaction: true; bcs: true }> = {
 		digest,
+		sender: transaction.sender,
 		signatures: [signature],
 		epoch: null,
 		timestampMs: null,

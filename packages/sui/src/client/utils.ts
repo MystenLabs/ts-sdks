@@ -112,6 +112,18 @@ function formatErrorMessage($kind: string, data: unknown): string {
 	return $kind;
 }
 
+// BCS names that the gRPC enum renamed; the unified names are gRPC's.
+const GRPC_ERROR_NAMES: Record<string, string> = {
+	InvalidBCSBytes: 'InvalidBcsBytes',
+	InvalidUsageOfPureArg: 'InvalidUsageOfPureArgument',
+	SharedObjectOperationNotAllowed: 'ConsensusObjectOperationNotAllowed',
+	PackageIDDoesNotMatch: 'PackageIdDoesNotMatch',
+};
+
+function renamed(name: string): string {
+	return GRPC_ERROR_NAMES[name] ?? name;
+}
+
 function parseBcsExecutionError(failure: {
 	error: BcsExecutionFailureStatus;
 	command: string | null;
@@ -125,7 +137,6 @@ function parseBcsExecutionError(failure: {
 			const moveLocation = {
 				package: location.module.address,
 				module: location.module.name,
-				function: location.function,
 				functionName: location.functionName ?? undefined,
 				instruction: location.instruction,
 			};
@@ -223,7 +234,7 @@ function parseBcsExecutionError(failure: {
 				command,
 				CommandArgumentError: {
 					argument: error.CommandArgumentError.argIdx,
-					name: error.CommandArgumentError.kind.$kind,
+					name: renamed(error.CommandArgumentError.kind.$kind),
 				},
 			};
 
@@ -245,7 +256,7 @@ function parseBcsExecutionError(failure: {
 				message: formatErrorMessage('PackageUpgradeError', error.PackageUpgradeError),
 				command,
 				PackageUpgradeError: {
-					name: upgradeError.$kind,
+					name: renamed(upgradeError.$kind),
 					packageId:
 						upgradeError.$kind === 'UnableToFetchPackage'
 							? upgradeError.UnableToFetchPackage.packageId
@@ -668,13 +679,13 @@ function parseTransactionEffectsV2({
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
 			([objectId, object]): SuiClientTypes.UnchangedConsensusObject => {
+				// Unit variants such as `PerEpochConfig` parse as `true` and carry no version.
+				const version =
+					object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[0] : object[object.$kind];
 				return {
 					kind: object.$kind,
 					objectId: objectId,
-					version:
-						object.$kind === 'ReadOnlyRoot'
-							? object.ReadOnlyRoot[0]
-							: (object[object.$kind] as string | null),
+					version: typeof version === 'string' ? version : null,
 					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
 				};
 			},

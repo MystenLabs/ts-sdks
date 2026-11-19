@@ -16,12 +16,16 @@ query listCheckpoints(
 			endCursor
 		}
 		nodes {
-			sequenceNumber
-			digest
-			timestamp
-			epoch {
-				epochId
-			}
+			...CHECKPOINT_FIELDS
 		}
+	}
+}
+
+fragment CHECKPOINT_FIELDS on Checkpoint {
+	sequenceNumber
+	digest
+	timestamp
+	epoch {
+		epochId
 	}
 }
