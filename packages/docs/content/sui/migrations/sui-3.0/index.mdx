@@ -135,9 +135,8 @@ run on 3.0 or keep a 2.x copy of its own.
   [Online or offline](/sui/cryptography#online-or-offline) for which to choose.
 - **With a client, the public key the verify helpers return may belong to one of the address's
   aliases.** Use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
-- **`verifyZkLoginSignature` accepts signatures from the address's aliases**, throws for invalid
-  transaction bytes instead of returning `success: false`, and throws on nodes that can't check
-  address aliases. It's deprecated: use `client.core.verifySignature`.
+- **`verifyZkLoginSignature` accepts signatures from the address's aliases** and throws on nodes
+  that can't check address aliases. It's deprecated: use `client.core.verifySignature`.
 
 ## Other packages
 
