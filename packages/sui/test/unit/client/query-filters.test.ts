@@ -4,7 +4,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	parseCheckpointNumber,
 	resolveCheckpointRange,
 	resolveEventFilter,
 	resolvePagination,
@@ -117,28 +116,6 @@ describe('resolvePagination', () => {
 	});
 });
 
-describe('parseCheckpointNumber', () => {
-	it('accepts strings, numbers, and bigints', () => {
-		expect(parseCheckpointNumber('5', 'checkpoint')).toBe(5n);
-		expect(parseCheckpointNumber(0, 'checkpoint')).toBe(0n);
-		expect(parseCheckpointNumber(7n, 'checkpoint')).toBe(7n);
-		expect(parseCheckpointNumber(Number.MAX_SAFE_INTEGER, 'checkpoint')).toBe(
-			BigInt(Number.MAX_SAFE_INTEGER),
-		);
-		expect(parseCheckpointNumber(`${Number.MAX_SAFE_INTEGER}`, 'checkpoint')).toBe(
-			BigInt(Number.MAX_SAFE_INTEGER),
-		);
-	});
-
-	it('rejects negative, fractional, and oversized values using the given label', () => {
-		for (const value of [-1, '-1', -1n, 1.5, '1.5', '', 'abc', 2 ** 53, 2n ** 53n, `${2 ** 53}`]) {
-			expect(() => parseCheckpointNumber(value, 'checkpoint')).toThrowError(
-				`Invalid checkpoint "${value}": expected a non-negative integer`,
-			);
-		}
-	});
-});
-
 describe('resolveCheckpointRange', () => {
 	it('returns an empty range when no bounds are given', () => {
 		expect(resolveCheckpointRange({})).toEqual({ start: undefined, end: undefined });
@@ -156,6 +133,10 @@ describe('resolveCheckpointRange', () => {
 		expect(resolveCheckpointRange({ endCheckpoint: Number.MAX_SAFE_INTEGER })).toEqual({
 			start: undefined,
 			end: BigInt(Number.MAX_SAFE_INTEGER),
+		});
+		expect(resolveCheckpointRange({ startCheckpoint: `${Number.MAX_SAFE_INTEGER}` })).toEqual({
+			start: BigInt(Number.MAX_SAFE_INTEGER),
+			end: undefined,
 		});
 	});
 

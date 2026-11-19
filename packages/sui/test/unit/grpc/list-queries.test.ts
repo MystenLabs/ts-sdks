@@ -315,20 +315,9 @@ describe('gRPC list query requests', () => {
 
 	it('rejects an event without a checkpoint', async () => {
 		const client = makeClient();
-		mockListEvents(client, [
-			GrpcTypes.ListEventsResponse.create({
-				watermark: { cursor: cursor(1) },
-				event: {
-					packageId: '0x2',
-					module: 'test',
-					sender: '0x1',
-					eventType: '0x2::test::Event',
-					transactionDigest: 'digest-1',
-					eventIndex: 0,
-				},
-				end: { reason: QueryEndReason.LEDGER_TIP },
-			}),
-		]);
+		const frame = eventFrame(1, QueryEndReason.LEDGER_TIP);
+		delete frame.event!.checkpoint;
+		mockListEvents(client, [frame]);
 
 		await expect(client.core.listEvents({})).rejects.toThrow('missing expected event fields');
 	});
