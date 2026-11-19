@@ -133,8 +133,8 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
- * messages, to code an aborted call from its reason rather than as `INTERNAL`, and to send the
- * `x-sui-client-protocol-version` header.
+ * messages, to code an aborted call from its reason rather than as `INTERNAL`, to send the
+ * `x-sui-client-protocol-version` header, and to default to the binary wire format.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`
  * keeps that package's behaviour.
@@ -144,6 +144,8 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		// Lets the server avoid sending types this SDK cannot decode. Caller-supplied `meta` wins.
 		super({
 			...options,
+			// `??` rather than a spread default, so an explicit `format: undefined` still gets binary.
+			format: options.format ?? 'binary',
 			meta: {
 				[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
 				...options.meta,
