@@ -152,7 +152,7 @@ async function* readBody(
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
  * messages, to code an aborted call from its reason rather than as `INTERNAL`, to code network
  * failures as `UNAVAILABLE`, to send the `x-sui-client-protocol-version` header, and to default to
- * the binary wire format. It also reads server streams on demand, which the SDK uses internally.
+ * the binary wire format. It also reads server streams on demand, for the SDK's ledger streams.
  * A custom `fetch` must honour the request's `signal`.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`

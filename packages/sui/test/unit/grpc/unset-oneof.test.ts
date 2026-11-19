@@ -9,9 +9,13 @@ import {
 	GetPackageRequest,
 	MovePackageService,
 } from '../../../src/grpc/proto/sui/rpc/v2/move_package_service.js';
+import { pullServerStreaming } from '../../../src/grpc/pull-call.js';
 import { withClientDefaults } from '../../../src/grpc/transport.js';
 
 const packageId = '0x2';
+const getPackage = MovePackageService.methods.find(
+	(method) => method.name === 'GetPackage',
+) as MethodInfo<GetPackageRequest, object>;
 
 function clientRecordingBodies(bodies: Uint8Array[]) {
 	return new SuiGrpcClient({
@@ -44,11 +48,26 @@ describe('requests with an unset oneof', () => {
 		expect(bodies[0]).toEqual(bodies[1]);
 	});
 
-	describe('with a caller-supplied transport', () => {
-		const getPackage = MovePackageService.methods.find(
-			(method) => method.name === 'GetPackage',
-		) as MethodInfo<GetPackageRequest, object>;
+	it('sends an on-demand stream request built without the oneof like one built with create()', async () => {
+		const bodies: Uint8Array[] = [];
+		const client = clientRecordingBodies(bodies);
+		const pull = pullServerStreaming(client.movePackageService['_transport'])!;
 
+		// Valid before `selector` was added to `GetPackageRequest`.
+		for (const request of [
+			{ packageId } as GetPackageRequest,
+			GetPackageRequest.create({ packageId }),
+		]) {
+			await expect(pull(getPackage, request).responses.next()).rejects.toMatchObject({
+				code: 'NOT_FOUND',
+			});
+		}
+
+		expect(bodies).toHaveLength(2);
+		expect(bodies[0]).toEqual(bodies[1]);
+	});
+
+	describe('with a caller-supplied transport', () => {
 		function recordingTransport(inputs: object[]): RpcTransport {
 			const record = (_method: unknown, input: object) => {
 				inputs.push(input);
