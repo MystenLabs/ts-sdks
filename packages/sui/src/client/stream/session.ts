@@ -35,9 +35,6 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	#committed: StreamPosition | undefined;
 	#nextUncovered: bigint | null = null;
 	#attemptStart: StreamPosition | undefined;
-	#subscribed = false;
-	#delivering = false;
-	#pagerFailed = false;
 	#retentionLimit = false;
 
 	constructor(options: {
@@ -86,27 +83,20 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 
 	beginAttempt() {
 		this.#attemptStart = this.#committed;
-		this.#subscribed = false;
-		this.#delivering = false;
-		this.#pagerFailed = false;
 	}
 
 	/**
-	 * Whether this attempt committed a new position. When following, history paged before
-	 * subscribing counts. Once subscribed, the gap replay repeats on every attempt, so its positions
-	 * count only when the pager failed; a feed failure counts only positions the feed delivered.
+	 * Whether this attempt committed a new position; if so, the retry budget resets. `subscribing()`
+	 * and `deliver()` rebaseline the attempt, so a live feed failure counts only what the feed
+	 * delivered, not the gap replay that repeats on every attempt.
 	 */
 	advancedThisAttempt(): boolean {
-		return (
-			this.#committed !== this.#attemptStart &&
-			(this.#plan.mode !== 'follow' || !this.#subscribed || this.#delivering || this.#pagerFailed)
-		);
+		return this.#committed !== this.#attemptStart;
 	}
 
 	/** The live subscription is about to open. */
 	subscribing() {
 		this.#attemptStart = this.#committed;
-		this.#subscribed = true;
 	}
 
 	/** Reads passes until one is complete, waiting `pollInterval` while the index lags. */
@@ -131,7 +121,6 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	/** Commits each new event of the feed. A feed's end is a disconnect. */
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#attemptStart = this.#committed;
-		this.#delivering = true;
 		for await (const event of feed) {
 			if (!this.#isStale(event)) yield* this.#commit(event);
 		}
@@ -158,10 +147,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		});
 		try {
 			while (true) {
-				const next = await pass.next().catch((error: unknown) => {
-					this.#pagerFailed = true;
-					throw error;
-				});
+				const next = await pass.next();
 				this.#status.connected();
 				if (next.done) {
 					this.#retentionLimit ||= next.value.retentionLimit;

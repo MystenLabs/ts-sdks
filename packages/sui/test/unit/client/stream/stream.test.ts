@@ -272,7 +272,8 @@ describe('retries', () => {
 		const adapter = fakeAdapter(ledger, {
 			live: 'fromTip',
 			watermarks: true,
-			// Every attempt's gap replay commits a new checkpoint before the feed fails.
+			// Every attempt's gap replay commits a new checkpoint before the feed fails; the `deliver()`
+			// rebaseline keeps that progress from resetting the budget.
 			afterRead: (l) => {
 				if (l.indexedTip >= 20n) return;
 				l.indexedTip += 1n;
