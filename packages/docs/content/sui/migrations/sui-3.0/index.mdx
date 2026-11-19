@@ -47,6 +47,10 @@ release for packages still on 0.x. `@mysten/dapp-kit-react` also gets a major re
 depends on `@mysten/dapp-kit-core` 2.0. Apart from the items below, these releases have no breaking
 changes: upgrade them together with `@mysten/sui`.
 
+The legacy `@mysten/dapp-kit` has a peer dependency on `@mysten/sui` and uses JSON-RPC, so it can't
+run on 3.0 or keep a 2.x copy of its own.
+[Migrate to `@mysten/dapp-kit-react`](/sui/migrations/sui-2.0/dapp-kit) before upgrading.
+
 ## Breaking changes
 
 ### Removed JSON-RPC APIs
@@ -63,6 +67,8 @@ changes: upgrade them together with `@mysten/sui`.
 
 ### Core API
 
+- **Custom `CoreClient` subclasses must implement the new abstract `listCheckpoints` and
+  `verifySignature` methods.**
 - **`listDynamicFields` pagination loops may need a type annotation.** If a loop that passes the
   cursor back in fails with `TS7022`, annotate the page as
   `SuiClientTypes.ListDynamicFieldsResponse`.
@@ -127,6 +133,11 @@ changes: upgrade them together with `@mysten/sui`.
   [address aliases](/sui/cryptography#address-aliases) and checks zkLogin signatures. With
   `offline: true`, zkLogin signatures throw. See
   [Online or offline](/sui/cryptography#online-or-offline) for which to choose.
+- **With a client, the public key the verify helpers return may belong to one of the address's
+  aliases.** Use `address`, not `publicKey.toSuiAddress()`, as the account's identity.
+- **`verifyZkLoginSignature` accepts signatures from the address's aliases**, throws for invalid
+  transaction bytes instead of returning `success: false`, and throws on nodes that can't check
+  address aliases. It's deprecated: use `verifySignature`.
 
 ## Other packages
 
@@ -177,9 +188,13 @@ You can upgrade before your dependencies release versions for 3.0. How a depende
 Run `npm ls @mysten/sui` or `pnpm why @mysten/sui` to see which copies you have.
 
 Let packages keep their own 2.x copy where you can. Only values that cross between your code and the
-package are affected: clients, `Transaction`s and signers from your copy may not type-check where
-its API expects its own, and fail its `instanceof` checks on SDK classes. Packages that follow
-[Libraries built on `@mysten/sui`](#libraries-built-on-mystensui) accept them at runtime.
+package are affected:
+
+- Clients, `Transaction`s and signers from your copy may not type-check where its API expects its
+  own, and fail its `instanceof` checks on SDK classes. A package that accepts `ClientWithCoreApi`
+  and doesn't use `instanceof` on SDK classes accepts them at runtime.
+- A package that calls methods on your 3.0 client gets 3.0 results, with the [Core API](#core-api)
+  changes above.
 
 If a package needs to use your copy, for example a peer dependency that npm won't install, add an
 override:
@@ -212,16 +227,11 @@ pnpm 9 ignores overrides in `pnpm-workspace.yaml`: put the same entry under `pnp
 
 Yarn still prints a peer dependency warning, which you can ignore.
 
-An override runs every package on 3.0, so every package must be compatible with it, as must a peer
-dependency that pnpm or Yarn gives your copy. The breaking changes above affect them the same way
-they affect your code. These show up most often:
-
-- **A package that imports `@mysten/sui/jsonRpc` loads, but throws when it uses JSON-RPC.** Let it
-  keep its own 2.x copy until it releases a version for 3.0. The legacy `@mysten/dapp-kit` is one of
-  these packages: migrate to [`@mysten/dapp-kit-react`](/sui/migrations/sui-2.0/dapp-kit).
-- **Packages that call `verifyPersonalMessageSignature`, `verifyTransactionSignature` or their
-  `isValid…` forms without a `client` verify offline, as in 2.x, and log a warning.** Signatures
-  from address aliases are rejected.
+An override applies to every package, so all of them run on 3.0, as does a peer dependency that pnpm
+or Yarn gives your copy. The breaking changes above affect these packages as they affect your code.
+Most often, a package that imports `@mysten/sui/jsonRpc` loads, but throws when it uses JSON-RPC. It
+needs a release for 3.0; until then, a regular dependency can keep its own 2.x copy if no override
+applies to it.
 
 Test the flows that use each dependency, and remove the override once every dependency supports 3.0.
 
@@ -253,5 +263,4 @@ If you publish a package that uses `@mysten/sui`, release a version for 3.0 that
 - `client.core.listDynamicFields({ include: { value: true } })` returns each field's value with the
   listing, on every client.
 - `verifySignature`, which verifies a personal message or transaction signature on the node and
-  checks address aliases, and `getAddressAliases`. `verifyZkLoginSignature` is deprecated in favor
-  of `verifySignature`.
+  checks address aliases, and `getAddressAliases`.
