@@ -87,7 +87,7 @@ run on 3.0 or keep a 2.x copy of its own.
 
 - **Transaction data (`include: { transaction: true }`) has a `kind`.** Inputs and commands carry
   `$kind`, so narrow with `input.$kind === 'Pure'` rather than `'Pure' in input`. Decode transaction
-  bytes into this type with `parseTransactionDataBcs`. See
+  bytes into this type with `parseTransactionBcs`. See
   [transaction data](/sui/clients/executing#transaction-data). It is no longer the builder's
   serialized type, so to rebuild a `Transaction` from a query result, request
   `include: { bcs: true }` and pass the result's `bcs` to `Transaction.from`.
@@ -110,9 +110,6 @@ run on 3.0 or keep a 2.x copy of its own.
   `ConsensusObjectOperationNotAllowed` and `PackageIdDoesNotMatch` replace `InvalidBCSBytes`,
   `InvalidUsageOfPureArg`, `SharedObjectOperationNotAllowed` and `PackageIDDoesNotMatch`.
 - **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.**
-- **`parseTransactionBcs` returns the transaction builder's `TransactionData`** from
-  `@mysten/sui/transactions`, not `SuiClientTypes.TransactionData`. Use `parseTransactionDataBcs`
-  where you need the client type.
 - **Building or serializing a transaction that calls `0x2::address_alias` throws.** Pass
   `restrictedMoveCalls: []` to the client constructor, or to `build` or `toJSON`, to allow it. See
   [Restricted Move calls](/sui/transactions/reference#restricted-move-calls).

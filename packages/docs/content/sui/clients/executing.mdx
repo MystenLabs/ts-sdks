@@ -139,7 +139,7 @@ If the SDK does not recognize a transaction's kind, or cannot map one of its inp
 `gasData`, and `expiration` are still set. Upgrade the SDK to read kinds added by newer network
 versions.
 
-To decode transaction bytes yourself, use `parseTransactionDataBcs` from `@mysten/sui/client`. It
+To decode transaction bytes yourself, use `parseTransactionBcs` from `@mysten/sui/client`. It
 returns the same shape, but throws on bytes that use a variant the SDK does not know.
 
 ## `waitForTransaction`

@@ -8,10 +8,9 @@ import type { ClientWithExtensions, SuiClientTypes, SuiClientRegistration } from
 export {
 	extractStatusFromEffectsBcs,
 	formatMoveAbortMessage,
-	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 } from './utils.js';
-export { parseTransactionDataBcs } from './transaction-data.js';
+export { parseTransactionBcs, parseTransactionDataBcs } from './transaction-data.js';
 
 export {
 	BaseClient,

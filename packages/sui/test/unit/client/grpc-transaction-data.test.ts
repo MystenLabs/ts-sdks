@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	grpcTransactionToLedgerTransactionData,
-	parseTransactionDataBcs,
+	parseTransactionBcs,
 } from '../../../src/client/transaction-data.js';
 import { grpcTransactionToTransactionData } from '../../../src/client/transaction-resolver.js';
 import { Input_InputKind } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
@@ -30,7 +30,7 @@ describe('ledger transaction data from gRPC', () => {
 	it.each(Object.entries(cases))('maps %s like the BCS decoder', (name, { grpc, bcs: kind }) => {
 		const mapped = grpcTransactionToLedgerTransactionData(grpcTransaction(grpc));
 		expect(mapped.kind.$kind).toBe(name);
-		expect(mapped).toEqual(parseTransactionDataBcs(bcsTransaction(kind)));
+		expect(mapped).toEqual(parseTransactionBcs(bcsTransaction(kind)));
 	});
 
 	it('maps genesis objects', () => {

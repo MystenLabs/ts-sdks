@@ -3,7 +3,7 @@
 
 import {
 	extractStatusFromEffectsBcs,
-	parseTransactionDataBcs,
+	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 	type SuiClientTypes,
 } from '@mysten/sui/client';
@@ -33,7 +33,7 @@ export function buildTransactionResult(
 
 	let transaction: SuiClientTypes.TransactionData;
 	try {
-		transaction = parseTransactionDataBcs(transactionBytes);
+		transaction = parseTransactionBcs(transactionBytes);
 	} catch (error) {
 		throw new Error(
 			'Failed to parse the transaction data returned by the wallet, you may need to update the SDK to pick up the latest bcs types',
