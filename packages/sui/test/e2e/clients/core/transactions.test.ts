@@ -556,9 +556,6 @@ describe('Core API - Transactions', () => {
 			},
 		);
 
-		// A transaction that already pays gas from the sender's address balance as given (empty
-		// gas payment, replay protected, balance covers the budget) is simulated as it would
-		// execute, even with gas selection disabled.
 		for (const { name, funding, doGasSelection, mocked } of [
 			{
 				name: 'should report a real gas payment when gas is selected from address balance',
@@ -572,6 +569,9 @@ describe('Core API - Transactions', () => {
 				doGasSelection: false,
 				mocked: true,
 			},
+			// A transaction that already pays gas from the sender's address balance as given (empty
+			// gas payment, replay protected, balance covers the budget) is simulated as it would
+			// execute, even with gas selection disabled.
 			{
 				name: 'should pay gas from address balance when gas selection is disabled and the balance covers the budget',
 				funding: { addressBalance: 200_000_000n },
