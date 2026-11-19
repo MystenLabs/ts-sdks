@@ -267,8 +267,10 @@ client.streamEvents({
 
 Failures that may clear retry with exponential backoff, and the stream resumes from its last frame.
 `maxAttempts` (10 by default) bounds consecutive failures without progress; once it runs out, the
-stream throws the last error. `maxAttempts: 0` disables retries, including reconnecting a live feed
-that ended. Startup requests (the chain identity and the indexed tip) have their own `maxAttempts`
+stream throws the last error. Progress counts per phase: a failed history or gap page resets the
+count if paging moved the resume point, and a failed subscription or live feed resets it only if the
+feed itself moved it. `maxAttempts: 0` disables retries, including reconnecting a live feed that
+ended. Startup requests (the chain identity and the indexed tip) have their own `maxAttempts`
 budget, and the count starts over once the stream begins reading.
 
 `reason` says why: `Unavailable` (the server could not be reached, the connection dropped or a live

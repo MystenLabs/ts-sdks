@@ -254,7 +254,9 @@ describe('retries', () => {
 		const adapter = fakeAdapter(ledger, {
 			live: 'fromTip',
 			watermarks: true,
+			// The first two attempts each page history, then fail their gap page after one item.
 			pageFaults: [undefined, fail, undefined, fail],
+			// Each subscription starts two checkpoints past what history paged, so every gap has items.
 			subscriptions: () => {
 				ledger.indexedTip += 2n;
 				return { events: [ledger.watermark(ledger.indexedTip + 1n)], end: 'hang' };
