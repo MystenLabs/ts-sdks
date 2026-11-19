@@ -9,6 +9,9 @@ query listEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, 
 			startCursor
 			endCursor
 		}
+		edges {
+			cursor
+		}
 		nodes {
 			sequenceNumber
 			transaction {
