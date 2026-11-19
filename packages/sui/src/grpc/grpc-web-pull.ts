@@ -24,6 +24,7 @@ import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { MethodInfo, RpcMetadata, RpcStatus } from '@protobuf-ts/runtime-rpc';
 
+import { cancelQuietly } from '../client/utils.js';
 import { abortRpcError, toNetworkRpcError } from './network-error.js';
 import { markNonRetryable } from './pull-call.js';
 import type { ServerStreamingIterableCall } from './pull-call.js';
@@ -356,8 +357,4 @@ export class GrpcWebPullCall<
 		this.#normalizeError(error, this.#userSignal);
 		return error;
 	}
-}
-
-function cancelQuietly(stream: { cancel(): Promise<void> } | null | undefined) {
-	stream?.cancel().catch(() => {});
 }

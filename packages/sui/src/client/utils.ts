@@ -22,6 +22,17 @@ export function formatOrdinal(n: number): string {
 	return `${n}${ordinalSuffixes.get(ordinalRules.select(n))}`;
 }
 
+/**
+ * Cancels a stream without awaiting it: a teed body's cancel may never settle, and cleanup must not
+ * hide the caller's error.
+ */
+export function cancelQuietly(
+	stream: { cancel(reason?: unknown): Promise<void> } | null | undefined,
+	reason?: unknown,
+) {
+	void stream?.cancel(reason).catch(() => {});
+}
+
 export function formatMoveAbortMessage(options: {
 	command?: number;
 	location?: {
