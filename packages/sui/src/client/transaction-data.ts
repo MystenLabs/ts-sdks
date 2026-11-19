@@ -46,10 +46,33 @@ type HeaderInput = Omit<BuilderTransactionData, 'inputs' | 'commands' | 'digest'
 const UNKNOWN_KIND = { $kind: 'Unknown', Unknown: true } as const;
 
 /**
- * Decode ledger transaction data from BCS. Unlike the transport mappers, which return `Unknown`,
- * this throws on a transaction kind or variant this SDK version does not recognize.
+ * Decode transaction data from BCS. Unlike the transport mappers, which return `Unknown`, this
+ * throws on a transaction kind or variant this SDK version does not recognize.
  */
+export function parseTransactionBcs(
+	bytes: Uint8Array,
+	onlyTransactionKind?: false,
+): SuiClientTypes.TransactionData;
+/** @deprecated Use `Transaction.fromKind(bytes).getData()` to decode transaction kind bytes. */
+export function parseTransactionBcs(
+	bytes: Uint8Array,
+	onlyTransactionKind: true,
+): BuilderTransactionData;
+export function parseTransactionBcs(
+	bytes: Uint8Array,
+	onlyTransactionKind = false,
+): SuiClientTypes.TransactionData | BuilderTransactionData {
+	return onlyTransactionKind
+		? TransactionDataBuilder.fromKindBytes(bytes).snapshot()
+		: decodeTransactionData(bytes);
+}
+
+/** @deprecated Use `parseTransactionBcs`. */
 export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.TransactionData {
+	return decodeTransactionData(bytes);
+}
+
+function decodeTransactionData(bytes: Uint8Array): SuiClientTypes.TransactionData {
 	const data = bcs.TransactionData.parse(bytes).V1;
 	const programmable = data.kind.ProgrammableTransaction ?? data.kind.ProgrammableSystemTransaction;
 	const { kind: body, ...header } = normalizeProgrammable(

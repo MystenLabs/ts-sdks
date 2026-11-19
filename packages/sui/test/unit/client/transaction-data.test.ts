@@ -8,7 +8,7 @@ import { gunzipSync } from 'node:zlib';
 import { fromBase64 } from '@mysten/bcs';
 
 import { bcs } from '../../../src/bcs/index.js';
-import { parseTransactionDataBcs } from '../../../src/client/transaction-data.js';
+import { parseTransactionBcs } from '../../../src/client/transaction-data.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import type { TransactionData as BuilderTransactionData } from '../../../src/transactions/index.js';
@@ -21,7 +21,7 @@ describe('ledger transaction data', () => {
 		'decodes %s without requiring a programmable transaction',
 		(name, { bcs: kind }) => {
 			const bytes = bcsTransaction(kind);
-			const result = parseTransactionDataBcs(bytes);
+			const result = parseTransactionBcs(bytes);
 			expect(result.kind.$kind).toBe(name);
 			expect(result.sender).toBe(address);
 			expect(result.gasData.price).toBe('9007199254740994');
@@ -56,7 +56,7 @@ describe('ledger transaction data', () => {
 	);
 
 	it('exposes resolved programmable input and command unions', () => {
-		const { kind } = parseTransactionDataBcs(bcsTransaction(cases.ProgrammableTransaction.bcs));
+		const { kind } = parseTransactionBcs(bcsTransaction(cases.ProgrammableTransaction.bcs));
 		if (kind.$kind !== 'ProgrammableTransaction') throw new Error('Expected PTB');
 		expectTypeOf(
 			kind.ProgrammableTransaction,
@@ -107,7 +107,7 @@ describe('ledger transaction data', () => {
 			const expected = Transaction.from(
 				bcsTransaction({ ProgrammableTransaction: body }),
 			).getData();
-			const result = parseTransactionDataBcs(
+			const result = parseTransactionBcs(
 				bcsTransaction(
 					name === 'ProgrammableTransaction'
 						? { ProgrammableTransaction: body }
@@ -127,7 +127,7 @@ describe('ledger transaction data', () => {
 	);
 
 	it('preserves all nested end-of-epoch variants', () => {
-		const { kind } = parseTransactionDataBcs(bcsTransaction(cases.EndOfEpochTransaction.bcs));
+		const { kind } = parseTransactionBcs(bcsTransaction(cases.EndOfEpochTransaction.bcs));
 		if (kind.$kind !== 'EndOfEpochTransaction') throw new Error('Expected end of epoch');
 		expect(kind.EndOfEpochTransaction).toHaveLength(14);
 		const parsed = bcs.TransactionData.parse(bcsTransaction(cases.EndOfEpochTransaction.bcs)).V1
@@ -147,9 +147,7 @@ describe('ledger transaction data', () => {
 	});
 
 	it('decodes genesis objects', () => {
-		const { kind } = parseTransactionDataBcs(
-			gunzipSync(fromBase64(GENESIS_TRANSACTION_GZIP_BASE64)),
-		);
+		const { kind } = parseTransactionBcs(gunzipSync(fromBase64(GENESIS_TRANSACTION_GZIP_BASE64)));
 		if (kind.$kind !== 'Genesis') throw new Error('Expected genesis');
 		const { objects } = kind.Genesis;
 		expect(
@@ -218,7 +216,7 @@ describe('ledger transaction data and the transaction builder', () => {
 		});
 		const bytes = await tx.build();
 
-		const data = parseTransactionDataBcs(bytes);
+		const data = parseTransactionBcs(bytes);
 		const rebuilt = await Transaction.from(JSON.stringify(data)).build();
 
 		expect(rebuilt).toEqual(bytes);
