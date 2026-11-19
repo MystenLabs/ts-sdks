@@ -13,6 +13,11 @@
 			"types": "./dist/index.d.mts",
 			"import": "./dist/index.mjs",
 			"default": "./dist/index.mjs"
+		},
+		"./json-rpc-compat": {
+			"types": "./dist/json-rpc-compat/index.d.mts",
+			"import": "./dist/json-rpc-compat/index.mjs",
+			"default": "./dist/json-rpc-compat/index.mjs"
 		}
 	},
 	"sideEffects": false,

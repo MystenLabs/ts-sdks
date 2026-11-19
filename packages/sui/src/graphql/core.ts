@@ -1303,12 +1303,17 @@ function parseGraphQLMoveLocation(
 function parseGraphQLCleverError(
 	executionError: GraphQLExecutionError,
 ): SuiClientTypes.CleverError | undefined {
-	const hasCleverError = executionError.identifier || executionError.constant;
-	if (!hasCleverError) {
+	// The server reports a source line only when it resolved a clever error.
+	if (executionError.sourceLineNumber == null) {
 		return undefined;
 	}
 
+	// For a clever error that declares a code, the server reports that code (a u8) as the
+	// abort code; otherwise the abort code is the raw clever error bitset.
+	const abortCode = BigInt(executionError.abortCode!);
+
 	return {
+		errorCode: abortCode <= 255n ? Number(abortCode) : undefined,
 		constantName: executionError.identifier ?? undefined,
 		value: executionError.constant ?? undefined,
 		lineNumber: executionError.sourceLineNumber ?? undefined,

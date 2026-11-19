@@ -1224,28 +1224,17 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 
 	switch (details?.oneofKind) {
 		case 'abort': {
-			const abort = details.abort;
-			const cleverError = abort.cleverError;
+			const moveAbort = parseMoveAbort(details.abort);
 			return {
 				$kind: 'MoveAbort',
 				message: formatMoveAbortMessage({
 					command,
-					location: abort.location,
-					abortCode: String(abort.abortCode ?? 0n),
-					cleverError: cleverError
-						? {
-								lineNumber:
-									cleverError.lineNumber != null ? Number(cleverError.lineNumber) : undefined,
-								constantName: cleverError.constantName,
-								value:
-									cleverError.value?.oneofKind === 'rendered'
-										? cleverError.value.rendered
-										: undefined,
-							}
-						: undefined,
+					location: moveAbort.location,
+					abortCode: moveAbort.abortCode,
+					cleverError: moveAbort.cleverError,
 				}),
 				command,
-				MoveAbort: parseMoveAbort(abort),
+				MoveAbort: moveAbort,
 			};
 		}
 
