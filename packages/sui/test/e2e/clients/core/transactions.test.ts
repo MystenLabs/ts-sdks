@@ -556,10 +556,31 @@ describe('Core API - Transactions', () => {
 			},
 		);
 
-		testWithAllClients(
-			'should report a real gas payment when gas is selected from address balance',
-			async (client) => {
-				const { address } = await toolbox.getSigner({ addressBalance: 200_000_000n });
+		for (const { name, funding, doGasSelection, mocked } of [
+			{
+				name: 'should report a real gas payment when gas is selected from address balance',
+				funding: { addressBalance: 200_000_000n },
+				doGasSelection: undefined,
+				mocked: false,
+			},
+			{
+				name: 'should simulate with a mocked gas payment when gas selection is disabled',
+				funding: { coins: [1_000_000_000n] },
+				doGasSelection: false,
+				mocked: true,
+			},
+			// A transaction that already pays gas from the sender's address balance as given (empty
+			// gas payment, replay protected, balance covers the budget) is simulated as it would
+			// execute, even with gas selection disabled.
+			{
+				name: 'should pay gas from address balance when gas selection is disabled and the balance covers the budget',
+				funding: { addressBalance: 200_000_000n },
+				doGasSelection: false,
+				mocked: false,
+			},
+		]) {
+			testWithAllClients(name, async (client) => {
+				const { address } = await toolbox.getSigner(funding);
 				const tx = new Transaction();
 				const [obj] = tx.moveCall({
 					target: `${packageId}::test_objects::create_simple_object`,
@@ -574,13 +595,18 @@ describe('Core API - Transactions', () => {
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,
 					include: { effects: true },
+					doGasSelection,
 				});
 				expect(result.$kind).toBe('Transaction');
 
-				expect(result.gasPaymentMocked).toBe(false);
-				expect(result.Transaction?.effects?.gasObject).toBeNull();
-			},
-		);
+				expect(result.gasPaymentMocked).toBe(mocked);
+				if (mocked) {
+					expect(result.Transaction?.effects?.gasObject?.objectId).toBe(MOCKED_GAS_OBJECT_ID);
+				} else {
+					expect(result.Transaction?.effects?.gasObject).toBeNull();
+				}
+			});
+		}
 
 		testWithAllClients(
 			'should report a mocked gas payment for failed simulations',
@@ -1771,25 +1797,15 @@ describe('Core API - Transactions', () => {
 			return tx;
 		}
 
-		it('[gRPC] should allow overriding gas selection on the client', async () => {
+		testWithAllClients('should allow overriding gas selection', async (client) => {
 			const tx = unfundedSenderTx();
 
-			const defaultResult = await toolbox.grpcClient.simulateTransaction({ transaction: tx });
+			const defaultResult = await client.core.simulateTransaction({ transaction: tx });
 			expect(defaultResult.$kind).toBe('Transaction');
+			expect(defaultResult.gasPaymentMocked).toBe(true);
 
 			await expect(
-				toolbox.grpcClient.simulateTransaction({ transaction: tx, doGasSelection: true }),
-			).rejects.toThrow();
-		});
-
-		it('[GraphQL] should allow overriding gas selection on the client', async () => {
-			const tx = unfundedSenderTx();
-
-			const defaultResult = await toolbox.graphqlClient.simulateTransaction({ transaction: tx });
-			expect(defaultResult.$kind).toBe('Transaction');
-
-			await expect(
-				toolbox.graphqlClient.simulateTransaction({ transaction: tx, doGasSelection: true }),
+				client.core.simulateTransaction({ transaction: tx, doGasSelection: true }),
 			).rejects.toThrow();
 		});
 	});
