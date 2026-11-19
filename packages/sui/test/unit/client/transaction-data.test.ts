@@ -11,6 +11,7 @@ import { bcs } from '../../../src/bcs/index.js';
 import { parseTransactionDataBcs } from '../../../src/client/transaction-data.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { Transaction } from '../../../src/transactions/index.js';
+import type { TransactionData as BuilderTransactionData } from '../../../src/transactions/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../../../src/utils/sui-types.js';
 import { GENESIS_TRANSACTION_GZIP_BASE64 } from '../bcs/fixtures/genesis-transaction.js';
 import { address, bcsTransaction, cases } from './fixtures/transaction-kinds.js';
@@ -183,5 +184,43 @@ describe('ledger transaction data types', () => {
 		expectTypeOf<SuiClientTypes.TransactionExpiration['$kind']>().toEqualTypeOf<
 			'None' | 'Epoch' | 'ValidDuring' | 'Validity'
 		>();
+	});
+});
+
+describe('ledger transaction data and the transaction builder', () => {
+	it('is assignable to the builder snapshot type', () => {
+		expectTypeOf<SuiClientTypes.TransactionData>().toExtend<BuilderTransactionData>();
+	});
+
+	it('rebuilds the same bytes through Transaction.from', async () => {
+		const id = (n: number) => normalizeSuiAddress(n.toString(16));
+		const digest = '11111111111111111111111111111111';
+		const tx = new Transaction();
+		tx.setSender(id(1));
+		tx.setGasPrice(1000);
+		tx.setGasBudget(10_000_000);
+		tx.setGasPayment([{ objectId: id(2), version: '1', digest }]);
+		tx.setExpiration({ Epoch: 100 });
+		const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(5)]);
+		tx.transferObjects([coin], tx.pure.address(id(3)));
+		tx.moveCall({
+			target: '0x2::balance::redeem_funds',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [tx.withdrawal({ amount: 1 })],
+		});
+		tx.moveCall({
+			target: '0x2::coin::join',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [
+				tx.objectRef({ objectId: id(4), version: '2', digest }),
+				tx.sharedObjectRef({ objectId: id(5), initialSharedVersion: '3', mutable: true }),
+			],
+		});
+		const bytes = await tx.build();
+
+		const data = parseTransactionDataBcs(bytes);
+		const rebuilt = await Transaction.from(JSON.stringify(data)).build();
+
+		expect(rebuilt).toEqual(bytes);
 	});
 });
