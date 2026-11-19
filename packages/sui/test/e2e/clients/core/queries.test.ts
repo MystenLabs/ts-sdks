@@ -77,6 +77,20 @@ describe('Core API - Queries', () => {
 
 			digests.push(result.Transaction.digest);
 		}
+
+		// List queries can trail what `waitForTransaction` checks, so wait until every transport
+		// lists the setup transactions and their events before the tests query them once.
+		await vi.waitFor(
+			async () => {
+				for (const client of [toolbox.jsonRpcClient, toolbox.grpcClient, toolbox.graphqlClient]) {
+					const txs = await client.core.listTransactions({ filter: { sender: senderAddress } });
+					expect(txs.transactions.map((tx) => tx.Transaction?.digest)).toEqual(digests);
+					const { events } = await client.core.listEvents({ filter: { sender: senderAddress } });
+					expect(events.map((event) => event.transactionDigest)).toEqual(digests);
+				}
+			},
+			{ timeout: 10_000, interval: 250 },
+		);
 	});
 
 	describe('listTransactions', () => {
