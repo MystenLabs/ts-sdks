@@ -3,6 +3,7 @@
 
 import { resolve } from 'path';
 import { GenericContainer, getContainerRuntimeClient, Network, PullPolicy } from 'testcontainers';
+import { retry } from 'ts-retry-promise';
 import type { TestProject } from 'vitest/node';
 
 import type { PrePublishedPackage } from './prePublish.js';
@@ -42,7 +43,6 @@ export default async function setup(project: TestProject) {
 		.start();
 
 	const localnet = await new GenericContainer(`mysten/sui-tools:${suiToolsTag}`)
-		// .withPullPolicy(PullPolicy.alwaysPull())
 		.withCommand([
 			'sui',
 			'start',
@@ -55,7 +55,8 @@ export default async function setup(project: TestProject) {
 			{ source: resolve(__dirname, '../data'), target: '/test-data' },
 		])
 		.withNetwork(network)
-		.withExposedPorts(9000, 9123, 9124, 9125)
+		.withExposedPorts(9000, 9123, 9125)
+		.withStartupTimeout(180_000)
 		.withLogConsumer((stream) => {
 			stream.on('data', (data) => {
 				console.log(data.toString());
@@ -66,6 +67,7 @@ export default async function setup(project: TestProject) {
 	const faucetPort = localnet.getMappedPort(9123);
 	const localnetPort = localnet.getMappedPort(9000);
 	const graphqlPort = localnet.getMappedPort(9125);
+	await waitForGraphQL(graphqlPort);
 	const containerId = localnet.getId();
 
 	// Set up the default sui config so `sui keytool` and `sui move build` commands work.
@@ -90,4 +92,22 @@ export default async function setup(project: TestProject) {
 		containerId,
 	});
 	project.provide('prePublishedPackages', prePublished);
+}
+
+/** Waits until GraphQL answers a query with its indexed data. */
+async function waitForGraphQL(port: number) {
+	await retry(
+		async () => {
+			const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ query: '{chainIdentifier}' }),
+				signal: AbortSignal.timeout(1000),
+			});
+			if (!response.ok || !(await response.json()).data?.chainIdentifier) {
+				throw new Error('GraphQL is not serving indexed data yet');
+			}
+		},
+		{ retries: 'INFINITELY', delay: 250, timeout: 60_000 },
+	);
 }
