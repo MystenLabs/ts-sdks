@@ -1,5 +1,165 @@
 # @mysten/sui.js
 
+## 3.0.0
+
+### Major Changes
+
+- 233b207: Expand the Core API queries:
+
+  - `listTransactions` filters accept `affectedAddress` and `affectedObject`. Filter predicates are
+    ANDed: `sender` combines with one of `affectedAddress`, `affectedObject` or `function` on
+    transactions, and with `emitModule` or `eventType` on events.
+  - Package- and module-level `function` filters can be paginated. `emitModule` and `eventType`
+    accept a package-only prefix, and a generic `eventType` without type arguments matches every
+    instantiation.
+  - `listTransactions` and `listEvents` accept `startCheckpoint` (inclusive) and `endCheckpoint`
+    (exclusive), and `after` and `before` can be combined to read a window in either `order`.
+  - `SuiGraphQLClient` returns the same page cursors as `SuiGrpcClient`: an empty page has `null`
+    cursors, and a final page ends at its last item.
+  - `doGasSelection` is an option of `simulateTransaction` on every client.
+  - `EventEntry.checkpoint` is always set, and `listEvents` throws when the server omits a required
+    event field such as the checkpoint, package, module, sender, type, transaction digest or index.
+  - Add `listCheckpoints` to the Core API and as a top-level method on `SuiGrpcClient` and
+    `SuiGraphQLClient`. It pages through checkpoint summaries with the same `limit`, `order`, cursor
+    and checkpoint range options as `listTransactions`. Custom `CoreClient` subclasses must
+    implement it.
+
+- 98cb619: `client.core.listDynamicFields` accepts `include: { value: true }`. For a dynamic object
+  field, `value` is the child object's type and BCS content on `SuiGrpcClient` too, matching
+  `SuiGraphQLClient` and `valueType` (it was the child's ID). `getDynamicField` always sets
+  `valueType`.
+- 693482d: Add `SuiGraphQLClient.subscribe` for typed GraphQL subscriptions over server-sent events,
+  and the `subscriptionUrl` client option. `SuiGraphQLRequestError` now extends `SuiClientError` and
+  is also thrown for network failures and unreadable or malformed response bodies, with the original
+  error as `cause` and a `reason` (a new `SuiClientTypes.RetryReason`) when retrying may help. The
+  client's `url` must be an absolute http(s) URL or a path starting with `/`. GraphQL response
+  errors include `extensions`.
+- 1bf4878: Update the generated gRPC types to the latest `sui-apis`. `GetPackageRequest` has a
+  `selector` oneof, which its type marks as required. Requests with unset oneof fields no longer
+  throw.
+- 19d3a1c: The gRPC-web transport, whether built by `SuiGrpcClient` or constructed as
+  `GrpcWebFetchTransport` from `@mysten/sui/grpc`:
+
+  - uses the smaller binary wire format by default instead of base64 text. Pass `format: 'text'` for
+    proxies that only support the text format.
+  - reports network failures (fetch `TypeError`s, from a failed request or a failed response body
+    read) as `UNAVAILABLE` instead of `INTERNAL`.
+  - rejects a `baseUrl` that is neither an absolute http(s) URL nor a path starting with `/` when it
+    is constructed.
+
+- f43f64d: Remove the deprecated JSON-RPC transport. Use `SuiGrpcClient` from `@mysten/sui/grpc`
+  (recommended) or `SuiGraphQLClient` from `@mysten/sui/graphql`; both implement the same core API
+  and top-level methods. See
+  [Migrating from JSON-RPC](https://sdk.mystenlabs.com/sui/migrations/sui-2.0/json-rpc-migration)
+  for method-by-method replacements, and
+  [Migrate to 3.0](https://sdk.mystenlabs.com/sui/migrations/sui-3.0) for the other breaking changes
+  in this release.
+
+  Removed:
+
+  - The JSON-RPC client and everything `@mysten/sui/jsonRpc` exported, including `SuiJsonRpcClient`,
+    `isSuiJsonRpcClient`, `JsonRpcHTTPTransport`, `JsonRpcError`, `SuiHTTPStatusError`,
+    `getJsonRpcFullnodeUrl`, and all JSON-RPC request/response types (`SuiTransactionBlockResponse`,
+    `SuiObjectResponse`, `SuiMoveNormalizedType`, `ObjectOwner`, `DevInspectResults`, ...). Pass a
+    full node URL such as `https://fullnode.mainnet.sui.io:443` directly to `SuiGrpcClient`'s
+    `baseUrl`. The `@mysten/sui/jsonRpc` entry point still exists so packages that import it keep
+    loading, but its classes and functions throw, `isSuiJsonRpcClient` returns `false`, and its
+    types are `any`.
+  - `normalizedTypeToMoveTypeSignature` from `@mysten/sui/transactions`, which converted JSON-RPC
+    normalized Move types to `SuiClientTypes.OpenSignature`. The core API's `getMoveFunction`
+    already returns `OpenSignature`s.
+  - Support for untyped pure values (`UnresolvedPure` inputs, such as raw Move call arguments in v1
+    transaction JSON restored with `Transaction.from`). `SuiJsonRpcClient` serialized them from the
+    Move function signature; `SuiGrpcClient` and `SuiGraphQLClient` reject them. Pass typed values
+    such as `tx.pure.u64(...)` instead.
+
+- 659c915: Building or serializing a transaction that calls `0x2::address_alias` now throws.
+  Configure the restricted list with the new `restrictedMoveCalls` option on `SuiGrpcClient` and
+  `SuiGraphQLClient` (`package`, `package::module` or `package::module::function` entries; default
+  `DEFAULT_RESTRICTED_MOVE_CALLS`), which applies wherever a transaction is built with that client,
+  including `signAndExecuteTransaction`, `simulateTransaction`, the executors and dapp-kit. `build`,
+  `toJSON`, `sign` and `getDigest` also take `restrictedMoveCalls`, which takes precedence; pass
+  `[]` to allow all calls. `findRestrictedMoveCalls` runs the same check on a transaction's data
+  without throwing, and `validateRestrictedMoveCalls` checks a list's entries.
+- 2cb1611: Transaction results changed shape and match across transports:
+
+  - Transaction data (`include: { transaction: true }`) has a `kind` discriminated union:
+    `kind.ProgrammableTransaction`, a variant for each system transaction, and
+    `{ $kind: 'Unknown', Unknown: true }` for kinds the SDK does not recognize. The top-level
+    `inputs` and `commands` remain for programmable and programmable system transactions.
+  - `SuiClientTypes.TransactionData` is a read type: `sender` and every `gasData` field are always
+    set, inputs, commands and expirations carry `$kind`, shared object inputs can have
+    `mutability: 'NonExclusiveWrite'`, and builder-only unresolved inputs and intents are gone.
+    Decode transaction bytes into it with the new `parseTransactionDataBcs` from
+    `@mysten/sui/client`; `parseTransactionBcs` returns the builder's snapshot type.
+  - `SuiClientTypes.Transaction` has a `sender` on every client, without `include.transaction`.
+    System transactions report `0x0`. `parseGrpcTransactionResponse` needs `transaction.sender` in
+    the read mask.
+  - BCS schemas decode every current system transaction: `bcs.SharedObjectRef` encodes
+    `bcs.SharedObjectMutability`, `bcs.Owner` adds `Party`, and `bcs.MoveObjectType` renames
+    `AccumulatorBalanceWrapper` to `SuiBalanceAccumulatorField` and adds `BalanceAccumulatorField`.
+  - `bcs.TransactionKind` system variants decode to named structs instead of tuples
+    (`ChangeEpoch.systemPackages`, cancelled transaction version assignments, stored execution time
+    observations), and `*ObjInitialSharedVersion` fields are renamed to
+    `*ObjectInitialSharedVersion`. The encoded bytes are unchanged.
+  - GraphQL reads an event's `packageId` and `module` from the transaction's top-level command,
+    reports `0x0` as the sender of system transaction events, and reports the failing `command` for
+    every execution error. Unchanged consensus objects without a version report `version: null`.
+  - `SuiGraphQLClient` `getTransaction` and `listTransactions` return every event and object type of
+    a transaction, not just the first 50.
+  - Execution errors in `effects.status` match across transports. GraphQL's top-level `status` error
+    distinguishes only `MoveAbort`; other errors are `Unknown`.
+  - `MoveLocation.function` is removed; use `functionName`.
+  - `bcs.TransactionEffects` decodes to named structs instead of tuples: V2 `changedObjects` entries
+    are `{ objectId, inputState, outputState, idOperation }`, `unchangedConsensusObjects` entries
+    are `{ objectId, kind }`, version/digest pairs are `{ version, digest }`, `ObjectIn.Exist` is
+    `{ version, digest, owner }`, `ObjectOut.ObjectWrite` is `{ digest, owner }`, `MoveAbort` is
+    `{ location, abortCode }`, accumulator `IntegerTuple` values are `{ first, second }` and
+    `EventDigest` entries are `{ eventIndex, digest }`, V1 `modifiedAtVersions` entries are
+    `{ objectId, version }`, and V1 object references with owners are `{ reference, owner }`. The
+    `InsufficientBalanceForWithdraw` error variant is renamed to `InsufficientFundsForWithdraw` and
+    `congested_objects` to `congestedObjects`. The encoded bytes are unchanged.
+  - `bcs.MultiSig` and `bcs.MultiSigPublicKey` fields are camelCase: `multisig_pk` is `multisigPk`
+    and `pk_map` is `pkMap`, including in `MultiSigStruct` and the `multisig` returned by
+    `parseSerializedSignature`, which keeps the old names as deprecated aliases.
+
+- faf8d74: Add `client.verifySignature`, which verifies a `personalMessage` or `transaction`
+  signature for an `address` on the node, accepting signatures from the address's current address
+  aliases (`checkAddressAliases: false` for a strict check), and `client.getAddressAliases`. Both
+  are on `SuiGrpcClient`, `SuiGraphQLClient` and `client.core`, and `CoreClient` has a new abstract
+  `verifySignature` method. `verifySignature` requires `address` and throws when the node can't
+  check address aliases. `verifyZkLoginSignature` is deprecated in favor of `verifySignature` and
+  now checks address aliases too.
+
+  The personal message and transaction helpers in `@mysten/sui/verify` take a `client` or
+  `offline: true`; without either they verify offline and log a warning. With a client, the node
+  verifies signatures and checks address aliases when an `address` is given; `offline: true`
+  verifies locally and throws for zkLogin signatures. `verifyPersonalMessageSignature` and
+  `isValidPersonalMessageSignature` accept a string message, and `PublicKey.verifyAddress`
+  normalizes the address it is given.
+
+### Minor Changes
+
+- d4e4406: Refresh the `@mysten/sui/graphql/schema` typings from the current GraphQL schema,
+  including its subscription types.
+- 52660ab: Add resumable ledger streams: `streamCheckpoints`, `streamTransactions` and
+  `streamEvents` on `SuiGrpcClient`, `SuiGraphQLClient` and `client.core`. Streams read history in
+  either order, follow new checkpoints live, reconnect automatically, and give every item a
+  `resumeToken` to resume from. Stream errors are `SuiStreamError`s, and failed MVR requests throw
+  `MvrRequestError`.
+
+### Patch Changes
+
+- e39d2a9: `SuiGraphQLClient` fills `cleverError.errorCode` on Move aborts, and reports a
+  `cleverError` for clever aborts that have only a line number, matching `SuiGrpcClient`.
+  `SuiGrpcClient` Move abort messages now include the base64 value of a clever error constant that
+  can't be rendered, as `SuiGraphQLClient` messages do.
+- 233b207: `SuiGraphQLClient` ignores fields it does not know in transaction, effects and
+  balance-change JSON, and enum values it does not know in effects and balance changes, so responses
+  from a newer server still parse. In transaction data, an enum value it does not know is mapped as
+  on `SuiGrpcClient`: a newer transaction kind or input reads as `Unknown`.
+- 1871849: gRPC returns the transaction `epoch` when `effects` are not included.
+
 ## 2.39.1
 
 ## 2.39.0

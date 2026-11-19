@@ -1,5 +1,16 @@
 # @mysten/dapp-kit-react
 
+## 3.0.0
+
+### Major Changes
+
+- f43f64d: Depend on `@mysten/dapp-kit-core` 2.0, which requires `@mysten/sui@^3`.
+
+### Patch Changes
+
+- Updated dependencies [2cb1611]
+  - @mysten/dapp-kit-core@2.0.0
+
 ## 2.1.45
 
 ## 2.1.44

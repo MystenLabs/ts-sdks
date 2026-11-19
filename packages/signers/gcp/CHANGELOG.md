@@ -1,5 +1,11 @@
 # @mysten/gcp-kms-signer
 
+## 0.3.0
+
+### Minor Changes
+
+- f43f64d: Require `@mysten/sui@^3` as a peer dependency.
+
 ## 0.2.38
 
 ## 0.2.37

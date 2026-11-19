@@ -1,5 +1,31 @@
 # @mysten-incubation/sponsor
 
+## 0.7.0
+
+### Minor Changes
+
+- 659c915: `noRestrictedMoveCalls` takes `{ restrictedMoveCalls? }`, a list of `package`,
+  `package::module` or `package::module::function` entries, in place of `addressAliases` and
+  `targets`, and throws if passed any other option:
+
+  - `{ addressAliases: false }` → `{ restrictedMoveCalls: [] }`
+  - `{ targets: { X: ... } }` → `{ restrictedMoveCalls: ['0x2::address_alias', X] }`
+  - `'*'` with `except` → `allowedPackages` or `allowedFunctions`; other `except` lists → restrict
+    the specific modules or functions instead
+
+- faf8d74: `validSender()` no longer reads the gas owner's address alias set; it rejects an unset
+  sender and a sender equal to the gas owner.
+- f43f64d: Require `@mysten/sui@^3` as a peer dependency.
+
+### Patch Changes
+
+- faf8d74: `userSignatureMatchesSender` accepts signatures from the sender's address aliases,
+  verified by the client's node.
+- Updated dependencies [f43f64d]
+- Updated dependencies [e39d2a9]
+- Updated dependencies [659c915]
+  - @mysten/wallet-sdk@0.12.0
+
 ## 0.6.1
 
 ### Patch Changes
