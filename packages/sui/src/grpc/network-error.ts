@@ -51,7 +51,8 @@ export function isConnectionLost(error: unknown): boolean {
 	return typeof error === 'object' && error !== null && connectionLost.has(error);
 }
 
-function isAbortError(error: unknown): boolean {
+/** Whether `error` is an `AbortError`, read by shape so another realm's error matches. */
+export function isAbortError(error: unknown): boolean {
 	return (
 		typeof error === 'object' &&
 		error !== null &&
