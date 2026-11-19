@@ -82,11 +82,21 @@ describe('Core API - Queries', () => {
 		// lists the setup transactions and their events before the tests query them once.
 		await vi.waitFor(
 			async () => {
-				for (const client of [toolbox.jsonRpcClient, toolbox.grpcClient, toolbox.graphqlClient]) {
+				for (const [kind, client] of [
+					['jsonrpc', toolbox.jsonRpcClient],
+					['grpc', toolbox.grpcClient],
+					['graphql', toolbox.graphqlClient],
+				] as const) {
 					const txs = await client.core.listTransactions({ filter: { sender: senderAddress } });
-					expect(txs.transactions.map((tx) => tx.Transaction?.digest)).toEqual(digests);
+					expect(
+						txs.transactions.map((tx) => tx.Transaction?.digest),
+						`${kind} listTransactions`,
+					).toEqual(digests);
 					const { events } = await client.core.listEvents({ filter: { sender: senderAddress } });
-					expect(events.map((event) => event.transactionDigest)).toEqual(digests);
+					expect(
+						events.map((event) => event.transactionDigest),
+						`${kind} listEvents`,
+					).toEqual(digests);
 				}
 			},
 			{ timeout: 10_000, interval: 250 },
