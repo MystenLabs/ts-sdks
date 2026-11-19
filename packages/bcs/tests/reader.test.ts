@@ -199,13 +199,3 @@ describe('BcsReader', () => {
 		});
 	});
 });
-
-describe('BcsReader position', () => {
-	it('reports the bytes consumed by a read', () => {
-		const bytes = new Uint8Array([...bcs.vector(bcs.u16()).serialize([1, 2]).toBytes(), 0xff]);
-		const reader = new BcsReader(bytes);
-		expect(reader.position).toBe(0);
-		bcs.vector(bcs.u16()).read(reader);
-		expect(reader.position).toBe(bytes.length - 1);
-	});
-});

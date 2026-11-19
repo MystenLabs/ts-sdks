@@ -880,8 +880,8 @@ export class GraphQLCoreClient extends CoreClient {
 			},
 		});
 
-		// The server reports an invalid signature, including a signer outside the alias set, as bad
-		// user input on the field; transaction bytes are checked before the request.
+		// The server reports an invalid signature, a signer outside the alias set and undecodable
+		// transaction bytes as bad user input on the field.
 		const failure = errors?.find(
 			(error) =>
 				error.path?.[0] === 'verifySignature' && error.extensions?.code === 'BAD_USER_INPUT',

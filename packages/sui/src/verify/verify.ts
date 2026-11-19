@@ -13,7 +13,6 @@ import { Secp256r1PublicKey } from '../keypairs/secp256r1/publickey.js';
 import { MultiSigPublicKey } from '../multisig/publickey.js';
 import { ZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import type { ClientWithCoreApi } from '../client/core.js';
-import { assertTransactionDataBytes } from '../client/utils.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 
 /**
@@ -170,8 +169,6 @@ async function checkSignature(
 	}
 
 	const invalid = { error: `Signature is not valid for the provided ${SCOPE_LABEL[scope]}` };
-	// `verifySignature` throws for malformed transaction bytes; here they are invalid, offline too.
-	if (scope === 'TransactionData' && !isTransactionData(bytes)) return invalid;
 	const parsed = tryParseSignature(signature, options.offline ? {} : { client: options.client });
 	if (!parsed) return invalid;
 	const address = options.address ? normalizeSuiAddress(options.address) : undefined;
@@ -229,15 +226,6 @@ async function checkSignature(
 	}
 
 	return { publicKey };
-}
-
-function isTransactionData(bytes: Uint8Array) {
-	try {
-		assertTransactionDataBytes(bytes);
-		return true;
-	} catch {
-		return false;
-	}
 }
 
 function parseSignature(signature: string, options: { client?: ClientWithCoreApi } = {}) {

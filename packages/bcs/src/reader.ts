@@ -43,10 +43,6 @@ export class BcsReader {
 		this.dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
 		this.bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 	}
-	/** The number of bytes read so far. */
-	get position(): number {
-		return this.bytePosition;
-	}
 	/**
 	 * Shift current cursor position by `bytes`.
 	 *

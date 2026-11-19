@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase58 } from '@mysten/bcs';
+import { toBase64 } from '@mysten/bcs';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -124,21 +124,19 @@ describe('verify helpers', () => {
 		expect(await isValidPersonalMessageSignature(message, signature, options)).toBe(false);
 	});
 
-	it.each([
-		['undecodable', new Uint8Array([1, 2, 3])],
-		['with trailing bytes', new Uint8Array([...transaction, 0xff])],
-	])('reports %s transaction bytes as invalid', async (_, bytes) => {
+	it('leaves decoding transaction bytes to the node', async () => {
+		const bytes = new Uint8Array([...transaction, 0xff]);
 		const { signature } = await new Ed25519Keypair().signTransaction(bytes);
-		const client = new SuiGraphQLClient({
-			url: 'https://graphql.invalid/graphql',
-			network: 'testnet',
-			fetch: () => Promise.reject(new Error('the node should not be asked')),
+		const { client, verifySignature: core } = mockClient({
+			valid: false,
+			reason: 'Failed to deserialize TransactionData from bytes',
 		});
 
 		expect(await isValidTransactionSignature(bytes, signature, { client })).toBe(false);
 		await expect(verifyTransactionSignature(bytes, signature, { client })).rejects.toThrow(
 			'Signature is not valid for the provided Transaction',
 		);
+		expect(core).toHaveBeenCalledWith(expect.objectContaining({ transaction: bytes }));
 	});
 
 	it('sends a transaction signature to the node as a transaction', async () => {
@@ -366,58 +364,14 @@ describe('GraphQLCoreClient.verifySignature errors', () => {
 	});
 });
 
-describe('verifySignature with malformed transaction bytes', () => {
+describe('verifySignature with transaction bytes the SDK cannot decode', () => {
+	// The node decodes the bytes, so a new on-chain variant never fails locally.
 	it.each([
-		['undecodable bytes', new Uint8Array([1, 2, 3]), 'Invalid transaction bytes'],
-		[
-			'trailing bytes',
-			new Uint8Array([...transaction, 0xff]),
-			'Invalid transaction bytes: trailing data',
-		],
-	])('throws for %s on both transports without asking the node', async (_, bytes, message) => {
-		const options = { transaction: bytes, signature: 'AA==', address: '0x1' };
-		const grpcVerify = vi.fn();
-		const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
-		const query = vi.fn();
-		graphql.query = query as never;
-
-		for (const core of [grpcCoreWith(grpcVerify), graphql.core]) {
-			await expect(core.verifySignature(options)).rejects.toThrow(message);
-		}
-		expect(grpcVerify).not.toHaveBeenCalled();
-		expect(query).not.toHaveBeenCalled();
-	});
-});
-
-// Decoding accepts an unsorted allowed proposer set, which re-encoding rejects.
-function unsortedProposersTransaction() {
-	const bytes = bcs.TransactionData.serialize({
-		V1: {
-			kind: { ProgrammableTransaction: { inputs: [], commands: [] } },
-			sender: '0x1',
-			gasData: { payment: [], owner: '0x1', price: '1', budget: '1' },
-			expiration: {
-				Validity: {
-					minEpoch: null,
-					maxEpoch: null,
-					minTimestamp: null,
-					maxTimestamp: null,
-					chain: toBase58(new Uint8Array(32).fill(7)),
-					nonce: 0,
-					allowedProposers: { epoch: '42', proposers: [2, 5] },
-				},
-			},
-		},
-	}).toBytes();
-	// The proposers end the transaction: swap the two trailing u32s so the set reads [5, 2].
-	bytes.set([...bytes.slice(-4), ...bytes.slice(-8, -4)], bytes.length - 8);
-	return bytes;
-}
-
-describe('verifySignature with an unsorted allowed proposer set', () => {
-	it('sends it to the node on both transports', async () => {
+		['an unknown TransactionData variant', new Uint8Array([1, ...transaction.slice(1)])],
+		['trailing bytes', new Uint8Array([...transaction, 0xff])],
+	])('sends %s to the node unchanged on both transports', async (_, bytes) => {
 		const options = {
-			transaction: unsortedProposersTransaction(),
+			transaction: bytes,
 			signature: 'AA==',
 			address: '0x1',
 			checkAddressAliases: false,
@@ -429,35 +383,45 @@ describe('verifySignature with an unsorted allowed proposer set', () => {
 
 		expect(await grpcCoreWith(grpcVerify).verifySignature(options)).toEqual({ valid: true });
 		expect(await graphql.core.verifySignature(options)).toEqual({ valid: true });
+		expect(grpcVerify.mock.calls[0][0].message.value).toEqual(bytes);
+		expect(query.mock.calls[0][0].variables.message).toBe(toBase64(bytes));
 	});
 
-	it('verifies it with the verify helpers, offline and on the node', async () => {
-		const bytes = unsortedProposersTransaction();
+	it('reports GraphQL rejecting the bytes as an invalid signature', async () => {
+		const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
+		const error = 'Failed to deserialize TransactionData from bytes';
+		graphql.query = vi.fn(async () => ({
+			data: { verifySignature: null },
+			errors: [
+				{
+					message: error,
+					locations: [],
+					path: ['verifySignature'],
+					extensions: { code: 'BAD_USER_INPUT' },
+				},
+			],
+		})) as never;
+
+		expect(
+			await graphql.core.verifySignature({
+				transaction: new Uint8Array([...transaction, 0xff]),
+				signature: 'AA==',
+				address: '0x1',
+			}),
+		).toEqual({ valid: false, reason: error });
+	});
+});
+
+describe('offline verify helpers with trailing transaction bytes', () => {
+	it('verify the signature over the bytes as given, as in 2.x', async () => {
 		const keypair = new Ed25519Keypair();
+		const bytes = new Uint8Array([...transaction, 0xff]);
 		const { signature } = await keypair.signTransaction(bytes);
-		const { client } = mockClient();
 		const address = keypair.toSuiAddress();
 
 		expect(await isValidTransactionSignature(bytes, signature, { offline: true, address })).toBe(
 			true,
 		);
-		expect(await isValidTransactionSignature(bytes, signature, { client, address })).toBe(true);
-	});
-});
-
-describe('verify helpers with trailing transaction bytes', () => {
-	it('reject them offline and on the node without asking it', async () => {
-		const keypair = new Ed25519Keypair();
-		const bytes = new Uint8Array([...transaction, 0xff]);
-		const { signature } = await keypair.signTransaction(bytes);
-		const { client, verifySignature: core } = mockClient();
-		const address = keypair.toSuiAddress();
-
-		expect(await isValidTransactionSignature(bytes, signature, { offline: true, address })).toBe(
-			false,
-		);
-		expect(await isValidTransactionSignature(bytes, signature, { client, address })).toBe(false);
-		expect(core).not.toHaveBeenCalled();
 	});
 });
 

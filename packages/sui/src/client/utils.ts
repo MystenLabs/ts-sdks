@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { BcsReader } from '@mysten/bcs';
 import { fromBase64, toBase64 } from '@mysten/utils';
 
 import { bcs } from '../bcs/index.js';
@@ -735,19 +734,6 @@ export function decodeSignature(signature: string): Uint8Array | null {
 	}
 }
 
-/** Throws unless `bytes` is exactly one BCS `TransactionData`. */
-export function assertTransactionDataBytes(bytes: Uint8Array) {
-	const reader = new BcsReader(bytes);
-	try {
-		bcs.TransactionData.read(reader);
-	} catch (cause) {
-		throw new Error('Invalid transaction bytes', { cause });
-	}
-	if (reader.position !== bytes.length) {
-		throw new Error('Invalid transaction bytes: trailing data');
-	}
-}
-
 /** The message, intent scope and alias check that `verifySignature` options resolve to. */
 export function resolveVerifySignatureOptions(options: SuiClientTypes.VerifySignatureOptions) {
 	const address = normalizeSuiAddress(options.address);
@@ -757,7 +743,6 @@ export function resolveVerifySignatureOptions(options: SuiClientTypes.VerifySign
 	const checkAddressAliases = options.checkAddressAliases ?? true;
 
 	if (options.transaction) {
-		assertTransactionDataBytes(options.transaction);
 		return {
 			intentScope: 'TransactionData' as const,
 			message: options.transaction,
