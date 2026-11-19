@@ -174,3 +174,24 @@ public struct GenericEvent<phantom T> has copy, drop {
 entry fun emit_generic<T>(value: u64) {
     event::emit(GenericEvent<T> { value });
 }
+
+/// Struct used as a dynamic field name
+public struct FieldKey has copy, drop, store {
+    id: u64,
+}
+
+/// Create an object whose dynamic fields use struct names and struct values
+public fun create_object_with_struct_dynamic_fields(ctx: &mut TxContext) {
+    let mut obj = ObjectWithDynamicFields {
+        id: object::new(ctx),
+        name: b"struct_df_object",
+    };
+
+    dynamic_field::add(&mut obj.id, FieldKey { id: 1 }, option::some(7u64));
+    dynamic_object_field::add(&mut obj.id, FieldKey { id: 2 }, SimpleObject {
+        id: object::new(ctx),
+        value: 8,
+    });
+
+    transfer::transfer(obj, ctx.sender());
+}

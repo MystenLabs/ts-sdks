@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { type GeneratedConfig } from '../config/generated.js';
 import { deriveAccountWrapperIdFrom } from '../tx/common.js';
@@ -111,7 +111,7 @@ export async function positionsFromTable(
 	const out: OpenPosition[] = [];
 	let cursor: string | undefined = undefined;
 	for (let page = 0; page < maxPages; page++) {
-		const res = await client.core.listDynamicFields({
+		const res: SuiClientTypes.ListDynamicFieldsResponse = await client.core.listDynamicFields({
 			parentId: positionsTableId,
 			limit,
 			cursor,
