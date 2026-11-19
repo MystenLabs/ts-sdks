@@ -1,5 +1,12 @@
 # @mysten-incubation/sponsor
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [2c647e9]
+  - @mysten/wallet-sdk@0.11.0
+
 ## 0.6.0
 
 ### Minor Changes
