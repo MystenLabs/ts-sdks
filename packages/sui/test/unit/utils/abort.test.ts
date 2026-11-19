@@ -32,4 +32,56 @@ describe('abortableAsyncGenerator', () => {
 		expect(parent.signal.aborted).toBe(false);
 		expect(remove).toHaveBeenCalledWith('abort', listen.mock.calls[0][1]);
 	});
+
+	it('keeps a constant number of abort listeners across many frames', async () => {
+		let added = 0;
+		let removed = 0;
+		const frames = 1000;
+		const stream = abortableAsyncGenerator((signal) => {
+			const add = signal.addEventListener.bind(signal);
+			const remove = signal.removeEventListener.bind(signal);
+			signal.addEventListener = ((...args: Parameters<typeof add>) => {
+				added++;
+				return add(...args);
+			}) as typeof signal.addEventListener;
+			signal.removeEventListener = ((...args: Parameters<typeof remove>) => {
+				removed++;
+				return remove(...args);
+			}) as typeof signal.removeEventListener;
+			return (async function* () {
+				for (let i = 0; i < frames; i++) yield i;
+			})();
+		});
+		let count = 0;
+		for await (const _ of stream) {
+			count++;
+			expect(added - removed).toBeLessThanOrEqual(1);
+		}
+		expect(count).toBe(frames);
+		expect(added).toBeGreaterThanOrEqual(frames);
+		expect(added - removed).toBe(0);
+	});
+
+	it('removes the parent listener when run throws synchronously', async () => {
+		const parent = new AbortController();
+		const listen = vi.spyOn(parent.signal, 'addEventListener');
+		const remove = vi.spyOn(parent.signal, 'removeEventListener');
+		const stream = abortableAsyncGenerator(() => {
+			throw new Error('invalid options');
+		}, parent.signal);
+		await expect(stream.next()).rejects.toThrow('invalid options');
+		expect(remove).toHaveBeenCalledWith('abort', listen.mock.calls[0][1]);
+	});
+
+	it('surfaces the abort reason over a throwing run when already aborted', async () => {
+		const parent = new AbortController();
+		const reason = new Error('aborted');
+		parent.abort(reason);
+		const run = vi.fn(() => {
+			throw new Error('invalid options');
+		});
+		const stream = abortableAsyncGenerator(run, parent.signal);
+		await expect(stream.next()).rejects.toBe(reason);
+		expect(run).not.toHaveBeenCalled();
+	});
 });

@@ -15,6 +15,17 @@ export function linkedAbortController(signal?: AbortSignal) {
 	return { controller, dispose: () => signal?.removeEventListener('abort', abort) };
 }
 
+// The listener lives only as long as one wait, so a long stream does not accumulate them.
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const abort = () => reject(signal.reason);
+		// Attached first so a rejection of `promise` is handled even when the abort wins.
+		promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+		if (signal.aborted) abort();
+		else signal.addEventListener('abort', abort, { once: true });
+	});
+}
+
 /**
  * Runs `run` lazily on the first `next()` with a signal that aborts when the caller's signal
  * aborts or the generator ends for any reason.
@@ -29,17 +40,14 @@ export function abortableAsyncGenerator<T>(
 		const linked = linkedAbortController(signal);
 		const childSignal = linked.controller.signal;
 		controller = linked.controller;
-		// `run` can wait on work that ignores the signal, such as a custom `fetch`, so every wait is
-		// raced against the abort.
-		const aborted = new Promise<never>((_, reject) => {
-			childSignal.addEventListener('abort', () => reject(childSignal.reason), { once: true });
-		});
-		aborted.catch(() => {});
-		const inner = run(childSignal);
+		let inner: AsyncGenerator<T> | undefined;
 		try {
 			childSignal.throwIfAborted();
+			inner = run(childSignal);
 			while (true) {
-				const result = await Promise.race([inner.next(), aborted]);
+				// `run` can wait on work that ignores the signal, such as a custom `fetch`, so every wait
+				// is raced against the abort.
+				const result = await raceAbort(inner.next(), childSignal);
 				if (result.done) return;
 				yield result.value;
 			}
@@ -50,7 +58,7 @@ export function abortableAsyncGenerator<T>(
 			linked.controller.abort();
 			linked.dispose();
 			// Not awaited: it queues behind an inner `next()` that may never settle.
-			inner.return(undefined).catch(() => {});
+			inner?.return(undefined).catch(() => {});
 		}
 	}
 	const iterator = generate();
