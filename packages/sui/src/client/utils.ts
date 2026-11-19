@@ -396,7 +396,7 @@ function parseBcsExecutionError(failure: {
 export function parseTransactionBcs(
 	bytes: Uint8Array,
 	onlyTransactionKind = false,
-): SuiClientTypes.TransactionData {
+): ReturnType<TransactionDataBuilder['snapshot']> {
 	return (
 		onlyTransactionKind
 			? TransactionDataBuilder.fromKindBytes(bytes)

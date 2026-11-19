@@ -19,11 +19,37 @@ import { Package } from './move_package.js';
  */
 export interface GetPackageRequest {
 	/**
-	 * Required. The `storage_id` of the requested package.
+	 * Required. The `storage_id` of any version of the requested package.
+	 *
+	 * When no `selector` is set, the package stored at exactly this id is
+	 * returned. When a `selector` is set, `package_id` only identifies the
+	 * package's upgrade lineage (via its original id), and the selected
+	 * version within that lineage is returned.
 	 *
 	 * @generated from protobuf field: optional string package_id = 1;
 	 */
 	packageId?: string;
+	/**
+	 * @generated from protobuf oneof: selector
+	 */
+	selector:
+		| {
+				oneofKind: 'version';
+				/**
+				 * @generated from protobuf field: uint64 version = 2;
+				 */
+				version: bigint;
+		  }
+		| {
+				oneofKind: 'atCheckpoint';
+				/**
+				 * @generated from protobuf field: uint64 at_checkpoint = 3;
+				 */
+				atCheckpoint: bigint;
+		  }
+		| {
+				oneofKind: undefined;
+		  };
 }
 /**
  * @generated from protobuf message sui.rpc.v2.GetPackageResponse
@@ -175,6 +201,22 @@ class GetPackageRequest$Type extends MessageType<GetPackageRequest> {
 	constructor() {
 		super('sui.rpc.v2.GetPackageRequest', [
 			{ no: 1, name: 'package_id', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 2,
+				name: 'version',
+				kind: 'scalar',
+				oneof: 'selector',
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 3,
+				name: 'at_checkpoint',
+				kind: 'scalar',
+				oneof: 'selector',
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
 		]);
 	}
 }
