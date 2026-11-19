@@ -64,22 +64,48 @@ function eventEndFrame(n: number, reason: GrpcTypes.QueryEndReason): GrpcTypes.L
 	});
 }
 
-function mockListTransactions(client: SuiGrpcClient, frames: GrpcTypes.ListTransactionsResponse[]) {
-	let request: GrpcTypes.ListTransactionsRequest | undefined;
-	client.ledgerService.listTransactions = ((req: GrpcTypes.ListTransactionsRequest) => {
-		request = req;
-		return {
-			responses: (async function* () {
-				yield* frames;
-			})(),
-		};
-	}) as never;
-	return () => request!;
+function checkpointFrame(
+	n: number,
+	end?: GrpcTypes.QueryEndReason,
+): GrpcTypes.ListCheckpointsResponse {
+	return GrpcTypes.ListCheckpointsResponse.create({
+		watermark: { cursor: cursor(n) },
+		checkpoint: {
+			sequenceNumber: BigInt(n),
+			digest: `checkpoint-${n}`,
+			summary: {
+				epoch: 7n,
+				timestamp: { seconds: 1_700_000_000n + BigInt(n), nanos: 123_456_789 },
+			},
+		},
+		...(end !== undefined && { end: { reason: end } }),
+	});
 }
 
-function mockListEvents(client: SuiGrpcClient, frames: GrpcTypes.ListEventsResponse[]) {
-	let request: GrpcTypes.ListEventsRequest | undefined;
-	client.ledgerService.listEvents = ((req: GrpcTypes.ListEventsRequest) => {
+function checkpointEndFrame(
+	n: number,
+	reason: GrpcTypes.QueryEndReason,
+): GrpcTypes.ListCheckpointsResponse {
+	return GrpcTypes.ListCheckpointsResponse.create({
+		watermark: { cursor: cursor(n) },
+		end: { reason },
+	});
+}
+
+interface ListCalls {
+	listTransactions: [GrpcTypes.ListTransactionsRequest, GrpcTypes.ListTransactionsResponse];
+	listEvents: [GrpcTypes.ListEventsRequest, GrpcTypes.ListEventsResponse];
+	listCheckpoints: [GrpcTypes.ListCheckpointsRequest, GrpcTypes.ListCheckpointsResponse];
+}
+
+/** Makes a ledger list method stream `frames`; returns a getter for the request it received. */
+function mockList<Method extends keyof ListCalls>(
+	client: SuiGrpcClient,
+	method: Method,
+	frames: ListCalls[Method][1][],
+) {
+	let request: ListCalls[Method][0] | undefined;
+	client.ledgerService[method] = ((req: ListCalls[Method][0]) => {
 		request = req;
 		return {
 			responses: (async function* () {
@@ -93,7 +119,7 @@ function mockListEvents(client: SuiGrpcClient, frames: GrpcTypes.ListEventsRespo
 describe('gRPC listTransactions pagination', () => {
 	it('requests one extra item and reports no next page for exact-limit final pages', async () => {
 		const client = makeClient();
-		const getRequest = mockListTransactions(client, [
+		const getRequest = mockList(client, 'listTransactions', [
 			txFrame(1),
 			txFrame(2, QueryEndReason.LEDGER_TIP),
 		]);
@@ -109,7 +135,11 @@ describe('gRPC listTransactions pagination', () => {
 
 	it('truncates the lookahead item and reports a next page', async () => {
 		const client = makeClient();
-		mockListTransactions(client, [txFrame(1), txFrame(2), txFrame(3, QueryEndReason.ITEM_LIMIT)]);
+		mockList(client, 'listTransactions', [
+			txFrame(1),
+			txFrame(2),
+			txFrame(3, QueryEndReason.ITEM_LIMIT),
+		]);
 
 		const result = await client.core.listTransactions({ limit: 2 });
 
@@ -125,7 +155,7 @@ describe('gRPC listTransactions pagination', () => {
 
 	it('continues from the scan frontier when the scan limit interrupts a partially-filled page', async () => {
 		const client = makeClient();
-		mockListTransactions(client, [txFrame(1), txEndFrame(6, QueryEndReason.SCAN_LIMIT)]);
+		mockList(client, 'listTransactions', [txFrame(1), txEndFrame(6, QueryEndReason.SCAN_LIMIT)]);
 
 		const result = await client.core.listTransactions({ limit: 3 });
 
@@ -139,7 +169,7 @@ describe('gRPC listTransactions pagination', () => {
 
 	it('returns the scan frontier for item-less scan-limited pages', async () => {
 		const client = makeClient();
-		mockListTransactions(client, [txEndFrame(7, QueryEndReason.SCAN_LIMIT)]);
+		mockList(client, 'listTransactions', [txEndFrame(7, QueryEndReason.SCAN_LIMIT)]);
 
 		const result = await client.core.listTransactions({ limit: 2 });
 
@@ -153,7 +183,11 @@ describe('gRPC listTransactions pagination', () => {
 		const client = makeClient();
 		// Requested limit 3 (lookahead 4), but the server clamps to its max of 3 and ends the
 		// filled page with ITEM_LIMIT instead of producing the lookahead item
-		mockListTransactions(client, [txFrame(1), txFrame(2), txFrame(3, QueryEndReason.ITEM_LIMIT)]);
+		mockList(client, 'listTransactions', [
+			txFrame(1),
+			txFrame(2),
+			txFrame(3, QueryEndReason.ITEM_LIMIT),
+		]);
 
 		const result = await client.core.listTransactions({ limit: 3 });
 
@@ -164,7 +198,7 @@ describe('gRPC listTransactions pagination', () => {
 
 	it('returns null cursors for empty terminal pages', async () => {
 		const client = makeClient();
-		mockListTransactions(client, [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+		mockList(client, 'listTransactions', [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
 
 		const result = await client.core.listTransactions({ limit: 2 });
 
@@ -178,7 +212,7 @@ describe('gRPC listTransactions pagination', () => {
 describe('gRPC listEvents pagination', () => {
 	it('requests one extra item, truncates the lookahead item, and reports a next page', async () => {
 		const client = makeClient();
-		const getRequest = mockListEvents(client, [
+		const getRequest = mockList(client, 'listEvents', [
 			eventFrame(1),
 			eventFrame(2),
 			eventFrame(3, QueryEndReason.ITEM_LIMIT),
@@ -196,7 +230,7 @@ describe('gRPC listEvents pagination', () => {
 
 	it('reports no next page for exact-limit final pages', async () => {
 		const client = makeClient();
-		mockListEvents(client, [eventFrame(1), eventFrame(2, QueryEndReason.LEDGER_TIP)]);
+		mockList(client, 'listEvents', [eventFrame(1), eventFrame(2, QueryEndReason.LEDGER_TIP)]);
 
 		const result = await client.core.listEvents({ limit: 2 });
 
@@ -207,7 +241,7 @@ describe('gRPC listEvents pagination', () => {
 
 	it('reports a next page when the server clamps the lookahead request to its own limit', async () => {
 		const client = makeClient();
-		mockListEvents(client, [eventFrame(1), eventFrame(2, QueryEndReason.ITEM_LIMIT)]);
+		mockList(client, 'listEvents', [eventFrame(1), eventFrame(2, QueryEndReason.ITEM_LIMIT)]);
 
 		const result = await client.core.listEvents({ limit: 2 });
 
@@ -218,7 +252,7 @@ describe('gRPC listEvents pagination', () => {
 
 	it('continues from the scan frontier when the scan limit interrupts a partially-filled page', async () => {
 		const client = makeClient();
-		mockListEvents(client, [eventFrame(1), eventEndFrame(6, QueryEndReason.SCAN_LIMIT)]);
+		mockList(client, 'listEvents', [eventFrame(1), eventEndFrame(6, QueryEndReason.SCAN_LIMIT)]);
 
 		const result = await client.core.listEvents({ limit: 3 });
 
@@ -231,7 +265,9 @@ describe('gRPC listEvents pagination', () => {
 describe('gRPC list query requests', () => {
 	it('forwards checkpoint ranges, both cursor bounds, and the requested order', async () => {
 		const client = makeClient();
-		const getRequest = mockListTransactions(client, [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+		const getRequest = mockList(client, 'listTransactions', [
+			txEndFrame(9, QueryEndReason.LEDGER_TIP),
+		]);
 
 		await client.core.listTransactions({
 			after: cursorB64(1),
@@ -251,7 +287,9 @@ describe('gRPC list query requests', () => {
 
 	it('defaults to ascending when both cursor bounds are given', async () => {
 		const client = makeClient();
-		const getRequest = mockListEvents(client, [eventEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+		const getRequest = mockList(client, 'listEvents', [
+			eventEndFrame(9, QueryEndReason.LEDGER_TIP),
+		]);
 
 		await client.core.listEvents({
 			after: cursorB64(1),
@@ -267,7 +305,9 @@ describe('gRPC list query requests', () => {
 
 	it('omits the filter for empty filters and ANDs predicates in a single term', async () => {
 		const client = makeClient();
-		const getRequest = mockListTransactions(client, [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+		const getRequest = mockList(client, 'listTransactions', [
+			txEndFrame(9, QueryEndReason.LEDGER_TIP),
+		]);
 
 		await client.core.listTransactions({ filter: {} });
 		expect(getRequest().filter).toBeUndefined();
@@ -281,7 +321,7 @@ describe('gRPC list query requests', () => {
 
 	it('rejects invalid checkpoint ranges before sending a request', async () => {
 		const client = makeClient();
-		const getRequest = mockListTransactions(client, []);
+		const getRequest = mockList(client, 'listTransactions', []);
 
 		await expect(
 			client.core.listTransactions({ startCheckpoint: 5, endCheckpoint: 4 }),
@@ -296,7 +336,7 @@ describe('gRPC list query requests', () => {
 		'treats end reason %s as terminal',
 		async (reason) => {
 			const client = makeClient();
-			mockListTransactions(client, [txFrame(1), txFrame(2), txEndFrame(4, reason)]);
+			mockList(client, 'listTransactions', [txFrame(1), txFrame(2), txEndFrame(4, reason)]);
 
 			const result = await client.core.listTransactions({ limit: 5 });
 
@@ -306,7 +346,7 @@ describe('gRPC list query requests', () => {
 			expect(result.endCursor).toBe(cursorB64(2));
 
 			const events = makeClient();
-			mockListEvents(events, [eventFrame(1), eventEndFrame(4, reason)]);
+			mockList(events, 'listEvents', [eventFrame(1), eventEndFrame(4, reason)]);
 			const eventResult = await events.core.listEvents({ limit: 5 });
 			expect(eventResult.hasNextPage).toBe(false);
 			expect(eventResult.endCursor).toBe(cursorB64(1));
@@ -317,8 +357,115 @@ describe('gRPC list query requests', () => {
 		const client = makeClient();
 		const frame = eventFrame(1, QueryEndReason.LEDGER_TIP);
 		delete frame.event!.checkpoint;
-		mockListEvents(client, [frame]);
+		mockList(client, 'listEvents', [frame]);
 
 		await expect(client.core.listEvents({})).rejects.toThrow('missing expected event fields');
+	});
+});
+
+describe('gRPC listCheckpoints', () => {
+	it('requests summary fields, the checkpoint range, and one lookahead item', async () => {
+		const client = makeClient();
+		const getRequest = mockList(client, 'listCheckpoints', [
+			checkpointEndFrame(9, QueryEndReason.LEDGER_TIP),
+		]);
+
+		await client.core.listCheckpoints({
+			limit: 4,
+			startCheckpoint: 10,
+			endCheckpoint: '20',
+			after: cursorB64(1),
+			before: cursorB64(5),
+			order: 'descending',
+		});
+
+		const request = getRequest();
+		expect(request.readMask?.paths).toEqual([
+			'sequence_number',
+			'digest',
+			'summary.epoch',
+			'summary.timestamp',
+		]);
+		expect(request.startCheckpoint).toBe(10n);
+		expect(request.endCheckpoint).toBe(20n);
+		expect(request.filter).toBeUndefined();
+		expect(request.options?.limit).toBe(5);
+		expect(request.options?.after).toEqual(cursor(1));
+		expect(request.options?.before).toEqual(cursor(5));
+		expect(request.options?.ordering).toBe(GrpcTypes.Ordering.DESCENDING);
+	});
+
+	it('maps checkpoint summaries and converts timestamps to milliseconds', async () => {
+		const client = makeClient();
+		mockList(client, 'listCheckpoints', [checkpointFrame(1, QueryEndReason.LEDGER_TIP)]);
+
+		const result = await client.core.listCheckpoints({});
+
+		expect(result.checkpoints).toEqual([
+			{
+				sequenceNumber: '1',
+				digest: 'checkpoint-1',
+				epoch: '7',
+				// Sub-millisecond nanos are truncated
+				timestampMs: 1700000001123,
+			},
+		]);
+		expect(result.hasNextPage).toBe(false);
+		expect(result.startCursor).toBe(cursorB64(1));
+		expect(result.endCursor).toBe(cursorB64(1));
+	});
+
+	it('truncates the lookahead item and reports a next page', async () => {
+		const client = makeClient();
+		mockList(client, 'listCheckpoints', [
+			checkpointFrame(1),
+			checkpointFrame(2),
+			checkpointFrame(3, QueryEndReason.ITEM_LIMIT),
+		]);
+
+		const result = await client.core.listCheckpoints({ limit: 2 });
+
+		expect(result.checkpoints.map((checkpoint) => checkpoint.sequenceNumber)).toEqual(['1', '2']);
+		expect(result.hasNextPage).toBe(true);
+		expect(result.endCursor).toBe(cursorB64(2));
+	});
+
+	it('treats CHECKPOINT_BOUND as terminal', async () => {
+		const client = makeClient();
+		mockList(client, 'listCheckpoints', [
+			checkpointFrame(1),
+			checkpointEndFrame(2, QueryEndReason.CHECKPOINT_BOUND),
+		]);
+
+		const result = await client.core.listCheckpoints({ limit: 5 });
+
+		expect(result.checkpoints).toHaveLength(1);
+		expect(result.hasNextPage).toBe(false);
+		expect(result.endCursor).toBe(cursorB64(1));
+	});
+
+	it('throws when a checkpoint is missing its summary', async () => {
+		const client = makeClient();
+		mockList(client, 'listCheckpoints', [
+			GrpcTypes.ListCheckpointsResponse.create({
+				watermark: { cursor: cursor(1) },
+				checkpoint: { sequenceNumber: 1n, digest: 'checkpoint-1' },
+				end: { reason: QueryEndReason.LEDGER_TIP },
+			}),
+		]);
+
+		await expect(client.core.listCheckpoints({})).rejects.toThrow(
+			'listCheckpoints response is missing expected checkpoint fields',
+		);
+	});
+
+	it('rejects invalid checkpoint ranges before sending a request', async () => {
+		const client = makeClient();
+		const getRequest = mockList(client, 'listCheckpoints', []);
+
+		await expect(
+			client.core.listCheckpoints({ startCheckpoint: 5, endCheckpoint: 4 }),
+		).rejects.toThrow('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+		expect(getRequest()).toBeUndefined();
 	});
 });
