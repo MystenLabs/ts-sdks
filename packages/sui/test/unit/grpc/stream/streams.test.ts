@@ -6,6 +6,7 @@ import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest';
 
 import { ClientCache } from '../../../../src/client/cache.js';
 import { MvrClient } from '../../../../src/client/mvr.js';
+import { SuiStreamError } from '../../../../src/client/stream/errors.js';
 
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
@@ -1541,6 +1542,31 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 				});
 				expect(l.requestsTo('ListEvents')).toHaveLength(1);
 				expect(l.requestsTo('SubscribeEvents')).toHaveLength(live.length);
+			},
+		);
+
+		it.each([
+			['transactions', { affectedAddress: '0x1', function: '0x2::coin' }],
+			['transactions', { affectedAddress: 'alice' }],
+			['events', { sender: 'alice' }],
+		] as const)(
+			'rejects an invalid %s filter %o with InvalidOptions before any request',
+			async (family, filter) => {
+				const l = ledger();
+				const options = {
+					filter: filter as never,
+					start: { checkpoint: 1 },
+					end: { checkpoint: 2 },
+					retry: noDelay,
+				};
+				const frames =
+					family === 'events'
+						? collect(l.client().streamEvents(options))
+						: collect(l.client().streamTransactions(options));
+				const error = await frames.catch((error: unknown) => error);
+				expect(error).toBeInstanceOf(SuiStreamError);
+				expect(error).toMatchObject({ code: 'InvalidOptions' });
+				expect(l.calls).toEqual([]);
 			},
 		);
 

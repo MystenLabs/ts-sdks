@@ -11,6 +11,7 @@ import { MvrClient } from './mvr.js';
 import { bcs } from '../bcs/index.js';
 import type { AnyLedgerStreamAdapter } from './stream/adapter.js';
 import { SuiStreamError } from './stream/errors.js';
+import { validateStreamFilter } from './stream/filter.js';
 import { createLedgerStream } from './stream/run.js';
 
 /** What `CoreClient.createLedgerStreamAdapter` is asked to stream. */
@@ -206,9 +207,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	}
 
 	#ledgerStream<Result>(request: LedgerStreamRequest): AsyncGenerator<Result> {
-		return createLedgerStream(request.options, () =>
-			this.createLedgerStreamAdapter(request),
-		) as AsyncGenerator<Result>;
+		return createLedgerStream(request.options, () => {
+			validateStreamFilter(request);
+			return this.createLedgerStreamAdapter(request);
+		}) as AsyncGenerator<Result>;
 	}
 
 	async getDynamicField(

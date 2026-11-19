@@ -621,12 +621,28 @@ console.log(response.checkpoint?.sequenceNumber, response.checkpoint?.summary?.t
 
 ## Subscriptions
 
-Replace deprecated JSON-RPC websocket subscriptions with the gRPC `subscriptionService`:
+Replace deprecated JSON-RPC websocket subscriptions with [ledger streams](/sui/clients/streaming),
+available on both clients. They take the same filters as `listTransactions` and `listEvents`,
+reconnect automatically, and resume from a saved token:
 
-| JSON-RPC Method        | gRPC Service Replacement                    |
-| ---------------------- | ------------------------------------------- |
-| `subscribeTransaction` | `subscriptionService.subscribeTransactions` |
-| `subscribeEvent`       | `subscriptionService.subscribeEvents`       |
+| JSON-RPC Method        | Replacement          |
+| ---------------------- | -------------------- |
+| `subscribeTransaction` | `streamTransactions` |
+| `subscribeEvent`       | `streamEvents`       |
+
+```typescript
+for await (const frame of client.streamEvents({
+	filter: { eventType: '0x2::coin::CoinCreated' },
+})) {
+	if (frame.$kind === 'Event') {
+		console.log(frame.event.eventType, frame.event.json, frame.resumeToken);
+	}
+}
+```
+
+For filters the Core API does not express, `SuiGrpcClient` streams accept a native gRPC filter as
+`grpcFilter` (see [gRPC options](/sui/clients/streaming#grpc-options)). The raw
+`subscriptionService` remains available:
 
 ```typescript
 const stream = client.subscriptionService.subscribeEvents({
@@ -655,12 +671,10 @@ for await (const frame of stream.responses) {
 }
 ```
 
-Subscriptions begin at the current tip of the chain and do not resume automatically. For gap
-recovery, retain the last `frame.watermark.cursor`, open the new subscription to establish its
-first-frame position, and replay with the paired raw `client.ledgerService.listEvents()` call using
-the same protobuf filter and `options.after` cursor. Repeat the raw list call as the index advances
-until it reaches the new subscription's start position. Do not pass the subscription filter or
-cursor to top-level `client.listEvents()`: its Core filter and base64 cursor are different types.
+Raw subscriptions begin at the current tip and do not reconnect or resume. To fill a gap, replay
+with `client.ledgerService.listEvents()` using the same protobuf filter and the last
+`frame.watermark.cursor` as `options.after`. The top-level `client.listEvents()` takes a different
+filter and cursor type.
 
 ## When to use GraphQL
 
