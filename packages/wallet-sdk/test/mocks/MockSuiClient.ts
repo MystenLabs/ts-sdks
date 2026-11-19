@@ -458,9 +458,9 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('getCurrentSystemState not implemented in MockSuiClient');
 	}
 
-	async listDynamicFields(
-		_options: SuiClientTypes.ListDynamicFieldsOptions,
-	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
+	async listDynamicFields<Include extends SuiClientTypes.DynamicFieldInclude = object>(
+		_options: SuiClientTypes.ListDynamicFieldsOptions<Include>,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse<Include>> {
 		return {
 			dynamicFields: [],
 			hasNextPage: false,

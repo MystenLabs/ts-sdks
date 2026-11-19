@@ -11,9 +11,6 @@ import { SubscriptionServiceClient } from './proto/sui/rpc/v2/subscription_servi
 import { GrpcCoreClient, registerClientTransport } from './core.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { BaseClient } from '../client/index.js';
-import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.js';
-import { normalizeStructTag } from '../utils/sui-types.js';
-import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
@@ -45,21 +42,6 @@ export function isSuiGrpcClient(client: unknown): client is SuiGrpcClient {
 	return (
 		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
 	);
-}
-
-export interface DynamicFieldInclude {
-	value?: boolean;
-}
-
-export type DynamicFieldEntryWithValue<Include extends DynamicFieldInclude = {}> =
-	SuiClientTypes.DynamicFieldEntry & {
-		value: Include extends { value: true } ? SuiClientTypes.DynamicFieldValue : undefined;
-	};
-
-export interface ListDynamicFieldsWithValueResponse<Include extends DynamicFieldInclude = {}> {
-	hasNextPage: boolean;
-	cursor: string | null;
-	dynamicFields: DynamicFieldEntryWithValue<Include>[];
 }
 
 export interface GrpcTransactionInclude extends SuiClientTypes.TransactionInclude {
@@ -276,53 +258,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.getChainIdentifier(input);
 	}
 
-	async listDynamicFields<Include extends DynamicFieldInclude = {}>(
-		input: SuiClientTypes.ListDynamicFieldsOptions & { include?: Include & DynamicFieldInclude },
-	): Promise<ListDynamicFieldsWithValueResponse<Include>> {
-		const includeValue = input.include?.value ?? false;
-		const paths = ['field_id', 'name', 'value_type', 'kind', 'child_id'];
-		if (includeValue) {
-			paths.push('value');
-		}
-
-		const response = await this.stateService.listDynamicFields(
-			{
-				parent: input.parentId,
-				pageToken: input.cursor ? fromBase64(input.cursor) : undefined,
-				pageSize: input.limit,
-				readMask: {
-					paths,
-				},
-			},
-			{ abort: input.signal },
-		);
-
-		return {
-			dynamicFields: response.response.dynamicFields.map(
-				(field): DynamicFieldEntryWithValue<Include> => {
-					const isDynamicObject = field.kind === DynamicField_DynamicFieldKind.OBJECT;
-					const fieldType = isDynamicObject
-						? `0x2::dynamic_field::Field<0x2::dynamic_object_field::Wrapper<${field.name?.name!}>,0x2::object::ID>`
-						: `0x2::dynamic_field::Field<${field.name?.name!},${field.valueType!}>`;
-					return {
-						$kind: isDynamicObject ? 'DynamicObject' : 'DynamicField',
-						fieldId: field.fieldId!,
-						name: {
-							type: field.name?.name!,
-							bcs: field.name?.value!,
-						},
-						valueType: field.valueType!,
-						type: normalizeStructTag(fieldType),
-						childId: field.childId,
-						value: (includeValue
-							? { type: field.valueType!, bcs: field.value?.value ?? new Uint8Array() }
-							: undefined) as DynamicFieldEntryWithValue<Include>['value'],
-					} as DynamicFieldEntryWithValue<Include>;
-				},
-			),
-			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
-			hasNextPage: response.response.nextPageToken !== undefined,
-		};
+	listDynamicFields<Include extends SuiClientTypes.DynamicFieldInclude = {}>(
+		input: SuiClientTypes.ListDynamicFieldsOptions<Include>,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse<Include>> {
+		return this.core.listDynamicFields(input);
 	}
 
 	getDynamicField(

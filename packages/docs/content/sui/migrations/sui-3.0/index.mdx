@@ -68,6 +68,13 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   as test mocks, need to implement it.
 - **`SuiClientTypes.ChangedObject` has a new required `objectType: string | null` field.** Set it
   wherever you construct `ChangedObject` values yourself, such as test mocks.
+- **`getDynamicField` returns a dynamic object field's child object as `value`.** For a dynamic
+  object field, `value` now holds the child object's type and BCS content instead of the child's ID,
+  which is still available as `childId`. In both `getDynamicField` and `listDynamicFields`, the name
+  type of a dynamic object field no longer includes the `Wrapper`.
+- **`@mysten/hashi`'s `view.depositStatus` throws on lookup failures.** It reports `confirmed` only
+  when the deposit request is no longer in the requests bag; other failures throw instead of
+  reporting `confirmed`.
 - **Transaction data (`include: { transaction: true }`) has a `kind`.** Programmable transactions
   are `kind.ProgrammableTransaction`, system transactions such as genesis and consensus commits map
   to their own `kind` variants, and kinds the SDK does not recognize map to
@@ -164,3 +171,4 @@ and decoded pure inputs are best-effort. `dryRunFromSimulation` similarly builds
   See [Resumable ledger streams](/sui/clients/streaming).
 - `@mysten/grpc-node-transport`, a native Node gRPC transport for `SuiGrpcClient`, and the
   `@mysten/sui/grpc/pull-transport` interface it implements for on-demand stream reads.
+- `listDynamicFields({ include: { value: true } })` returns each field's value with the listing.

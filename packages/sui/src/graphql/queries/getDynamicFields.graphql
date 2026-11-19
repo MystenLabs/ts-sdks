@@ -14,6 +14,7 @@ query getDynamicFields(
 				endCursor
 			}
 			nodes {
+				address
 				name {
 					bcs
 					type {
