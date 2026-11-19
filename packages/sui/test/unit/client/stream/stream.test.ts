@@ -248,6 +248,47 @@ describe('retries', () => {
 		expect(ids(frames)).toEqual(['0:0', '1:0', '2:0', '3:0', '4:0', '5:0', '6:0', '7:0']);
 	});
 
+	it('counts gap replay progress when a gap page fails', async () => {
+		const ledger = new Ledger([1, 1, 1, 1, 1, 1, 1], 0);
+		const fail = { error: new NetworkError('gap page failed'), afterItems: 1 };
+		const adapter = fakeAdapter(ledger, {
+			live: 'fromTip',
+			watermarks: true,
+			pageFaults: [undefined, fail, undefined, fail],
+			subscriptions: () => {
+				ledger.indexedTip += 2n;
+				return { events: [ledger.watermark(ledger.indexedTip + 1n)], end: 'hang' };
+			},
+		});
+		const frames = await take(
+			stream(adapter, { start: { checkpoint: 0 }, retry: { ...noDelay, maxAttempts: 1 } }),
+			7,
+		);
+		expect(ids(frames)).toEqual(['0:0', '1:0', '2:0', '3:0', '4:0', '5:0', '6:0']);
+	});
+
+	it('does not let gap replay progress forgive a live feed failure', async () => {
+		const ledger = new Ledger([1, 1]);
+		const adapter = fakeAdapter(ledger, {
+			live: 'fromTip',
+			watermarks: true,
+			// Every attempt's gap replay commits a new checkpoint before the feed fails.
+			afterRead: (l) => {
+				if (l.indexedTip >= 20n) return;
+				l.indexedTip += 1n;
+				l.items.push({ checkpoint: l.indexedTip, index: 0 });
+			},
+			subscriptions: () => ({
+				events: [ledger.watermark(ledger.indexedTip + 1n)],
+				end: new NetworkError('feed failed'),
+			}),
+		});
+		await expect(
+			collect(stream(adapter, { start: { checkpoint: 0 }, retry: { ...noDelay, maxAttempts: 1 } })),
+		).rejects.toThrow('feed failed');
+		expect(adapter.calls.subscriptions).toBe(2);
+	});
+
 	it('spends the budget on a server error after the live feed opened', async () => {
 		const ledger = new Ledger([1, 1]);
 		const adapter = fakeAdapter(ledger, {

@@ -37,6 +37,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	#attemptStart: StreamPosition | undefined;
 	#subscribed = false;
 	#delivering = false;
+	#pagerFailed = false;
 	#retentionLimit = false;
 
 	constructor(options: {
@@ -87,17 +88,18 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		this.#attemptStart = this.#committed;
 		this.#subscribed = false;
 		this.#delivering = false;
+		this.#pagerFailed = false;
 	}
 
 	/**
 	 * Whether this attempt committed a new position. When following, history paged before
-	 * subscribing counts. Once subscribed, the gap replay repeats on every attempt, so only positions
-	 * the live feed delivers count.
+	 * subscribing counts. Once subscribed, the gap replay repeats on every attempt, so its positions
+	 * count only when the pager failed; a feed failure counts only positions the feed delivered.
 	 */
 	advancedThisAttempt(): boolean {
 		return (
 			this.#committed !== this.#attemptStart &&
-			(this.#plan.mode !== 'follow' || !this.#subscribed || this.#delivering)
+			(this.#plan.mode !== 'follow' || !this.#subscribed || this.#delivering || this.#pagerFailed)
 		);
 	}
 
@@ -156,7 +158,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> {
 		});
 		try {
 			while (true) {
-				const next = await pass.next();
+				const next = await pass.next().catch((error: unknown) => {
+					this.#pagerFailed = true;
+					throw error;
+				});
 				this.#status.connected();
 				if (next.done) {
 					this.#retentionLimit ||= next.value.retentionLimit;

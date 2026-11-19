@@ -99,6 +99,25 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 		expect(log).toEqual(['Connecting(0)', 'Connected']);
 	});
 
+	it('fails on a malformed live progress frame read ahead during the gap', async () => {
+		const malformed = progress(mark('bad'), 3);
+		delete malformed.watermark!.cursorPosition;
+		const l = ledger()
+			.list(
+				'ListEvents',
+				[event(1), ended('LEDGER_TIP', 1)],
+				// Held back so the live frames below queue up, where coalescing would drop `malformed`.
+				{ frames: [event(2), ended('CHECKPOINT_BOUND', 2)], delay: 20 },
+			)
+			.subscribe('SubscribeEvents', {
+				frames: [entry(3), malformed, progress(mark('good'), 3), event(4)],
+				end: 'complete',
+			});
+		await expect(
+			collect(l.client().streamEvents({ start: { checkpoint: 1 }, retry: { maxAttempts: 0 } })),
+		).rejects.toMatchObject({ code: 'Protocol' });
+	});
+
 	it('makes one request per history page and none per live item', async () => {
 		const l = ledger()
 			.list('ListEvents', [event(1, 0, { end: 'ITEM_LIMIT' })], [event(2), ended('LEDGER_TIP', 2)])
