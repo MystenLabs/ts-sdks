@@ -49,6 +49,7 @@ import {
 	transactionToGrpcTransaction,
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
+import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { isMockedGasObjectId, transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
@@ -140,10 +141,7 @@ export class GrpcCoreClient extends CoreClient {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
 							if (error.code === GrpcStatusCode.NOT_FOUND) {
-								// Special case for backwards compatibility: missing objects reuse
-								// the long-standing JSON-RPC `notExists` code instead of the gRPC
-								// status name, so handlers written against earlier releases keep
-								// working.
+								// Missing objects use the `notExists` code rather than the gRPC status name.
 								return new ObjectError('notExists', error.message, {
 									cause: error,
 									reason: 'notFound',
@@ -959,11 +957,16 @@ export class GrpcCoreClient extends CoreClient {
 
 	resolveTransactionPlugin() {
 		const client = this.#client;
+		const core = this.core;
 		return async function resolveTransactionData(
 			transactionData: TransactionDataBuilder,
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
 		) {
+			// Raw pure values need the target function signatures to be serialized, which the
+			// server-side resolver cannot do, so resolve them here first.
+			await resolveUnresolvedPureInputs(transactionData, { core });
+
 			const snapshot = transactionData.snapshot();
 			// If sender is not set, use a dummy address for resolution purposes
 			// The resolved transaction will not include the sender if it wasn't set originally
@@ -1081,7 +1084,6 @@ function transactionReadMaskPaths(
 		paths.push('events');
 	}
 	if (include?.objectTypes) {
-		// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
 		paths.push('effects.changed_objects.object_type');
 		paths.push('effects.changed_objects.object_id');
 	}

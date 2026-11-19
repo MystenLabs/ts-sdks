@@ -3,46 +3,9 @@
 
 import { is } from 'valibot';
 
-import type { SuiMoveNormalizedType } from '../jsonRpc/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import { ArgumentSchema } from './data/internal.js';
 import type { Argument, CallArg, Command } from './data/internal.js';
-
-export function extractMutableReference(
-	normalizedType: SuiMoveNormalizedType,
-): SuiMoveNormalizedType | undefined {
-	return typeof normalizedType === 'object' && 'MutableReference' in normalizedType
-		? normalizedType.MutableReference
-		: undefined;
-}
-
-export function extractReference(
-	normalizedType: SuiMoveNormalizedType,
-): SuiMoveNormalizedType | undefined {
-	return typeof normalizedType === 'object' && 'Reference' in normalizedType
-		? normalizedType.Reference
-		: undefined;
-}
-
-export function extractStructTag(
-	normalizedType: SuiMoveNormalizedType,
-): Extract<SuiMoveNormalizedType, { Struct: unknown }> | undefined {
-	if (typeof normalizedType === 'object' && 'Struct' in normalizedType) {
-		return normalizedType;
-	}
-
-	const ref = extractReference(normalizedType);
-	const mutRef = extractMutableReference(normalizedType);
-
-	if (typeof ref === 'object' && 'Struct' in ref) {
-		return ref;
-	}
-
-	if (typeof mutRef === 'object' && 'Struct' in mutRef) {
-		return mutRef;
-	}
-	return undefined;
-}
 
 export function getIdFromCallArg(arg: string | CallArg) {
 	if (typeof arg === 'string') {

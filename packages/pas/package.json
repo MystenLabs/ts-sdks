@@ -55,6 +55,6 @@
 		"vitest": "^4.1.12"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "workspace:^"
+		"@mysten/sui": "workspace:^3.0.0"
 	}
 }

@@ -33,11 +33,11 @@ export type SuinsExtensionOptions<Name extends string = 'suins'> = {
  *
  * @example
  * ```ts
- * import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+ * import { SuiGrpcClient } from '@mysten/sui/grpc';
  * import { suins } from '@mysten/suins';
  *
- * const client = new SuiJsonRpcClient({
- *   url: getJsonRpcFullnodeUrl('mainnet'),
+ * const client = new SuiGrpcClient({
+ *   baseUrl: 'https://fullnode.mainnet.sui.io:443',
  *   network: 'mainnet',
  * }).$extend(suins());
  *

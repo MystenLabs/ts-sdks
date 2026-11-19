@@ -172,7 +172,7 @@ describe('Verify Signatures', () => {
 			});
 		});
 
-		describe('zkLogin signatures', () => {
+		describe('zkLogin signatures with GraphQL', () => {
 			const client = new SuiGraphQLClient({ url: DEFAULT_GRAPHQL_URL, network: 'localnet' });
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
 			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 3`
@@ -203,7 +203,7 @@ describe('Verify Signatures', () => {
 			});
 		});
 
-		describe('zkLogin signatures with json rpc', () => {
+		describe('zkLogin signatures with gRPC', () => {
 			const client = getClient();
 			// this test assumes the localnet epoch is smaller than 3. it will fail if localnet has ran for too long and passed epoch 3.
 			// test case generated from `sui keytool zk-login-insecure-sign-personal-message --data "hello" --max-epoch 3`
