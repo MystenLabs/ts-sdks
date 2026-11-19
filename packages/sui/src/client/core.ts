@@ -1,10 +1,18 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fromBase64 } from '@mysten/utils';
+
 import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { deriveObjectID } from '../utils/derived-objects.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
-import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
+import {
+	normalizeStructTag,
+	normalizeSuiAddress,
+	parseStructTag,
+	SUI_ADDRESS_LENGTH,
+} from '../utils/sui-types.js';
 import { BaseClient } from './client.js';
 import type { ClientWithExtensions, SuiClientTypes } from './types.js';
 import { MvrClient } from './mvr.js';
@@ -13,6 +21,17 @@ import type { AnyLedgerStreamAdapter } from './stream/adapter.js';
 import { SuiStreamError } from './stream/errors.js';
 import { validateStreamFilter } from './stream/filter.js';
 import { createLedgerStream } from './stream/run.js';
+import { ObjectError } from './errors.js';
+
+/** The shared `0x2::address_alias::AddressAliasState`, the parent of every alias set. */
+const ADDRESS_ALIAS_STATE_ID = '0xa';
+const ADDRESS_ALIAS_KEY_TYPE = '0x2::address_alias::AliasKey';
+
+/** `0x2::address_alias::AddressAliases`: its ID and a `VecSet<address>`. */
+const AddressAliasesBcs = bcs.struct('AddressAliases', {
+	id: bcs.Address,
+	aliases: bcs.struct('VecSet<address>', { contents: bcs.vector(bcs.Address) }),
+});
 
 /** What `CoreClient.createLedgerStreamAdapter` is asked to stream. */
 export type LedgerStreamRequest =
@@ -149,9 +168,33 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
-	abstract verifyZkLoginSignature(
-		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
-	): Promise<SuiClientTypes.ZkLoginVerifyResponse>;
+	/**
+	 * Verifies a personal message or transaction signature on the node; see the top-level
+	 * `client.verifySignature`. `valid: false` means invalid, malformed or not authorized for
+	 * `address`; network and protocol errors throw.
+	 */
+	abstract verifySignature(
+		options: SuiClientTypes.VerifySignatureOptions,
+	): Promise<SuiClientTypes.VerifySignatureResponse>;
+
+	/**
+	 * @deprecated Use `verifySignature`. This method accepts signatures from the address's aliases,
+	 * like `verifySignature` does by default.
+	 */
+	async verifyZkLoginSignature({
+		bytes,
+		intentScope,
+		...options
+	}: SuiClientTypes.VerifyZkLoginSignatureOptions): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
+		const message = fromBase64(bytes);
+		const { valid, reason } = await this.verifySignature({
+			...options,
+			...(intentScope === 'TransactionData'
+				? { transaction: message }
+				: { personalMessage: message }),
+		});
+		return { success: valid, errors: reason ? [reason] : [] };
+	}
 
 	abstract getMoveFunction(
 		options: SuiClientTypes.GetMoveFunctionOptions,
@@ -212,6 +255,46 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			validateStreamFilter(request);
 			return this.createLedgerStreamAdapter(request);
 		}) as AsyncGenerator<Result>;
+	}
+
+	/**
+	 * The current alias set of `address`: the addresses whose signatures are accepted for it. An
+	 * address that never enabled aliases has none on chain and is only its own alias.
+	 */
+	async getAddressAliases(
+		options: SuiClientTypes.GetAddressAliasesOptions,
+	): Promise<SuiClientTypes.GetAddressAliasesResponse> {
+		const address = normalizeSuiAddress(options.address);
+		const objectId = deriveObjectID(
+			ADDRESS_ALIAS_STATE_ID,
+			ADDRESS_ALIAS_KEY_TYPE,
+			bcs.Address.serialize(address).toBytes(),
+		);
+		const {
+			objects: [object],
+		} = await this.getObjects({
+			objectIds: [objectId],
+			signal: options.signal,
+			include: { content: true },
+		});
+
+		if (object instanceof ObjectError && object.reason === 'notFound') {
+			return {
+				addressAliases: { address, enabled: false, aliases: [address], objectId },
+			};
+		}
+		if (object instanceof Error) {
+			throw object;
+		}
+
+		return {
+			addressAliases: {
+				address,
+				enabled: true,
+				aliases: AddressAliasesBcs.parse(object.content).aliases.contents,
+				objectId,
+			},
+		};
 	}
 
 	async getDynamicField(

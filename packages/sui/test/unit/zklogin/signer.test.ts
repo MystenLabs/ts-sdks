@@ -4,6 +4,7 @@
 import { bcs, fromBase64, toBase64 } from '@mysten/bcs';
 import { describe, expect, test, vi } from 'vitest';
 
+import { bcs as suiBcs } from '../../../src/bcs/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
 import type { IntentScope } from '../../../src/cryptography/intent.js';
 import type { SignatureWithBytes } from '../../../src/cryptography/keypair.js';
@@ -256,24 +257,29 @@ describe('ZkLoginPublicIdentifier verification', () => {
 	// Mirrors the node: succeeds only when `address` is one of the signature's own zkLogin addresses
 	// (current or legacy derivation).
 	function nodeLikeClient() {
-		const verifyZkLoginSignature = vi.fn(
+		const verifySignature = vi.fn(
 			async ({ signature, address }: { signature: string; address: string }) => {
 				const signer = new ZkLoginPublicIdentifier(
 					parseSerializedZkLoginSignature(signature).publicKey,
 				);
-				return signer.verifyAddress(address)
-					? { success: true, errors: [] }
-					: { success: false, errors: ['address mismatch'] };
+				return { valid: signer.verifyAddress(address) };
 			},
 		);
-		const client = { core: { verifyZkLoginSignature } } as unknown as ClientWithCoreApi;
-		return { client, verifyZkLoginSignature };
+		const client = { core: { verifySignature } } as unknown as ClientWithCoreApi;
+		return { client, verifySignature };
 	}
 
-	const tx = new Uint8Array([1, 2, 3]);
+	const tx = suiBcs.TransactionData.serialize({
+		V1: {
+			kind: { ProgrammableTransaction: { inputs: [], commands: [] } },
+			sender: '0x1',
+			gasData: { payment: [], owner: '0x1', price: '1', budget: '1' },
+			expiration: { None: true },
+		},
+	}).toBytes();
 
-	test('standalone verification uses the signature identity address', async () => {
-		const { client, verifyZkLoginSignature } = nodeLikeClient();
+	test('standalone verification checks the signer against address on the node', async () => {
+		const { client, verifySignature } = nodeLikeClient();
 		const signer = makeSigner();
 		const { signature } = await signer.signTransaction(tx);
 
@@ -283,13 +289,13 @@ describe('ZkLoginPublicIdentifier verification', () => {
 		});
 
 		expect(publicKey.toSuiAddress()).toBe(signer.toSuiAddress());
-		expect(verifyZkLoginSignature).toHaveBeenCalledWith(
+		expect(verifySignature).toHaveBeenCalledWith(
 			expect.objectContaining({ address: signer.toSuiAddress() }),
 		);
 	});
 
 	test('standalone verification still accepts a legacy address', async () => {
-		const { client, verifyZkLoginSignature } = nodeLikeClient();
+		const { client, verifySignature } = nodeLikeClient();
 		// A short seed, so the legacy and current addresses differ.
 		const inputs = { ...aSignatureInputs, addressSeed: '12345' };
 		const signer = new ZkLoginSigner({
@@ -312,9 +318,8 @@ describe('ZkLoginPublicIdentifier verification', () => {
 		});
 
 		expect(publicKey.toSuiAddress()).toBe(legacyAddress);
-		// The signature is parsed into a current-derivation identifier, as before.
-		expect(verifyZkLoginSignature).toHaveBeenLastCalledWith(
-			expect.objectContaining({ address: currentAddress }),
+		expect(verifySignature).toHaveBeenLastCalledWith(
+			expect.objectContaining({ address: legacyAddress }),
 		);
 
 		// A legacy identifier verifies against its own (legacy) address, which the node also accepts.
@@ -323,13 +328,13 @@ describe('ZkLoginPublicIdentifier verification', () => {
 			legacyAddress: true,
 		});
 		expect(await legacyIdentifier.verifyTransaction(tx, signature)).toBe(true);
-		expect(verifyZkLoginSignature).toHaveBeenLastCalledWith(
+		expect(verifySignature).toHaveBeenLastCalledWith(
 			expect.objectContaining({ address: legacyAddress }),
 		);
 	});
 
 	test('rejects a signature from a different zkLogin identity', async () => {
-		const { client, verifyZkLoginSignature } = nodeLikeClient();
+		const { client, verifySignature } = nodeLikeClient();
 		const { signature } = await makeSigner().signTransaction(tx);
 		const other = toZkLoginPublicIdentifier(12345n, 'https://accounts.google.com', {
 			client,
@@ -338,7 +343,7 @@ describe('ZkLoginPublicIdentifier verification', () => {
 
 		expect(await other.verifyTransaction(tx, signature)).toBe(false);
 		expect(await other.verifyPersonalMessage(tx, signature)).toBe(false);
-		expect(verifyZkLoginSignature).toHaveBeenCalledWith(
+		expect(verifySignature).toHaveBeenCalledWith(
 			expect.objectContaining({ address: other.toSuiAddress() }),
 		);
 	});
