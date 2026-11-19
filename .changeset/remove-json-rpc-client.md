@@ -19,3 +19,7 @@ Removed:
 - `normalizedTypeToMoveTypeSignature` from `@mysten/sui/transactions`, which converted JSON-RPC
   normalized Move types to `SuiClientTypes.OpenSignature`. The core API's `getMoveFunction` already
   returns `OpenSignature`s.
+- Support for untyped pure values (`UnresolvedPure` inputs, such as raw Move call arguments in v1
+  transaction JSON restored with `Transaction.from`). `SuiJsonRpcClient` serialized them from the
+  Move function signature; `SuiGrpcClient` and `SuiGraphQLClient` reject them. Pass typed values
+  such as `tx.pure.u64(...)` instead.
