@@ -1519,6 +1519,15 @@ export const ScanEventsDocument = new TypedDocumentString(`
       }
     }
   }
+  ...TRANSACTION_EVENT
+}
+fragment STREAM_PAGE_INFO on PageInfo {
+  hasNextPage
+  hasPreviousPage
+  startCursor
+  endCursor
+}
+fragment TRANSACTION_EVENT on Event {
   transactionModule {
     package {
       address
@@ -1535,12 +1544,6 @@ export const ScanEventsDocument = new TypedDocumentString(`
     bcs
     json
   }
-}
-fragment STREAM_PAGE_INFO on PageInfo {
-  hasNextPage
-  hasPreviousPage
-  startCursor
-  endCursor
 }`) as unknown as TypedDocumentString<ScanEventsQuery, ScanEventsQueryVariables>;
 export const SubscribeEventsDocument = new TypedDocumentString(`
     subscription subscribeEvents($filter: EventFilter, $after: String) {
@@ -1561,6 +1564,9 @@ export const SubscribeEventsDocument = new TypedDocumentString(`
       }
     }
   }
+  ...TRANSACTION_EVENT
+}
+fragment TRANSACTION_EVENT on Event {
   transactionModule {
     package {
       address
