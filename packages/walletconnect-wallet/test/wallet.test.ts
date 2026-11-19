@@ -4,11 +4,11 @@
 import { setImmediate } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import { fromBase64, toBase64 } from '@mysten/sui/utils';
+import { toBase64 } from '@mysten/sui/utils';
 import { Transaction } from '@mysten/sui/transactions';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { WalletAccount } from '@mysten/wallet-standard';
-import { WalletConnectWallet } from '../src/wallet/index.js';
+import { WalletConnectWallet, type GetClient } from '../src/wallet/index.js';
 
 vi.mock('@reown/appkit-universal-connector', () => ({
 	UniversalConnector: {
@@ -46,7 +46,11 @@ function makeConnector({
 	};
 }
 
-function createWallet() {
+function createWallet(
+	getClient: GetClient = () => {
+		throw new Error('getClient should not be called in these tests');
+	},
+) {
 	return new WalletConnectWallet({
 		metadata: {
 			id: 'walletconnect',
@@ -55,9 +59,7 @@ function createWallet() {
 			enabled: true,
 		},
 		projectId: 'test-project-id',
-		getClient: () => {
-			throw new Error('getClient should not be called in these tests');
-		},
+		getClient,
 	});
 }
 
@@ -328,16 +330,8 @@ describe('WalletConnectWallet transaction signing', () => {
 	}
 
 	function createSigningWallet(client: Partial<ClientWithCoreApi> = {}) {
-		return new WalletConnectWallet({
-			metadata: {
-				id: 'walletconnect',
-				walletName: 'Wallet Connect',
-				icon: 'data:image/svg+xml;base64,PHN2Zy8+',
-				enabled: true,
-			},
-			projectId: 'test-project-id',
-			getClient: () => client as ClientWithCoreApi,
-		});
+		const getClient = vi.fn(() => client as ClientWithCoreApi);
+		return { wallet: createWallet(getClient), getClient };
 	}
 
 	beforeEach(() => {
@@ -349,7 +343,7 @@ describe('WalletConnectWallet transaction signing', () => {
 			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
 		});
 		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
-		const wallet = createSigningWallet();
+		const { wallet, getClient } = createSigningWallet();
 		await wallet.init();
 
 		const result = await wallet.features['sui:signTransaction'].signTransaction({
@@ -364,30 +358,66 @@ describe('WalletConnectWallet transaction signing', () => {
 		];
 		expect(request.method).toBe('sui_signTransaction');
 		expect(request.params.transaction).toBe(await expectedBytes());
-		expect(() => fromBase64(request.params.transaction)).not.toThrow();
 		expect(request.params.address).toBe(address);
 		expect(chain).toBe('sui:testnet');
+		expect(getClient).toHaveBeenCalledWith('testnet');
 		expect(result).toEqual({ bytes: 'signed-bytes', signature: 'sig' });
 	});
 
-	it('passes the client to toJSON so transaction intents can be resolved', async () => {
+	it('keeps an existing sender instead of overwriting it', async () => {
+		const sponsoredSender = `0x${'3'.padStart(64, '0')}`;
+		const connector = makeConnector({
+			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+		});
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const { wallet } = createSigningWallet();
+		await wallet.init();
+		const tx = makeTransaction();
+		tx.setSender(sponsoredSender);
+
+		await wallet.features['sui:signTransaction'].signTransaction({
+			transaction: tx,
+			account,
+			chain: 'sui:testnet',
+		});
+
+		const expected = makeTransaction();
+		expected.setSender(sponsoredSender);
+		const [request] = connector.request.mock.calls[0] as unknown as [
+			{ params: { transaction: string } },
+		];
+		expect(request.params.transaction).toBe(toBase64(await expected.build()));
+	});
+
+	it('passes the client and sets the sender before toJSON so intents can resolve', async () => {
 		const connector = makeConnector({
 			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
 		});
 		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
 		const client = {} as ClientWithCoreApi;
-		const wallet = createSigningWallet(client);
+		const { wallet } = createSigningWallet(client);
 		await wallet.init();
 		const tx = makeTransaction();
-		const toJSON = vi.fn((options?: { client?: ClientWithCoreApi }) => tx.toJSON(options));
+		let senderAtSerialization: string | null | undefined;
+		const toJSON = vi.fn((options?: { client?: ClientWithCoreApi }) => {
+			senderAtSerialization = tx.getData().sender;
+			return tx.toJSON(options);
+		});
+
+		// Mirrors a plain `Transaction`, which also exposes `setSenderIfNotSet`.
+		const transaction = {
+			toJSON,
+			setSenderIfNotSet: (sender: string) => tx.setSenderIfNotSet(sender),
+		};
 
 		await wallet.features['sui:signTransaction'].signTransaction({
-			transaction: { toJSON },
+			transaction,
 			account,
 			chain: 'sui:testnet',
 		});
 
 		expect(toJSON).toHaveBeenCalledWith({ client });
+		expect(senderAtSerialization).toBe(address);
 	});
 
 	it('sends base64 BCS bytes for sui_signAndExecuteTransaction', async () => {
@@ -396,7 +426,7 @@ describe('WalletConnectWallet transaction signing', () => {
 		const waitForTransaction = vi.fn(async () => ({
 			Transaction: { signatures: ['sig'], effects: { bcs: new Uint8Array([1, 2, 3]) } },
 		}));
-		const wallet = createSigningWallet({
+		const { wallet, getClient } = createSigningWallet({
 			core: { waitForTransaction } as unknown as ClientWithCoreApi['core'],
 		});
 		await wallet.init();
@@ -415,6 +445,7 @@ describe('WalletConnectWallet transaction signing', () => {
 		const bytes = await expectedBytes();
 		expect(request.method).toBe('sui_signAndExecuteTransaction');
 		expect(request.params.transaction).toBe(bytes);
+		expect(getClient).toHaveBeenCalledWith('testnet');
 		expect(waitForTransaction).toHaveBeenCalledWith({
 			digest: 'tx-digest',
 			include: { effects: true },

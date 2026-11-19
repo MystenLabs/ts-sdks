@@ -50,6 +50,7 @@ type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
 type SerializableTransaction = {
 	toJSON: (options: { client: ClientWithCoreApi }) => Promise<string>;
+	setSenderIfNotSet?: (sender: string) => void;
 };
 /** Metadata describing the dApp, shown to the user by the wallet when pairing. */
 export type DAppMetadata = Parameters<typeof UniversalConnector.init>[0]['metadata'];
@@ -244,8 +245,12 @@ export class WalletConnectWallet implements Wallet {
 		client: ClientWithCoreApi,
 	) {
 		// The Wallet Standard type omits toJSON's options, but a plain `Transaction` needs the
-		// client to resolve intents such as `coinWithBalance` while serializing.
-		const json = await (transaction as SerializableTransaction).toJSON({ client });
+		// client and a sender to resolve intents such as `coinWithBalance` while serializing.
+		// dApp Kit's wrapper already handles both. Duck-typed rather than `instanceof Transaction`
+		// so it still works when the dApp bundles its own copy of `@mysten/sui`.
+		const serializable = transaction as SerializableTransaction;
+		serializable.setSenderIfNotSet?.(address);
+		const json = await serializable.toJSON({ client });
 		const tx = Transaction.from(json);
 		tx.setSenderIfNotSet(address);
 		return tx.build({ client });
