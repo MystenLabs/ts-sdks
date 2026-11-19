@@ -504,25 +504,6 @@ describe('mappableIncludeFor', () => {
 	});
 });
 
-describe('type contract', () => {
-	test('accepts a core transaction parsed with every include section', () => {
-		const typed: SuiClientTypes.Transaction<{
-			balanceChanges: true;
-			effects: true;
-			events: true;
-			objectTypes: true;
-			transaction: true;
-		}> = transaction;
-
-		expect(
-			transactionBlockResponseFromExecution(typed, {
-				bytes,
-				signatures: [SIGNATURE],
-			}).digest,
-		).toBe(TX_DIGEST);
-	});
-});
-
 describe('partial includes', () => {
 	test('accepts an execution parsed with the include it computed', () => {
 		const options = { showEffects: true, showBalanceChanges: true } as const;

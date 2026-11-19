@@ -13,7 +13,7 @@ import { readMoveModuleName } from './move-bytecode.js';
 type CallArg = SuiClientTypes.TransactionData['inputs'][number];
 type Command = SuiClientTypes.TransactionData['commands'][number];
 type Argument = Extract<Command, { MoveCall: unknown }>['MoveCall']['arguments'][number];
-type PureInputType = 'address' | 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256';
+type PureInputType = keyof typeof typeToBcs;
 
 const digestFilledWith = (byte: number) => toBase58(new Uint8Array(32).fill(byte));
 const OBJECT_DIGEST_MIN = digestFilledWith(0);
@@ -61,7 +61,7 @@ export function dryRunFromSimulation(
 	return {
 		balanceChanges: transaction.balanceChanges.map(mapBalanceChange),
 		effects: mapTransactionEffects(transaction),
-		events: mapEvents(transaction),
+		events: mapEvents({ ...transaction, digest: transaction.effects.transactionDigest }),
 		executionErrorSource: transaction.status.error?.message ?? null,
 		input: mapTransactionDataToInput(transaction.transaction),
 		objectChanges: mapObjectChanges(transaction),
@@ -94,9 +94,10 @@ export function mapEvents(
 }
 
 export function mapTransactionEffects(
-	transaction: Pick<MappableTransaction, 'effects' | 'epoch' | 'transaction'>,
+	transaction: Pick<MappableTransaction, 'effects' | 'epoch' | 'status' | 'transaction'>,
 ): SuiJsonRpcTypes.TransactionEffects {
-	const { effects } = transaction;
+	// The top-level status carries clever error details, which GraphQL's BCS-parsed effects lack.
+	const { effects, status } = transaction;
 	const lamportVersion = required(effects.lamportVersion, 'lamport version');
 	const modifiedAtVersions: SuiJsonRpcTypes.TransactionBlockEffectsModifiedAtVersions[] = [];
 	const created: SuiJsonRpcTypes.OwnedObjectRef[] = [];
@@ -151,13 +152,13 @@ export function mapTransactionEffects(
 			})),
 		...effects.unchangedConsensusObjects.flatMap(mapUnchangedConsensusObject),
 	];
-	const abortError = mapAbortError(effects.status);
+	const abortError = mapAbortError(status);
 
 	return {
 		messageVersion: 'v1',
-		status: effects.status.success
+		status: status.success
 			? { status: 'success' }
-			: { status: 'failure', error: effects.status.error.message },
+			: { status: 'failure', error: status.error.message },
 		executedEpoch: required(transaction.epoch, 'epoch'),
 		gasUsed: effects.gasUsed,
 		transactionDigest: effects.transactionDigest,
@@ -496,7 +497,7 @@ function pureInputTypeHints(
 }
 
 function isPureInputType(type: string | null): type is PureInputType {
-	return ['address', 'bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256'].includes(type ?? '');
+	return Object.keys(typeToBcs).includes(type ?? '');
 }
 
 function mapPureCallArg(bytes: Uint8Array, type?: PureInputType): SuiJsonRpcTypes.SuiCallArg {

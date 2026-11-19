@@ -259,6 +259,62 @@ describe('fullnode fidelity', () => {
 			module_id: `${PACKAGE}::m`,
 		});
 	});
+
+	test('reads clever abort details from the top-level status, not the effects status', () => {
+		const location = { package: PACKAGE, module: 'm', functionName: 'f' };
+		const status = {
+			success: false,
+			error: {
+				$kind: 'MoveAbort',
+				message: 'aborted at line 42',
+				MoveAbort: {
+					abortCode: '9223372079804448767',
+					location,
+					cleverError: { errorCode: 3, lineNumber: 42 },
+				},
+			},
+		} as SuiClientTypes.ExecutionStatus;
+		const sim = simulation({ status });
+		// GraphQL parses the effects status from BCS, which has no clever error details.
+		sim.effects.status = {
+			success: false,
+			error: {
+				$kind: 'MoveAbort',
+				message: 'aborted',
+				MoveAbort: { abortCode: '9223372079804448767', location },
+			},
+		} as SuiClientTypes.ExecutionStatus;
+
+		const { effects } = dryRunFromSimulation(sim);
+
+		expect(effects.status).toEqual({ status: 'failure', error: 'aborted at line 42' });
+		expect(effects.abortError).toEqual({
+			error_code: 3,
+			function: 'f',
+			line: 42,
+			module_id: `${PACKAGE}::m`,
+		});
+	});
+
+	test('takes the event transaction digest from the effects, since simulations have no digest', () => {
+		const sim = simulation({});
+		(sim as { digest: unknown }).digest = undefined;
+		(sim as { events: unknown }).events = [
+			{
+				packageId: PACKAGE,
+				module: 'm',
+				sender: SENDER,
+				eventType: `${PACKAGE}::m::E`,
+				bcs: new Uint8Array(),
+				json: null,
+			},
+		];
+
+		expect(dryRunFromSimulation(sim).events[0].id).toEqual({
+			txDigest: digestOf(9),
+			eventSeq: '0',
+		});
+	});
 });
 
 describe('gas paid from an address balance', () => {

@@ -15,6 +15,8 @@
  * - A transaction that publishes or upgrades several packages lists all their modules on each
  *   `published` change.
  * - When gas is paid from an address balance, `effects.gasObject.owner` is the gas payer.
+ * - After execution, `objectChanges` include the `deleted` and `wrapped` changes that the node
+ *   reported only on dry runs.
  *
  * @module
  */
