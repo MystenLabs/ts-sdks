@@ -36,8 +36,8 @@ export function abortableAsyncGenerator<T>(
 	signal?: AbortSignal,
 ): AsyncGenerator<T> {
 	let controller: AbortController | undefined;
-	let returning = false;
-	let thrown: { error: unknown } | undefined;
+	// The abort reason for `return()` and `throw()`, which end a pending step instead of failing it.
+	const ended = new DOMException('The iteration was ended', 'AbortError');
 	async function* generate(): AsyncGenerator<T> {
 		const linked = linkedAbortController(signal);
 		const childSignal = linked.controller.signal;
@@ -47,17 +47,20 @@ export function abortableAsyncGenerator<T>(
 			childSignal.throwIfAborted();
 			inner = run(childSignal);
 			while (true) {
-				// `run` can wait on work that ignores the signal, such as a custom `fetch`, so every wait
-				// is raced against the abort.
-				const result = await raceAbort(inner.next(), childSignal);
+				let result: IteratorResult<T>;
+				try {
+					// `run` can wait on work that ignores the signal, such as a custom `fetch`, so every
+					// wait is raced against the abort.
+					result = await raceAbort(inner.next(), childSignal);
+				} catch (error) {
+					// A pending `next()` ended by `return()` or `throw()` finishes the iteration; the queued
+					// call then settles on the finished generator.
+					if (error === ended) return;
+					throw error;
+				}
 				if (result.done) return;
 				yield result.value;
 			}
-		} catch (error) {
-			// A `next()` pending when the consumer calls `return()` or `throw()` ends the iteration
-			// instead; the queued call then settles on the finished generator.
-			if (returning || (thrown && error !== thrown.error)) return;
-			throw error;
 		} finally {
 			linked.controller.abort();
 			linked.dispose();
@@ -70,14 +73,12 @@ export function abortableAsyncGenerator<T>(
 	// Aborting first makes that pending read (or timer) reject, so the call cannot deadlock.
 	const originalReturn = iterator.return.bind(iterator);
 	iterator.return = (value) => {
-		returning = true;
-		controller?.abort();
+		controller?.abort(ended);
 		return originalReturn(value);
 	};
 	const originalThrow = iterator.throw.bind(iterator);
 	iterator.throw = (error) => {
-		thrown = { error };
-		controller?.abort();
+		controller?.abort(ended);
 		return originalThrow(error);
 	};
 	return iterator;

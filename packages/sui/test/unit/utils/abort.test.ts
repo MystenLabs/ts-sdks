@@ -102,6 +102,43 @@ describe('abortableAsyncGenerator', () => {
 		expect(await stream.next()).toEqual({ done: true, value: undefined });
 	});
 
+	// A step whose value is already resolved, so an abort from return() or throw() comes too late
+	// to end it.
+	function resolvedSteps(): AsyncGenerator<number> {
+		return {
+			next: () => Promise.resolve({ done: false, value: 1 }),
+			return: () => Promise.resolve({ done: true, value: undefined }),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<number>;
+	}
+
+	it('throw() rejects with its error when a step resolved before the generator resumed', async () => {
+		const stream = abortableAsyncGenerator(resolvedSteps);
+		const pending = stream.next();
+		await Promise.resolve();
+		const error = new Error('consumer failed');
+		const thrown = stream.throw(error);
+		const returned = stream.return(undefined);
+		await expect(pending).resolves.toEqual({ done: false, value: 1 });
+		await expect(thrown).rejects.toBe(error);
+		await expect(returned).resolves.toEqual({ done: true, value: undefined });
+	});
+
+	it('back-to-back throw() calls reject with their own errors', async () => {
+		const stream = abortableAsyncGenerator(resolvedSteps);
+		const pending = stream.next();
+		await Promise.resolve();
+		const first = new Error('first');
+		const second = new Error('second');
+		const thrownFirst = stream.throw(first);
+		const thrownSecond = stream.throw(second);
+		await expect(pending).resolves.toEqual({ done: false, value: 1 });
+		await expect(thrownFirst).rejects.toBe(first);
+		await expect(thrownSecond).rejects.toBe(second);
+	});
+
 	it('surfaces the abort reason over a throwing run when already aborted', async () => {
 		const parent = new AbortController();
 		const reason = new Error('aborted');
