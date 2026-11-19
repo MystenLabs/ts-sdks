@@ -21,8 +21,8 @@ declare module 'vitest' {
 const SUI_TOOLS_TAG =
 	process.env.SUI_TOOLS_TAG ||
 	(process.arch === 'arm64'
-		? 'e04cf9aa915cb6c069092733bebc3648755998e2-arm64'
-		: 'e04cf9aa915cb6c069092733bebc3648755998e2');
+		? '681aca4f69868d4eeca02221ced361b8288211e6-arm64'
+		: '681aca4f69868d4eeca02221ced361b8288211e6');
 
 export default async function setup(project: TestProject) {
 	console.log('Starting test containers');
