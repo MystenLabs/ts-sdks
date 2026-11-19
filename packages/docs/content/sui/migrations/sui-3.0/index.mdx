@@ -67,8 +67,6 @@ run on 3.0 or keep a 2.x copy of its own.
 
 ### Core API
 
-- **Custom `CoreClient` subclasses must implement the new abstract `listCheckpoints` and
-  `verifySignature` methods.**
 - **`listDynamicFields` pagination loops may need a type annotation.** If a loop that passes the
   cursor back in fails with `TS7022`, annotate the page as
   `SuiClientTypes.ListDynamicFieldsResponse`.
