@@ -178,8 +178,13 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 	}
 }
 
-/** Adds SDK metadata without mutating the caller's transport or its default options. */
-export function withClientProtocolVersion(transport: RpcTransport): RpcTransport {
+/**
+ * Applies the client's defaults to every call: adds the protocol-version header and fills unset
+ * request oneofs. Requests are re-encoded with this SDK's schema, so unknown fields on a request
+ * decoded from newer bytes are dropped. Does not mutate the caller's transport or its default
+ * options. Wraps every transport `SuiGrpcClient` uses, including a caller-supplied one.
+ */
+export function withClientDefaults(transport: RpcTransport): RpcTransport {
 	return {
 		mergeOptions(options) {
 			const merged = transport.mergeOptions(options);
@@ -191,8 +196,11 @@ export function withClientProtocolVersion(transport: RpcTransport): RpcTransport
 				},
 			};
 		},
-		unary: transport.unary.bind(transport),
-		serverStreaming: transport.serverStreaming.bind(transport),
+		// protobuf-ts's encoder requires every oneof to be set; create() fills unset ones so requests
+		// built before a oneof was added still send.
+		unary: (method, input, options) => transport.unary(method, method.I.create(input), options),
+		serverStreaming: (method, input, options) =>
+			transport.serverStreaming(method, method.I.create(input), options),
 		clientStreaming: transport.clientStreaming.bind(transport),
 		duplex: transport.duplex.bind(transport),
 	};

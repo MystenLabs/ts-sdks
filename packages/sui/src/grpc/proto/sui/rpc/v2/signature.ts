@@ -41,7 +41,7 @@ export interface UserSignature {
 		| {
 				oneofKind: 'simple';
 				/**
-				 * Simple signature if scheme is ed25519 | secp256k1 | secp256r1.
+				 * Simple signature if scheme is ed25519 | secp256k1 | secp256r1 | mldsa65.
 				 *
 				 * @generated from protobuf field: sui.rpc.v2.SimpleSignature simple = 3;
 				 */
@@ -79,7 +79,7 @@ export interface UserSignature {
 		  };
 }
 /**
- * Either an ed25519, secp256k1 or secp256r1 signature
+ * Either an ed25519, secp256k1, secp256r1 or mldsa65 signature
  *
  * @generated from protobuf message sui.rpc.v2.SimpleSignature
  */
@@ -133,7 +133,7 @@ export interface MultisigMemberPublicKey {
 	 */
 	scheme?: SignatureScheme;
 	/**
-	 * Public key bytes if scheme is ed25519 | secp256k1 | secp256r1 | passkey.
+	 * Public key bytes if scheme is ed25519 | secp256k1 | secp256r1 | passkey | mldsa65.
 	 *
 	 * @generated from protobuf field: optional bytes public_key = 2;
 	 */
@@ -232,7 +232,7 @@ export interface MultisigMemberSignature {
 	 */
 	scheme?: SignatureScheme;
 	/**
-	 * Signature bytes if scheme is ed25519 | secp256k1 | secp256r1.
+	 * Signature bytes if scheme is ed25519 | secp256k1 | secp256r1 | mldsa65.
 	 *
 	 * @generated from protobuf field: optional bytes signature = 2;
 	 */
