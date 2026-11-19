@@ -118,10 +118,10 @@ run on 3.0 or keep a 2.x copy of its own.
 - **Network errors changed.** `SuiGrpcClient` reports `UNAVAILABLE` instead of `INTERNAL`, and
   `SuiGraphQLClient` throws `SuiGraphQLRequestError`, with the original error as `cause`, for
   network failures and malformed or unreadable bodies.
-- **The raw gRPC `GetPackageRequest` type has a required `selector`.** Existing
-  `client.movePackageService.getPackage({ packageId })` calls still work. To satisfy the type, build
-  the request with `GrpcTypes.GetPackageRequest.create({ packageId })` (from `@mysten/sui/grpc`) or
-  pass `selector: { oneofKind: undefined }`.
+- **The raw gRPC `GetPackageRequest` type requires a `selector`.** TypeScript calls to
+  `client.movePackageService.getPackage` that only set `packageId` pass
+  `selector: { oneofKind: undefined }` to read the package stored at `packageId`. At runtime an
+  omitted `selector` is still sent unset.
 
 ### Signature verification
 
