@@ -1,5 +1,11 @@
 # @mysten/dapp-kit-core
 
+## 2.0.1
+
+### Patch Changes
+
+- ada26cb: Decode wallet transaction results with `parseTransactionBcs`.
+
 ## 2.0.0
 
 ### Patch Changes

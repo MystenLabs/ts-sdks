@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 3.0.1
+
+### Patch Changes
+
+- ada26cb: `parseTransactionBcs` returns `SuiClientTypes.TransactionData` and decodes every
+  transaction kind. `parseTransactionDataBcs` is a deprecated alias of it, and
+  `parseTransactionBcs(bytes, true)` is deprecated in favor of
+  `Transaction.fromKind(bytes).getData()`.
+
 ## 3.0.0
 
 ### Major Changes
