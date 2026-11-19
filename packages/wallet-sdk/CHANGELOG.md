@@ -1,5 +1,14 @@
 # @mysten/wallet-sdk
 
+## 0.11.0
+
+### Minor Changes
+
+- 2c647e9: Remove the auto-approval APIs (`AutoApprovalManager`, `autoApprovalAnalyzer`,
+  `operationType`, `extractOperationType`, `OPERATION_INTENT` and the auto-approval policy, settings
+  and state schemas and types). They now live in `@mysten-incubation/auto-approvals`. The
+  transaction analyzer is unchanged.
+
 ## 0.10.1
 
 ## 0.10.0
