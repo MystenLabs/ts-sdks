@@ -389,8 +389,9 @@ describe.concurrent(
 				}),
 			);
 
+			// `EObjectFundsInsufficient`
 			await expect(executeTransaction(toolbox, transaction)).rejects.toThrowError(
-				'InsufficientFundsForWithdraw',
+				/abort code: 5, in '0x0+2::funds_accumulator::reserve_object_funds_for_withdrawal'/,
 			);
 		});
 
