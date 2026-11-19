@@ -37,16 +37,6 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   page size, which would silently truncate busy checkpoints. If a core method is added, checkpoint
   ranges are implementable exactly on every transport (JSON-RPC's sequence-number cursor emulates
   them).
-- **`doGasSelection` on `simulateTransaction`** — the JSON-RPC dry run has no gas-selection option
-  and always substitutes a mocked gas coin when the gas payment is empty, so it can neither select
-  coins server-side nor pay from an address balance. The option lives on
-  `GrpcSimulateTransactionOptions` and `GraphQLSimulateTransactionOptions` only, and the default
-  (`true` when the gas payment is `[]`) is applied by those two transports. Promoting it means
-  adding `doGasSelection` to `SuiClientTypes.SimulateTransactionOptions`, implementing it in the
-  remaining transports, dropping the "gRPC and GraphQL only" qualifier and the JSON-RPC note from
-  the `simulateTransaction` section of `packages/docs/content/sui/clients/executing.mdx`, and
-  removing the JSON-RPC branch from the address-balance `gasPaymentMocked` parity test in
-  `test/e2e/clients/core/transactions.test.ts`.
 
 ## Blocked by GraphQL as well
 
