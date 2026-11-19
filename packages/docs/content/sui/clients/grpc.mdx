@@ -282,7 +282,7 @@ import { parseGrpcTransactionResponse } from '@mysten/sui/grpc';
 
 const { response } = await client.ledgerService.getTransaction({
 	digest: 'ABC123...',
-	readMask: { paths: ['digest', 'effects'] },
+	readMask: { paths: ['digest', 'transaction.sender', 'effects'] },
 });
 
 // Same discriminated union that client.getTransaction() returns

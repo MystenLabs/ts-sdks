@@ -6,7 +6,7 @@ import { bcs, fromBase58, fromBase64, toBase58, toBase64, toHex } from '@mysten/
 
 import { isValidSuiAddress, normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { TypeTagSerializer } from './type-tag-serializer.js';
-import type { TypeTag as TypeTagType } from './types.js';
+import type { SharedObjectAccess, TypeTag as TypeTagType } from './types.js';
 
 function unsafe_u64(options?: BcsTypeOptions<number>) {
 	return bcs
@@ -111,10 +111,45 @@ export const SuiObjectRef = bcs.struct('SuiObjectRef', {
 	digest: ObjectDigest,
 });
 
-export const SharedObjectRef = bcs.struct('SharedObjectRef', {
+// Rust: crates/sui-types/src/transaction.rs
+// `Immutable` and `Mutable` encode as the bytes `false` and `true` do.
+export const SharedObjectMutability = bcs.enum('SharedObjectMutability', {
+	Immutable: null,
+	Mutable: null,
+	NonExclusiveWrite: null,
+});
+
+const SharedObjectRefStruct = bcs.struct('SharedObjectRef', {
 	objectId: Address,
 	initialSharedVersion: bcs.u64(),
-	mutable: bcs.bool(),
+	mutability: SharedObjectMutability,
+});
+
+/**
+ * A shared object input. Non-exclusive write access, used only by system transactions, parses as
+ * `mutable: false` with `mutability: 'NonExclusiveWrite'`.
+ */
+export const SharedObjectRef = SharedObjectRefStruct.transform({
+	name: 'SharedObjectRef',
+	validate: ({ mutable }) => bcs.bool().validate(mutable),
+	input: ({
+		mutable,
+		mutability,
+		...ref
+	}: Omit<typeof SharedObjectRefStruct.$inferInput, 'mutability'> &
+		SharedObjectAccess): typeof SharedObjectRefStruct.$inferInput => ({
+		...ref,
+		mutability: {
+			[mutability ?? (mutable ? 'Mutable' : 'Immutable')]: true,
+		} as typeof SharedObjectMutability.$inferInput,
+	}),
+	output: ({
+		mutability,
+		...ref
+	}): { objectId: string; initialSharedVersion: string } & SharedObjectAccess =>
+		mutability.$kind === 'NonExclusiveWrite'
+			? { ...ref, mutable: false, mutability: 'NonExclusiveWrite' }
+			: { ...ref, mutable: mutability.$kind === 'Mutable' },
 });
 
 export const ObjectArg = bcs.enum('ObjectArg', {
@@ -134,6 +169,20 @@ export const Owner = bcs.enum('Owner', {
 	ConsensusAddressOwner: bcs.struct('ConsensusAddressOwner', {
 		startVersion: bcs.u64(),
 		owner: Address,
+	}),
+	Party: bcs.struct('PartyOwner', {
+		startVersion: bcs.u64(),
+		permissions: bcs.struct('Party', {
+			// `ObjectPermissions` bitflags
+			defaultPermissions: bcs.u64(),
+			members: bcs.vector(
+				bcs.struct('PartyMember', {
+					address: Address,
+					// `ObjectPermissions` bitflags
+					permissions: bcs.u64(),
+				}),
+			),
+		}),
 	}),
 });
 
@@ -443,7 +492,8 @@ export const MoveObjectType = bcs.enum('MoveObjectType', {
 	GasCoin: null,
 	StakedSui: null,
 	Coin: TypeTag,
-	AccumulatorBalanceWrapper: null,
+	SuiBalanceAccumulatorField: null,
+	BalanceAccumulatorField: TypeTag,
 });
 
 // Rust: crates/sui-types/src/object.rs

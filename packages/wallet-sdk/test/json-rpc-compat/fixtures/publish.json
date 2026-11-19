@@ -99,6 +99,8 @@
 				"0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f": "package"
 			},
 			"transaction": {
+				"version": 2,
+				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"gasData": {
 					"budget": "100000000",
 					"owner": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
@@ -111,8 +113,10 @@
 					],
 					"price": "1000"
 				},
-				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"expiration": { "$kind": "None", "None": true },
+				"inputs": [
+					{ "$kind": "Pure", "Pure": { "bytes": "JuafiOt4PNoGBFspSEASFYYbbEtviFrmM82kGttWN3M=" } }
+				],
 				"commands": [
 					{
 						"$kind": "Publish",
@@ -135,10 +139,39 @@
 						}
 					}
 				],
-				"inputs": [
-					{ "$kind": "Pure", "Pure": { "bytes": "JuafiOt4PNoGBFspSEASFYYbbEtviFrmM82kGttWN3M=" } }
-				],
-				"version": 2
+				"kind": {
+					"$kind": "ProgrammableTransaction",
+					"ProgrammableTransaction": {
+						"inputs": [
+							{
+								"$kind": "Pure",
+								"Pure": { "bytes": "JuafiOt4PNoGBFspSEASFYYbbEtviFrmM82kGttWN3M=" }
+							}
+						],
+						"commands": [
+							{
+								"$kind": "Publish",
+								"Publish": {
+									"modules": [
+										"oRzrCwcAAAUKAQAKAgoUAx4lBEMCBUUsB3GNAQj+AWAK3gIRDO8CRA2zAwIAEwEOAggCDQIPAAAMAAAEDAABAQcAAwMEAAQCAgAADAABAAASAgMAABADAQAABgQFAAIFCQUCBwQDBwcFAAMLBgcABAgCAwcIBAEIAAIIAAcIBAEIAQMHCAAIAgMAAQcIBAEIAwIIAgMDBwgDCQAJAQRJdGVtBlN0cmluZwlUeENvbnRleHQDVUlEB1dyYXBwZXIDYWRkCWFkZF9maWVsZAZkZWxldGUNZHluYW1pY19maWVsZAJpZARpdGVtA25ldwhuZXdfaXRlbQZvYmplY3QGc3RyaW5nCnR4X2NvbnRleHQGdW53cmFwBXZhbHVlBHdyYXAHd3JhcHBlcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgACAgkIAxEDAQICCQgDCggAAAEAAAUFCwERBgsAEgACAAEBAAAFBQsBEQYLABIBAgACAQAAAQYLABMBDAERBQsBAgADAQAABQYLAA8ACwELAjgAAgAAAAA=",
+										"oRzrCwcAAAUHAQACAwIFBQcDBwoMCBYgBjYKDEAbAAEAAAABAAEDAAVjaGVjawVndWFyZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwgHAAAAAAAAAAABAAABCAsABmQAAAAAAAAAIwQFBQcHACcCAAA="
+									],
+									"dependencies": [
+										"0x0000000000000000000000000000000000000000000000000000000000000001",
+										"0x0000000000000000000000000000000000000000000000000000000000000002"
+									]
+								}
+							},
+							{
+								"$kind": "TransferObjects",
+								"TransferObjects": {
+									"objects": [{ "$kind": "Result", "Result": 0 }],
+									"address": { "$kind": "Input", "Input": 0 }
+								}
+							}
+						]
+					}
+				}
 			},
 			"signatures": [],
 			"balanceChanges": [
@@ -152,6 +185,7 @@
 		},
 		"getTransaction": {
 			"digest": "B8CwniZFTrAREyXsX6X93iztfejyjw5KESCLmfEqHFrN",
+			"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 			"epoch": "0",
 			"timestampMs": 1794606760007,
 			"checkpoint": "51",
@@ -246,6 +280,8 @@
 				"0x91d02bb4ad0f56dd21fca9a4076c534f536f395edea047f7a9f1bd80610ca51f": "package"
 			},
 			"transaction": {
+				"version": 2,
+				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"gasData": {
 					"budget": "100000000",
 					"owner": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
@@ -258,8 +294,10 @@
 					],
 					"price": "1000"
 				},
-				"sender": "0x26e69f88eb783cda06045b2948401215861b6c4b6f885ae633cda41adb563773",
 				"expiration": { "$kind": "None", "None": true },
+				"inputs": [
+					{ "$kind": "Pure", "Pure": { "bytes": "JuafiOt4PNoGBFspSEASFYYbbEtviFrmM82kGttWN3M=" } }
+				],
 				"commands": [
 					{
 						"$kind": "Publish",
@@ -282,10 +320,39 @@
 						}
 					}
 				],
-				"inputs": [
-					{ "$kind": "Pure", "Pure": { "bytes": "JuafiOt4PNoGBFspSEASFYYbbEtviFrmM82kGttWN3M=" } }
-				],
-				"version": 2
+				"kind": {
+					"$kind": "ProgrammableTransaction",
+					"ProgrammableTransaction": {
+						"inputs": [
+							{
+								"$kind": "Pure",
+								"Pure": { "bytes": "JuafiOt4PNoGBFspSEASFYYbbEtviFrmM82kGttWN3M=" }
+							}
+						],
+						"commands": [
+							{
+								"$kind": "Publish",
+								"Publish": {
+									"modules": [
+										"oRzrCwcAAAUKAQAKAgoUAx4lBEMCBUUsB3GNAQj+AWAK3gIRDO8CRA2zAwIAEwEOAggCDQIPAAAMAAAEDAABAQcAAwMEAAQCAgAADAABAAASAgMAABADAQAABgQFAAIFCQUCBwQDBwcFAAMLBgcABAgCAwcIBAEIAAIIAAcIBAEIAQMHCAAIAgMAAQcIBAEIAwIIAgMDBwgDCQAJAQRJdGVtBlN0cmluZwlUeENvbnRleHQDVUlEB1dyYXBwZXIDYWRkCWFkZF9maWVsZAZkZWxldGUNZHluYW1pY19maWVsZAJpZARpdGVtA25ldwhuZXdfaXRlbQZvYmplY3QGc3RyaW5nCnR4X2NvbnRleHQGdW53cmFwBXZhbHVlBHdyYXAHd3JhcHBlcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgACAgkIAxEDAQICCQgDCggAAAEAAAUFCwERBgsAEgACAAEBAAAFBQsBEQYLABIBAgACAQAAAQYLABMBDAERBQsBAgADAQAABQYLAA8ACwELAjgAAgAAAAA=",
+										"oRzrCwcAAAUHAQACAwIFBQcDBwoMCBYgBjYKDEAbAAEAAAABAAEDAAVjaGVjawVndWFyZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwgHAAAAAAAAAAABAAABCAsABmQAAAAAAAAAIwQFBQcHACcCAAA="
+									],
+									"dependencies": [
+										"0x0000000000000000000000000000000000000000000000000000000000000001",
+										"0x0000000000000000000000000000000000000000000000000000000000000002"
+									]
+								}
+							},
+							{
+								"$kind": "TransferObjects",
+								"TransferObjects": {
+									"objects": [{ "$kind": "Result", "Result": 0 }],
+									"address": { "$kind": "Input", "Input": 0 }
+								}
+							}
+						]
+					}
+				}
 			},
 			"signatures": [
 				"AAx1bZfSsWJ4P1+hEMydwJuEOSGdCAZIIFmjnK8qDMu5gyackqKtIslsU2xULogLDeuMSAFAB5pUvaxfDP8c+A+e7mjXbV725Frjn641LsFG8hPO4XPo8BXTSrZV3t9nOw=="

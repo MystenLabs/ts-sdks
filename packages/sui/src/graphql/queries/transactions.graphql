@@ -109,6 +109,9 @@ query listTransactions(
 
 fragment TRANSACTION_FIELDS on Transaction {
 	digest
+	sender {
+		address
+	}
 	transactionJson @include(if: $includeTransaction)
 	transactionBcs @include(if: $includeBcs)
 	signatures {
@@ -144,39 +147,76 @@ fragment TRANSACTION_FIELDS on Transaction {
 		effectsJson @include(if: $includeObjectTypes)
 		objectChanges(first: 50) @include(if: $includeObjectTypes) {
 			nodes {
-				address
-				outputState {
-					asMoveObject {
-						contents {
-							type {
-								repr
-							}
-						}
-					}
-				}
+				...TRANSACTION_OBJECT_CHANGE
 			}
 		}
 		balanceChangesJson @include(if: $includeBalanceChanges)
 		events(first: 50) @include(if: $includeEvents) {
-			pageInfo {
-				hasNextPage
-			}
 			nodes {
-				transactionModule {
-					package {
-						address
-					}
-					name
+				...TRANSACTION_EVENT
+			}
+		}
+	}
+}
+
+fragment TRANSACTION_EVENT on Event {
+	transactionModule {
+		package {
+			address
+		}
+		name
+	}
+	sender {
+		address
+	}
+	contents {
+		type {
+			repr
+		}
+		bcs
+		json
+	}
+}
+
+fragment TRANSACTION_OBJECT_CHANGE on ObjectChange {
+	address
+	outputState {
+		asMoveObject {
+			contents {
+				type {
+					repr
 				}
-				sender {
-					address
+			}
+		}
+	}
+}
+
+query getTransactionObjectChanges($digest: String!, $after: String) {
+	transaction(digest: $digest) {
+		effects {
+			objectChanges(first: 50, after: $after) {
+				pageInfo {
+					hasNextPage
+					endCursor
 				}
-				contents {
-					type {
-						repr
-					}
-					bcs
-					json
+				nodes {
+					...TRANSACTION_OBJECT_CHANGE
+				}
+			}
+		}
+	}
+}
+
+query getTransactionEvents($digest: String!, $after: String) {
+	transaction(digest: $digest) {
+		effects {
+			events(first: 50, after: $after) {
+				pageInfo {
+					hasNextPage
+					endCursor
+				}
+				nodes {
+					...TRANSACTION_EVENT
 				}
 			}
 		}
