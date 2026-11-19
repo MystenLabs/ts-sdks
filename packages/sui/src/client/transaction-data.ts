@@ -58,6 +58,11 @@ export function parseTransactionBcs(
 	bytes: Uint8Array,
 	onlyTransactionKind: true,
 ): BuilderTransactionData;
+/** @deprecated Pass `false` (or omit it), or use `Transaction.fromKind(bytes).getData()` for kind bytes. */
+export function parseTransactionBcs(
+	bytes: Uint8Array,
+	onlyTransactionKind?: boolean,
+): SuiClientTypes.TransactionData | BuilderTransactionData;
 export function parseTransactionBcs(
 	bytes: Uint8Array,
 	onlyTransactionKind = false,
