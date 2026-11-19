@@ -16,6 +16,7 @@ import type {
 	SuiSignPersonalMessageFeature,
 	SuiSignPersonalMessageMethod,
 	SuiSignTransactionFeature,
+	SuiSignTransactionInput,
 	SuiSignTransactionMethod,
 	Wallet,
 	WalletIcon,
@@ -47,6 +48,10 @@ type WalletEventsMap = {
 type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
+type SerializableTransaction = {
+	toJSON: (options: { client: ClientWithCoreApi }) => Promise<string>;
+	setSenderIfNotSet?: (sender: string) => void;
+};
 /** Metadata describing the dApp, shown to the user by the wallet when pairing. */
 export type DAppMetadata = Parameters<typeof UniversalConnector.init>[0]['metadata'];
 type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
@@ -227,14 +232,39 @@ export class WalletConnectWallet implements Wallet {
 		this.#accounts = await this.#getPreviouslyAuthorizedAccounts();
 	}
 
+	#clientForChain(chain: string) {
+		const [, network] = chain.split(':');
+		return this.#getClient(network as SupportedNetwork);
+	}
+
+	// The WalletConnect Sui RPC spec expects `transaction` as base64-encoded BCS bytes, not the
+	// SDK's JSON format: https://docs.reown.com/advanced/multichain/rpc-reference/sui-rpc
+	async #buildTransactionBytes(
+		transaction: SuiSignTransactionInput['transaction'],
+		address: string,
+		client: ClientWithCoreApi,
+	) {
+		// The Wallet Standard type omits toJSON's options, but a plain `Transaction` needs the
+		// client and a sender to resolve intents such as `coinWithBalance` while serializing.
+		// dApp Kit's wrapper already handles both. Duck-typed rather than `instanceof Transaction`
+		// so it still works when the dApp bundles its own copy of `@mysten/sui`.
+		const serializable = transaction as SerializableTransaction;
+		serializable.setSenderIfNotSet?.(address);
+		const json = await serializable.toJSON({ client });
+		const tx = Transaction.from(json);
+		tx.setSenderIfNotSet(address);
+		return tx.build({ client });
+	}
+
 	#signTransaction: SuiSignTransactionMethod = async ({ transaction, account, chain }) => {
-		const tx = await transaction.toJSON();
+		const client = this.#clientForChain(chain);
+		const bytes = await this.#buildTransactionBytes(transaction, account.address, client);
 
 		const response = (await this.#connector?.request(
 			{
 				method: 'sui_signTransaction',
 				params: {
-					transaction: tx,
+					transaction: toBase64(bytes),
 					address: account.address,
 				},
 			},
@@ -252,16 +282,13 @@ export class WalletConnectWallet implements Wallet {
 		account,
 		chain,
 	}) => {
-		const [, network] = chain.split(':');
-		const client = this.#getClient(network as SupportedNetwork);
-		const data = await transaction.toJSON();
-		const parsedTransaction = Transaction.from(data);
-		const bytes = await parsedTransaction.build({ client });
+		const client = this.#clientForChain(chain);
+		const bytes = await this.#buildTransactionBytes(transaction, account.address, client);
 		const response = (await this.#connector?.request(
 			{
 				method: 'sui_signAndExecuteTransaction',
 				params: {
-					transaction: data,
+					transaction: toBase64(bytes),
 					address: account.address,
 				},
 			},

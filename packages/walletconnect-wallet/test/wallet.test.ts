@@ -4,7 +4,11 @@
 import { setImmediate } from 'node:timers/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
-import { WalletConnectWallet } from '../src/wallet/index.js';
+import { toBase64 } from '@mysten/sui/utils';
+import { Transaction } from '@mysten/sui/transactions';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { WalletAccount } from '@mysten/wallet-standard';
+import { WalletConnectWallet, type GetClient } from '../src/wallet/index.js';
 
 vi.mock('@reown/appkit-universal-connector', () => ({
 	UniversalConnector: {
@@ -42,7 +46,11 @@ function makeConnector({
 	};
 }
 
-function createWallet() {
+function createWallet(
+	getClient: GetClient = () => {
+		throw new Error('getClient should not be called in these tests');
+	},
+) {
 	return new WalletConnectWallet({
 		metadata: {
 			id: 'walletconnect',
@@ -51,9 +59,7 @@ function createWallet() {
 			enabled: true,
 		},
 		projectId: 'test-project-id',
-		getClient: () => {
-			throw new Error('getClient should not be called in these tests');
-		},
+		getClient,
 	});
 }
 
@@ -298,5 +304,157 @@ describe('WalletConnectWallet dApp metadata', () => {
 				}),
 			}),
 		);
+	});
+});
+
+describe('WalletConnectWallet transaction signing', () => {
+	const gasCoinId = `0x${'2'.padStart(64, '0')}`;
+	const digest = '11111111111111111111111111111111';
+	const account = { address } as WalletAccount;
+
+	// Fully specified (sender omitted on purpose) so it builds without network calls.
+	function makeTransaction() {
+		const tx = new Transaction();
+		tx.setGasPrice(1000);
+		tx.setGasBudget(10_000_000);
+		tx.setGasPayment([{ objectId: gasCoinId, version: '1', digest }]);
+		const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(1)]);
+		tx.transferObjects([coin], tx.pure.address(address));
+		return tx;
+	}
+
+	async function expectedBytes() {
+		const tx = makeTransaction();
+		tx.setSender(address);
+		return toBase64(await tx.build());
+	}
+
+	function createSigningWallet(client: Partial<ClientWithCoreApi> = {}) {
+		const getClient = vi.fn(() => client as ClientWithCoreApi);
+		return { wallet: createWallet(getClient), getClient };
+	}
+
+	beforeEach(() => {
+		initMock.mockReset();
+	});
+
+	it('sends base64 BCS bytes with the sender set for sui_signTransaction', async () => {
+		const connector = makeConnector({
+			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+		});
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const { wallet, getClient } = createSigningWallet();
+		await wallet.init();
+
+		const result = await wallet.features['sui:signTransaction'].signTransaction({
+			transaction: makeTransaction(),
+			account,
+			chain: 'sui:testnet',
+		});
+
+		const [request, chain] = connector.request.mock.calls[0] as unknown as [
+			{ method: string; params: { transaction: string; address: string } },
+			string,
+		];
+		expect(request.method).toBe('sui_signTransaction');
+		expect(request.params.transaction).toBe(await expectedBytes());
+		expect(request.params.address).toBe(address);
+		expect(chain).toBe('sui:testnet');
+		expect(getClient).toHaveBeenCalledWith('testnet');
+		expect(result).toEqual({ bytes: 'signed-bytes', signature: 'sig' });
+	});
+
+	it('keeps an existing sender instead of overwriting it', async () => {
+		const sponsoredSender = `0x${'3'.padStart(64, '0')}`;
+		const connector = makeConnector({
+			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+		});
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const { wallet } = createSigningWallet();
+		await wallet.init();
+		const tx = makeTransaction();
+		tx.setSender(sponsoredSender);
+
+		await wallet.features['sui:signTransaction'].signTransaction({
+			transaction: tx,
+			account,
+			chain: 'sui:testnet',
+		});
+
+		const expected = makeTransaction();
+		expected.setSender(sponsoredSender);
+		const [request] = connector.request.mock.calls[0] as unknown as [
+			{ params: { transaction: string } },
+		];
+		expect(request.params.transaction).toBe(toBase64(await expected.build()));
+	});
+
+	it('passes the client and sets the sender before toJSON so intents can resolve', async () => {
+		const connector = makeConnector({
+			requestResult: { transactionBytes: 'signed-bytes', signature: 'sig' },
+		});
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const client = {} as ClientWithCoreApi;
+		const { wallet } = createSigningWallet(client);
+		await wallet.init();
+		const tx = makeTransaction();
+		let senderAtSerialization: string | null | undefined;
+		const toJSON = vi.fn((options?: { client?: ClientWithCoreApi }) => {
+			senderAtSerialization = tx.getData().sender;
+			return tx.toJSON(options);
+		});
+
+		// Mirrors a plain `Transaction`, which also exposes `setSenderIfNotSet`.
+		const transaction = {
+			toJSON,
+			setSenderIfNotSet: (sender: string) => tx.setSenderIfNotSet(sender),
+		};
+
+		await wallet.features['sui:signTransaction'].signTransaction({
+			transaction,
+			account,
+			chain: 'sui:testnet',
+		});
+
+		expect(toJSON).toHaveBeenCalledWith({ client });
+		expect(senderAtSerialization).toBe(address);
+	});
+
+	it('sends base64 BCS bytes for sui_signAndExecuteTransaction', async () => {
+		const connector = makeConnector({ requestResult: { digest: 'tx-digest' } });
+		initMock.mockResolvedValue(connector as unknown as UniversalConnector);
+		const waitForTransaction = vi.fn(async () => ({
+			Transaction: { signatures: ['sig'], effects: { bcs: new Uint8Array([1, 2, 3]) } },
+		}));
+		const { wallet, getClient } = createSigningWallet({
+			core: { waitForTransaction } as unknown as ClientWithCoreApi['core'],
+		});
+		await wallet.init();
+
+		const result = await wallet.features['sui:signAndExecuteTransaction'].signAndExecuteTransaction(
+			{
+				transaction: makeTransaction(),
+				account,
+				chain: 'sui:testnet',
+			},
+		);
+
+		const [request] = connector.request.mock.calls[0] as unknown as [
+			{ method: string; params: { transaction: string; address: string } },
+		];
+		const bytes = await expectedBytes();
+		expect(request.method).toBe('sui_signAndExecuteTransaction');
+		expect(request.params.transaction).toBe(bytes);
+		expect(getClient).toHaveBeenCalledWith('testnet');
+		expect(waitForTransaction).toHaveBeenCalledWith({
+			digest: 'tx-digest',
+			include: { effects: true },
+		});
+		expect(result).toEqual({
+			digest: 'tx-digest',
+			signature: 'sig',
+			bytes,
+			effects: toBase64(new Uint8Array([1, 2, 3])),
+		});
 	});
 });
