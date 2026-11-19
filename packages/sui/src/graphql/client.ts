@@ -210,22 +210,26 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	subscribe<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLQueryOptions<Result, Variables>,
 	): AsyncGenerator<GraphQLQueryResult<Result>> {
-		const run = async function* (
-			client: SuiGraphQLClient,
-			signal: AbortSignal,
-		): AsyncGenerator<GraphQLQueryResult<Result>> {
-			const response = await client.#fetchResponse(client.#subscriptionUrl, {
-				method: 'POST',
-				headers: client.#requestHeaders({
-					'Content-Type': 'application/json',
-					Accept: 'text/event-stream',
-				}),
-				body: requestBody(options),
-				signal,
-			});
-			yield* readGraphQLSSE<Result>(response, signal);
-		};
-		return abortableAsyncGenerator((signal) => run(this, signal), options.signal);
+		return abortableAsyncGenerator(
+			(signal) => this.#runSubscription(options, signal),
+			options.signal,
+		);
+	}
+
+	async *#runSubscription<Result, Variables>(
+		options: GraphQLQueryOptions<Result, Variables>,
+		signal: AbortSignal,
+	): AsyncGenerator<GraphQLQueryResult<Result>> {
+		const response = await this.#fetchResponse(this.#subscriptionUrl, {
+			method: 'POST',
+			headers: this.#requestHeaders({
+				'Content-Type': 'application/json',
+				Accept: 'text/event-stream',
+			}),
+			body: requestBody(options),
+			signal,
+		});
+		yield* readGraphQLSSE<Result>(response, signal);
 	}
 
 	#requestHeaders(defaults: Record<string, string>): Headers {
