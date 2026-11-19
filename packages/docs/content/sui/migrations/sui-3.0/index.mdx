@@ -64,6 +64,10 @@ run on 3.0 or keep a 2.x copy of its own.
   `https://fullnode.mainnet.sui.io:443`) to `SuiGrpcClient`'s `baseUrl`.
 - **`normalizedTypeToMoveTypeSignature` is removed.** `getMoveFunction` already returns
   `OpenSignature`s.
+- **Untyped pure values are no longer supported.** `SuiJsonRpcClient` serialized `UnresolvedPure`
+  inputs, such as raw Move call arguments in v1 transaction JSON restored with `Transaction.from`,
+  from the Move function signature; `SuiGrpcClient` and `SuiGraphQLClient` reject them. Pass typed
+  values such as `tx.pure.u64(...)` instead.
 
 ### Core API
 
