@@ -95,10 +95,39 @@ describe('Multisig scenarios', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey2 = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey2 = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 
 		// multisig (sig3 weight 3 >= threshold ) verifies ok
 		expect(await publicKey2.verifyTransaction(bytes, multisig)).toEqual(true);
+	});
+
+	it('keeps deprecated multisig_pk and pk_map aliases on parsed signatures', async () => {
+		const k1 = new Ed25519Keypair();
+		const k2 = new Secp256k1Keypair();
+		const publicKey = MultiSigPublicKey.fromPublicKeys({
+			threshold: 1,
+			publicKeys: [
+				{ publicKey: k1.getPublicKey(), weight: 1 },
+				{ publicKey: k2.getPublicKey(), weight: 1 },
+			],
+		});
+		const { signature } = await k1.signPersonalMessage(new TextEncoder().encode('hello'));
+		const serialized = publicKey.combinePartialSignatures([signature]);
+
+		const parsed = parseSerializedSignature(serialized);
+		if (parsed.signatureScheme !== 'MultiSig') {
+			throw new Error('Expected signature scheme to be MultiSig');
+		}
+		const { multisig } = parsed;
+
+		expect(multisig.multisig_pk).toEqual(multisig.multisigPk);
+		expect(multisig.multisig_pk.pk_map).toEqual(multisig.multisigPk.pkMap);
+		expect(new MultiSigPublicKey(multisig.multisig_pk).toSuiAddress()).toEqual(
+			publicKey.toSuiAddress(),
+		);
+		expect(toBase64(bcs.MultiSig.serialize(multisig).toBytes())).toEqual(
+			toBase64(parsed.bytes.slice(1)),
+		);
 	});
 
 	it('providing false number of signatures to combining via different methods', async () => {
@@ -147,7 +176,7 @@ describe('Multisig scenarios', () => {
 		const bytes = bcs.MultiSig.serialize({
 			sigs: compressedSignatures,
 			bitmap: 5,
-			multisig_pk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
+			multisigPk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
 		}).toBytes();
 		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
@@ -163,7 +192,7 @@ describe('Multisig scenarios', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 
 		await expect(publicKey.verifyPersonalMessage(signData, multisig)).rejects.toThrow(
 			new TypeError("Cannot read properties of undefined (reading 'pubKey')"),
@@ -212,7 +241,7 @@ describe('Multisig scenarios', () => {
 		const bytes = bcs.MultiSig.serialize({
 			sigs: compressedSignatures,
 			bitmap: 1,
-			multisig_pk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
+			multisigPk: bcs.MultiSigPublicKey.parse(multiSigPublicKey.toRawBytes()),
 		}).toBytes();
 		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
@@ -228,7 +257,7 @@ describe('Multisig scenarios', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 
 		await expect(publicKey.verifyPersonalMessage(signData, multisig)).rejects.toThrow(
 			new TypeError("Cannot read properties of undefined (reading 'pubKey')"),
@@ -302,7 +331,7 @@ describe('Multisig scenarios', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 
 		// Invalid order can't be verified.
 		expect(await publicKey.verifyPersonalMessage(signData, multisig)).toEqual(false);
@@ -341,7 +370,7 @@ describe('Multisig scenarios', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 
 		// Invalid intentScope.
 		expect(await publicKey.verifyTransaction(signData, multisig)).toEqual(false);
@@ -380,7 +409,7 @@ describe('Multisig scenarios', () => {
 		if (parsed.signatureScheme !== 'MultiSig') {
 			throw new Error('Expected signature scheme to be MultiSig');
 		}
-		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
+		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisigPk);
 
 		// Rejects verification.
 		expect(await publicKey.verifyTransaction(signData, multisig)).toEqual(false);

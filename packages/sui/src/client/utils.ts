@@ -133,7 +133,7 @@ function parseBcsExecutionError(failure: {
 
 	switch (error.$kind) {
 		case 'MoveAbort': {
-			const [location, abortCode] = error.MoveAbort;
+			const { location, abortCode } = error.MoveAbort;
 			const moveLocation = {
 				package: location.module.address,
 				module: location.module.name,
@@ -279,7 +279,7 @@ function parseBcsExecutionError(failure: {
 				command,
 				CongestedObjects: {
 					name: 'ExecutionCanceledDueToConsensusObjectCongestion',
-					objects: error.ExecutionCancelledDueToSharedObjectCongestion.congested_objects,
+					objects: error.ExecutionCancelledDueToSharedObjectCongestion.congestedObjects,
 				},
 			};
 
@@ -384,7 +384,7 @@ function parseBcsExecutionError(failure: {
 		case 'SharedObjectOperationNotAllowed':
 		case 'ExecutionCancelledDueToRandomnessUnavailable':
 		case 'InvalidLinkage':
-		case 'InsufficientBalanceForWithdraw':
+		case 'InsufficientFundsForWithdraw':
 		case 'TransactionExpired':
 			return {
 				$kind: 'Unknown',
@@ -521,7 +521,9 @@ function parseTransactionEffectsV1({
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V1']>;
 }): SuiClientTypes.TransactionEffects {
-	const modifiedAtVersions = new Map(effects.modifiedAtVersions);
+	const modifiedAtVersions = new Map(
+		effects.modifiedAtVersions.map(({ objectId, version }) => [objectId, version]),
+	);
 	const sharedObjects = new Map(effects.sharedObjects.map((object) => [object.objectId, object]));
 	const mapChangedObject = (
 		reference: (typeof effects.deleted)[number],
@@ -553,7 +555,7 @@ function parseTransactionEffectsV1({
 		inputState: 'DoesNotExist' | 'Exists',
 		idOperation: 'Created' | 'None',
 	): SuiClientTypes.ChangedObject[] =>
-		changes.map(([reference, owner]) =>
+		changes.map(({ reference, owner }) =>
 			mapChangedObject(reference, {
 				inputState,
 				outputState: 'ObjectWrite',
@@ -584,11 +586,11 @@ function parseTransactionEffectsV1({
 		...removed(effects.unwrappedThenDeleted, 'DoesNotExist', 'Deleted'),
 		...removed(effects.wrapped, 'Exists', 'None'),
 	];
-	const gasObjectId = effects.gasObject[0].objectId;
+	const gasObjectId = effects.gasObject.reference.objectId;
 	const gasObject = changedObjects.find((object) => object.objectId === gasObjectId) ?? null;
 	const changedObjectIds = new Set(changedObjects.map((object) => object.objectId));
 	const lamportVersion = effects.modifiedAtVersions.reduce(
-		(max, [, version]) => (BigInt(version) > max ? BigInt(version) : max),
+		(max, { version }) => (BigInt(version) > max ? BigInt(version) : max),
 		0n,
 	);
 
@@ -625,36 +627,34 @@ function parseTransactionEffectsV2({
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V2']>;
 }): SuiClientTypes.TransactionEffects {
-	const changedObjects = effects.changedObjects.map(
-		([id, change]): SuiClientTypes.ChangedObject => {
-			return {
-				objectId: id,
-				inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
-				inputVersion: change.inputState.Exist?.[0][0] ?? null,
-				inputDigest: change.inputState.Exist?.[0][1] ?? null,
-				inputOwner: mapBcsOwner(change.inputState.Exist?.[1] ?? null),
-				outputState:
-					change.outputState.$kind === 'NotExist' ? 'DoesNotExist' : change.outputState.$kind,
-				outputVersion:
-					change.outputState.$kind === 'PackageWrite'
-						? change.outputState.PackageWrite?.[0]
-						: change.outputState.$kind === 'ObjectWrite'
-							? effects.lamportVersion
-							: null,
-				outputDigest:
-					change.outputState.$kind === 'PackageWrite'
-						? change.outputState.PackageWrite?.[1]
-						: change.outputState.$kind === 'ObjectWrite'
-							? (change.outputState.ObjectWrite?.[0] ?? null)
-							: null,
-				outputOwner:
-					change.outputState.$kind === 'ObjectWrite'
-						? mapBcsOwner(change.outputState.ObjectWrite[1])
+	const changedObjects = effects.changedObjects.map((change): SuiClientTypes.ChangedObject => {
+		return {
+			objectId: change.objectId,
+			inputState: change.inputState.$kind === 'Exist' ? 'Exists' : 'DoesNotExist',
+			inputVersion: change.inputState.Exist?.version ?? null,
+			inputDigest: change.inputState.Exist?.digest ?? null,
+			inputOwner: mapBcsOwner(change.inputState.Exist?.owner ?? null),
+			outputState:
+				change.outputState.$kind === 'NotExist' ? 'DoesNotExist' : change.outputState.$kind,
+			outputVersion:
+				change.outputState.$kind === 'PackageWrite'
+					? change.outputState.PackageWrite.version
+					: change.outputState.$kind === 'ObjectWrite'
+						? effects.lamportVersion
 						: null,
-				idOperation: change.idOperation.$kind,
-			};
-		},
-	);
+			outputDigest:
+				change.outputState.$kind === 'PackageWrite'
+					? change.outputState.PackageWrite.digest
+					: change.outputState.$kind === 'ObjectWrite'
+						? change.outputState.ObjectWrite.digest
+						: null,
+			outputOwner:
+				change.outputState.$kind === 'ObjectWrite'
+					? mapBcsOwner(change.outputState.ObjectWrite.owner)
+					: null,
+			idOperation: change.idOperation.$kind,
+		};
+	});
 
 	return {
 		bcs: bytes,
@@ -678,15 +678,15 @@ function parseTransactionEffectsV2({
 		lamportVersion: effects.lamportVersion,
 		changedObjects,
 		unchangedConsensusObjects: effects.unchangedConsensusObjects.map(
-			([objectId, object]): SuiClientTypes.UnchangedConsensusObject => {
+			({ objectId, kind }): SuiClientTypes.UnchangedConsensusObject => {
 				// Unit variants such as `PerEpochConfig` parse as `true` and carry no version.
 				const version =
-					object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[0] : object[object.$kind];
+					kind.$kind === 'ReadOnlyRoot' ? kind.ReadOnlyRoot.version : kind[kind.$kind];
 				return {
-					kind: object.$kind,
-					objectId: objectId,
+					kind: kind.$kind,
+					objectId,
 					version: typeof version === 'string' ? version : null,
-					digest: object.$kind === 'ReadOnlyRoot' ? object.ReadOnlyRoot[1] : null,
+					digest: kind.$kind === 'ReadOnlyRoot' ? kind.ReadOnlyRoot.digest : null,
 				};
 			},
 		),

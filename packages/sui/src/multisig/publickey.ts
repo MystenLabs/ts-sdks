@@ -42,14 +42,26 @@ type PubkeyEnumWeightPair = {
 };
 
 type MultiSigPublicKeyStruct = {
-	pk_map: PubkeyEnumWeightPair[];
+	pkMap: PubkeyEnumWeightPair[];
 	threshold: number;
 };
 
 export type MultiSigStruct = {
 	sigs: CompressedSignature[];
 	bitmap: number;
-	multisig_pk: MultiSigPublicKeyStruct;
+	multisigPk: MultiSigPublicKeyStruct;
+};
+
+/** A `MultiSigStruct` returned by `parseSerializedSignature`, with the pre-3.0 field names. */
+export type ParsedMultiSigStruct = MultiSigStruct & {
+	multisigPk: ParsedMultiSigPublicKeyStruct;
+	/** @deprecated Use `multisigPk` */
+	multisig_pk: ParsedMultiSigPublicKeyStruct;
+};
+
+type ParsedMultiSigPublicKeyStruct = MultiSigPublicKeyStruct & {
+	/** @deprecated Use `pkMap` */
+	pk_map: PubkeyEnumWeightPair[];
 };
 
 type ParsedPartialMultiSigSignature = {
@@ -103,7 +115,7 @@ export class MultiSigPublicKey extends PublicKey {
 
 		const seenPublicKeys = new Set<string>();
 
-		this.publicKeys = this.multisigPublicKey.pk_map.map(({ pubKey, weight }) => {
+		this.publicKeys = this.multisigPublicKey.pkMap.map(({ pubKey, weight }) => {
 			const [scheme, bytes] = Object.entries(pubKey).filter(([name]) => name !== '$kind')[0] as [
 				SignatureScheme,
 				Uint8Array,
@@ -155,7 +167,7 @@ export class MultiSigPublicKey extends PublicKey {
 	}) {
 		return new MultiSigPublicKey(
 			{
-				pk_map: publicKeys.map(({ publicKey, weight }) => {
+				pkMap: publicKeys.map(({ publicKey, weight }) => {
 					const scheme = SIGNATURE_FLAG_TO_SCHEME[publicKey.flag() as SignatureFlag];
 
 					return {
@@ -271,7 +283,7 @@ export class MultiSigPublicKey extends PublicKey {
 		if (
 			!bytesEqual(
 				bcs.MultiSigPublicKey.serialize(this.multisigPublicKey).toBytes(),
-				bcs.MultiSigPublicKey.serialize(multisig.multisig_pk).toBytes(),
+				bcs.MultiSigPublicKey.serialize(multisig.multisigPk).toBytes(),
 			)
 		) {
 			return false;
@@ -344,7 +356,7 @@ export class MultiSigPublicKey extends PublicKey {
 		const multisig: MultiSigStruct = {
 			sigs: compressedSignatures,
 			bitmap,
-			multisig_pk: this.multisigPublicKey,
+			multisigPk: this.multisigPublicKey,
 		};
 		// Ten ML-DSA-65 members are ~53 KB of signatures and public keys.
 		const bytes = bcs.MultiSig.serialize(multisig, { maxSize: 65536 }).toBytes();
@@ -368,7 +380,7 @@ export function parsePartialSignatures(
 			([name]) => name !== '$kind',
 		)[0] as [SignatureScheme, Uint8Array];
 		const pkIndex = asIndices(multisig.bitmap).at(i)!;
-		const pair = multisig.multisig_pk.pk_map[pkIndex];
+		const pair = multisig.multisigPk.pkMap[pkIndex];
 		const pkBytes = Uint8Array.from(Object.values(pair.pubKey)[0]);
 
 		if (signatureScheme === 'MultiSig') {
