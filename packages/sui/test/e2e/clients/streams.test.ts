@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterEach, beforeAll, describe, expect, inject, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
@@ -41,14 +41,6 @@ const RESET_MESSAGE = 'injected stream reset';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function waitFor(predicate: () => boolean, timeout = 30_000) {
-	const deadline = Date.now() + timeout;
-	while (!predicate()) {
-		if (Date.now() > deadline) throw new Error('Timed out waiting for a condition');
-		await sleep(100);
-	}
-}
-
 async function take<T>(stream: AsyncIterable<T>, count: number): Promise<T[]> {
 	const frames: T[] = [];
 	for await (const frame of stream) {
@@ -69,13 +61,15 @@ async function listAll<T>(
 ): Promise<T[]> {
 	const items: T[] = [];
 	let after: string | null = null;
+	const seen = new Set<string | null>();
 	while (true) {
 		const result = await page(after);
 		items.push(...result.items);
 		if (!result.hasNextPage) return items;
 		// A missing or repeated cursor would truncate the list or page forever.
 		expect(result.endCursor).not.toBeNull();
-		expect(result.endCursor).not.toBe(after);
+		expect(seen).not.toContain(result.endCursor);
+		seen.add(result.endCursor);
 		after = result.endCursor;
 	}
 }
@@ -627,11 +621,11 @@ describe('ledger streams', () => {
 		if (options.resume) {
 			try {
 				await Promise.race([reader.until((frames) => frames.length >= 4), submissionFailed]);
+				await reader.close();
 			} catch (error) {
 				await submitting.catch(() => {});
 				throw error;
 			}
-			await reader.close();
 			delivered.push(...reader.frames);
 			reader = new Reader(open({ resumeToken: delivered.at(-1)!.resumeToken }), {
 				delay: options.delay,
@@ -641,15 +635,22 @@ describe('ledger streams', () => {
 		if (options.resume) {
 			// The submissions can all land before the resumed reader connects; one more after it
 			// connects gives it a match to deliver.
-			const resumedConnected = () =>
-				attempts(log.statuses())[1]?.some((status) => status.$kind === 'Connected') ?? false;
-			await waitFor(resumedConnected, 30_000);
+			await vi.waitFor(
+				() =>
+					expect(attempts(log.statuses())[1]?.map((status) => status.$kind) ?? []).toContain(
+						'Connected',
+					),
+				{ timeout: 30_000, interval: 100 },
+			);
 			submitted.push(await emitEvents(from, 1, { fast: true }));
 		}
 		if (options.afterReconnect) {
 			const reconnects = () => log.kinds().filter((k) => k === 'Connecting').length - 1;
 			const before = reconnects();
-			await waitFor(() => reconnects() > before, 30_000);
+			await vi.waitFor(() => expect(reconnects()).toBeGreaterThan(before), {
+				timeout: 30_000,
+				interval: 100,
+			});
 			submitted.push(await emitEvents(from, 1, { fast: true }));
 		}
 		const last = submitted.at(-1)!.checkpoint;
