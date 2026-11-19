@@ -491,8 +491,8 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 				ValidDuring: {
 					minEpoch: '42',
 					maxEpoch: '43',
-					minTimestamp: '1700000000123',
-					maxTimestamp: '1700000999456',
+					minTimestamp: '1700000000',
+					maxTimestamp: '1700000999',
 					chain: toBase58(new Uint8Array(32).fill(7)),
 					nonce: 0xc0ffee,
 				},
@@ -503,7 +503,7 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 
 			expect(grpcTx.expiration?.minTimestamp).toEqual({
 				seconds: 1_700_000_000n,
-				nanos: 123_000_000,
+				nanos: 0,
 			});
 			expect(grpcTransactionToTransactionData(grpcTx).expiration).toEqual(tx.getData().expiration);
 		});
@@ -516,8 +516,8 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 					Validity: {
 						minEpoch: '42',
 						maxEpoch: '43',
-						minTimestamp: '1700000000123',
-						maxTimestamp: '1700000999456',
+						minTimestamp: '1700000000',
+						maxTimestamp: '1700000999',
 						chain: toBase58(new Uint8Array(32).fill(7)),
 						nonce: 0xc0ffee,
 						allowedProposers,

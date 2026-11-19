@@ -27,16 +27,13 @@ import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Argument_ArgumentKind } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Transaction } from '../transactions/Transaction.js';
 
-function millisecondsToGrpcTimestamp(value: string | number) {
-	const milliseconds = BigInt(value);
-	return {
-		seconds: milliseconds / 1000n,
-		nanos: Number(milliseconds % 1000n) * 1_000_000,
-	};
+// Expiration timestamps are whole Unix seconds; the gRPC Timestamp carries no nanos.
+function secondsToGrpcTimestamp(value: string | number) {
+	return { seconds: BigInt(value), nanos: 0 };
 }
 
-function grpcTimestampToMilliseconds(timestamp: { seconds: bigint; nanos: number }) {
-	return (timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000))).toString();
+function grpcTimestampToSeconds(timestamp: { seconds: bigint; nanos: number }) {
+	return timestamp.seconds.toString();
 }
 
 /**
@@ -331,13 +328,9 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 				minEpoch: validity.minEpoch != null ? BigInt(validity.minEpoch) : undefined,
 				epoch: validity.maxEpoch != null ? BigInt(validity.maxEpoch) : undefined,
 				minTimestamp:
-					validity.minTimestamp != null
-						? millisecondsToGrpcTimestamp(validity.minTimestamp)
-						: undefined,
+					validity.minTimestamp != null ? secondsToGrpcTimestamp(validity.minTimestamp) : undefined,
 				maxTimestamp:
-					validity.maxTimestamp != null
-						? millisecondsToGrpcTimestamp(validity.maxTimestamp)
-						: undefined,
+					validity.maxTimestamp != null ? secondsToGrpcTimestamp(validity.maxTimestamp) : undefined,
 				chain: validity.chain,
 				nonce: validity.nonce,
 				allowedProposers: allowedProposers
@@ -602,10 +595,10 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
 						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
 						minTimestamp: grpcTx.expiration.minTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.minTimestamp)
+							? grpcTimestampToSeconds(grpcTx.expiration.minTimestamp)
 							: null,
 						maxTimestamp: grpcTx.expiration.maxTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.maxTimestamp)
+							? grpcTimestampToSeconds(grpcTx.expiration.maxTimestamp)
 							: null,
 						chain: grpcTx.expiration.chain ?? '',
 						nonce: grpcTx.expiration.nonce ?? 0,
@@ -619,10 +612,10 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
 						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
 						minTimestamp: grpcTx.expiration.minTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.minTimestamp)
+							? grpcTimestampToSeconds(grpcTx.expiration.minTimestamp)
 							: null,
 						maxTimestamp: grpcTx.expiration.maxTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.maxTimestamp)
+							? grpcTimestampToSeconds(grpcTx.expiration.maxTimestamp)
 							: null,
 						chain: grpcTx.expiration.chain ?? '',
 						nonce: grpcTx.expiration.nonce ?? 0,
