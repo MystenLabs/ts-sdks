@@ -317,7 +317,6 @@ describe('Core API - Transaction Resolution', () => {
 				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
 				expect(parsed.V1?.expiration.ValidDuring).toBeUndefined();
 			},
-			{ skip: ['jsonrpc'] },
 		);
 
 		testWithAllClients(
@@ -424,18 +423,13 @@ describe('Core API - Transaction Resolution', () => {
 			const bytes = await tx.build({ client });
 			expect(bytes).toBeDefined();
 
-			// Execute resolved transaction (use JSON RPC client for signing since gRPC doesn't support it)
-			const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			// Execute the resolved transaction
+			const result = await toolbox.signAndExecuteTransaction({
 				transaction: tx,
 				signer: toolbox.keypair,
-				options: {
-					showEffects: true,
-				},
+				include: { effects: true },
 			});
-			expect(result.effects?.status.status).toBe('success');
-
-			// Wait for indexing
-			await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
+			expect(result.Transaction?.effects?.status.success).toBe(true);
 		});
 
 		testWithAllClients(
@@ -463,23 +457,19 @@ describe('Core API - Transaction Resolution', () => {
 				const pureInput = parsed.V1?.kind.ProgrammableTransaction?.inputs[0];
 				expect(pureInput?.Pure).toBeDefined();
 
-				// Execute resolved transaction (use JSON RPC client for signing since gRPC doesn't support it)
-				const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				// Execute the resolved transaction
+				const result = await toolbox.signAndExecuteTransaction({
 					transaction: tx,
 					signer: toolbox.keypair,
-					options: {
-						showEffects: true,
-						showObjectChanges: true,
-					},
+					include: { effects: true },
 				});
-				expect(result.effects?.status.status).toBe('success');
+				expect(result.Transaction?.effects?.status.success).toBe(true);
 
-				// Verify the object was created with the correct value
-				const createdObjects = result.objectChanges?.filter((c) => c.type === 'created');
+				// Verify the object was created
+				const createdObjects = result.Transaction?.effects?.changedObjects.filter(
+					(c) => c.idOperation === 'Created',
+				);
 				expect(createdObjects?.length).toBeGreaterThan(0);
-
-				// Wait for indexing
-				await toolbox.jsonRpcClient.waitForTransaction({ digest: result.digest });
 			},
 		);
 
@@ -517,7 +507,7 @@ describe('Core API - Transaction Resolution', () => {
 			).ProgrammableTransaction;
 
 			// Test conversion: TransactionData -> BCS (via onlyTransactionKind)
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient, onlyTransactionKind: true });
+			const bytes = await tx.build({ client: toolbox.grpcClient, onlyTransactionKind: true });
 
 			// Parse the BCS back to verify the round-trip preserved the structure
 			const kind = bcs.TransactionKind.parse(bytes);
@@ -667,47 +657,41 @@ describe('Core API - Transaction Resolution', () => {
 					typeArguments: [],
 					arguments: [],
 				});
-				const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				const setupResult = await toolbox.signAndExecuteTransaction({
 					transaction: setupTx,
 					signer: toolbox.keypair,
-					options: {
-						showEffects: true,
-					},
+					include: { effects: true },
 				});
 
-				expect(setupResult.effects?.status.status).toBe('success');
-				await toolbox.jsonRpcClient.waitForTransaction({ digest: setupResult.digest });
+				expect(setupResult.Transaction?.effects?.status.success).toBe(true);
 
 				// Find the created objects
-				const created = setupResult.effects?.created || [];
+				const created =
+					setupResult.Transaction?.effects?.changedObjects.filter(
+						(obj) => obj.idOperation === 'Created',
+					) ?? [];
 				expect(created.length).toBeGreaterThan(0);
 
 				// Find parent object (owned by testAddress) and receive object (owned by parent object)
 				// The tto::start function creates objects where one is owned by the test address,
 				// and another is owned by the first object (showing as AddressOwner with object ID)
-				const ownedByTestAddress = created.filter((obj) => {
-					const owner = obj.owner;
-					return (
-						typeof owner === 'object' &&
-						'AddressOwner' in owner &&
-						owner.AddressOwner === testAddress
-					);
-				});
+				const ownedByTestAddress = created.filter(
+					(obj) =>
+						obj.outputOwner?.$kind === 'AddressOwner' &&
+						obj.outputOwner.AddressOwner === testAddress,
+				);
 
 				// The parent object is owned by the test address
 				const parentObject = ownedByTestAddress[0];
 
 				// The receive object is owned by the parent object (AddressOwner that's an object ID)
-				const receiveObject = created.find((obj) => {
-					const owner = obj.owner;
-					return (
-						typeof owner === 'object' &&
-						'AddressOwner' in owner &&
-						owner.AddressOwner !== testAddress &&
+				const receiveObject = created.find(
+					(obj) =>
+						obj.outputOwner?.$kind === 'AddressOwner' &&
+						obj.outputOwner.AddressOwner !== testAddress &&
 						// Should be owned by the parent object
-						owner.AddressOwner === parentObject?.reference.objectId
-					);
-				});
+						obj.outputOwner.AddressOwner === parentObject?.objectId,
+				);
 
 				if (!parentObject || !receiveObject) {
 					// Debug: log all created objects
@@ -724,8 +708,8 @@ describe('Core API - Transaction Resolution', () => {
 					target: `${packageId}::tto::receiver`,
 					typeArguments: [],
 					arguments: [
-						tx.object(parentObject.reference.objectId), // Parent object
-						tx.object(receiveObject.reference.objectId), // Will be resolved as Receiving
+						tx.object(parentObject.objectId), // Parent object
+						tx.object(receiveObject.objectId), // Will be resolved as Receiving
 					],
 				});
 				tx.setSender(testAddress);
@@ -746,7 +730,7 @@ describe('Core API - Transaction Resolution', () => {
 				// The second input should be resolved as Receiving type
 				const receivingInput = ptx!.inputs[1];
 				expect(receivingInput.Object?.Receiving).toBeDefined();
-				expect(receivingInput.Object?.Receiving?.objectId).toBe(receiveObject.reference.objectId);
+				expect(receivingInput.Object?.Receiving?.objectId).toBe(receiveObject.objectId);
 				expect(receivingInput.Object?.Receiving?.version).toBeDefined();
 				expect(receivingInput.Object?.Receiving?.digest).toBeDefined();
 
@@ -770,23 +754,18 @@ describe('Core API - Transaction Resolution', () => {
 					target: `${packageId}::test_objects::create_shared_object`,
 					arguments: [],
 				});
-				const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				const setupResult = await toolbox.signAndExecuteTransaction({
 					transaction: setupTx,
 					signer: toolbox.keypair,
-					options: {
-						showEffects: true,
-					},
+					include: { effects: true },
 				});
 
-				expect(setupResult.effects?.status.status).toBe('success');
-				await toolbox.jsonRpcClient.waitForTransaction({ digest: setupResult.digest });
+				expect(setupResult.Transaction?.effects?.status.success).toBe(true);
 
 				// Find the shared object
-				const created = setupResult.effects?.created || [];
-				const sharedObject = created.find((obj) => {
-					const owner = obj.owner;
-					return typeof owner === 'object' && 'Shared' in owner;
-				});
+				const sharedObject = setupResult.Transaction?.effects?.changedObjects.find(
+					(obj) => obj.idOperation === 'Created' && obj.outputOwner?.$kind === 'Shared',
+				);
 
 				if (!sharedObject) {
 					throw new Error('Could not find shared object');
@@ -798,7 +777,7 @@ describe('Core API - Transaction Resolution', () => {
 				const tx = new Transaction();
 				tx.moveCall({
 					target: `${packageId}::test_objects::increment_shared`,
-					arguments: [tx.object(sharedObject.reference.objectId)],
+					arguments: [tx.object(sharedObject.objectId)],
 				});
 				tx.setSender(testAddress);
 
@@ -817,7 +796,7 @@ describe('Core API - Transaction Resolution', () => {
 				// The input should be resolved as SharedObject type
 				const sharedInput = ptx!.inputs[0];
 				expect(sharedInput.Object?.SharedObject).toBeDefined();
-				expect(sharedInput.Object?.SharedObject?.objectId).toBe(sharedObject.reference.objectId);
+				expect(sharedInput.Object?.SharedObject?.objectId).toBe(sharedObject.objectId);
 				expect(sharedInput.Object?.SharedObject?.initialSharedVersion).toBeDefined();
 				expect(sharedInput.Object?.SharedObject?.mutable).toBe(true);
 

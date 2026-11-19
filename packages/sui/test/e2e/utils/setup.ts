@@ -6,15 +6,8 @@ import { getContainerRuntimeClient } from 'testcontainers';
 import { retry } from 'ts-retry-promise';
 import { expect, inject, it, test } from 'vitest';
 
-import type { SuiObjectChangePublished } from '../../../src/jsonRpc/index.js';
-import {
-	getJsonRpcFullnodeUrl,
-	SuiJsonRpcClient,
-	JsonRpcHTTPTransport,
-} from '../../../src/jsonRpc/index.js';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
-import type { Keypair } from '../../../src/cryptography/index.js';
 import {
 	FaucetRateLimitError,
 	getFaucetHost,
@@ -24,12 +17,13 @@ import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
 import { Transaction, UpgradePolicy } from '../../../src/transactions/index.js';
 import { SUI_TYPE_ARG, normalizeSuiAddress } from '../../../src/utils/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/core.js';
+import { coreClientResolveTransactionPlugin } from '../../../src/client/core-resolver.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { SerialQueue } from '../../../src/transactions/executor/queue.js';
 import type { PrePublishedPackage } from './prePublish.js';
 
 const DEFAULT_FAUCET_URL = import.meta.env.FAUCET_URL ?? getFaucetHost('localnet');
-const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet');
+const DEFAULT_FULLNODE_URL = import.meta.env.FULLNODE_URL ?? 'http://127.0.0.1:9000';
 
 const SUI_TOOLS_CONTAINER_ID = inject('suiToolsContainerId');
 
@@ -38,7 +32,6 @@ export const DEFAULT_RECIPIENT =
 export const DEFAULT_RECIPIENT_2 =
 	'0xbb967ddbebfee8c40d8fdd2c24cb02452834cd3a7061d18564448f900eb9e66d';
 export const DEFAULT_GAS_BUDGET = 10000000;
-export const DEFAULT_SEND_AMOUNT = 1000;
 
 const prePublishedPackages = inject('prePublishedPackages') as
 	Record<string, PrePublishedPackage> | undefined;
@@ -48,25 +41,33 @@ export interface SignerConfig {
 	addressBalance?: bigint;
 }
 
+export type ClientKind = 'grpc' | 'graphql';
+
 export class TestToolbox {
 	keypair: Ed25519Keypair;
-	jsonRpcClient: SuiJsonRpcClient;
 	grpcClient: SuiGrpcClient;
 	graphqlClient: SuiGraphQLClient;
+	/**
+	 * A gRPC client that resolves transactions with the shared client-side resolver
+	 * (`coreClientResolveTransactionPlugin`) instead of server-side simulation. The client-side
+	 * resolver skips simulation once a gas budget is set, so use this client to build transactions
+	 * that are expected to fail on execution, or that contain raw (untyped) pure values.
+	 */
+	clientResolverGrpcClient: SuiGrpcClient;
 	configPath: string;
 
 	constructor(keypair: Ed25519Keypair, url: string = DEFAULT_FULLNODE_URL, configPath: string) {
 		this.keypair = keypair;
-		this.jsonRpcClient = new SuiJsonRpcClient({
-			network: 'localnet',
-			transport: new JsonRpcHTTPTransport({
-				url,
-			}),
-		});
 		this.grpcClient = new SuiGrpcClient({
 			network: 'localnet',
 			baseUrl: url,
 		});
+		this.clientResolverGrpcClient = new SuiGrpcClient({
+			network: 'localnet',
+			baseUrl: url,
+		});
+		this.clientResolverGrpcClient.core.resolveTransactionPlugin = () =>
+			coreClientResolveTransactionPlugin;
 		// GraphQL port is injected by vitest setup
 		const graphqlPort = inject('graphqlPort');
 		this.graphqlClient = new SuiGraphQLClient({
@@ -81,14 +82,20 @@ export class TestToolbox {
 	}
 
 	async getGasObjectsOwnedByAddress() {
-		return await this.jsonRpcClient.getCoins({
+		const { objects } = await this.grpcClient.core.listCoins({
 			owner: this.address(),
 			coinType: SUI_TYPE_ARG,
 		});
+		return objects;
 	}
 
-	public async getActiveValidators() {
-		return (await this.jsonRpcClient.getLatestSuiSystemState()).activeValidators;
+	public async getActiveValidators(): Promise<{ address: string }[]> {
+		const { response } = await this.grpcClient.ledgerService.getEpoch({
+			readMask: { paths: ['system_state.validators.active_validators.address'] },
+		});
+		return (response.epoch?.systemState?.validators?.activeValidators ?? []).map((validator) => ({
+			address: validator.address!,
+		}));
 	}
 
 	public getPackage(name: string, options?: { normalized?: boolean }): string {
@@ -104,7 +111,7 @@ export class TestToolbox {
 		if (normalized) {
 			return info.packageId;
 		}
-		// Strip leading zeros for JSON RPC compatibility
+		// Strip leading zeros to exercise non-normalized package IDs
 		return info.packageId.replace(/^(0x)(0+)/, '0x');
 	}
 
@@ -127,7 +134,7 @@ export class TestToolbox {
 	}
 
 	/**
-	 * Wait for a transaction to be indexed by all three clients (JSON-RPC, gRPC, GraphQL).
+	 * Wait for a transaction to be indexed by both clients (gRPC, GraphQL).
 	 * Same API as `client.core.waitForTransaction`.
 	 */
 	async waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
@@ -135,14 +142,13 @@ export class TestToolbox {
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
 		const [result] = await Promise.all([
 			this.grpcClient.core.waitForTransaction(options),
-			this.jsonRpcClient.core.waitForTransaction(options),
 			this.graphqlClient.core.waitForTransaction(options),
 		]);
 		return result;
 	}
 
 	/**
-	 * Execute a transaction using gRPC and wait for it across all three clients.
+	 * Execute a transaction using gRPC and wait for it across both clients.
 	 * Same API as `client.core.signAndExecuteTransaction`.
 	 */
 	async signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
@@ -223,24 +229,24 @@ export class TestToolbox {
 	}
 
 	/**
-	 * Test that all three client implementations (JSON RPC, gRPC, GraphQL) return the same data
+	 * Test that both client implementations (gRPC, GraphQL) return the same data
 	 * for a given query. This ensures consistency across the different transport layers.
 	 *
 	 * @param queryFn - Function that takes a client and returns a promise with the query result
 	 * @param normalize - Optional function to normalize results before comparison (e.g., to ignore cursor differences)
 	 * @param options - Options to skip the test entirely, or to refetch on mismatch: for queries of
 	 *   live chain state (e.g. system state around a localnet epoch boundary), the state can advance
-	 *   between the three transport reads, so a strict single-shot comparison is flaky. `attempts`
+	 *   between the transport reads, so a strict single-shot comparison is flaky. `attempts`
 	 *   refetches the whole read set until the transports agree; a genuine transport inconsistency
 	 *   still fails on every attempt.
 	 */
 	async expectAllClientsReturnSameData<T, N = T>(
-		queryFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<T>,
+		queryFn: (client: ClientWithCoreApi, kind: ClientKind) => Promise<T>,
 		normalize?: (result: T) => N,
 		options?: {
 			skip?: boolean;
 			attempts?: number;
-			exclude?: Array<'jsonrpc' | 'grpc' | 'graphql'>;
+			exclude?: ClientKind[];
 		},
 	) {
 		if (options?.skip) {
@@ -250,7 +256,6 @@ export class TestToolbox {
 
 		const clients = (
 			[
-				['jsonrpc', this.jsonRpcClient],
 				['grpc', this.grpcClient],
 				['graphql', this.graphqlClient],
 			] as const
@@ -281,31 +286,29 @@ export class TestToolbox {
 }
 
 /**
- * Creates a test helper function that runs tests against all three client implementations.
+ * Creates a test helper function that runs tests against every client implementation.
  * This should be called at module level with a getter function that will return the toolbox or clients.
  *
  * @param getClients - A function that returns clients. Can be either:
  *   - () => TestToolbox (for localnet tests using the standard test setup)
- *   - () => { jsonRpc: Client, grpc: Client, graphql: Client } (for custom client configurations like testnet)
+ *   - () => { grpc: Client, graphql: Client } (for custom client configurations like testnet)
  * @returns A function that creates test cases for all clients
  */
 export function createTestWithAllClients(
 	getClients:
 		| (() => TestToolbox)
 		| (() => {
-				jsonRpc: ClientWithCoreApi;
 				grpc: ClientWithCoreApi;
 				graphql: ClientWithCoreApi;
 		  }),
 ) {
 	return function testWithAllClients(
 		testName: string,
-		testFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<void>,
-		options?: { skip?: Array<'jsonrpc' | 'grpc' | 'graphql'> | boolean; only?: boolean },
+		testFn: (client: ClientWithCoreApi, kind: ClientKind) => Promise<void>,
+		options?: { skip?: ClientKind[] | boolean; only?: boolean },
 	) {
 		// If skip is true, skip all tests
 		if (options?.skip === true) {
-			test.skip(`[JSON RPC] ${testName}`, () => {});
 			test.skip(`[gRPC] ${testName}`, () => {});
 			test.skip(`[GraphQL] ${testName}`, () => {});
 			return;
@@ -316,10 +319,8 @@ export function createTestWithAllClients(
 		// Helper to get the clients from either format
 		const clients = () => {
 			const result = getClients();
-			if ('jsonRpcClient' in result) {
-				// It's a TestToolbox
+			if (result instanceof TestToolbox) {
 				return {
-					jsonRpc: result.jsonRpcClient,
 					grpc: result.grpcClient,
 					graphql: result.graphqlClient,
 				};
@@ -327,14 +328,6 @@ export function createTestWithAllClients(
 			// It's already in the correct format
 			return result;
 		};
-
-		if (!skipArray.includes('jsonrpc')) {
-			(options?.only ? it.only : it)(`[JSON RPC] ${testName}`, async () => {
-				await testFn(clients().jsonRpc, 'jsonrpc');
-			});
-		} else {
-			test.skip(`[JSON RPC] ${testName}`, () => {});
-		}
 
 		if (!skipArray.includes('grpc')) {
 			(options?.only ? it.only : it)(`[gRPC] ${testName}`, async () => {
@@ -354,12 +347,10 @@ export function createTestWithAllClients(
 	};
 }
 
-export function getClient(url = DEFAULT_FULLNODE_URL): SuiJsonRpcClient {
-	return new SuiJsonRpcClient({
+export function getClient(url = DEFAULT_FULLNODE_URL): SuiGrpcClient {
+	return new SuiGrpcClient({
 		network: 'localnet',
-		transport: new JsonRpcHTTPTransport({
-			url,
-		}),
+		baseUrl: url,
 	});
 }
 
@@ -398,7 +389,7 @@ async function requestAndWaitForFaucet(
 	}
 }
 
-export async function setup(options: { graphQLURL?: string; rpcURL?: string } = {}) {
+export async function setup(options: { rpcURL?: string } = {}) {
 	const keypair = Ed25519Keypair.generate();
 	const address = keypair.getPublicKey().toSuiAddress();
 
@@ -410,7 +401,7 @@ export async function setupWithFundedAddress(
 	keypair: Ed25519Keypair,
 	address: string,
 	configPath: string,
-	{ rpcURL }: { graphQLURL?: string; rpcURL?: string } = {},
+	{ rpcURL }: { rpcURL?: string } = {},
 ) {
 	const faucetResponse = await retry(
 		async () => await requestSuiFromFaucetV2({ host: DEFAULT_FAUCET_URL, recipient: address }),
@@ -482,25 +473,30 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 			// Transfer the upgrade capability to the sender so they can upgrade the package later if they want.
 			tx.transferObjects([cap], tx.pure.address(toolbox.address()));
 
-			const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			const executeResult = await toolbox.grpcClient.core.signAndExecuteTransaction({
 				transaction: tx,
 				signer: toolbox.keypair,
 			});
 
-			const publishTxn = await toolbox.jsonRpcClient.waitForTransaction({
-				digest: digest,
-				options: { showObjectChanges: true, showEffects: true },
+			const publishResult = await toolbox.grpcClient.core.waitForTransaction({
+				result: executeResult,
+				include: { effects: true, objectTypes: true },
 			});
 
-			expect(publishTxn.effects?.status.status).toEqual('success');
+			if (publishResult.$kind !== 'Transaction') {
+				throw new Error(
+					`Failed to publish package: ${publishResult.FailedTransaction.status.error?.message}`,
+				);
+			}
 
-			const packageId = normalizeSuiAddress(
-				((publishTxn.objectChanges?.filter(
-					(a) => a.type === 'published',
-				) as SuiObjectChangePublished[]) ?? [])[0]?.packageId,
+			const publishTxn = publishResult.Transaction;
+			const published = publishTxn.effects.changedObjects.find(
+				(change) => change.outputState === 'PackageWrite',
 			);
 
-			expect(packageId).toBeTypeOf('string');
+			expect(published).toBeDefined();
+
+			const packageId = normalizeSuiAddress(published!.objectId);
 
 			return { packageId, publishTxn };
 		},
@@ -564,16 +560,14 @@ export async function upgradePackage(
 		arguments: [cap, receipt],
 	});
 
-	const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+	const result = await toolbox.grpcClient.core.signAndExecuteTransaction({
 		transaction: tx,
 		signer: toolbox.keypair,
-		options: {
-			showEffects: true,
-			showObjectChanges: true,
-		},
+		include: { effects: true },
 	});
 
-	expect(result.effects?.status.status).toEqual('success');
+	expect(result.$kind).toEqual('Transaction');
+	await toolbox.waitForTransaction({ result });
 }
 
 export function getRandomAddresses(n: number): string[] {
@@ -583,67 +577,6 @@ export function getRandomAddresses(n: number): string[] {
 			const keypair = Ed25519Keypair.generate();
 			return keypair.getPublicKey().toSuiAddress();
 		});
-}
-
-export async function paySui(
-	client: SuiJsonRpcClient,
-	signer: Keypair,
-	numRecipients: number = 1,
-	recipients?: string[],
-	amounts?: number[],
-	coinId?: string,
-) {
-	const tx = new Transaction();
-
-	recipients = recipients ?? getRandomAddresses(numRecipients);
-	amounts = amounts ?? Array(numRecipients).fill(DEFAULT_SEND_AMOUNT);
-
-	expect(recipients.length === amounts.length, 'recipients and amounts must be the same length');
-
-	coinId =
-		coinId ??
-		(
-			await client.getCoins({
-				owner: signer.getPublicKey().toSuiAddress(),
-				coinType: '0x2::sui::SUI',
-			})
-		).data[0].coinObjectId;
-
-	recipients.forEach((recipient, i) => {
-		const coin = tx.splitCoins(coinId!, [amounts![i]]);
-		tx.transferObjects([coin], tx.pure.address(recipient));
-	});
-
-	const txn = await client.signAndExecuteTransaction({
-		transaction: tx,
-		signer,
-		options: {
-			showEffects: true,
-			showObjectChanges: true,
-		},
-	});
-
-	await client.waitForTransaction({
-		digest: txn.digest,
-	});
-	expect(txn.effects?.status.status).toEqual('success');
-	return txn;
-}
-
-export async function executePaySuiNTimes(
-	client: SuiJsonRpcClient,
-	signer: Keypair,
-	nTimes: number,
-	numRecipientsPerTxn: number = 1,
-	recipients?: string[],
-	amounts?: number[],
-) {
-	const txns = [];
-	for (let i = 0; i < nTimes; i++) {
-		// must await here to make sure the txns are executed in order
-		txns.push(await paySui(client, signer, numRecipientsPerTxn, recipients, amounts));
-	}
-	return txns;
 }
 
 const client = await getContainerRuntimeClient();

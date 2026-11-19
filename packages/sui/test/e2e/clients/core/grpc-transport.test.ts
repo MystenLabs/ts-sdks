@@ -4,7 +4,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { SuiGrpcClient, GrpcWebFetchTransport } from '../../../../src/grpc/index.js';
-import { getJsonRpcFullnodeUrl } from '../../../../src/jsonRpc/index.js';
 import { setup, TestToolbox } from '../../utils/setup.js';
 
 // @protobuf-ts/grpc-transport and @grpc/grpc-js are optional native gRPC dependencies.
@@ -35,7 +34,7 @@ describe('gRPC transport variants', () => {
 	beforeAll(async () => {
 		toolbox = await setup();
 
-		const fullnodeUrl = new URL(import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet'));
+		const fullnodeUrl = new URL(import.meta.env.FULLNODE_URL ?? 'http://127.0.0.1:9000');
 		const host = `${fullnodeUrl.hostname}:${fullnodeUrl.port}`;
 
 		if (GrpcTransport && ChannelCredentials) {

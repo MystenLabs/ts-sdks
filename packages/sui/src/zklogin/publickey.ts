@@ -250,9 +250,7 @@ async function graphqlVerifyZkLoginSignature({
 	client?: ClientWithCoreApi;
 }) {
 	if (!client) {
-		throw new Error(
-			'A Sui Client (GRPC, GraphQL, or JSON RPC) is required to verify zkLogin signatures',
-		);
+		throw new Error('A Sui Client (gRPC or GraphQL) is required to verify zkLogin signatures');
 	}
 	const resp = await client.core.verifyZkLoginSignature({
 		bytes,

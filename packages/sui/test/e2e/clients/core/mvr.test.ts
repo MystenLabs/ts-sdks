@@ -3,14 +3,12 @@
 
 import { beforeAll, describe, expect } from 'vitest';
 
-import { SuiJsonRpcClient, JsonRpcHTTPTransport } from '../../../../src/jsonRpc/index.js';
 import { SuiGrpcClient } from '../../../../src/grpc/index.js';
 import { SuiGraphQLClient } from '../../../../src/graphql/index.js';
 import type { ClientWithCoreApi } from '../../../../src/client/core.js';
 import { createTestWithAllClients } from '../../utils/setup.js';
 
 describe('Core API - MVR (Move Registry)', () => {
-	let jsonRpcClient: ClientWithCoreApi;
 	let grpcClient: ClientWithCoreApi;
 	let graphqlClient: ClientWithCoreApi;
 
@@ -20,22 +18,14 @@ describe('Core API - MVR (Move Registry)', () => {
 
 	// MVR requires testnet, so we use custom client configuration
 	const testWithAllClients = createTestWithAllClients(() => ({
-		jsonRpc: jsonRpcClient,
 		grpc: grpcClient,
 		graphql: graphqlClient,
 	}));
 
 	beforeAll(async () => {
 		// MVR requires testnet as it's not available in localnet
-		const testnetJsonRpcUrl = 'https://fullnode.testnet.sui.io';
 		const testnetGrpcUrl = 'https://fullnode.testnet.sui.io:443';
 
-		jsonRpcClient = new SuiJsonRpcClient({
-			network: 'testnet',
-			transport: new JsonRpcHTTPTransport({
-				url: testnetJsonRpcUrl,
-			}),
-		});
 		grpcClient = new SuiGrpcClient({
 			network: 'testnet',
 			baseUrl: testnetGrpcUrl,

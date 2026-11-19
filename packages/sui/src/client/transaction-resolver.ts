@@ -90,7 +90,7 @@ function callArgToGrpcInput(arg: CallArg): Input {
 			};
 
 		case 'UnresolvedPure':
-			throw new Error('UnresolvedPure arguments must be resolved before converting to gRPC format');
+			throw new Error('Invalid input: untyped pure values are not supported');
 
 		case 'FundsWithdrawal': {
 			const withdrawal = arg.FundsWithdrawal;
