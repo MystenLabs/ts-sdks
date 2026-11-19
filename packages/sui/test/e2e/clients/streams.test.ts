@@ -353,15 +353,12 @@ describe('ledger streams', () => {
 
 	describe('finite reads', () => {
 		it('returns the same checkpoint headers as listCheckpoints on both transports, in both directions', async () => {
-			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(await Array.fromAsync(client.core.streamCheckpoints(range()))).map(
-					(frame) => frame.checkpoint,
-				),
-			);
+			const results = [];
 			for (const kind of KINDS) {
 				const ascending = (await Array.fromAsync(client(kind).core.streamCheckpoints(range()))).map(
 					(frame) => frame.checkpoint,
 				);
+				results.push(ascending);
 				expect(ascending[0].sequenceNumber).toBe(firstCheckpoint);
 				expect(ascending.at(-1)?.sequenceNumber).toBe(lastCheckpoint);
 				expect(
@@ -379,6 +376,7 @@ describe('ledger streams', () => {
 					NAMES[kind],
 				).toEqual([...ascending].reverse());
 			}
+			expect(results[1]).toEqual(results[0]);
 		});
 
 		it('returns the same transactions with every shared include as listTransactions, in both directions', async () => {
@@ -387,15 +385,12 @@ describe('ledger streams', () => {
 				filter: { sender: signer.address },
 				include: ALL_INCLUDES,
 			});
-			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(await Array.fromAsync(client.core.streamTransactions(options()))).map(
-					(frame) => frame.transaction,
-				),
-			);
+			const results = [];
 			for (const kind of KINDS) {
 				const ascending = (
 					await Array.fromAsync(client(kind).core.streamTransactions(options()))
 				).map((frame) => frame.transaction);
+				results.push(ascending);
 				expect(ascending.map((tx) => tx.Transaction?.digest)).toEqual(digests);
 				for (const tx of ascending) expect(tx.Transaction?.events).toHaveLength(3);
 				expect(
@@ -414,17 +409,17 @@ describe('ledger streams', () => {
 					NAMES[kind],
 				).toEqual([...ascending].reverse());
 			}
+			expect(results[1]).toEqual(results[0]);
 		});
 
 		it('streams every event of a transaction with more than 50 events, matching listEvents on both transports', async () => {
 			const options = () => ({ ...range(), filter: { sender: manySigner.address } });
-			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(await Array.fromAsync(client.core.streamEvents(options()))).map((frame) => frame.event),
-			);
+			const results = [];
 			for (const kind of KINDS) {
 				const events = (await Array.fromAsync(client(kind).core.streamEvents(options()))).map(
 					(frame) => frame.event,
 				);
+				results.push(events);
 				expect(events.map((event) => event.eventIndex)).toEqual(
 					Array.from({ length: MANY_EVENTS }, (_, i) => i),
 				);
@@ -437,6 +432,7 @@ describe('ledger streams', () => {
 					NAMES[kind],
 				).toEqual(events);
 			}
+			expect(results[1]).toEqual(results[0]);
 		});
 
 		it('streams unfiltered system transactions from genesis in both directions and resumes', async () => {
@@ -491,19 +487,14 @@ describe('ledger streams', () => {
 		});
 
 		it('returns identical events and preserves event order within each transaction', async () => {
-			await toolbox.expectAllClientsReturnSameData(async (client) =>
-				(
-					await Array.fromAsync(
-						client.core.streamEvents({ ...range(), filter: { sender: signer.address } }),
-					)
-				).map((frame) => frame.event),
-			);
+			const results = [];
 			for (const kind of KINDS) {
 				const ascending = (
 					await Array.fromAsync(
 						client(kind).core.streamEvents({ ...range(), filter: { sender: signer.address } }),
 					)
 				).map((frame) => frame.event);
+				results.push(ascending);
 				expect(ascending.map((event) => event.transactionDigest)).toEqual(
 					digests.flatMap((digest) => [digest, digest, digest]),
 				);
@@ -519,6 +510,7 @@ describe('ledger streams', () => {
 					NAMES[kind],
 				).toEqual([...ascending].reverse());
 			}
+			expect(results[1]).toEqual(results[0]);
 		});
 
 		describe.each(KINDS)('%s', (kind) => {
@@ -755,11 +747,11 @@ describe('ledger streams', () => {
 			);
 		});
 
-		it('continues unfiltered transaction data from history into live system transactions', async () => {
+		it('continues unfiltered transaction data beyond the initially observed tip', async () => {
 			const checkpoint = await tip();
 			let sawHistory = false;
-			let sawLiveSystem = false;
-			// Checkpoints indexed once the stream is running show it continued past its history.
+			let sawLaterSystem = false;
+			// This proves continuation, not live-feed delivery: gap replay can supply later checkpoints.
 			let runningAt: bigint | undefined;
 			for await (const frame of client(kind).core.streamTransactions({
 				start: { checkpoint },
@@ -776,12 +768,12 @@ describe('ledger streams', () => {
 					BigInt(tx.checkpoint!) > runningAt &&
 					tx.transaction.kind.$kind !== 'ProgrammableTransaction'
 				) {
-					sawLiveSystem = true;
+					sawLaterSystem = true;
 					break;
 				}
 			}
 			expect(sawHistory).toBe(true);
-			expect(sawLiveSystem).toBe(true);
+			expect(sawLaterSystem).toBe(true);
 		});
 
 		it('follows a sparse filter quietly until its first match', async () => {

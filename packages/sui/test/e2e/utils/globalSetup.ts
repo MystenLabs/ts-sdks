@@ -3,6 +3,7 @@
 
 import { resolve } from 'path';
 import { GenericContainer, getContainerRuntimeClient, Network, PullPolicy } from 'testcontainers';
+import { retry } from 'ts-retry-promise';
 import type { TestProject } from 'vitest/node';
 
 import type { PrePublishedPackage } from './prePublish.js';
@@ -95,20 +96,18 @@ export default async function setup(project: TestProject) {
 
 /** Waits until GraphQL answers a query with its indexed data. */
 async function waitForGraphQL(port: number) {
-	const deadline = Date.now() + 60_000;
-	while (true) {
-		try {
+	await retry(
+		async () => {
 			const response = await fetch(`http://127.0.0.1:${port}/graphql`, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ query: '{chainIdentifier}' }),
 				signal: AbortSignal.timeout(1000),
 			});
-			if (response.ok && (await response.json()).data?.chainIdentifier) return;
-		} catch {
-			/* Not serving yet. */
-		}
-		if (Date.now() >= deadline) throw new Error('GraphQL startup timed out');
-		await new Promise((resolve) => setTimeout(resolve, 250));
-	}
+			if (!response.ok || !(await response.json()).data?.chainIdentifier) {
+				throw new Error('GraphQL is not serving indexed data yet');
+			}
+		},
+		{ retries: 'INFINITELY', delay: 250, timeout: 60_000 },
+	);
 }
