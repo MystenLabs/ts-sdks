@@ -80,7 +80,10 @@ export function resolveCheckpointRange(options: {
  * are capped at `Number.MAX_SAFE_INTEGER` because GraphQL represents
  * checkpoints as `UInt53`.
  */
-function parseCheckpointNumber(value: SuiClientTypes.CheckpointNumber, label: string): bigint {
+export function parseCheckpointNumber(
+	value: SuiClientTypes.CheckpointNumber,
+	label: string,
+): bigint {
 	const valid =
 		typeof value === 'bigint'
 			? value >= 0n && value <= BigInt(Number.MAX_SAFE_INTEGER)
@@ -124,7 +127,7 @@ export async function resolveTransactionFilter(
 	filter: SuiClientTypes.TransactionFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedTransactionFilter> {
-	assertAtMostOne(filter, ['affectedAddress', 'affectedObject', 'function'], 'A transaction');
+	validateTransactionFilter(filter);
 
 	const resolved: ResolvedTransactionFilter = {};
 
@@ -141,17 +144,7 @@ export async function resolveTransactionFilter(
 	}
 
 	if (filter.function != null) {
-		const [pkg, module, fn, ...rest] = filter.function.split('::');
-
-		if (!pkg || rest.length > 0 || module === '' || fn === '') {
-			throw new Error(
-				`Invalid function filter "${filter.function}": expected "package", "package::module", or "package::module::function"`,
-			);
-		}
-
-		resolved.function = [await resolvePackage(mvr, pkg, signal), module, fn]
-			.filter((segment) => segment != null)
-			.join('::');
+		resolved.function = await resolvePackagePath(mvr, filter.function, signal);
 	}
 
 	return resolved;
@@ -168,13 +161,52 @@ export async function resolveEventFilter(
 	filter: SuiClientTypes.EventFilter,
 	signal?: AbortSignal,
 ): Promise<ResolvedEventFilter> {
-	assertAtMostOne(filter, ['emitModule', 'eventType'], 'An event');
+	validateEventFilter(filter);
 
 	const resolved: ResolvedEventFilter = {};
 
 	if (filter.sender != null) {
 		resolved.sender = normalizeSuiAddress(filter.sender);
 	}
+
+	if (filter.emitModule != null) {
+		resolved.emitModule = await resolvePackagePath(mvr, filter.emitModule, signal);
+	}
+
+	if (filter.eventType != null) {
+		const eventType = filter.eventType;
+
+		if (eventType.split('::').length <= 2) {
+			resolved.eventType = await resolvePackagePath(mvr, eventType, signal);
+		} else {
+			resolved.eventType = (await mvr.resolveType({ type: eventType, signal })).type;
+		}
+	}
+
+	return resolved;
+}
+
+/**
+ * Checks a transaction filter's shape without resolving MVR names, throwing a plain `Error`.
+ * Addresses are not checked, so a malformed one reaches the server.
+ */
+export function validateTransactionFilter(filter: SuiClientTypes.TransactionFilter) {
+	assertAtMostOne(filter, ['affectedAddress', 'affectedObject', 'function'], 'A transaction');
+
+	if (filter.function != null) {
+		const [pkg, module, fn, ...rest] = filter.function.split('::');
+
+		if (!pkg || rest.length > 0 || module === '' || fn === '') {
+			throw new Error(
+				`Invalid function filter "${filter.function}": expected "package", "package::module", or "package::module::function"`,
+			);
+		}
+	}
+}
+
+/** Checks an event filter's shape like `validateTransactionFilter`. */
+export function validateEventFilter(filter: SuiClientTypes.EventFilter) {
+	assertAtMostOne(filter, ['emitModule', 'eventType'], 'An event');
 
 	if (filter.emitModule != null) {
 		const segments = filter.emitModule.split('::');
@@ -184,42 +216,26 @@ export async function resolveEventFilter(
 				`Invalid emitModule filter "${filter.emitModule}": expected "package" or "package::module"`,
 			);
 		}
-
-		const [pkg, module] = segments;
-		resolved.emitModule = [await resolvePackage(mvr, pkg, signal), module]
-			.filter((segment) => segment != null)
-			.join('::');
 	}
 
-	if (filter.eventType != null) {
-		const eventType = filter.eventType;
-		const segments = eventType.split('::');
-
-		if (segments.some((segment) => segment === '')) {
-			throw new Error(
-				`Invalid eventType filter "${eventType}": expected "package", "package::module", or a fully qualified type name`,
-			);
-		}
-
-		if (segments.length <= 2) {
-			const [pkg, module] = segments;
-			resolved.eventType = [await resolvePackage(mvr, pkg, signal), module]
-				.filter((segment) => segment != null)
-				.join('::');
-		} else {
-			resolved.eventType = (await mvr.resolveType({ type: eventType, signal })).type;
-		}
+	if (filter.eventType != null && filter.eventType.split('::').some((segment) => segment === '')) {
+		throw new Error(
+			`Invalid eventType filter "${filter.eventType}": expected "package", "package::module", or a fully qualified type name`,
+		);
 	}
-
-	return resolved;
 }
 
-async function resolvePackage(
+/** Resolves the package segment of a `package[::module[::name]]` path, keeping the rest. */
+async function resolvePackagePath(
 	mvr: SuiClientTypes.MvrMethods,
-	pkg: string,
+	path: string,
 	signal?: AbortSignal,
 ): Promise<string> {
-	return normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package);
+	const [pkg, ...rest] = path.split('::');
+	const resolved = normalizeSuiAddress(
+		(await mvr.resolvePackage({ package: pkg, signal })).package,
+	);
+	return [resolved, ...rest].join('::');
 }
 
 function assertAtMostOne(filter: Record<string, unknown>, predicates: string[], subject: string) {

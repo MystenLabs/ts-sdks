@@ -47,6 +47,12 @@ export type GraphQLQueryOptions<
 		? { variables?: Variables }
 		: { variables: Variables });
 
+/** Internal: runs a subscription and calls `onOpen` once its event stream opens. */
+export type OpenSubscription = <Result, Variables>(
+	options: GraphQLQueryOptions<Result, Variables>,
+	onOpen: () => void,
+) => AsyncGenerator<GraphQLQueryResult<Result>>;
+
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
 	data?: Result;
 	errors?: GraphQLResponseErrors;
@@ -165,6 +171,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		this.core = new GraphQLCoreClient({
 			graphqlClient: this,
 			mvr,
+			subscribe: (options, onOpen) => this.#subscribe(options, onOpen),
 		});
 	}
 
@@ -210,8 +217,15 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	subscribe<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLQueryOptions<Result, Variables>,
 	): AsyncGenerator<GraphQLQueryResult<Result>> {
+		return this.#subscribe(options);
+	}
+
+	#subscribe<Result, Variables>(
+		options: GraphQLQueryOptions<Result, Variables>,
+		onOpen?: () => void,
+	): AsyncGenerator<GraphQLQueryResult<Result>> {
 		return abortableAsyncGenerator(
-			(signal) => this.#runSubscription(options, signal),
+			(signal) => this.#runSubscription(options, signal, onOpen),
 			options.signal,
 		);
 	}
@@ -219,6 +233,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	async *#runSubscription<Result, Variables>(
 		options: GraphQLQueryOptions<Result, Variables>,
 		signal: AbortSignal,
+		onOpen?: () => void,
 	): AsyncGenerator<GraphQLQueryResult<Result>> {
 		const response = await this.#fetchResponse(this.#subscriptionUrl, {
 			method: 'POST',
@@ -229,7 +244,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			body: requestBody(options),
 			signal,
 		});
-		yield* readGraphQLSSE<Result>(response, signal);
+		yield* readGraphQLSSE<Result>(response, signal, onOpen);
 	}
 
 	#requestHeaders(defaults: Record<string, string>): Headers {
@@ -468,6 +483,41 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		input: SuiClientTypes.ListCheckpointsOptions,
 	): Promise<SuiClientTypes.ListCheckpointsResponse> {
 		return this.core.listCheckpoints(input);
+	}
+
+	/**
+	 * Streams checkpoints in ledger order, resumable from any frame's `resumeToken`, following new
+	 * checkpoints by default.
+	 */
+	streamCheckpoints<
+		Include extends SuiClientTypes.StreamCheckpointInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamCheckpointsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointFrame<Include, Frames>> {
+		return this.core.streamCheckpoints(input);
+	}
+
+	/**
+	 * Streams transactions matching `filter` in ledger order, resumable from any frame's
+	 * `resumeToken`.
+	 */
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionFrame<Include, Frames>> {
+		return this.core.streamTransactions(input);
+	}
+
+	/**
+	 * Streams events matching `filter` in ledger order, resumable from any frame's `resumeToken`.
+	 */
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		input?: SuiClientTypes.StreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventFrame<Frames>> {
+		return this.core.streamEvents(input);
 	}
 
 	getMoveFunction(
