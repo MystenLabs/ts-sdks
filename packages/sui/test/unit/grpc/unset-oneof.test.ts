@@ -9,7 +9,7 @@ import {
 	GetPackageRequest,
 	MovePackageService,
 } from '../../../src/grpc/proto/sui/rpc/v2/move_package_service.js';
-import { withClientProtocolVersion } from '../../../src/grpc/transport.js';
+import { withClientDefaults } from '../../../src/grpc/transport.js';
 
 const packageId = '0x2';
 
@@ -80,7 +80,7 @@ describe('requests with an unset oneof', () => {
 
 		it('passes the request through create() for a server-streaming call', () => {
 			const inputs: object[] = [];
-			const transport = withClientProtocolVersion(recordingTransport(inputs));
+			const transport = withClientDefaults(recordingTransport(inputs));
 
 			expect(() =>
 				transport.serverStreaming(getPackage, { packageId } as GetPackageRequest, {}),

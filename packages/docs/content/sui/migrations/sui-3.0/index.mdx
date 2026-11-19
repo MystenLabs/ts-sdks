@@ -74,9 +74,10 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
 
 ### Transports
 
-- **The raw gRPC `GetPackageRequest` has a required `selector`.** Calls to
-  `client.movePackageService.getPackage` pass `selector: { oneofKind: undefined }` to read the
-  package stored at `packageId`.
+- **The raw gRPC `GetPackageRequest` type requires a `selector`.** TypeScript calls to
+  `client.movePackageService.getPackage` that only set `packageId` pass
+  `selector: { oneofKind: undefined }` to read the package stored at `packageId`. At runtime an
+  omitted `selector` is still sent unset.
 
 ## Other packages
 

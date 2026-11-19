@@ -18,7 +18,7 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
-import { GrpcWebFetchTransport, withClientProtocolVersion } from './transport.js';
+import { GrpcWebFetchTransport, withClientDefaults } from './transport.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -157,8 +157,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			...transportOptions
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
-		// Add the protocol-version default for every transport, including native gRPC.
-		const transport = withClientProtocolVersion(
+		// Add the protocol-version header and fill unset request oneofs for every transport,
+		// including native gRPC.
+		const transport = withClientDefaults(
 			providedTransport ?? new GrpcWebFetchTransport(transportOptions),
 		);
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);

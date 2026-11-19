@@ -179,10 +179,12 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 }
 
 /**
- * Adds SDK metadata and request defaults without mutating the caller's transport or its default
+ * Applies the client's defaults to every call: adds the protocol-version header and fills unset
+ * request oneofs. Requests are re-encoded with this SDK's schema, so unknown fields on a request
+ * decoded from newer bytes are dropped. Does not mutate the caller's transport or its default
  * options. Wraps every transport `SuiGrpcClient` uses, including a caller-supplied one.
  */
-export function withClientProtocolVersion(transport: RpcTransport): RpcTransport {
+export function withClientDefaults(transport: RpcTransport): RpcTransport {
 	return {
 		mergeOptions(options) {
 			const merged = transport.mergeOptions(options);
