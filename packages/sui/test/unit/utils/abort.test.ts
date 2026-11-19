@@ -73,6 +73,35 @@ describe('abortableAsyncGenerator', () => {
 		expect(remove).toHaveBeenCalledWith('abort', listen.mock.calls[0][1]);
 	});
 
+	it('throw() ends a next() pending on a step that never settles and rejects with its error', async () => {
+		let child: AbortSignal | undefined;
+		const stream = abortableAsyncGenerator(async function* (signal) {
+			child = signal;
+			await new Promise(() => {});
+			yield 1;
+		});
+		const pending = stream.next();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const error = new Error('consumer failed');
+		await expect(stream.throw(error)).rejects.toBe(error);
+		await expect(pending).resolves.toEqual({ value: undefined, done: true });
+		expect(child?.aborted).toBe(true);
+	});
+
+	it('throw() at a yield aborts the signal and rejects with its error', async () => {
+		let child: AbortSignal | undefined;
+		const stream = abortableAsyncGenerator(async function* (signal) {
+			child = signal;
+			yield 1;
+			yield 2;
+		});
+		expect(await stream.next()).toEqual({ done: false, value: 1 });
+		const error = new Error('consumer failed');
+		await expect(stream.throw(error)).rejects.toBe(error);
+		expect(child?.aborted).toBe(true);
+		expect(await stream.next()).toEqual({ done: true, value: undefined });
+	});
+
 	it('surfaces the abort reason over a throwing run when already aborted', async () => {
 		const parent = new AbortController();
 		const reason = new Error('aborted');

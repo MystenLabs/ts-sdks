@@ -3,7 +3,8 @@
 
 /**
  * `abortableAsyncGenerator` owns one controller per iteration and aborts it whenever the generator
- * ends, so work below it needs no cancellation cleanup of its own.
+ * ends. That signals cancellation to the work below it and unblocks a pending step; releasing
+ * resources, such as cancelling a response body that arrives late, stays with that work.
  */
 
 /** A controller that aborts when `signal` aborts. Call `dispose` to detach from `signal`. */
@@ -36,6 +37,7 @@ export function abortableAsyncGenerator<T>(
 ): AsyncGenerator<T> {
 	let controller: AbortController | undefined;
 	let returning = false;
+	let thrown: { error: unknown } | undefined;
 	async function* generate(): AsyncGenerator<T> {
 		const linked = linkedAbortController(signal);
 		const childSignal = linked.controller.signal;
@@ -52,8 +54,10 @@ export function abortableAsyncGenerator<T>(
 				yield result.value;
 			}
 		} catch (error) {
-			// A `next()` pending when the consumer calls `return()` ends the iteration instead.
-			if (!returning) throw error;
+			// A `next()` pending when the consumer calls `return()` or `throw()` ends the iteration
+			// instead; the queued call then settles on the finished generator.
+			if (returning || (thrown && error !== thrown.error)) return;
+			throw error;
 		} finally {
 			linked.controller.abort();
 			linked.dispose();
@@ -62,13 +66,19 @@ export function abortableAsyncGenerator<T>(
 		}
 	}
 	const iterator = generate();
-	// A generator suspended in `await` queues `return()` behind the pending `next()`. Aborting first
-	// makes that pending read (or timer) reject, so the call cannot deadlock.
+	// A generator suspended in `await` queues `return()` and `throw()` behind the pending `next()`.
+	// Aborting first makes that pending read (or timer) reject, so the call cannot deadlock.
 	const originalReturn = iterator.return.bind(iterator);
 	iterator.return = (value) => {
 		returning = true;
 		controller?.abort();
 		return originalReturn(value);
+	};
+	const originalThrow = iterator.throw.bind(iterator);
+	iterator.throw = (error) => {
+		thrown = { error };
+		controller?.abort();
+		return originalThrow(error);
 	};
 	return iterator;
 }

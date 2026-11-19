@@ -181,6 +181,36 @@ describe('GraphQL subscribe', () => {
 		expect(cancel).toHaveBeenCalledOnce();
 	});
 
+	it('throw ends an outstanding next when a custom fetch never resolves', async () => {
+		const fetch = vi.fn(
+			(_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>(() => {}),
+		);
+		const client = new SuiGraphQLClient({
+			url: 'https://example.com/graphql',
+			network: 'unknown',
+			fetch,
+		});
+		const iterator = client.subscribe({ query: 'subscription { value }' });
+		const pending = iterator.next();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const error = new Error('consumer failed');
+		await expect(iterator.throw(error)).rejects.toBe(error);
+		await expect(pending).resolves.toEqual({ value: undefined, done: true });
+		expect(fetch.mock.calls[0][1]?.signal?.aborted).toBe(true);
+	});
+
+	it('throw ends an outstanding next on a quiet subscription', async () => {
+		const { response, cancel } = sse([], false);
+		const { client } = clientFor(response);
+		const iterator = client.subscribe({ query: 'subscription { value }' });
+		const pending = iterator.next();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const error = new Error('consumer failed');
+		await expect(iterator.throw(error)).rejects.toBe(error);
+		await expect(pending).resolves.toEqual({ value: undefined, done: true });
+		expect(cancel).toHaveBeenCalledOnce();
+	});
+
 	it('ignores events it does not know', async () => {
 		const { client } = clientFor(
 			sse(['event: ping\ndata: {}\n\nevent: next\ndata: {"data":{"value":1}}\n\n']).response,
