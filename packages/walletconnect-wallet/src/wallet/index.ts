@@ -49,7 +49,10 @@ type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
 type SerializableTransaction = {
-	toJSON: (options: { client: ClientWithCoreApi }) => Promise<string>;
+	toJSON: (options: {
+		client: ClientWithCoreApi;
+		restrictedMoveCalls?: readonly string[];
+	}) => Promise<string>;
 	setSenderIfNotSet?: (sender: string) => void;
 };
 /** Metadata describing the dApp, shown to the user by the wallet when pairing. */
@@ -250,10 +253,10 @@ export class WalletConnectWallet implements Wallet {
 		// so it still works when the dApp bundles its own copy of `@mysten/sui`.
 		const serializable = transaction as SerializableTransaction;
 		serializable.setSenderIfNotSet?.(address);
-		const json = await serializable.toJSON({ client });
+		// The bytes go to the remote wallet, which decides what it signs.
+		const json = await serializable.toJSON({ client, restrictedMoveCalls: [] });
 		const tx = Transaction.from(json);
 		tx.setSenderIfNotSet(address);
-		// The bytes go to the remote wallet, which decides what it signs.
 		return tx.build({ client, restrictedMoveCalls: [] });
 	}
 
