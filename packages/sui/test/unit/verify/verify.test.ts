@@ -24,10 +24,7 @@ import {
 	verifyTransactionSignature,
 } from '../../../src/verify/index.js';
 import type { VerifyOptions } from '../../../src/verify/index.js';
-
-// A well-formed zkLogin signature.
-const zkLoginSig =
-	'BQNNMTczMTgwODkxMjU5NTI0MjE3MzYzNDIyNjM3MTc5MzI3MTk0Mzc3MTc4NDQyODI0MTAxODc5NTc5ODQ3NTE5Mzk5NDI4OTgyNTEyNTBNMTEzNzM5NjY2NDU0NjkxMjI1ODIwNzQwODIyOTU5ODUzODgyNTg4NDA2ODE2MTgyNjg1OTM5NzY2OTczMjU4OTIyODA5MTU2ODEyMDcBMQMCTDU5Mzk4NzExNDczNDg4MzQ5OTczNjE3MjAxMjIyMzg5ODAxNzcxNTIzMDMyNzQzMTEwNDcyNDk5MDU5NDIzODQ5MTU3Njg2OTA4OTVMNDUzMzU2ODI3MTEzNDc4NTI3ODczMTIzNDU3MDM2MTQ4MjY1MTk5Njc0MDc5MTg4ODI4NTg2NDk2Njg4NDAzMjcxNzA0OTgxMTcwOAJNMTA1NjQzODcyODUwNzE1NTU0Njk3NTM5OTA2NjE0MTA4NDAxMTg2MzU5MjU0NjY1OTcwMzcwMTgwNTg3NzAwNDEzNDc1MTg0NjEzNjhNMTI1OTczMjM1NDcyNzc1NzkxNDQ2OTg0OTYzNzIyNDI2MTUzNjgwODU4MDEzMTMzNDMxNTU3MzU1MTEzMzAwMDM4ODQ3Njc5NTc4NTQCATEBMANNMTU3OTE1ODk0NzI1NTY4MjYyNjMyMzE2NDQ3Mjg4NzMzMzc2MjkwMTUyNjk5ODQ2OTk0MDQwNzM2MjM2MDMzNTI1Mzc2Nzg4MTMxNzFMNDU0Nzg2NjQ5OTI0ODg4MTQ0OTY3NjE2MTE1ODAyNDc0ODA2MDQ4NTM3MzI1MDAyOTQyMzkwNDExMzAxNzQyMjUzOTAzNzE2MjUyNwExMXdpYVhOeklqb2lhSFIwY0hNNkx5OXBaQzUwZDJsMFkyZ3VkSFl2YjJGMWRHZ3lJaXcCMmV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNJc0ltdHBaQ0k2SWpFaWZRTTIwNzk0Nzg4NTU5NjIwNjY5NTk2MjA2NDU3MDIyOTY2MTc2OTg2Njg4NzI3ODc2MTI4MjIzNjI4MTEzOTE2MzgwOTI3NTAyNzM3OTExCgAAAAAAAABhABHpkQ5JvxqbqCKtqh9M0U5c3o3l62B6ALVOxMq6nsc0y3JlY8Gf1ZoPA976dom6y3JGBUTsry6axfqHcVrtRAy5xu4WMO8+cRFEpkjbBruyKE9ydM++5T/87lA8waSSAA==';
+import { zkLoginSignature } from '../fixtures/zklogin-signature.js';
 
 const message = new TextEncoder().encode('hello');
 const transaction = bcs.TransactionData.serialize({
@@ -52,6 +49,16 @@ function grpcCoreWith(verifySignature: ReturnType<typeof vi.fn>) {
 
 function grpcCore(response: Record<string, unknown>) {
 	return grpcCoreWith(vi.fn().mockResolvedValue({ response }));
+}
+
+function graphqlCoreWith(query: ReturnType<typeof vi.fn>) {
+	const client = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
+	client.query = query as never;
+	return client.core;
+}
+
+function graphqlCore(result: Record<string, unknown>) {
+	return graphqlCoreWith(vi.fn().mockResolvedValue(result));
 }
 
 describe('verify helpers', () => {
@@ -204,13 +211,13 @@ describe('verify helpers', () => {
 				{
 					publicKey: publicKeyFromRawBytes(
 						'ZkLogin',
-						parseSerializedZkLoginSignature(zkLoginSig).publicKey,
+						parseSerializedZkLoginSignature(zkLoginSignature).publicKey,
 					),
 					weight: 1,
 				},
 			],
-		}).combinePartialSignatures([zkLoginSig]);
-		for (const signature of [zkLoginSig, multisig]) {
+		}).combinePartialSignatures([zkLoginSignature]);
+		for (const signature of [zkLoginSignature, multisig]) {
 			await expect(
 				isValidPersonalMessageSignature(message, signature, { offline: true }),
 			).rejects.toThrow('zkLogin signatures cannot be verified offline');
@@ -322,9 +329,9 @@ describe('verifySignature without a verdict', () => {
 	});
 
 	it('throws on GraphQL when verifySignature is null', async () => {
-		const client = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
-		client.query = vi.fn(async () => ({ data: { verifySignature: null } })) as never;
-		await expect(client.core.verifySignature(options)).rejects.toThrow('verdict');
+		await expect(
+			graphqlCore({ data: { verifySignature: null } }).verifySignature(options),
+		).rejects.toThrow('verdict');
 	});
 });
 
@@ -332,12 +339,10 @@ describe('GraphQLCoreClient.verifySignature errors', () => {
 	const options = { personalMessage: 'hello', signature: 'AA==', address: '0x1' };
 
 	function rejecting(error: { message: string; path?: string[]; extensions?: object }) {
-		const client = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
-		client.query = vi.fn(async () => ({
+		return graphqlCore({
 			data: { verifySignature: null },
 			errors: [{ locations: [], ...error }],
-		})) as never;
-		return client.core;
+		});
 	}
 
 	it('reports a bad user input error on the field as an invalid signature', async () => {
@@ -377,20 +382,17 @@ describe('verifySignature with transaction bytes the SDK cannot decode', () => {
 			checkAddressAliases: false,
 		};
 		const grpcVerify = vi.fn().mockResolvedValue({ response: { isValid: true } });
-		const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
 		const query = vi.fn().mockResolvedValue({ data: { verifySignature: { success: true } } });
-		graphql.query = query as never;
 
 		expect(await grpcCoreWith(grpcVerify).verifySignature(options)).toEqual({ valid: true });
-		expect(await graphql.core.verifySignature(options)).toEqual({ valid: true });
+		expect(await graphqlCoreWith(query).verifySignature(options)).toEqual({ valid: true });
 		expect(grpcVerify.mock.calls[0][0].message.value).toEqual(bytes);
 		expect(query.mock.calls[0][0].variables.message).toBe(toBase64(bytes));
 	});
 
 	it('reports GraphQL rejecting the bytes as an invalid signature', async () => {
-		const graphql = new SuiGraphQLClient({ network: 'localnet', url: 'http://localhost' });
 		const error = 'Failed to deserialize TransactionData from bytes';
-		graphql.query = vi.fn(async () => ({
+		const graphql = graphqlCore({
 			data: { verifySignature: null },
 			errors: [
 				{
@@ -400,10 +402,10 @@ describe('verifySignature with transaction bytes the SDK cannot decode', () => {
 					extensions: { code: 'BAD_USER_INPUT' },
 				},
 			],
-		})) as never;
+		});
 
 		expect(
-			await graphql.core.verifySignature({
+			await graphql.verifySignature({
 				transaction: new Uint8Array([...transaction, 0xff]),
 				signature: 'AA==',
 				address: '0x1',
@@ -479,7 +481,7 @@ describe('verify helpers without a client or offline: true', () => {
 	it('still throw for zkLogin', async () => {
 		const { isValidPersonalMessageSignature } = await freshVerify();
 		// @ts-expect-error options are required
-		await expect(isValidPersonalMessageSignature(message, zkLoginSig)).rejects.toThrow(
+		await expect(isValidPersonalMessageSignature(message, zkLoginSignature)).rejects.toThrow(
 			'zkLogin signatures cannot be verified offline',
 		);
 	});
