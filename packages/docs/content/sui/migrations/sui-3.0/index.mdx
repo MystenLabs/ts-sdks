@@ -101,6 +101,9 @@ Every `@mysten/*` package with a peer dependency on `@mysten/sui` gets a new rel
   and `before` can be used together, and the validation errors have new messages. Update code that
   matches on the old "must specify exactly one of" or "Only one of `after` or `before`" errors; see
   [Querying](/sui/clients/querying) for the current rules.
+- **gRPC network failures report `UNAVAILABLE`.** Network failures in `SuiGrpcClient` calls now
+  report the `UNAVAILABLE` status code instead of `INTERNAL`, and a binary response body that ends
+  early reports `UNAVAILABLE` instead of `DATA_LOSS`. Update code that matches on these codes.
 - **The gRPC-web transport uses the binary wire format by default.** Both `SuiGrpcClient` and
   `GrpcWebFetchTransport` from `@mysten/sui/grpc` now send `application/grpc-web+proto` instead of
   base64 `application/grpc-web-text`. If a proxy in front of your full node only supports the text

@@ -105,7 +105,15 @@ That class extends the transport of the same name from
   `AbortSignal.timeout`, the status on a reason carrying one, and `CANCELLED` otherwise. Upstream
   reports all but a standard `AbortError` cancellation as `INTERNAL`.
 
+It also codes a gRPC-web call that the network breaks as `UNAVAILABLE`: a failed fetch, a failed
+response body read, or a binary response body that ends before its trailers. Upstream reports these
+as `INTERNAL` or `DATA_LOSS`, and can read a trailer cut mid-frame as success.
+
 Build custom gRPC-web transports from this class to retain these error-handling fixes.
+
+Browser clients need the endpoint to expose the `grpc-status` and `grpc-message` headers through
+CORS (`Access-Control-Expose-Headers`); otherwise a response that carries its status only in headers
+looks like a dropped connection and fails with `UNAVAILABLE`.
 
 `SuiGrpcClient` adds an `x-sui-client-protocol-version` request header with the highest Sui protocol
 version whose types the SDK can decode. This applies to all transports, including native gRPC, and
