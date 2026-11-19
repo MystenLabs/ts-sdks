@@ -76,7 +76,7 @@ run on 3.0 or keep a 2.x copy of its own.
 - **On `SuiGraphQLClient`, an empty last page of `listTransactions` or `listEvents` has `null`
   cursors**, as on `SuiGrpcClient`. When polling, keep your previous cursor
   (`cursor = page.endCursor ?? cursor`).
-- **On `SuiGraphQLClient`, a transaction's `events` take `packageId` and `module` from the module
+- **On `SuiGraphQLClient`, a transaction's `events` take `packageId` and `module` from the Move call
   that emitted the event**, as `listEvents` and `SuiGrpcClient` do, rather than from the event type.
 
 ### Transaction data and BCS
@@ -102,8 +102,9 @@ run on 3.0 or keep a 2.x copy of its own.
 - **Multisig BCS fields are camelCase:** `multisigPk` instead of `multisig_pk` and `pkMap` instead
   of `pk_map`. The old names still work on `parseSerializedSignature` results but are deprecated.
 - **Execution error names in `effects.status` match `SuiGrpcClient` everywhere**, including
-  `SuiGraphQLClient` and dApp Kit wallet results. For example, `InvalidBCSBytes` is now
-  `InvalidBcsBytes`.
+  `SuiGraphQLClient` and dApp Kit wallet results: `InvalidBcsBytes`, `InvalidUsageOfPureArgument`,
+  `ConsensusObjectOperationNotAllowed` and `PackageIdDoesNotMatch` replace `InvalidBCSBytes`,
+  `InvalidUsageOfPureArg`, `SharedObjectOperationNotAllowed` and `PackageIDDoesNotMatch`.
 - **`parseGrpcTransactionResponse` needs `transaction.sender` in the read mask.**
 - **`parseTransactionBcs` returns the transaction builder's `TransactionData`** from
   `@mysten/sui/transactions`, not `SuiClientTypes.TransactionData`. Use `parseTransactionDataBcs`
@@ -208,13 +209,15 @@ override:
 
 `$@mysten/sui` reuses the version in your own `dependencies`.
 
-```yaml title="pnpm-workspace.yaml (pnpm 10 and later)"
+```yaml title="pnpm-workspace.yaml (pnpm 10.5 and later)"
 overrides:
   '@mysten/sui': '$@mysten/sui'
 ```
 
-pnpm 9 ignores overrides in `pnpm-workspace.yaml`: put the same entry under `pnpm.overrides` in
-`package.json` instead.
+Earlier pnpm versions ignore overrides in `pnpm-workspace.yaml`: put the same entry under
+`pnpm.overrides` in `package.json` instead. pnpm resolves `$@mysten/sui` from the root
+`package.json`, so if only a workspace package depends on `@mysten/sui`, write the range instead,
+for example `^3.0.0`.
 
 ```json title="package.json (Yarn, Bun)"
 {
