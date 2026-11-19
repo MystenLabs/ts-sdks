@@ -8,7 +8,8 @@ import type { Analyzer, AnalyzerOutput } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
 /**
- * Built with no restricted-call check, so register the `restrictedMoveCalls` rule before signing them.
+ * Built with no restricted-call check: check the `restrictedMoveCalls` rule's result before
+ * signing them.
  */
 export const bytes = createAnalyzer({
 	cacheKey: 'bytes@1.0.0',

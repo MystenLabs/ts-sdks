@@ -225,7 +225,7 @@ describe('Transaction restrictedMoveCalls', () => {
 				restrictedMoveCalls: ['0x2::address_alias', '0xa99'],
 			}),
 		).rejects.toThrow(
-			`Transaction has restricted Move calls: command 0 calls ${SUI}::address_alias::enable (restricted by "0x2::address_alias"), command 2 calls ${APP}::vault::drain (restricted by "0xa99"). To allow them, set \`restrictedMoveCalls\` on the client or in \`build()\`/\`toJSON()\` options (\`[]\` allows all).`,
+			`command 0 calls ${SUI}::address_alias::enable (restricted by "0x2::address_alias"), command 2 calls ${APP}::vault::drain (restricted by "0xa99").`,
 		);
 	});
 
