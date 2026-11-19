@@ -80,7 +80,10 @@ export function resolveCheckpointRange(options: {
  * are capped at `Number.MAX_SAFE_INTEGER` because GraphQL represents
  * checkpoints as `UInt53`.
  */
-function parseCheckpointNumber(value: SuiClientTypes.CheckpointNumber, label: string): bigint {
+export function parseCheckpointNumber(
+	value: SuiClientTypes.CheckpointNumber,
+	label: string,
+): bigint {
 	const valid =
 		typeof value === 'bigint'
 			? value >= 0n && value <= BigInt(Number.MAX_SAFE_INTEGER)
