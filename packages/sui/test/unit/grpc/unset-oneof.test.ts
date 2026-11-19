@@ -11,6 +11,7 @@ import {
 } from '../../../src/grpc/proto/sui/rpc/v2/move_package_service.js';
 import { pullServerStreaming } from '../../../src/grpc/pull-call.js';
 import { withClientDefaults } from '../../../src/grpc/transport.js';
+import { recordingFetch } from './recording-fetch.js';
 
 const packageId = '0x2';
 const getPackage = MovePackageService.methods.find(
@@ -21,14 +22,9 @@ function clientRecordingBodies(bodies: Uint8Array[]) {
 	return new SuiGrpcClient({
 		baseUrl: 'http://localhost',
 		network: 'testnet',
-		fetch: (async (_input: unknown, init: RequestInit) => {
+		fetch: recordingFetch((init) => {
 			bodies.push(new Uint8Array(init.body as ArrayBuffer));
-
-			return new Response(null, {
-				status: 200,
-				headers: { 'content-type': 'application/grpc-web+proto', 'grpc-status': '5' },
-			});
-		}) as unknown as typeof globalThis.fetch,
+		}),
 	});
 }
 

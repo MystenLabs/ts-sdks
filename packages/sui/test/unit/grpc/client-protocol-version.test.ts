@@ -12,20 +12,16 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../../../src/client/protocol-version.js';
+import { recordingFetch } from './recording-fetch.js';
 
 async function sentHeaders(meta?: Record<string, string>) {
 	let headers: Headers | undefined;
 	const client = new SuiGrpcClient({
 		baseUrl: 'http://localhost',
 		network: 'testnet',
-		fetch: (async (_input: unknown, init: RequestInit) => {
+		fetch: recordingFetch((init) => {
 			headers = new Headers(init.headers);
-
-			return new Response(null, {
-				status: 200,
-				headers: { 'content-type': 'application/grpc-web+proto', 'grpc-status': '5' },
-			});
-		}) as unknown as typeof globalThis.fetch,
+		}),
 		meta,
 	});
 

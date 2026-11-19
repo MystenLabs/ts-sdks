@@ -5,24 +5,21 @@ import { describe, expect, it } from 'vitest';
 
 import { GrpcWebFetchTransport, SuiGrpcClient } from '../../../src/grpc/index.js';
 import type { GrpcWebOptions } from '../../../src/grpc/index.js';
+import { recordingFetch } from './recording-fetch.js';
 
 type Format = GrpcWebOptions['format'];
 type FormatOption = { format?: Format };
 
-function recordingFetch() {
+function recordContentType() {
 	const sent: { contentType: string | null } = { contentType: null };
-	const fetch = (async (_input: unknown, init: RequestInit) => {
+	const fetch = recordingFetch((init) => {
 		sent.contentType = new Headers(init.headers).get('content-type');
-		return new Response(null, {
-			status: 200,
-			headers: { 'content-type': 'application/grpc-web+proto', 'grpc-status': '5' },
-		});
-	}) as unknown as typeof globalThis.fetch;
+	});
 	return { sent, fetch };
 }
 
 async function clientContentType(formatOption: FormatOption) {
-	const { sent, fetch } = recordingFetch();
+	const { sent, fetch } = recordContentType();
 	const client = new SuiGrpcClient({
 		baseUrl: 'http://localhost',
 		network: 'testnet',
@@ -36,7 +33,7 @@ async function clientContentType(formatOption: FormatOption) {
 }
 
 async function transportContentType(formatOption: FormatOption) {
-	const { sent, fetch } = recordingFetch();
+	const { sent, fetch } = recordContentType();
 	const transport = new GrpcWebFetchTransport({
 		baseUrl: 'http://localhost',
 		...formatOption,
