@@ -4,50 +4,26 @@
 import { describe, expect, it, vi } from 'vitest';
 import { GrpcTypes, SuiGrpcClient } from '../../../src/grpc/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
-import { Input_InputKind, Input_Mutability } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
+import { Input_Mutability } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
 import {
 	EndOfEpochTransactionKind_Kind as EndOfEpochKind,
 	Transaction as GrpcTransaction,
 	TransactionExpiration_TransactionExpirationKind as ExpirationKind,
 	TransactionKind_Kind as Kind,
 } from '../../../src/grpc/proto/sui/rpc/v2/transaction.js';
+import { address, cases, digest, header } from './fixtures/transaction-kinds.js';
+import type { GrpcKind } from './fixtures/transaction-kinds.js';
 
-const address = `0x${'11'.repeat(32)}`;
-const digest = '11111111111111111111111111111111';
-
-function transaction(kind: GrpcTransaction['kind']) {
+/** Uses an epoch expiration so that reads also cover mapping one. */
+function transaction(kind: GrpcKind | undefined) {
 	return GrpcTransaction.create({
-		sender: address,
-		gasPayment: {
-			objects: [{ objectId: address, version: 3n, digest }],
-			owner: address,
-			price: 1000n,
-			budget: 5000n,
-		},
+		...header,
 		expiration: { kind: ExpirationKind.EPOCH, epoch: 7n },
 		kind,
 	});
 }
 
-const programmable = transaction({
-	kind: Kind.PROGRAMMABLE_TRANSACTION,
-	data: {
-		oneofKind: 'programmableTransaction',
-		programmableTransaction: {
-			inputs: [
-				{ kind: Input_InputKind.PURE, pure: new Uint8Array([1]) },
-				{
-					kind: Input_InputKind.SHARED,
-					objectId: '0xacc',
-					version: 1n,
-					mutable: false,
-					mutability: Input_Mutability.NON_EXCLUSIVE_WRITE,
-				},
-			],
-			commands: [],
-		},
-	},
-});
+const programmable = transaction(cases.ProgrammableTransaction.grpc);
 
 /**
  * A transaction from a newer protocol: the gRPC encoding carries an enum value and a oneof field

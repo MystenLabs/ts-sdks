@@ -45,6 +45,7 @@ import {
 } from './proto/sui/rpc/v2/move_package.js';
 import {
 	applyGrpcResolvedTransaction,
+	grpcTimestampToMilliseconds,
 	mapOwner,
 	transactionDataToGrpcTransaction,
 	transactionToGrpcTransaction,
@@ -1010,9 +1011,7 @@ export function parseGrpcCheckpoint(
 		sequenceNumber: checkpoint.sequenceNumber.toString(),
 		digest: checkpoint.digest,
 		epoch: checkpoint.summary.epoch.toString(),
-		timestampMs: Number(
-			timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000)),
-		),
+		timestampMs: Number(grpcTimestampToMilliseconds(timestamp)),
 	};
 }
 
