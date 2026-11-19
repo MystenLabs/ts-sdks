@@ -102,13 +102,15 @@ You can call the `link.createSendTransaction()` method, which returns a `Transac
 you can sign and submit.
 
 ```ts
+import { fromBase64 } from '@mysten/sui/utils';
+
 const tx = await link.createSendTransaction();
 
-const { bytes, signature } = tx.sign({ client, signer: keypair });
+const { bytes, signature } = await tx.sign({ client, signer: keypair });
 
-const result = await client.executeTransactionBlock({
-	transactionBlock: bytes,
-	signature,
+const result = await client.core.executeTransaction({
+	transaction: fromBase64(bytes),
+	signatures: [signature],
 });
 ```
 

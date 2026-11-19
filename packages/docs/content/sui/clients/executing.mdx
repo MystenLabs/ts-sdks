@@ -118,6 +118,9 @@ const { balance } = await client.getBalance({ owner: myAddress });
 It also accepts a `digest` instead of a result, along with `timeout` and a `pollSchedule` array of
 backoff delays.
 
+`waitForTransaction` resolves once the transaction can be fetched from the client's server; reads of
+your own writes through that client are then expected to see it.
+
 ## `simulateTransaction`
 
 Dry-run a transaction without executing it, to estimate gas, inspect return values, or validate it
