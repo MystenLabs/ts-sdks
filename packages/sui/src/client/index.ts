@@ -33,5 +33,7 @@ export {
 	type TransactionErrorReason,
 } from './errors.js';
 
+export { SuiStreamError, type SuiStreamErrorCode } from './stream/errors.js';
+
 export { ClientCache, type ClientCacheOptions } from './cache.js';
 export { type NamedPackagesOverrides } from './mvr.js';
