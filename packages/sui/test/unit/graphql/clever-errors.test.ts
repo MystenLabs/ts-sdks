@@ -5,13 +5,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { SimulationError } from '../../../src/client/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
+import { parseTransactionEffects } from '../../../src/grpc/core.js';
+import { GrpcTypes } from '../../../src/grpc/index.js';
 import { Transaction } from '../../../src/transactions/index.js';
 
 const PACKAGE = '0x' + 'a'.repeat(64);
 const SENDER = '0x' + 'b'.repeat(64);
 
 /** Resolves a transaction against a GraphQL server whose simulation aborts with these execution error fields. */
-async function resolveAbort(abort: Record<string, unknown>) {
+async function resolveAbortError(abort: Record<string, unknown>) {
 	const fetch = vi.fn(async () =>
 		Response.json({
 			data: {
@@ -57,7 +59,11 @@ async function resolveAbort(abort: Record<string, unknown>) {
 	if (executionError?.$kind !== 'MoveAbort') {
 		throw new Error(`expected a MoveAbort, got ${executionError?.$kind}`);
 	}
-	return executionError.MoveAbort;
+	return executionError;
+}
+
+async function resolveAbort(abort: Record<string, unknown>) {
+	return (await resolveAbortError(abort)).MoveAbort;
 }
 
 describe('GraphQL clever errors', () => {
@@ -97,5 +103,47 @@ describe('GraphQL clever errors', () => {
 
 		expect(abort.abortCode).toBe('42');
 		expect(abort.cleverError).toBeUndefined();
+	});
+
+	it('formats a raw constant in the message the same way as gRPC', async () => {
+		// A `vector<u64>` constant is not rendered, so both transports report its BCS bytes as base64.
+		const raw = 'AgEAAAAAAAAAAgAAAAAAAAA=';
+		const graphqlError = await resolveAbortError({
+			abortCode: '7',
+			identifier: 'ENotAllowed',
+			constant: raw,
+			sourceLineNumber: 42,
+		});
+
+		const grpcEffects = parseTransactionEffects({
+			effects: GrpcTypes.TransactionEffects.fromJson({
+				status: {
+					success: false,
+					error: {
+						command: '0',
+						kind: 'MOVE_ABORT',
+						abort: {
+							abortCode: BigInt('0x8007002a00000000').toString(),
+							location: { package: PACKAGE, module: 'm', functionName: 'f', instruction: 3 },
+							cleverError: {
+								errorCode: '7',
+								lineNumber: '42',
+								constantName: 'ENotAllowed',
+								constantType: 'vector<u64>',
+								raw,
+							},
+						},
+					},
+				},
+			}),
+		});
+		const grpcError = grpcEffects!.status.error!;
+
+		expect(graphqlError.MoveAbort.cleverError?.value).toBe(raw);
+		expect(grpcError.$kind === 'MoveAbort' && grpcError.MoveAbort.cleverError?.value).toBe(raw);
+		expect(graphqlError.message).toBe(
+			`MoveAbort in 1st command, 'ENotAllowed': ${raw}, in '${PACKAGE}::m::f' (line 42)`,
+		);
+		expect(graphqlError.message).toBe(grpcError.message);
 	});
 });
