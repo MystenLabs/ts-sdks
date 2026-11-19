@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import {
 	publishPackage,
 	setup,
@@ -242,22 +242,28 @@ describe('Core API - Queries', () => {
 				signer: senderKeypair,
 			});
 
-			// Polling after each anchor's startCursor returns exactly the new transaction
-			const polls = await Promise.all(
-				clients.map(([, client], index) =>
-					client.core.listTransactions({
-						filter: { sender: senderAddress },
-						after: anchors[index].startCursor,
-					}),
-				),
-			);
+			// Polling after each anchor's startCursor returns exactly the new transaction. List queries
+			// can trail what `waitForTransaction` checks, so retry until they include it.
+			await vi.waitFor(
+				async () => {
+					const polls = await Promise.all(
+						clients.map(([, client], index) =>
+							client.core.listTransactions({
+								filter: { sender: senderAddress },
+								after: anchors[index].startCursor,
+							}),
+						),
+					);
 
-			for (const poll of polls) {
-				expect(poll.transactions.map((transaction) => transaction.Transaction?.digest)).toEqual([
-					result.Transaction?.digest,
-				]);
-				expect(poll.hasNextPage).toBe(false);
-			}
+					for (const poll of polls) {
+						expect(poll.transactions.map((transaction) => transaction.Transaction?.digest)).toEqual(
+							[result.Transaction?.digest],
+						);
+						expect(poll.hasNextPage).toBe(false);
+					}
+				},
+				{ timeout: 10_000, interval: 250 },
+			);
 		});
 
 		testWithAllClients('should reject conflicting pagination bounds', async (client) => {
@@ -489,22 +495,28 @@ describe('Core API - Queries', () => {
 				);
 			}
 
-			await toolbox.expectAllClientsReturnSameData(
-				async (client) => {
-					const page = await client.core.listEvents({ filter: { sender: address } });
-					return page.events.map((event) => ({
-						transactionDigest: event.transactionDigest,
-						eventIndex: event.eventIndex,
-					}));
-				},
-				undefined,
-				{ exclude: EXCLUDE },
-			);
+			// List queries can trail what `waitForTransaction` checks, so retry until they include it.
+			await vi.waitFor(
+				async () => {
+					await toolbox.expectAllClientsReturnSameData(
+						async (client) => {
+							const page = await client.core.listEvents({ filter: { sender: address } });
+							return page.events.map((event) => ({
+								transactionDigest: event.transactionDigest,
+								eventIndex: event.eventIndex,
+							}));
+						},
+						undefined,
+						{ exclude: EXCLUDE },
+					);
 
-			const { events } = await toolbox.jsonRpcClient.core.listEvents({
-				filter: { sender: address },
-			});
-			expect(events.map((event) => event.eventIndex)).toEqual([0, 1]);
+					const { events } = await toolbox.jsonRpcClient.core.listEvents({
+						filter: { sender: address },
+					});
+					expect(events.map((event) => event.eventIndex)).toEqual([0, 1]);
+				},
+				{ timeout: 10_000, interval: 250 },
+			);
 		});
 
 		testWithAllClients(
