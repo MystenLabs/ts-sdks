@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as grpc from '../../../src/grpc/index.js';
 import { GrpcStatusCode, RpcError } from '../../../src/grpc/index.js';
 import type { GrpcWebFetchTransportOptions } from '../../../src/grpc/index.js';
+import * as pullTransport from '../../../src/grpc/pull-transport/index.js';
 
 describe('grpc error exports', () => {
 	it('narrows and codes a failure without a protobuf-ts import', () => {
@@ -32,5 +33,28 @@ describe('on-demand stream reader', () => {
 		]) {
 			expect(grpc).not.toHaveProperty(name);
 		}
+	});
+});
+
+describe('@mysten/sui/grpc/pull-transport', () => {
+	it('exports only the interface transport implementations need', () => {
+		expect(Object.keys(pullTransport).sort()).toEqual([
+			'PULL_SERVER_STREAMING',
+			'grpcStatusFromAbortReason',
+			'isConnectionLost',
+			'markConnectionLost',
+			'markHttpStatus',
+			'markNonRetryable',
+		]);
+	});
+
+	it('codes an abort reason the way the default transport does', () => {
+		const { grpcStatusFromAbortReason } = pullTransport;
+		expect(grpcStatusFromAbortReason(new DOMException('late', 'TimeoutError'))).toBe(
+			'DEADLINE_EXCEEDED',
+		);
+		expect(grpcStatusFromAbortReason({ code: 'UNAVAILABLE' })).toBe('UNAVAILABLE');
+		expect(grpcStatusFromAbortReason({ code: 'NOPE' })).toBe('CANCELLED');
+		expect(grpcStatusFromAbortReason('stop')).toBe('CANCELLED');
 	});
 });
