@@ -1041,12 +1041,7 @@ async function collectListPage<
 	limit: number,
 	pick: (frame: Frame) => Item | undefined,
 	map: (item: Item) => Result,
-): Promise<{
-	items: Result[];
-	hasNextPage: boolean;
-	startCursor: string | null;
-	endCursor: string | null;
-}> {
+): Promise<SuiClientTypes.LedgerQueryResponse & { items: Result[] }> {
 	const items: Result[] = [];
 	let startCursor: string | null = null;
 	let endCursor: string | null = null;
