@@ -10,12 +10,14 @@ breaking changes in this release.
 
 Removed:
 
-- The `@mysten/sui/jsonRpc` entry point and everything it exported, including `SuiJsonRpcClient`,
+- The JSON-RPC client and everything `@mysten/sui/jsonRpc` exported, including `SuiJsonRpcClient`,
   `isSuiJsonRpcClient`, `JsonRpcHTTPTransport`, `JsonRpcError`, `SuiHTTPStatusError`,
   `getJsonRpcFullnodeUrl`, and all JSON-RPC request/response types (`SuiTransactionBlockResponse`,
   `SuiObjectResponse`, `SuiMoveNormalizedType`, `ObjectOwner`, `DevInspectResults`, ...). Pass a
   full node URL such as `https://fullnode.mainnet.sui.io:443` directly to `SuiGrpcClient`'s
-  `baseUrl`.
+  `baseUrl`. The `@mysten/sui/jsonRpc` entry point still exists so packages that import it keep
+  loading, but its classes and functions throw, `isSuiJsonRpcClient` returns `false`, and its types
+  are `any`.
 - `normalizedTypeToMoveTypeSignature` from `@mysten/sui/transactions`, which converted JSON-RPC
   normalized Move types to `SuiClientTypes.OpenSignature`. The core API's `getMoveFunction` already
   returns `OpenSignature`s.
