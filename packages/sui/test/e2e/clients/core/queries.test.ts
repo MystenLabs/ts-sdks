@@ -40,6 +40,11 @@ async function collectPages<
 	}
 }
 
+/** List queries can trail what `waitForTransaction` checks, so retry their assertions. */
+function waitForLists(check: () => Promise<void>) {
+	return vi.waitFor(check, { timeout: 10_000, interval: 250 });
+}
+
 describe('Core API - Queries', () => {
 	let toolbox: TestToolbox;
 	let senderAddress: string;
@@ -96,28 +101,25 @@ describe('Core API - Queries', () => {
 			digests.push(result.Transaction.digest);
 		}
 
-		// List queries can trail what `waitForTransaction` checks, so wait until every transport
-		// lists the setup transactions and their events before the tests query them once.
-		await vi.waitFor(
-			async () => {
-				for (const [kind, client] of [
-					['grpc', toolbox.grpcClient],
-					['graphql', toolbox.graphqlClient],
-				] as const) {
-					const txs = await client.core.listTransactions({ filter: { sender: senderAddress } });
-					expect(
-						txs.transactions.map((tx) => tx.Transaction?.digest),
-						`${kind} listTransactions`,
-					).toEqual(digests);
-					const { events } = await client.core.listEvents({ filter: { sender: senderAddress } });
-					expect(
-						events.map((event) => event.transactionDigest),
-						`${kind} listEvents`,
-					).toEqual(digests);
-				}
-			},
-			{ timeout: 10_000, interval: 250 },
-		);
+		// Wait until every transport lists the setup transactions and their events before the tests
+		// query them once.
+		await waitForLists(async () => {
+			for (const [kind, client] of [
+				['grpc', toolbox.grpcClient],
+				['graphql', toolbox.graphqlClient],
+			] as const) {
+				const txs = await client.core.listTransactions({ filter: { sender: senderAddress } });
+				expect(
+					txs.transactions.map((tx) => tx.Transaction?.digest),
+					`${kind} listTransactions`,
+				).toEqual(digests);
+				const { events } = await client.core.listEvents({ filter: { sender: senderAddress } });
+				expect(
+					events.map((event) => event.transactionDigest),
+					`${kind} listEvents`,
+				).toEqual(digests);
+			}
+		});
 	});
 
 	describe('listTransactions', () => {
@@ -253,28 +255,24 @@ describe('Core API - Queries', () => {
 				signer: senderKeypair,
 			});
 
-			// Polling after each anchor's startCursor returns exactly the new transaction. List queries
-			// can trail what `waitForTransaction` checks, so retry until they include it.
-			await vi.waitFor(
-				async () => {
-					const polls = await Promise.all(
-						clients.map(([, client], index) =>
-							client.core.listTransactions({
-								filter: { sender: senderAddress },
-								after: anchors[index].startCursor,
-							}),
-						),
-					);
+			// Polling after each anchor's startCursor returns exactly the new transaction.
+			await waitForLists(async () => {
+				const polls = await Promise.all(
+					clients.map(([, client], index) =>
+						client.core.listTransactions({
+							filter: { sender: senderAddress },
+							after: anchors[index].startCursor,
+						}),
+					),
+				);
 
-					for (const poll of polls) {
-						expect(poll.transactions.map((transaction) => transaction.Transaction?.digest)).toEqual(
-							[result.Transaction?.digest],
-						);
-						expect(poll.hasNextPage).toBe(false);
-					}
-				},
-				{ timeout: 10_000, interval: 250 },
-			);
+				for (const poll of polls) {
+					expect(poll.transactions.map((transaction) => transaction.Transaction?.digest)).toEqual([
+						result.Transaction?.digest,
+					]);
+					expect(poll.hasNextPage).toBe(false);
+				}
+			});
 		});
 
 		testWithAllClients('should reject invalid checkpoint ranges', async (client) => {
@@ -469,24 +467,20 @@ describe('Core API - Queries', () => {
 				);
 			}
 
-			// List queries can trail what `waitForTransaction` checks, so retry until they include it.
-			await vi.waitFor(
-				async () => {
-					await toolbox.expectAllClientsReturnSameData(async (client) => {
-						const page = await client.core.listEvents({ filter: { sender: address } });
-						return page.events.map((event) => ({
-							transactionDigest: event.transactionDigest,
-							eventIndex: event.eventIndex,
-						}));
-					});
+			await waitForLists(async () => {
+				await toolbox.expectAllClientsReturnSameData(async (client) => {
+					const page = await client.core.listEvents({ filter: { sender: address } });
+					return page.events.map((event) => ({
+						transactionDigest: event.transactionDigest,
+						eventIndex: event.eventIndex,
+					}));
+				});
 
-					const { events } = await toolbox.graphqlClient.core.listEvents({
-						filter: { sender: address },
-					});
-					expect(events.map((event) => event.eventIndex)).toEqual([0, 1]);
-				},
-				{ timeout: 10_000, interval: 250 },
-			);
+				const { events } = await toolbox.graphqlClient.core.listEvents({
+					filter: { sender: address },
+				});
+				expect(events.map((event) => event.eventIndex)).toEqual([0, 1]);
+			});
 		});
 
 		testWithAllClients('should reject malformed cursors', async (client) => {
@@ -700,17 +694,14 @@ describe('Core API - Queries', () => {
 			actorDigests.push(abortedDigest);
 			await recordCheckpoint(abortedDigest);
 
-			// List queries can trail what `waitForTransaction` checks, so wait until every transport
-			// lists all of the actor's transactions before the exact-match tests run.
-			await vi.waitFor(
-				async () => {
-					for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
-						const result = await client.core.listTransactions({ filter: { sender: actorAddress } });
-						expect(digestsOf(result)).toEqual(actorDigests);
-					}
-				},
-				{ timeout: 10_000, interval: 250 },
-			);
+			// Wait until every transport lists all of the actor's transactions before the exact-match
+			// tests run.
+			await waitForLists(async () => {
+				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					const result = await client.core.listTransactions({ filter: { sender: actorAddress } });
+					expect(digestsOf(result)).toEqual(actorDigests);
+				}
+			});
 		});
 
 		describe('affectedAddress and affectedObject', () => {
@@ -766,18 +757,14 @@ describe('Core API - Queries', () => {
 						limit: 1,
 					});
 
-				// List queries can trail what `waitForTransaction` checks, so retry until they include it.
-				await vi.waitFor(
-					async () => {
-						for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
-							// The sponsor's match shows this client's index has the transaction.
-							expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
-							expect(digestsOf(await affectingSender(client))).toEqual([digest]);
-							expect(digestsOf(await sentBy(client))).toEqual([digest]);
-						}
-					},
-					{ timeout: 10_000, interval: 250 },
-				);
+				await waitForLists(async () => {
+					for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+						// The sponsor's match shows this client's index has the transaction.
+						expect(digestsOf(await sponsoredBy(client))).toEqual([digest]);
+						expect(digestsOf(await affectingSender(client))).toEqual([digest]);
+						expect(digestsOf(await sentBy(client))).toEqual([digest]);
+					}
+				});
 				await toolbox.expectAllClientsReturnSameData(affectingSender, stripCursors, {
 					attempts: 3,
 				});

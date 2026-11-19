@@ -198,7 +198,7 @@ are visible to callers. Library code that runs against any client should account
 | Short pages                 | Servers bound how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true` on either transport                      |
 | Window ends                 | On GraphQL, any page that reaches a cursor bound, including a descending read with only `after`, may report `hasNextPage: true`; the next page is empty |
 | Reused history cursors      | A cursor passed with a different filter or checkpoint range gives transport-specific results                                                            |
-| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                                                   |
+| Read-after-write            | Use `waitForTransaction` before reading your own writes. List queries can trail it on either transport, so poll them                                    |
 
 Invalid filter combinations and checkpoint ranges are rejected by the client itself, so they fail
 the same way on every transport.
