@@ -236,8 +236,9 @@ const publicKey = await verifyPersonalMessageSignature(message, signature, {
 });
 ```
 
-`verifyTransactionSignature` checks transaction signatures, and `isValidPersonalMessageSignature`
-and `isValidTransactionSignature` return `false` instead of throwing.
+`verifyTransactionSignature` checks transaction signatures. `isValidPersonalMessageSignature` and
+`isValidTransactionSignature` return `false` for an invalid signature, but still throw for network
+errors, when the node can't check address aliases, and for zkLogin signatures offline.
 
 The raw-bytes `verifySignature` and `isValidSignature` helpers, and `PublicKey` methods such as
 `verifyPersonalMessage`, check a single key, not an account's alias set.
