@@ -40,6 +40,18 @@ export const PricingConfigUpdated = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const OracleBindingUpdated = new MoveStruct({
+	name: `${$moduleName}::OracleBindingUpdated`,
+	fields: {
+		propbook_underlying_id: bcs.u32(),
+		lazer_feed_id: bcs.u32(),
+		lazer_channel: bcs.u8(),
+		block_scholes_base_asset: bcs.string(),
+		svi_model: bcs.string(),
+		svi_decimals: bcs.u8(),
+		onchain_timestamp_ms: U64,
+	},
+});
 export const EwmaConfigUpdated = new MoveStruct({
 	name: `${$moduleName}::EwmaConfigUpdated`,
 	fields: {

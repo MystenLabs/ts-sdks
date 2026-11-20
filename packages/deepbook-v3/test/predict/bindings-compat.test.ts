@@ -10,12 +10,16 @@ import { describe, expect, test } from 'vitest';
 import * as generatedExpiryMarket from '../../src/contracts/deepbook_predict/expiry_market.js';
 import * as generatedProtocolConfig from '../../src/contracts/deepbook_predict/protocol_config.js';
 import * as generatedQueue from '../../src/contracts/deepbook_predict_orders/queue.js';
+import * as generatedPlp from '../../src/contracts/deepbook_predict/plp.js';
+import * as generatedRegistry from '../../src/contracts/deepbook_predict/registry.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
 import { toGeneratedConfig, toOrdersConfig } from '../../src/predict/config/generated.js';
 import {
 	expiryMarketMoveCalls,
+	plpMoveCalls,
 	protocolConfigMoveCalls,
 	queueMoveCalls,
+	registryMoveCalls,
 } from '../../src/predict/index.js';
 
 const config = toGeneratedConfig(TESTNET_CONFIG);
@@ -286,10 +290,10 @@ describe('retired bindings keep their shipped argument keys', () => {
 						generatedExpiryMarket.quoteClose({
 							config,
 							arguments: {
-								market: MARKET,
-								pricer,
-								receipt: auth,
-								closeQuantity: 5n,
+								Market: MARKET,
+								Pricer: pricer,
+								Receipt: auth,
+								CloseQuantity: 5n,
 								BuilderCodeId: null,
 							},
 						}),
@@ -349,10 +353,218 @@ describe('retired bindings keep their shipped argument keys', () => {
 		);
 	});
 
+	test('the Version 6 retirements keep their shipped keys', () => {
+		const ordersConfig = toOrdersConfig(TESTNET_CONFIG);
+		const QUEUE = '0x' + 'bb'.repeat(32);
+		const PYTH = '0x' + '11'.repeat(32);
+		const VALUES = '0x' + '12'.repeat(32);
+		const SVI = '0x' + '13'.repeat(32);
+		const VAULT = '0x' + '14'.repeat(32);
+		const STAGE_CAP = '0x' + '15'.repeat(32);
+		const cases: [shipped: Add, generated: Add][] = [
+			[
+				(tx) =>
+					tx.add(
+						expiryMarketMoveCalls.loadLivePricer({
+							config,
+							arguments: { market: MARKET, pyth: PYTH, bsValues: VALUES, bsSvi: SVI },
+						}),
+					),
+				(tx) =>
+					tx.add(
+						generatedExpiryMarket.loadLivePricer({
+							config,
+							arguments: { Market: MARKET, Pyth: PYTH, BsValues: VALUES, BsSvi: SVI },
+						}),
+					),
+			],
+			[
+				(tx, _auth, pricer) =>
+					tx.add(
+						expiryMarketMoveCalls.currentNav({ config, arguments: { market: MARKET, pricer } }),
+					),
+				(tx, _auth, pricer) =>
+					tx.add(
+						generatedExpiryMarket.currentNav({
+							config,
+							arguments: { Market: MARKET, Pricer: pricer },
+						}),
+					),
+			],
+			[
+				(tx, _auth, pricer) =>
+					tx.add(
+						expiryMarketMoveCalls.quoteMintExactCostForAccount({
+							config,
+							arguments: {
+								market: MARKET,
+								wrapper: WRAPPER,
+								pricer,
+								lowerTick: 1n,
+								higherTick: 2n,
+								maxCost: 3n,
+								minQuantity: 4n,
+							},
+						}),
+					),
+				(tx, _auth, pricer) =>
+					tx.add(
+						generatedExpiryMarket.quoteMintExactCostForAccount({
+							config,
+							arguments: {
+								Market: MARKET,
+								Wrapper: WRAPPER,
+								Pricer: pricer,
+								LowerTick: 1n,
+								HigherTick: 2n,
+								MaxCost: 3n,
+								MinQuantity: 4n,
+							},
+						}),
+					),
+			],
+			[
+				(tx, auth) =>
+					tx.add(
+						plpMoveCalls.snapshotExpiryPricer({
+							config,
+							arguments: {
+								vault: VAULT,
+								Stage: auth,
+								market: MARKET,
+								pyth: PYTH,
+								bsValues: VALUES,
+								bsSvi: SVI,
+							},
+						}),
+					),
+				(tx, auth) =>
+					tx.add(
+						generatedPlp.snapshotExpiryPricer({
+							config,
+							arguments: {
+								Vault: VAULT,
+								Stage: auth,
+								Market: MARKET,
+								Pyth: PYTH,
+								BsValues: VALUES,
+								BsSvi: SVI,
+							},
+						}),
+					),
+			],
+			[
+				(tx) =>
+					tx.add(
+						registryMoveCalls.createAndShareExpiryMarket({
+							config,
+							arguments: { lifecycleCap: STAGE_CAP, propbookUnderlyingId: 1, cadenceId: 2 },
+						}),
+					),
+				(tx) =>
+					tx.add(
+						generatedRegistry.createAndShareExpiryMarket({
+							config,
+							arguments: { LifecycleCap: STAGE_CAP, PropbookUnderlyingId: 1, CadenceId: 2 },
+						}),
+					),
+			],
+			[
+				(tx, auth) =>
+					tx.add(
+						queueMoveCalls.enqueueExactCost({
+							config: ordersConfig,
+							arguments: {
+								queue: QUEUE,
+								market: MARKET,
+								wrapper: WRAPPER,
+								auth,
+								pyth: PYTH,
+								bsValues: VALUES,
+								bsSvi: SVI,
+								lowerTick: 1n,
+								higherTick: 2n,
+								maxCost: 3n,
+								minQuantity: 4n,
+							},
+						}),
+					),
+				(tx, auth) =>
+					tx.add(
+						generatedQueue.enqueueExactCost({
+							config: ordersConfig,
+							arguments: {
+								queue: QUEUE,
+								market: MARKET,
+								wrapper: WRAPPER,
+								auth,
+								Pyth: PYTH,
+								BsValues: VALUES,
+								BsSvi: SVI,
+								lowerTick: 1n,
+								higherTick: 2n,
+								maxCost: 3n,
+								minQuantity: 4n,
+							},
+						}),
+					),
+			],
+			[
+				(tx) =>
+					tx.add(
+						registryMoveCalls.createAndShareExpiryMarketWithBand({
+							config,
+							arguments: {
+								lifecycleCap: STAGE_CAP,
+								propbookUnderlyingId: 1,
+								cadenceId: 2,
+								expectedExpiry: null,
+								minEntryProbability: 3n,
+								maxEntryProbability: 4n,
+							},
+						}),
+					),
+				(tx) =>
+					tx.add(
+						generatedRegistry.createAndShareExpiryMarketWithBand({
+							config,
+							arguments: {
+								LifecycleCap: STAGE_CAP,
+								PropbookUnderlyingId: 1,
+								CadenceId: 2,
+								ExpectedExpiry: null,
+								MinEntryProbability: 3n,
+								MaxEntryProbability: 4n,
+							},
+						}),
+					),
+			],
+		];
+		for (const [shipped, generated] of cases) {
+			expect(built(shipped)).toBe(built(generated));
+		}
+		// The exported options type carries the shipped keys, so a typed options object passes.
+		const options: queueMoveCalls.EnqueueExactCostOptions = {
+			config: ordersConfig,
+			arguments: {
+				queue: QUEUE,
+				market: MARKET,
+				wrapper: WRAPPER,
+				auth: { $kind: 'Result', Result: 0 } as never,
+				pyth: PYTH,
+				bsValues: VALUES,
+				bsSvi: SVI,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 3n,
+				minQuantity: 4n,
+			},
+		};
+		expect(() => queueMoveCalls.enqueueExactCost(options)).not.toThrow();
+	});
+
 	test('every other export is the generated one', () => {
-		expect(expiryMarketMoveCalls.quoteMintExactCostForAccount).toBe(
-			generatedExpiryMarket.quoteMintExactCostForAccount,
-		);
+		expect(expiryMarketMoveCalls.trySettleV2).toBe(generatedExpiryMarket.trySettleV2);
 		expect(expiryMarketMoveCalls.MintQuote).toBe(generatedExpiryMarket.MintQuote);
 		expect(protocolConfigMoveCalls.ProtocolConfig).toBe(generatedProtocolConfig.ProtocolConfig);
 	});

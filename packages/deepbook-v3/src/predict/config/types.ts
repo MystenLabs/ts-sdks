@@ -62,21 +62,43 @@ export interface PredictPackages {
 	 * order-flow code this config calls. Defaults to `ORDER_FLOW_PACKAGE_VERSION`.
 	 */
 	predictOrdersCurrentVersion?: bigint;
+	/**
+	 * Predict package version 6, which reads no Propbook object. Set together with
+	 * `predictOrdersV3`, it switches the config to the signed-data flow: every Predict call targets
+	 * it (a PTB can't call an older Predict than the order-flow package links), placement uses the
+	 * oracle-free `_v2` entry points, and the version guards expect 6. It is also the defining ID
+	 * of the types version 6 adds (`OracleBindingKey`, `OracleBinding`, `OracleBindingUpdated`).
+	 * Unset until that publication is recorded: the network records carry a TODO placeholder.
+	 */
+	predictV6?: string;
+	/**
+	 * `deepbook_predict_orders` version 3, the call target of the oracle-free `queue::enqueue_*_v2`
+	 * and `queue::commit_v2`, and of every other order-flow call once set. Also the defining ID of
+	 * the types it adds (`BsTimingKey`, `BsTiming`, `BsTimingUpdated`). Unset until recorded.
+	 */
+	predictOrdersV3?: string;
+	/**
+	 * The `deepbook_predict_math` publication that adds `block_scholes` (`BsVol`, `vols`), the call
+	 * target `commitV2` builds the committed volatility with. Unset until recorded.
+	 */
+	predictMathV3?: string;
 }
 
 /**
  * Per-underlying oracle wiring: the propbook underlying id plus the feed object ids the
- * live pricer reads. Names mirror the deployment manifest
- * (`packages/predict/deployment/deployment.testnet.json` → `underlyings`).
+ * version 5 pricer reads. Names mirror the deployment manifest
+ * (`packages/predict/deployment/deployment.testnet.json` → `underlyings`). The signed-data flow
+ * (`packages.predictV6`) reads only `propbookUnderlyingId`, which keys the market's oracle binding.
+ * The three Propbook object ids stay for configs whose call targets are still version 5.
  */
 export interface UnderlyingConfig {
 	symbol: string;
 	propbookUnderlyingId: number;
-	/** `&PythFeed` — spot price feed. */
+	/** `&PythFeed` — spot price feed. Version 5 placement only. */
 	pythFeed: string;
-	/** `&BlockScholesValueStore` — Black-Scholes value store. */
+	/** `&BlockScholesValueStore` — Black-Scholes value store. Version 5 placement only. */
 	blockScholesValueStore: string;
-	/** `&BlockScholesSVIStore` — SVI-surface store. */
+	/** `&BlockScholesSVIStore` — SVI-surface store. Version 5 placement only. */
 	blockScholesSviStore: string;
 }
 
@@ -125,10 +147,14 @@ export interface PredictConfig {
 	underlyings: Record<string, UnderlyingConfig>; // keyed by symbol, e.g. "BTC"
 	/**
 	 * Oracle objects only the delayed-execution filler needs. Optional: traders never pass
-	 * them, and a filler can name the Lazer `State` per call instead.
+	 * them, and a filler can name them per call instead.
 	 */
 	oracle?: {
 		/** Pyth Lazer's shared `State`, which carries the current Lazer package ID. */
 		pythLazerState?: string;
+		/** The Block Scholes verifier package (`bs_oracle`), which `commitV2` calls to verify batches. */
+		blockScholesPackage?: string;
+		/** The verifier's shared `SignerRegistry`. */
+		blockScholesSignerRegistry?: string;
 	};
 }

@@ -565,14 +565,14 @@ export function startPoolValuation(options: StartPoolValuationOptions) {
 		});
 }
 export interface SnapshotExpiryPricerArguments {
-	vault?: RawTransactionArgument<string>;
+	Vault?: RawTransactionArgument<string>;
 	Stage: TransactionArgument;
-	market: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	Market: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 }
 export interface SnapshotExpiryPricerOptions {
 	package?: string;
@@ -585,26 +585,8 @@ export interface SnapshotExpiryPricerOptions {
 	};
 }
 /**
- * Freeze one snapshotted market's oracle state for this flush and stamp the
- * market, capturing its cash rows and activating its payout-tree snapshot at this
- * instant.
- *
- * Holding `SnapshotStage` is what admits this call, and that potato cannot leave
- * the transaction `start_pool_valuation` minted it in — so every `Pricer` here is
- * loaded at one instant, which is what lets the valuation stage span transactions
- * without mixing marks (audit L10). This stage reads oracles only — it never walks
- * a payout tree — so all markets fit one PTB regardless of book size.
- *
- * The oracle feeding this stage must have been written in an EARLIER transaction:
- * `pricing::resolve_live` refuses a read stamped with the current transaction
- * digest (RP-24), so a keeper cannot refresh and snapshot in one PTB.
- *
- * A market already settled at snapshot time is recorded with no pricer, gets no
- * stamp (settled flows never touch live NAV), and contributes 0. An
- * expired-but-unsettled market aborts: it has no well-defined mark, and because
- * this stage is atomic the abort reverts the whole snapshot transaction, so the
- * flag is never left engaged. Settle it first, then start the flush; settlement is
- * never blocked by a flush, so that ordering is always available.
+ * Retired: earlier versions froze a market's mark from Propbook's objects. Aborts
+ * `EUseV2`. Use `snapshot_expiry_pricer_v2`.
  */
 export function snapshotExpiryPricer(options: SnapshotExpiryPricerOptions) {
 	const packageAddress =
@@ -621,14 +603,14 @@ export function snapshotExpiryPricer(options: SnapshotExpiryPricerOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'vault',
+		'Vault',
 		'Stage',
-		'market',
-		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'Market',
+		'Config',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -638,9 +620,73 @@ export function snapshotExpiryPricer(options: SnapshotExpiryPricerOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
+					Vault: options.arguments?.Vault ?? options.config?.poolVault,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SnapshotExpiryPricerV2Arguments {
+	vault?: RawTransactionArgument<string>;
+	Stage: TransactionArgument;
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	price: TransactionArgument;
+	vol: TransactionArgument;
+}
+export interface SnapshotExpiryPricerV2Options {
+	package?: string;
+	arguments: SnapshotExpiryPricerV2Arguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Freeze one snapshotted market's oracle state for this flush and stamp the
+ * market, capturing its cash rows and activating its payout-tree snapshot at this
+ * instant.
+ *
+ * Holding `SnapshotStage` is what admits this call, and that potato cannot leave
+ * the transaction `start_pool_valuation` minted it in. The market is marked at the
+ * instant its Pyth Lazer price is stamped, which must fall at or before the
+ * flush's start and at most `block_scholes_price_freshness_ms` before it, the same
+ * bound live pricing put on a Block Scholes price. `price` must be the market's
+ * price under its oracle binding, and `vol` its Block Scholes spot, forward, and
+ * SVI stamped exactly at that instant (`expiry_market::frozen_v2`). This stage
+ * reads no state but the market's own — it never walks a payout tree — so all
+ * markets fit one PTB regardless of book size.
+ *
+ * A market already settled at snapshot time is recorded with no pricer, gets no
+ * stamp (settled flows never touch live NAV), and contributes 0. Its `price` and
+ * `vol` are ignored and may be none. An expired-but-unsettled market aborts: it
+ * has no well-defined mark, and because this stage is atomic the abort reverts the
+ * whole snapshot transaction, so the flag is never left engaged. Settle it first,
+ * then start the flush. Settlement is never blocked by a flush, so that ordering
+ * is always available. A market whose data is missing or does not price at the
+ * instant aborts the snapshot the same way, and the flush is retried.
+ */
+export function snapshotExpiryPricerV2(options: SnapshotExpiryPricerV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
+		string | null
+	)[];
+	const parameterNames = ['vault', 'Stage', 'market', 'config', 'price', 'vol'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'plp',
+			function: 'snapshot_expiry_pricer_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
 					vault: options.arguments?.vault ?? options.config?.poolVault,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
 				},
 				argumentsTypes,
 				parameterNames,

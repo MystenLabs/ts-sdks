@@ -15,6 +15,7 @@ import {
 	orderKindName,
 	policyFromBcs,
 	refundReason,
+	type BsTiming,
 	type DelayedExecutionPolicy,
 	type HeldPosition,
 	type OrderKindName,
@@ -530,6 +531,36 @@ export function predictOrdersOrigin(cfg: PredictConfig): string {
 	return pkg;
 }
 
+/**
+ * The Predict version 6 package, which defines the types and events version 6 added
+ * (`OracleBindingUpdated`). Throws while the config doesn't record it.
+ */
+export function predictV6Origin(cfg: PredictConfig): string {
+	const pkg = cfg.packages.predictV6;
+	if (!pkg) {
+		throw new PredictInputError(
+			`Predict version 6 isn't recorded for ${cfg.network} in this SDK version: pass a ` +
+				'`config` whose `packages.predictV6` names it',
+		);
+	}
+	return pkg;
+}
+
+/**
+ * The `deepbook_predict_orders` version 3 package, which defines the types and events it added
+ * (`BsTiming`, `BsTimingUpdated`). Throws while the config doesn't record it.
+ */
+export function predictOrdersV3Origin(cfg: PredictConfig): string {
+	const pkg = cfg.packages.predictOrdersV3;
+	if (!pkg) {
+		throw new PredictInputError(
+			`deepbook_predict_orders version 3 isn't recorded for ${cfg.network} in this SDK version: ` +
+				'pass a `config` whose `packages.predictOrdersV3` names it',
+		);
+	}
+	return pkg;
+}
+
 function side(kind: number): 'mint' | 'sell' | 'unknown' {
 	return isMintKind(kind) ? 'mint' : isSellKind(kind) ? 'sell' : 'unknown';
 }
@@ -600,8 +631,16 @@ export interface EnqueueReceipt {
 	cash: QueueCashFigures;
 	/** `onchain_timestamp_ms`: the placement transaction's clock. */
 	timestampMs: bigint;
+	/**
+	 * `subsidyBound` is the fee subsidy reserved for a mint. A version 6 placement
+	 * (`enqueue_*_v2`) has no price to bound it with, so it is always 0 there: the commit prices the
+	 * bound at the fill's tick instead.
+	 */
 	raw: { budget: bigint; orderFee: bigint; cashNeed: bigint; subsidyBound: bigint };
-	/** The volatility snapshot the fill prices with, as the generated layout parses it. */
+	/**
+	 * The volatility snapshot the fill prices with, as the generated layout parses it. A version 6
+	 * placement records only the Pyth feed: its Block Scholes fields are zero until the commit.
+	 */
 	vol: (typeof queueEvents.OrderEnqueued)['$inferType']['vol'];
 }
 
@@ -1163,3 +1202,75 @@ export function realizedPnlRaw(
 }
 
 export { exactlyOne };
+
+/** `config_events::OracleBindingUpdated`: an underlying's oracle binding set or replaced (Predict v6). */
+export interface OracleBindingUpdateReceipt {
+	propbookUnderlyingId: number;
+	lazerFeedId: number;
+	/** `2` is the 50 ms Lazer channel, `3` the 200 ms one. */
+	lazerChannel: number;
+	blockScholesBaseAsset: string;
+	sviModel: string;
+	/** `9` or `18`. */
+	sviDecimals: number;
+	timestampMs: bigint;
+}
+
+/**
+ * Every `OracleBindingUpdated` in a result, in event order. The event is new in Predict version 6,
+ * so it is matched against `packages.predictV6`, not the original ID. Throws while the config
+ * doesn't record version 6.
+ */
+export function decodeOracleBindingUpdates(
+	cfg: PredictConfig,
+	result: DecodableTransactionResult,
+): OracleBindingUpdateReceipt[] {
+	return decodeAll(
+		result,
+		predictV6Origin(cfg),
+		'config_events',
+		'OracleBindingUpdated',
+		configEvents.OracleBindingUpdated,
+	).map((e) => ({
+		propbookUnderlyingId: e.propbook_underlying_id,
+		lazerFeedId: e.lazer_feed_id,
+		lazerChannel: e.lazer_channel,
+		blockScholesBaseAsset: e.block_scholes_base_asset,
+		sviModel: e.svi_model,
+		sviDecimals: e.svi_decimals,
+		timestampMs: e.onchain_timestamp_ms,
+	}));
+}
+
+/** `queue_events::BsTimingUpdated`: the order desk's Block Scholes slot timing set (orders v3). */
+export interface BsTimingUpdateReceipt {
+	deskId: string;
+	timing: BsTiming;
+	timestampMs: bigint;
+}
+
+/**
+ * Every `BsTimingUpdated` in a result, in event order. The event is new in
+ * `deepbook_predict_orders` version 3, so it is matched against `packages.predictOrdersV3`, not the
+ * companion's original ID. Throws while the config doesn't record version 3.
+ */
+export function decodeBsTimingUpdates(
+	cfg: PredictConfig,
+	result: DecodableTransactionResult,
+): BsTimingUpdateReceipt[] {
+	return decodeAll(
+		result,
+		predictOrdersV3Origin(cfg),
+		'queue_events',
+		'BsTimingUpdated',
+		queueEvents.BsTimingUpdated,
+	).map((e) => ({
+		deskId: normalizeSuiAddress(e.desk_id),
+		timing: {
+			valueLagMs: e.timing.value_lag_ms,
+			sviLagMs: e.timing.svi_lag_ms,
+			gapWaitMs: e.timing.gap_wait_ms,
+		},
+		timestampMs: e.onchain_timestamp_ms,
+	}));
+}

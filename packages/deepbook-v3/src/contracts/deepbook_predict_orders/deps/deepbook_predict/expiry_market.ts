@@ -7,27 +7,33 @@
  *
  * An ExpiryMarket is the hot shared object for one expiry. It owns trade
  * execution, strike exposure state, and an embedded expiry-cash custody component,
- * plus local sponsor-funded fee incentives. Live oracle validation is delegated to
- * `pricing::load_live_pricer`; this module owns market flow policy and then passes
- * loaded `Pricer` snapshots into exposure business logic. Pool-wide PLP accounting
- * and profit accounting remain outside this module.
+ * plus local sponsor-funded fee incentives. Oracle data arrives inline and signed,
+ * checked against the underlying's oracle binding on `ProtocolConfig`. This module
+ * owns market flow policy and passes the `Pricer` built from that data into
+ * exposure business logic. Pool-wide PLP accounting and profit accounting remain
+ * outside this module.
  *
  * It also owns the order-flow primitives an order-flow companion package drives.
- * `admit_mint` and `admit_sell` admit one queued order, pin a mint's boundary
- * nodes, record the order's cash need in the market's `OrderFlowLedger`, and issue
- * or advance its `OrderReceipt`. `commit` stores the bounded Pyth price the order
- * fills at, `try_fill` fills or refunds it, `release` takes it out without
- * filling, and `try_pay_settled` pays a queue-held position after settlement. A
- * queued fill never enters the account: its position stays in the receipt.
- * Admission, commit, and fill need an allowlisted companion witness; release and
- * the settled payout need only the receipt. The queue itself, its escrow, its
- * policy, and its events live in the companion.
+ * `admit_mint_v2` and `admit_sell_v2` admit one queued order without reading any
+ * oracle, pin a mint's boundary nodes, record the order's cash need in the
+ * market's `OrderFlowLedger`, and issue or advance its `OrderReceipt`. `commit_v2`
+ * stores the Pyth price and the Block Scholes inputs for the order's τ, `try_fill`
+ * fills or refunds it, `release` takes it out without filling, and
+ * `try_pay_settled` pays a queue-held position after settlement. A queued fill
+ * never enters the account: its position stays in the receipt. Admission, commit,
+ * and fill need an allowlisted companion witness. Release and the settled payout
+ * need only the receipt. The queue itself, its escrow, its policy, and its events
+ * live in the companion.
+ *
+ * Settlement (`try_settle_v2`) and the reference tick (`set_reference_tick_v2`)
+ * take the signed observation at their exact timestamp. The entry points of
+ * earlier versions that read Propbook objects abort `EUseV2`.
  *
  * A trade that pays a builder names its code and fee per contract
- * (`builder_code::BuilderFee`). `admit_mint_with_builder` and
- * `admit_sell_with_builder` cap the fee at `protocol_config::builder_fee_cap` and
- * record the code and the capped fee in the receipt, and the fill charges what the
- * receipt records. The plain admissions name no builder and charge none.
+ * (`builder_code::BuilderFee`). Admission caps the fee at
+ * `protocol_config::builder_fee_cap` and records the code and the capped fee in
+ * the receipt, and the fill charges what the receipt records. An order that names
+ * no builder charges none.
  *
  * Mainnet USDC is a regulated coin: Sui aborts a transaction that sends it to an
  * address on its deny list, or to anyone while it is globally paused. So the fill,
@@ -95,8 +101,9 @@ export const OrderReceipt = new MoveStruct({
 		 */
 		cash_need: U64,
 		/**
-		 * The t₀ quote's pre-subsidy trading fee, capped at `budget`. Bounds the subsidy
-		 * `commit` reserves.
+		 * The pre-subsidy trading fee at the committed tick, capped at `budget`
+		 * (`commit_v2` sets it, and it is `0` until then). Bounds the subsidy the commit
+		 * reserves.
 		 */
 		subsidy_bound: U64,
 		subsidy_rate: U64,

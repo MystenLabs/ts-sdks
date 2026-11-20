@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
+import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import { deriveDynamicFieldID, deriveObjectID } from '@mysten/sui/utils';
 
 import { MAINNET_SESSIONS } from './deployments/mainnet.js';
@@ -29,6 +29,13 @@ import { SessionsData } from './contracts/deepbook_sessions/sessions.js';
 export interface SessionsConfig extends DeepbookSessionsConfig {
 	/** The latest `deepbook_sessions` Move-call package id. */
 	sessionsPackageId: string;
+	/**
+	 * Sessions version 5, whose Predict wrappers place orders with no Propbook object
+	 * (`enqueue_*_v2`). Once set it is the call target of every wrapper here: a PTB can't call an
+	 * older Sessions than the one the version watermark keeps live. Unset until the publication is
+	 * recorded, and the queued wrappers then call the version 4 `enqueue_*` with the market's feeds.
+	 */
+	sessionsPackageIdV5?: string;
 	/** Original ID for v1 structs. Omit only for an unupgraded custom deployment. */
 	sessionsPackageIdV1?: string;
 	/** The shared `SessionsConfig` object id. */
@@ -76,13 +83,24 @@ export interface SessionsPredictIds {
  * const sessions = new SessionsContract(getSessionsConfig('testnet'));
  * ```
  */
+// TODO(predict-v6): Sessions version 5, which places Predict orders with no Propbook object, is not
+// published yet. Record each network's package ID here once the upgrade executes. While unset, the
+// queued wrappers call the version 4 `enqueue_*`.
+const SESSIONS_V5: Readonly<Record<'testnet' | 'mainnet', string | undefined>> = Object.freeze({
+	testnet: undefined,
+	mainnet: undefined,
+});
+
 export function getSessionsConfig(
 	network: NetworkArg,
 ): SessionsConfig & SessionsSpotIds & SessionsPredictIds {
-	// The frozen record itself, matching `/account` — returning a spread here would have
-	// quietly exempted this subpath from the immutability the others guarantee.
-	if (network === 'testnet') return TESTNET_SESSIONS;
-	if (network === 'mainnet') return MAINNET_SESSIONS;
+	if (network === 'testnet' || network === 'mainnet') {
+		const record = network === 'testnet' ? TESTNET_SESSIONS : MAINNET_SESSIONS;
+		const v5 = SESSIONS_V5[network as 'testnet' | 'mainnet'];
+		// The frozen record itself, matching `/account` — returning a spread here would have
+		// quietly exempted this subpath from the immutability the others guarantee.
+		return v5 ? Object.freeze({ ...record, sessionsPackageIdV5: v5 }) : record;
+	}
 	throw new Error(
 		`@mysten/deepbook-v3/sessions: no sessions deployment recorded for network '${network}'. ` +
 			'Sessions is recorded for testnet and mainnet; for your own deployment construct a ' +
@@ -91,7 +109,11 @@ export function getSessionsConfig(
 	);
 }
 
-/** The market, queue, account and oracle objects every queued Predict session wrapper names. */
+/**
+ * The market, queue and account every queued Predict session wrapper names, plus the market's
+ * Propbook objects for a Sessions version 4 call target. Sessions version 5
+ * (`sessionsPackageIdV5`) takes no oracle object, and ignores them.
+ */
 export interface SessionsQueuedOrderTarget {
 	expiryMarketId: string;
 	wrapperId: string;
@@ -112,15 +134,33 @@ export interface SessionsQueuedOrderTarget {
 	queueId?: string;
 	/** Predict's `ProtocolConfig`. */
 	protocolConfig: string;
-	/** Predict's `OracleRegistry` (the propbook registry). */
-	oracleRegistry: string;
-	/** The market's `PythFeed`. */
-	pythFeed: string;
-	/** The market's `BlockScholesValueStore`. */
-	blockScholesValueStore: string;
-	/** The market's `BlockScholesSVIStore`. */
-	blockScholesSviStore: string;
+	/** Predict's `OracleRegistry` (the propbook registry). Sessions version 4 only. */
+	oracleRegistry?: string;
+	/** The market's `PythFeed`. Sessions version 4 only. */
+	pythFeed?: string;
+	/** The market's `BlockScholesValueStore`. Sessions version 4 only. */
+	blockScholesValueStore?: string;
+	/** The market's `BlockScholesSVIStore`. Sessions version 4 only. */
+	blockScholesSviStore?: string;
+	/**
+	 * Name a builder: its `BuilderCode` object and fee per contract (1e9 is $1), for the
+	 * `_with_builder_v2` wrapper. Sessions version 5 only.
+	 */
+	builder?: { codeId: string; feePerContract: bigint };
 }
+
+// The leading arguments every queued session wrapper shares.
+function queuedBase(accountRegistry: string, params: SessionsQueuedOrderTarget) {
+	return {
+		queue: params.queueId ?? deriveQueueId(params.queueRegistry, params.expiryMarketId),
+		market: params.expiryMarketId,
+		accountRegistry,
+		wrapper: params.wrapperId,
+		desk: params.orderDesk,
+		config: params.protocolConfig,
+	};
+}
+type QueuedBase = ReturnType<typeof queuedBase>;
 
 const U64_MAX = (1n << 64n) - 1n;
 
@@ -210,7 +250,7 @@ export class SessionsContract {
 	// it belongs to the account package, which is a separate codegen entry.
 	get #generatedConfig() {
 		return {
-			sessionsPackageId: this.#config.sessionsPackageId,
+			sessionsPackageId: this.#config.sessionsPackageIdV5 ?? this.#config.sessionsPackageId,
 			sessionsConfig: this.#config.sessionsConfig,
 		};
 	}
@@ -318,164 +358,10 @@ export class SessionsContract {
 	//
 	// Each mirrors the Predict entrypoint of the same name, with two differences: the
 	// caller supplies NO `Auth` (the wrapper mints and consumes app authorization
-	// internally), and `accountRegistry` + `sessionsConfig` are threaded in. `pricer` is a
-	// PTB RESULT, not an object — it comes from a preceding `expiry_market::load_live_pricer`
-	// command in the same transaction. Everything else matches Predict exactly, and Predict
-	// still performs all parameter validation.
-
-	/**
-	 * @description Mint a position of an exact payout quantity, as `session`. Pass
-	 * `u64::MAX` for `maxCost` / `maxProbability` to leave either slippage cap
-	 * effectively unbounded — the chain asserts `value <= cap`, so the max value can never
-	 * trip. Both are required; there is no default.
-	 * @returns A function that takes a Transaction object and returns the new order id (u256)
-	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4
-	 * (`EDelayedExecutionRequired`). Use {@link SessionsContract.enqueueExactQuantity}.
-	 */
-	mintExactQuantity(params: {
-		expiryMarketId: string;
-		wrapperId: string;
-		protocolConfig: string;
-		pricer: TransactionArgument;
-		lowerTick: number | bigint;
-		higherTick: number | bigint;
-		quantity: number | bigint;
-		maxCost: number | bigint;
-		maxProbability: number | bigint;
-	}) {
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
-				sessions.mintExactQuantity({
-					config: this.#generatedConfig,
-					arguments: {
-						market: params.expiryMarketId,
-						accountRegistry: this.#config.accountRegistry,
-						wrapper: params.wrapperId,
-						config: params.protocolConfig,
-						pricer: params.pricer,
-						lowerTick: params.lowerTick,
-						higherTick: params.higherTick,
-						quantity: params.quantity,
-						maxCost: params.maxCost,
-						maxProbability: params.maxProbability,
-					},
-				}),
-			);
-	}
-
-	/**
-	 * @description Mint by spending up to a premium budget, flooring the quantity received.
-	 * The chain requires `maxCost > 0`.
-	 * @returns A function that takes a Transaction object and returns the new order id (u256)
-	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4.
-	 * Use {@link SessionsContract.enqueueExactAmount}.
-	 */
-	mintExactAmount(params: {
-		expiryMarketId: string;
-		wrapperId: string;
-		protocolConfig: string;
-		pricer: TransactionArgument;
-		lowerTick: number | bigint;
-		higherTick: number | bigint;
-		maxPremium: number | bigint;
-		minQuantity: number | bigint;
-		maxCost: number | bigint;
-	}) {
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
-				sessions.mintExactAmount({
-					config: this.#generatedConfig,
-					arguments: {
-						market: params.expiryMarketId,
-						accountRegistry: this.#config.accountRegistry,
-						wrapper: params.wrapperId,
-						config: params.protocolConfig,
-						pricer: params.pricer,
-						lowerTick: params.lowerTick,
-						higherTick: params.higherTick,
-						maxPremium: params.maxPremium,
-						minQuantity: params.minQuantity,
-						maxCost: params.maxCost,
-					},
-				}),
-			);
-	}
-
-	/**
-	 * Mint within an all-in budget as a session. Amounts are raw Move units.
-	 * Requires Sessions/Predict v2 or later.
-	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4.
-	 * Use {@link SessionsContract.enqueueExactCost}.
-	 */
-	mintExactCost(params: {
-		expiryMarketId: string;
-		wrapperId: string;
-		protocolConfig: string;
-		pricer: TransactionArgument;
-		lowerTick: number | bigint;
-		higherTick: number | bigint;
-		maxCost: number | bigint;
-		minQuantity: number | bigint;
-	}) {
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
-				sessions.mintExactCost({
-					config: this.#generatedConfig,
-					arguments: {
-						market: params.expiryMarketId,
-						accountRegistry: this.#config.accountRegistry,
-						wrapper: params.wrapperId,
-						config: params.protocolConfig,
-						pricer: params.pricer,
-						lowerTick: params.lowerTick,
-						higherTick: params.higherTick,
-						maxCost: params.maxCost,
-						minQuantity: params.minQuantity,
-					},
-				}),
-			);
-	}
-
-	/**
-	 * @description Close part or all of a live position at the pricer's mark, as `session`.
-	 * `minProbability` / `minProceeds` are close-side slippage floors; `0` disables either,
-	 * and OMITTING them is `0` — unlike the mint caps, which are required. On a delegated
-	 * key this is the direction that closes a position at any price, so pass real floors
-	 * unless you mean to accept whatever the mark gives you.
-	 * @returns A function that takes a Transaction object and returns `Option<u256>` — the
-	 * replacement order id when a partial close leaves quantity open
-	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4.
-	 * Account positions then have no early exit; queued fills are Open records sold with
-	 * {@link SessionsContract.enqueueRedeemOpen}.
-	 */
-	redeemLive(params: {
-		expiryMarketId: string;
-		wrapperId: string;
-		protocolConfig: string;
-		pricer: TransactionArgument;
-		orderId: bigint;
-		closeQuantity: number | bigint;
-		minProbability?: number | bigint;
-		minProceeds?: number | bigint;
-	}) {
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
-				sessions.redeemLive({
-					config: this.#generatedConfig,
-					arguments: {
-						market: params.expiryMarketId,
-						accountRegistry: this.#config.accountRegistry,
-						wrapper: params.wrapperId,
-						config: params.protocolConfig,
-						pricer: params.pricer,
-						orderId: params.orderId,
-						closeQuantity: params.closeQuantity,
-						minProbability: params.minProbability ?? 0,
-						minProceeds: params.minProceeds ?? 0,
-					},
-				}),
-			);
-	}
+	// internally), and `accountRegistry` + `sessionsConfig` are threaded in. Predict still
+	// performs all parameter validation. The immediate trade wrappers (`mint_exact_*`,
+	// `redeem_live`) took a `Pricer` from `load_live_pricer`, which Predict version 6 retires, and
+	// those trades were already retired by delayed execution, so they are no longer wrapped.
 
 	/**
 	 * @description Claim a settled position in full, as `session`. Takes no pricer — the
@@ -506,15 +392,15 @@ export class SessionsContract {
 
 	// === Queued Predict wrappers (delayed execution, DBU-885) ===
 	//
-	// The session form of the order-flow companion's `queue::enqueue_*`, in Sessions v3. Each
-	// wrapper names the market's `MarketQueue` and the companion's `OrderDesk` next to the market.
-	// Placement takes no pricer: it reads the oracle objects directly, so each wrapper takes the
-	// market's three feed ids plus Predict's `OracleRegistry` (the propbook registry). Amounts are
-	// raw Move units. Each returns the new queue record ID (u64). The queue and Predict perform
-	// every check; the caps below are only the ones a session key should never send by accident.
+	// The session form of the order-flow companion's `queue::enqueue_*`. Each wrapper names the
+	// market's `MarketQueue` and the companion's `OrderDesk` next to the market. Amounts are raw Move
+	// units. Each returns the new queue record ID (u64). The queue and Predict perform every check;
+	// the caps below are only the ones a session key should never send by accident.
 	//
-	// They need a config whose `sessionsPackageId` is a Sessions v3 publication, which both
-	// network records are. Sessions v1 and v2 have none of them.
+	// With `sessionsPackageIdV5` set they call Sessions version 5's `enqueue_*_v2`, which take no
+	// oracle object (Predict version 6), or `enqueue_*_with_builder_v2` when `builder` is given.
+	// Otherwise they call the Sessions version 4 `enqueue_*`, which take the market's three feed ids
+	// plus Predict's `OracleRegistry`, and refuse a builder.
 
 	/**
 	 * @description Queue a mint of an exact payout quantity, as `session`. `maxCost` (all-in cap)
@@ -532,20 +418,30 @@ export class SessionsContract {
 		},
 	) {
 		assertQueuedMaxCost(params.maxCost);
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
+		const terms = {
+			lowerTick: params.lowerTick,
+			higherTick: params.higherTick,
+			quantity: params.quantity,
+			maxCost: params.maxCost,
+			maxProbability: params.maxProbability,
+		};
+		return this.#queued(params, {
+			v5: (target) =>
+				sessions.enqueueExactQuantityV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...terms },
+				}),
+			v5Builder: (target, builder) =>
+				sessions.enqueueExactQuantityWithBuilderV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...builder, ...terms },
+				}),
+			v4: (target) =>
 				sessions.enqueueExactQuantity({
 					config: this.#generatedConfig,
-					arguments: {
-						...this.#queuedTarget(params),
-						lowerTick: params.lowerTick,
-						higherTick: params.higherTick,
-						quantity: params.quantity,
-						maxCost: params.maxCost,
-						maxProbability: params.maxProbability,
-					},
+					arguments: { ...target, ...terms },
 				}),
-			);
+		});
 	}
 
 	/**
@@ -563,20 +459,30 @@ export class SessionsContract {
 		},
 	) {
 		assertQueuedMaxCost(params.maxCost);
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
+		const terms = {
+			lowerTick: params.lowerTick,
+			higherTick: params.higherTick,
+			maxPremium: params.maxPremium,
+			minQuantity: params.minQuantity,
+			maxCost: params.maxCost,
+		};
+		return this.#queued(params, {
+			v5: (target) =>
+				sessions.enqueueExactAmountV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...terms },
+				}),
+			v5Builder: (target, builder) =>
+				sessions.enqueueExactAmountWithBuilderV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...builder, ...terms },
+				}),
+			v4: (target) =>
 				sessions.enqueueExactAmount({
 					config: this.#generatedConfig,
-					arguments: {
-						...this.#queuedTarget(params),
-						lowerTick: params.lowerTick,
-						higherTick: params.higherTick,
-						maxPremium: params.maxPremium,
-						minQuantity: params.minQuantity,
-						maxCost: params.maxCost,
-					},
+					arguments: { ...target, ...terms },
 				}),
-			);
+		});
 	}
 
 	/**
@@ -593,19 +499,29 @@ export class SessionsContract {
 		},
 	) {
 		assertQueuedMaxCost(params.maxCost);
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
+		const terms = {
+			lowerTick: params.lowerTick,
+			higherTick: params.higherTick,
+			maxCost: params.maxCost,
+			minQuantity: params.minQuantity,
+		};
+		return this.#queued(params, {
+			v5: (target) =>
+				sessions.enqueueExactCostV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...terms },
+				}),
+			v5Builder: (target, builder) =>
+				sessions.enqueueExactCostWithBuilderV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...builder, ...terms },
+				}),
+			v4: (target) =>
 				sessions.enqueueExactCost({
 					config: this.#generatedConfig,
-					arguments: {
-						...this.#queuedTarget(params),
-						lowerTick: params.lowerTick,
-						higherTick: params.higherTick,
-						maxCost: params.maxCost,
-						minQuantity: params.minQuantity,
-					},
+					arguments: { ...target, ...terms },
 				}),
-			);
+		});
 	}
 
 	/**
@@ -623,37 +539,82 @@ export class SessionsContract {
 			minProceeds: number | bigint;
 		},
 	) {
-		return (tx: Transaction): TransactionResult =>
-			tx.add(
+		const terms = {
+			recordId: params.recordId,
+			closeQuantity: params.closeQuantity,
+			minProbability: params.minProbability,
+			minProceeds: params.minProceeds,
+		};
+		return this.#queued(params, {
+			v5: (target) =>
+				sessions.enqueueRedeemOpenV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...terms },
+				}),
+			v5Builder: (target, builder) =>
+				sessions.enqueueRedeemOpenWithBuilderV2({
+					config: this.#generatedConfig,
+					arguments: { ...target, ...builder, ...terms },
+				}),
+			v4: (target) =>
 				sessions.enqueueRedeemOpen({
 					config: this.#generatedConfig,
-					arguments: {
-						...this.#queuedTarget(params),
-						recordId: params.recordId,
-						closeQuantity: params.closeQuantity,
-						minProbability: params.minProbability,
-						minProceeds: params.minProceeds,
-					},
+					arguments: { ...target, ...terms },
 				}),
-			);
+		});
 	}
 
-	// The leading arguments every queued wrapper shares, in the Move order: `(queue, market,
-	// account_registry, wrapper, sessions_config, desk, config, propbook_registry, pyth, bs_values,
-	// bs_svi, …)`. `sessions_config` comes from the generated config.
-	#queuedTarget(params: SessionsQueuedOrderTarget) {
-		return {
-			queue: params.queueId ?? deriveQueueId(params.queueRegistry, params.expiryMarketId),
-			market: params.expiryMarketId,
-			accountRegistry: this.#config.accountRegistry,
-			wrapper: params.wrapperId,
-			desk: params.orderDesk,
-			config: params.protocolConfig,
-			propbookRegistry: params.oracleRegistry,
-			pyth: params.pythFeed,
-			bsValues: params.blockScholesValueStore,
-			bsSvi: params.blockScholesSviStore,
-		};
+	// Pick the queued wrapper for the configured call target. The leading arguments in the Move
+	// order: `(queue, market, account_registry, wrapper, sessions_config, desk, config, …)`, then on
+	// Sessions version 4 the Propbook objects `(propbook_registry, pyth, bs_values, bs_svi, …)`.
+	// `sessions_config` comes from the generated config.
+	#queued(
+		params: SessionsQueuedOrderTarget,
+		calls: {
+			v5: (target: QueuedBase) => (tx: Transaction) => TransactionResult;
+			v5Builder: (
+				target: QueuedBase,
+				builder: { code: string; builderFeePerContract: bigint },
+			) => (tx: Transaction) => TransactionResult;
+			v4: (
+				target: QueuedBase & {
+					PropbookRegistry: string;
+					Pyth: string;
+					BsValues: string;
+					BsSvi: string;
+				},
+			) => (tx: Transaction) => TransactionResult;
+		},
+	): (tx: Transaction) => TransactionResult {
+		const target = queuedBase(this.#config.accountRegistry, params);
+		if (this.#config.sessionsPackageIdV5) {
+			const call = params.builder
+				? calls.v5Builder(target, {
+						code: params.builder.codeId,
+						builderFeePerContract: params.builder.feePerContract,
+					})
+				: calls.v5(target);
+			return (tx) => tx.add(call);
+		}
+		if (params.builder) {
+			throw new Error(
+				'a session order that names a builder needs Sessions version 5 (`sessionsPackageIdV5`)',
+			);
+		}
+		const { oracleRegistry, pythFeed, blockScholesValueStore, blockScholesSviStore } = params;
+		if (!oracleRegistry || !pythFeed || !blockScholesValueStore || !blockScholesSviStore) {
+			throw new Error(
+				"the Sessions version 4 enqueue takes the market's Propbook objects: pass oracleRegistry, pythFeed, blockScholesValueStore and blockScholesSviStore, or set sessionsPackageIdV5",
+			);
+		}
+		const call = calls.v4({
+			...target,
+			PropbookRegistry: oracleRegistry,
+			Pyth: pythFeed,
+			BsValues: blockScholesValueStore,
+			BsSvi: blockScholesSviStore,
+		});
+		return (tx) => tx.add(call);
 	}
 
 	/**
@@ -713,7 +674,7 @@ export class SessionsContract {
 // NOTE: this namespace carries the DeepBook spot session calls too
 // (`placeLimitOrder`, `placeMarketOrder`, `cancelLiveOrder(s)`, `withdrawSettledAmounts`).
 // They are generated and callable; they are simply not wrapped on `SessionsContract`.
-export * as sessionsMoveCalls from './contracts/deepbook_sessions/sessions.js';
+export * as sessionsMoveCalls from './predict/bindings/sessions.js';
 export * as sessionConfigMoveCalls from './contracts/deepbook_sessions/session_config.js';
 export {
 	SessionsApp,

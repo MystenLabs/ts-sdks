@@ -8,7 +8,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { ProtocolConfig } from '../../src/contracts/deepbook_predict/protocol_config.js';
 import { MAINNET_CONFIG, TESTNET_CONFIG } from '../../src/predict/config/index.js';
-import { toGeneratedConfig, toOrdersConfig } from '../../src/predict/config/generated.js';
+import { toOrdersConfig } from '../../src/predict/config/generated.js';
 import {
 	executionModeFor,
 	lazerPackages,
@@ -17,8 +17,7 @@ import {
 	orderFlowWitnessType,
 	pendingFunds,
 	queuedOrders,
-	quoteMintForAccount,
-	quoteRedeemOpen,
+	quoteContext,
 	versionWatermark,
 } from '../../src/predict/reads/queue.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
@@ -38,11 +37,6 @@ import {
 
 const config = toOrdersConfig(cfg);
 const OWNER = '0x' + 'ab'.repeat(32);
-const feeds = {
-	pythFeed: cfg.underlyings.BTC.pythFeed,
-	blockScholesValueStore: cfg.underlyings.BTC.blockScholesValueStore,
-	blockScholesSviStore: cfg.underlyings.BTC.blockScholesSviStore,
-};
 
 function objectClient(object: { type: string; content: Uint8Array }) {
 	return {
@@ -178,32 +172,29 @@ describe('records and quotes', () => {
 		expect(await queuedOrders(client, config, { expiryMarketId: MARKET }, [])).toEqual([]);
 	});
 
-	test('quoteRedeemOpen loads a live pricer, quotes the record on the queue and reads the desk', async () => {
+	test('quoteContext reads the desk, the subsidy rate, the builder cap and the balance', async () => {
 		const { client, simulated } = queueClient(
-			scenario({ records: new Map([[3n, recordFields({ status: 2 })]]) }),
+			scenario({ available: 3_000_000n, builderFeeCap: 7n }),
 		);
-		const { quote, policy } = await quoteRedeemOpen(client, config, {
-			expiryMarketId: MARKET,
-			wrapperId: '0x' + 'ef'.repeat(32),
-			recordId: 3n,
-			closeQuantityRaw: 2_000_000n,
-			...feeds,
+		const ctx = await quoteContext(client, config, {
+			owner: '0x' + 'ab'.repeat(32),
+			coinType: cfg.quoteCoinType,
 		});
 		expect(moveCallTargets(simulated[0])).toEqual([
-			'expiry_market::load_live_pricer',
-			'queue::quote_redeem_open',
 			'desk::policy',
+			'protocol_config::fee_incentive_subsidy_rate',
+			'protocol_config::builder_fee_cap',
+			'account::load_account',
+			'account::balance',
 		]);
-		// queue, market, wrapper, pricer, record_id, close_quantity, clock: no ProtocolConfig.
-		const data = simulated[0].getData();
-		const q = data.commands[1].MoveCall!;
-		expect(
-			data.inputs[(q.arguments[0] as { Input: number }).Input].UnresolvedObject?.objectId,
-		).toBe(QUEUE);
-		expect(q.arguments[3]).toEqual({ $kind: 'Result', Result: 0 });
-		expect(q.arguments).toHaveLength(7);
-		expect(quote).toMatchObject({ proceeds: 790_000n, closeQuantity: 2_000_000n });
-		expect(policy.orderFee).toBe(20_000n);
+		expect(ctx).toMatchObject({
+			feeIncentiveSubsidyRate: 200_000_000n,
+			builderFeeCap: 7n,
+			availableRaw: 3_000_000n,
+		});
+		expect(ctx.policy.orderFee).toBe(20_000n);
+		const anonymous = await quoteContext(client, config);
+		expect(anonymous.availableRaw).toBeNull();
 	});
 
 	test('orderFeeAndBalance reads the desk policy and the balance in one simulate', async () => {
@@ -221,40 +212,6 @@ describe('records and quotes', () => {
 		]);
 		expect(policy.orderFee).toBe(20_000n);
 		expect(availableRaw).toBe(3_000_000n);
-	});
-
-	test('quoteMintForAccount picks the quote for each mint shape', async () => {
-		const { client, simulated } = queueClient(scenario());
-		const base = {
-			expiryMarketId: MARKET,
-			wrapperId: '0x' + 'ef'.repeat(32),
-			lowerTick: 1n,
-			higherTick: 2n,
-			...feeds,
-		};
-		const exact = await quoteMintForAccount(client, toGeneratedConfig(cfg), {
-			...base,
-			request: { shape: 'exact-quantity', quantityRaw: 10_000_000n },
-		});
-		expect(exact.quote).toMatchObject({ allInCost: 4_090_000n, penaltyFee: 7_000n });
-		expect(exact.policy).toBeNull();
-		const cost = await quoteMintForAccount(client, toGeneratedConfig(cfg), {
-			...base,
-			request: { shape: 'exact-cost', maxCostRaw: 5_000_000n, minQuantityRaw: 0n },
-			ordersConfig: config,
-		});
-		expect(cost.policy!.orderFee).toBe(20_000n);
-		expect(moveCallTargets(simulated[0])[1]).toBe('expiry_market::quote_mint_for_account');
-		expect(moveCallTargets(simulated[1])).toEqual([
-			'expiry_market::load_live_pricer',
-			'expiry_market::quote_mint_exact_cost_for_account',
-			'desk::policy',
-		]);
-		// exact_quantity = true carries the quantity in min_quantity and no premium cap.
-		const exactCall = simulated[0].getData().commands[1].MoveCall!;
-		const exactFlag =
-			simulated[0].getData().inputs[(exactCall.arguments[8] as { Input: number }).Input];
-		expect(exactFlag.Pure!.bytes).toBe(Buffer.from([1]).toString('base64'));
 	});
 });
 
@@ -275,8 +232,10 @@ describe('execution mode and the watermark', () => {
 		expect(executionModeFor(4n, true)).toBe('delayed');
 		// Version 5's watermark is the code constant these bindings compile (the Mainnet number).
 		expect(executionModeFor(5n, true)).toBe('delayed');
+		// The bindings compile Predict version 6, which reads no Propbook object.
+		expect(executionModeFor(6n, true)).toBe('delayed');
 		// A watermark above the Predict code this SDK calls retires it.
-		expect(executionModeFor(6n, true)).toBe('retired');
+		expect(executionModeFor(7n, true)).toBe('retired');
 		// A config pins the version its call target compiles: one still on Predict v4 compiles 4.
 		expect(executionModeFor(5n, true, true, 4n)).toBe('retired');
 		// Mainnet's Predict v5 compiles 5.

@@ -4,18 +4,20 @@
 
 /**
  * One expiry market's delayed-execution queue, `MarketQueue`, and its flows:
- * placement of queued mints and early sells, commit of verified Pyth Lazer prices,
- * resolve at the committed tick, the deadline and admin refunds, the settlement
- * drain and payout walk, cleanup, and the queue reads.
+ * placement of queued mints and early sells, commit of verified Pyth Lazer prices
+ * and Block Scholes inputs, resolve at the committed tick, the deadline and admin
+ * refunds, the settlement drain and payout walk, cleanup, and the queue reads.
  *
  * Every money-moving step runs inside one of Predict's order-flow primitives,
- * which check their own gates and bindings when they run: admission (`admit_mint`,
- * `admit_sell`), `commit`, `try_fill`, `release`, and `try_pay_settled`. The queue
- * owns what Predict leaves to the companion: τ and the deadline, the stuck gate,
- * capacities and per-account caps, cohort order, the exact-or-backup tick choice,
- * escrow custody, refund routing, and the queue events. Each record holds
- * Predict's receipt for its order and that order's own escrow, so a refund pays
- * exactly that record's escrow.
+ * which check their own gates and bindings when they run: admission
+ * (`admit_mint_v2`, `admit_sell_v2`), `commit_v2`, `try_fill`, `release`, and
+ * `try_pay_settled`. The queue owns what Predict leaves to the companion: τ and
+ * the deadline, the stuck gate, capacities and per-account caps, cohort order, the
+ * exact-or-backup tick choice, the Block Scholes slot rule (`BsTiming`), escrow
+ * custody, refund routing, and the queue events. Placement reads no oracle: the
+ * version 5 enqueue signatures take Propbook objects and ignore them. Each record
+ * holds Predict's receipt for its order and that order's own escrow, so a refund
+ * pays exactly that record's escrow.
  *
  * A queued fill never enters the account: it stays an Open record until
  * `enqueue_redeem_open` sells it or the settlement payout walk or `pay_open` pays
@@ -525,13 +527,15 @@ export interface QuoteRedeemOpenOptions {
 }
 /**
  * Quote an early sell of `close_quantity` from the Open record `record_id` at a
- * live `Pricer` through Predict's `quote_close`: the close a queued sell fills,
- * with the trading fee at the clock instead of a committed tick. No builder fee,
- * matching `enqueue_redeem_open`; `quote_redeem_open_with_builder_fee` quotes a
- * sell that names a builder. `proceeds` is before the order fee. Changes nothing.
- * Aborts `ERecordNotOpen` for a missing or non-Open record, and otherwise as
- * `quote_close` does. Does not check that the account owns the record. For SDK and
- * devInspect pricing before `enqueue_redeem_open`.
+ * live `Pricer` through Predict's `quote_close`, which Predict retired in version
+ * 6 (it aborts `EUseV2`, since no transaction can build a live `Pricer` any more):
+ * the close a queued sell fills, with the trading fee at the clock instead of a
+ * committed tick. No builder fee, matching `enqueue_redeem_open`;
+ * `quote_redeem_open_with_builder_fee` quotes a sell that names a builder.
+ * `proceeds` is before the order fee. Changes nothing. Aborts `ERecordNotOpen` for
+ * a missing or non-Open record, and otherwise as `quote_close` does. Does not
+ * check that the account owns the record. For SDK and devInspect pricing before
+ * `enqueue_redeem_open`.
  */
 export function quoteRedeemOpen(options: QuoteRedeemOpenOptions) {
 	const packageAddress =
@@ -665,10 +669,10 @@ export interface EnqueueExactQuantityArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	quantity: RawTransactionArgument<number | bigint>;
@@ -686,19 +690,8 @@ export interface EnqueueExactQuantityOptions {
 	};
 }
 /**
- * Place a queued mint for an exact quantity, priced later at Pyth's signed price
- * for its τ. `max_cost` caps the all-in withdrawal and is mandatory;
- * `max_probability` caps the entry probability at τ. Escrows the budget,
- * `min(max_cost, quantity, available - order_fee)`, and the order fee, and returns
- * the new record ID.
- *
- * Aborts, charging nothing, when the queue refuses the order: the desk floor,
- * another desk's or market's queue (`EWrongDesk`, `EWrongMarket`), a stuck or full
- * queue (`EQueueStuck`, `EQueueFull`, `EAccountOrderCap`), τ at or past the cutoff
- * (`EPastCutoff`), an unlimited or zero `max_cost` (`EMintCostCapRequired`), or a
- * balance not above the order fee (`EFeeNotCovered`). Then Predict's `admit_mint`
- * applies its gates, the order's own limits at the clock, and the market's spare
- * cash.
+ * The oracle-free `enqueue_exact_quantity_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 	const packageAddress =
@@ -731,10 +724,10 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'lowerTick',
 		'higherTick',
 		'quantity',
@@ -751,7 +744,94 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactQuantityV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityV2Options {
+	package?: string;
+	arguments: EnqueueExactQuantityV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Place a queued mint for an exact quantity, priced later at Pyth's signed price
+ * for its τ. `max_cost` caps the all-in withdrawal and is mandatory;
+ * `max_probability` caps the entry probability at τ. Escrows the budget,
+ * `min(max_cost, quantity, available - order_fee)`, and the order fee, and returns
+ * the new record ID.
+ *
+ * Aborts, charging nothing, when the queue refuses the order: the desk floor,
+ * another desk's or market's queue (`EWrongDesk`, `EWrongMarket`), a stuck or full
+ * queue (`EQueueStuck`, `EQueueFull`, `EAccountOrderCap`), τ at or past the cutoff
+ * (`EPastCutoff`), an unlimited or zero `max_cost` (`EMintCostCapRequired`), or a
+ * balance not above the order fee (`EFeeNotCovered`). Then Predict's
+ * `admit_mint_v2` applies its gates, the range and timing checks, and the market's
+ * spare cash. The order's own limits are checked at τ, where an order that misses
+ * them is refunded with its order fee kept.
+ */
+export function enqueueExactQuantityV2(options: EnqueueExactQuantityV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_quantity_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -765,10 +845,10 @@ export interface EnqueueExactQuantityWithBuilderArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	lowerTick: RawTransactionArgument<number | bigint>;
@@ -788,13 +868,8 @@ export interface EnqueueExactQuantityWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_exact_quantity` for an order that names a builder: `code` is the
- * builder code the trade pays and `builder_fee_per_contract` its fee per contract,
- * in FLOAT_SCALING of the $1 payout. Predict caps the fee at
- * `protocol_config::builder_fee_cap`, records it in the order's receipt, and
- * prices the order's limits with it, and the fill pays `quantity * fee`, rounded
- * down, to the code. Refuses orders like `enqueue_exact_quantity`. Returns the new
- * record ID.
+ * The oracle-free `enqueue_exact_quantity_with_builder_v2` under the signature
+ * earlier versions published: the Propbook arguments are ignored.
  */
 export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWithBuilderOptions) {
 	const packageAddress =
@@ -829,10 +904,10 @@ export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWit
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'lowerTick',
@@ -851,7 +926,95 @@ export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWit
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactQuantityWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueExactQuantityWithBuilderV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_quantity` for an order that names a builder: `code` is the
+ * builder code the trade pays and `builder_fee_per_contract` its fee per contract,
+ * in FLOAT_SCALING of the $1 payout. Predict caps the fee at
+ * `protocol_config::builder_fee_cap`, records it in the order's receipt, and
+ * prices the order's limits with it, and the fill pays `quantity * fee`, rounded
+ * down, to the code. Refuses orders like `enqueue_exact_quantity`. Returns the new
+ * record ID.
+ */
+export function enqueueExactQuantityWithBuilderV2(
+	options: EnqueueExactQuantityWithBuilderV2Options,
+) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_quantity_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -865,10 +1028,10 @@ export interface EnqueueExactAmountArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	maxPremium: RawTransactionArgument<number | bigint>;
@@ -886,10 +1049,8 @@ export interface EnqueueExactAmountOptions {
 	};
 }
 /**
- * Place a queued premium-budget mint: sized at τ under `max_premium`, at least
- * `min_quantity`, with the all-in withdrawal capped by the mandatory `max_cost`.
- * Escrows `min(max_cost, available - order_fee)` and the order fee. Refuses orders
- * like `enqueue_exact_quantity`. Returns the new record ID.
+ * The oracle-free `enqueue_exact_amount_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 	const packageAddress =
@@ -922,10 +1083,10 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'lowerTick',
 		'higherTick',
 		'maxPremium',
@@ -942,7 +1103,84 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactAmountV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountV2Options {
+	package?: string;
+	arguments: EnqueueExactAmountV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Place a queued premium-budget mint: sized at τ under `max_premium`, at least
+ * `min_quantity`, with the all-in withdrawal capped by the mandatory `max_cost`.
+ * Escrows `min(max_cost, available - order_fee)` and the order fee. Refuses orders
+ * like `enqueue_exact_quantity`. Returns the new record ID.
+ */
+export function enqueueExactAmountV2(options: EnqueueExactAmountV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_amount_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -956,10 +1194,10 @@ export interface EnqueueExactAmountWithBuilderArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	lowerTick: RawTransactionArgument<number | bigint>;
@@ -979,9 +1217,8 @@ export interface EnqueueExactAmountWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_exact_amount` for an order that names a builder, charging the capped
- * `builder_fee_per_contract` to `code` like `enqueue_exact_quantity_with_builder`.
- * The fee is inside the `max_cost` withdrawal cap. Returns the new record ID.
+ * The oracle-free `enqueue_exact_amount_with_builder_v2` under the signature
+ * earlier versions published: the Propbook arguments are ignored.
  */
 export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBuilderOptions) {
 	const packageAddress =
@@ -1016,10 +1253,10 @@ export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBui
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'lowerTick',
@@ -1038,7 +1275,89 @@ export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBui
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactAmountWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueExactAmountWithBuilderV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_amount` for an order that names a builder, charging the capped
+ * `builder_fee_per_contract` to `code` like `enqueue_exact_quantity_with_builder`.
+ * The fee is inside the `max_cost` withdrawal cap. Returns the new record ID.
+ */
+export function enqueueExactAmountWithBuilderV2(options: EnqueueExactAmountWithBuilderV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_amount_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1052,10 +1371,10 @@ export interface EnqueueExactCostArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
@@ -1072,11 +1391,8 @@ export interface EnqueueExactCostOptions {
 	};
 }
 /**
- * Place a queued all-in-budget mint: sized at τ so the all-in cost fits
- * `max_cost`, at least `min_quantity`. Escrows
- * `min(max_cost, available -  order_fee)` and the order fee. `max_cost` is
- * mandatory here too: the unlimited value is refused. Refuses orders like
- * `enqueue_exact_quantity`. Returns the new record ID.
+ * The oracle-free `enqueue_exact_cost_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueExactCost(options: EnqueueExactCostOptions) {
 	const packageAddress =
@@ -1108,10 +1424,10 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'lowerTick',
 		'higherTick',
 		'maxCost',
@@ -1127,7 +1443,82 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactCostV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostV2Options {
+	package?: string;
+	arguments: EnqueueExactCostV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Place a queued all-in-budget mint: sized at τ so the all-in cost fits
+ * `max_cost`, at least `min_quantity`. Escrows
+ * `min(max_cost, available -  order_fee)` and the order fee. `max_cost` is
+ * mandatory here too: the unlimited value is refused. Refuses orders like
+ * `enqueue_exact_quantity`. Returns the new record ID.
+ */
+export function enqueueExactCostV2(options: EnqueueExactCostV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_cost_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1141,10 +1532,10 @@ export interface EnqueueExactCostWithBuilderArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	lowerTick: RawTransactionArgument<number | bigint>;
@@ -1163,10 +1554,8 @@ export interface EnqueueExactCostWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_exact_cost` for an order that names a builder, charging the capped
- * `builder_fee_per_contract` to `code` like `enqueue_exact_quantity_with_builder`.
- * The fill sizes the order so the fee fits inside `max_cost`. Returns the new
- * record ID.
+ * The oracle-free `enqueue_exact_cost_with_builder_v2` under the signature earlier
+ * versions published: the Propbook arguments are ignored.
  */
 export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilderOptions) {
 	const packageAddress =
@@ -1200,10 +1589,10 @@ export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilder
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'lowerTick',
@@ -1221,7 +1610,87 @@ export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilder
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactCostWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueExactCostWithBuilderV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_cost` for an order that names a builder, charging the capped
+ * `builder_fee_per_contract` to `code` like `enqueue_exact_quantity_with_builder`.
+ * The fill sizes the order so the fee fits inside `max_cost`. Returns the new
+ * record ID.
+ */
+export function enqueueExactCostWithBuilderV2(options: EnqueueExactCostWithBuilderV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_exact_cost_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1235,10 +1704,10 @@ export interface EnqueueRedeemOpenArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	recordId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
 	minProbability: RawTransactionArgument<number | bigint>;
@@ -1255,20 +1724,8 @@ export interface EnqueueRedeemOpenOptions {
 	};
 }
 /**
- * Place a queued early sell of `close_quantity` of an Open record's position.
- * `record_id` is the record's queue ID, not the position's order ID. The source
- * record must belong to this account (`ENotRecordOwner`) and be Open
- * (`ERecordNotOpen`, also for a missing ID). It is marked Closed and its receipt
- * and whole position move into the new record until the sell fills or refunds.
- * `min_probability` and `min_proceeds` are the close-side floors at τ. Returns the
- * new record ID.
- *
- * Escrows only the order fee, so a balance equal to it is enough. Refuses a sell
- * below `min_sell_quantity` or one leaving a remainder below it (`EBelowMinSell`),
- * and otherwise like `enqueue_exact_quantity`. Predict's `admit_sell` is open
- * during the trading pause and a market mint pause and has no spare-cash check:
- * the keeper funds the market before τ, and resolve refunds a sell the market
- * still cannot cover.
+ * The oracle-free `enqueue_redeem_open_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 	const packageAddress =
@@ -1300,10 +1757,10 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'recordId',
 		'closeQuantity',
 		'minProbability',
@@ -1319,7 +1776,91 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueRedeemOpenV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenV2Options {
+	package?: string;
+	arguments: EnqueueRedeemOpenV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Place a queued early sell of `close_quantity` of an Open record's position.
+ * `record_id` is the record's queue ID, not the position's order ID. The source
+ * record must belong to this account (`ENotRecordOwner`) and be Open
+ * (`ERecordNotOpen`, also for a missing ID). It is marked Closed and its receipt
+ * and whole position move into the new record until the sell fills or refunds.
+ * `min_probability` and `min_proceeds` are the close-side floors at τ. Returns the
+ * new record ID.
+ *
+ * Escrows only the order fee, so a balance equal to it is enough. Refuses a sell
+ * below `min_sell_quantity` or one leaving a remainder below it (`EBelowMinSell`),
+ * and otherwise like `enqueue_exact_quantity_v2`. Predict's `admit_sell_v2` is
+ * open during the trading pause and a market mint pause and has no spare-cash
+ * check: the keeper funds the market before τ, and resolve refunds a sell the
+ * market still cannot cover.
+ */
+export function enqueueRedeemOpenV2(options: EnqueueRedeemOpenV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_redeem_open_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1333,10 +1874,10 @@ export interface EnqueueRedeemOpenWithBuilderArguments {
 	auth: TransactionArgument;
 	desk?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	recordId: RawTransactionArgument<number | bigint>;
@@ -1355,13 +1896,8 @@ export interface EnqueueRedeemOpenWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_redeem_open` for a sell that names a builder: `code` is the builder
- * code the sell pays and `builder_fee_per_contract` its fee per contract, in
- * FLOAT_SCALING of the $1 payout. Predict caps the fee at
- * `protocol_config::builder_fee_cap`, records it in the order's receipt, and
- * checks `min_proceeds` with it, and the fill pays `close_quantity * fee`, rounded
- * down, to the code, capped at the redeem value left after the trading fee.
- * Refuses sells like `enqueue_redeem_open`. Returns the new record ID.
+ * The oracle-free `enqueue_redeem_open_with_builder_v2` under the signature
+ * earlier versions published: the Propbook arguments are ignored.
  */
 export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuilderOptions) {
 	const packageAddress =
@@ -1395,10 +1931,10 @@ export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuild
 		'auth',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'recordId',
@@ -1416,7 +1952,90 @@ export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuild
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueRedeemOpenWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueRedeemOpenWithBuilderV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * `enqueue_redeem_open` for a sell that names a builder: `code` is the builder
+ * code the sell pays and `builder_fee_per_contract` its fee per contract, in
+ * FLOAT_SCALING of the $1 payout. Predict caps the fee at
+ * `protocol_config::builder_fee_cap`, records it in the order's receipt, and
+ * checks `min_proceeds` with it, and the fill pays `close_quantity * fee`, rounded
+ * down, to the code, capped at the redeem value left after the trading fee.
+ * Refuses sells like `enqueue_redeem_open`. Returns the new record ID.
+ */
+export function enqueueRedeemOpenWithBuilderV2(options: EnqueueRedeemOpenWithBuilderV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'wrapper',
+		'auth',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'enqueue_redeem_open_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1424,11 +2043,11 @@ export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuild
 		});
 }
 export interface CommitArguments {
-	queue: RawTransactionArgument<string>;
-	market: RawTransactionArgument<string>;
-	desk?: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	updates: TransactionArgument;
+	Queue: RawTransactionArgument<string>;
+	Market: RawTransactionArgument<string>;
+	Desk?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
+	Updates: TransactionArgument;
 }
 export interface CommitOptions {
 	package?: string;
@@ -1440,25 +2059,8 @@ export interface CommitOptions {
 	};
 }
 /**
- * Attach verified Pyth Lazer prices to the waiting cohorts whose τ they match.
- * Permissionless. Each update must come from the Pyth Lazer verifier earlier in
- * the same PTB; their order in `updates` does not matter. An update that matches
- * no waiting cohort is skipped.
- *
- * Matching reads only the inline cohort list and picks at most one update per
- * waiting cohort before its deadline: the one stamped exactly its τ on its
- * channel, or else, once the price buffer is above zero and now is at least
- * `gap_wait_ms` past τ, the one stamped one tick of the cohort's own channel
- * later. Each matched cohort then commits whole or not at all: one price per feed
- * is decoded through `lazer_price::from_update`, every Pending order is checked
- * against it before any is written, and an empty price, a price generated before
- * τ, or an envelope after now leaves the cohort for a later commit or its deadline
- * refund. The decode aborts on an update that lacks an order's feed or one of its
- * properties, because the caller passed the wrong update. Each committed mint
- * escrows the subsidy Predict reserves for it.
- *
- * Uses Lazer's v1 `Update`, which Pyth marked deprecated on Mainnet but still
- * serves; v2 arrives with a later library constructor.
+ * Retired: the Lazer-only commit of earlier versions. Aborts `EUseV2`. `commit_v2`
+ * is the only way to commit a cohort.
  */
 export function commit(options: CommitOptions) {
 	const packageAddress =
@@ -1468,12 +2070,92 @@ export function commit(options: CommitOptions) {
 	const argumentsTypes = [null, null, null, null, 'vector<null>', '0x2::clock::Clock'] satisfies (
 		string | null
 	)[];
-	const parameterNames = ['queue', 'market', 'desk', 'config', 'updates'];
+	const parameterNames = ['Queue', 'Market', 'Desk', 'Config', 'Updates'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'queue',
 			function: 'commit',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					Desk: options.arguments?.Desk ?? options.config?.orderDesk,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface CommitV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	updates: TransactionArgument;
+	vols: TransactionArgument;
+}
+export interface CommitV2Options {
+	package?: string;
+	arguments: CommitV2Arguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Attach verified Pyth Lazer prices and Block Scholes inputs to the waiting
+ * cohorts whose τ they match. Permissionless. Each update must come from the Pyth
+ * Lazer verifier earlier in the same PTB, and each `BsVol` from
+ * `deepbook_predict_math::block_scholes` over updates `bs_oracle` verified there,
+ * in any order. Updates and inputs that match no waiting cohort are skipped.
+ *
+ * Matching reads only the inline cohort list and picks at most one update per
+ * waiting cohort before its deadline: the one stamped exactly its τ on its
+ * channel, or else, once the price buffer is above zero and now is at least
+ * `gap_wait_ms` past τ, the one stamped one tick of the cohort's own channel
+ * later. It then picks the cohort's Block Scholes inputs by the desk's `BsTiming`:
+ * the spot and forward stamped at the 500 ms boundary at or before
+ * `τ - value_lag_ms` and the SVI stamped at the 1,000 ms boundary at or before
+ * `τ - svi_lag_ms`, for this market's expiry. Once now is the timing's gap wait
+ * past τ it also accepts, in this order, the next SVI slot, the next value slot,
+ * and both. A cohort with no update or no inputs, or with an order admitted under
+ * a Pyth feed the market's oracle binding no longer names, waits for a later
+ * commit or its deadline refund.
+ *
+ * Each matched cohort then commits whole or not at all: one price per feed is
+ * decoded through `lazer_price::from_update`, every Pending order is checked
+ * against it before any is written, and an empty price, a price generated before
+ * τ, or an envelope after now leaves the cohort for a later commit or its deadline
+ * refund. The decode aborts on an update that lacks an order's feed or one of its
+ * properties, because the caller passed the wrong update. Predict's `commit_v2`
+ * aborts on inputs decoded under another oracle binding. Each committed mint
+ * escrows the subsidy Predict reserves for it.
+ *
+ * Uses Lazer's v1 `Update`, which Pyth marked deprecated on Mainnet but still
+ * serves; v2 arrives with a later library constructor.
+ */
+export function commitV2(options: CommitV2Options) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'vector<null>',
+		'vector<null>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['queue', 'market', 'desk', 'config', 'updates', 'vols'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'commit_v2',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

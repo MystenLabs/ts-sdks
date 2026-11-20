@@ -6,14 +6,11 @@ import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG as cfg } from '../../src/predict/config/index.js';
 import { accountEvents } from '../../src/account.js';
-import * as orderEvents from '../../src/contracts/deepbook_predict/order_events.js';
 import { PredictInputError, PredictMoveError } from '../../src/predict/errors.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
-import { POS_INF_TICK } from '../../src/predict/ticks.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 import { accountMoveCalls as account } from '../../src/account.js';
 import { deriveAccountWrapperIdFrom, generateAuth } from '../../src/predict/tx/common.js';
-import { LEGACY_CFG } from './queue-fixtures.js';
 
 // Account calls target the latest account package (a PTB can't call one older than Predict links);
 // event and struct types keep the original `cfg.packages.account`.
@@ -48,61 +45,6 @@ function argPureBytes(tx: Transaction, cmdIdx: number, argIdx: number): string |
 
 const b64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
 
-// Canned trade events for quote dry-runs, serialized with the generated event structs
-// so the layout matches what src/decode.ts parses (incl. the trailing timestamp fields).
-const MINTED_EVENT = {
-	eventType: `${cfg.packages.predictV1}::order_events::OrderMinted`,
-	bcs: orderEvents.OrderMinted.serialize({
-		expiry_market_id: MARKET_ID,
-		account_id: MARKET_ID,
-		order_id: 7n,
-		position_root_id: 7n,
-		owner: OWNER,
-		lower_tick: 10_500_000n,
-		higher_tick: (1n << 30n) - 1n,
-		entry_probability: 340_000_000n, // 0.34
-		quantity: 50_000_000n, // $50
-		premium: 17_000_000n, // $17
-		trading_fee: 100_000n, // $0.10
-		fee_incentive_subsidy: 20_000n, // $0.02 sponsor-paid
-		builder_fee: 30_000n, // $0.03
-		penalty_fee: 5_000n, // $0.005
-		referral_fee: 11_000n, // $0.011 — a PORTION of trading+penalty, never an extra debit
-		inventory_impact_charge: 40_000n, // $0.04 — a SEPARATE charge, part of the all-in cost
-		builder_code_id: null,
-		referrer_account_id: null,
-		onchain_timestamp_ms: 0n,
-		pyth_spot_source_timestamp_ms: 0n,
-		block_scholes_spot_source_timestamp_ms: 0n,
-		block_scholes_forward_source_timestamp_ms: 0n,
-		block_scholes_svi_source_timestamp_ms: 0n,
-	}).toBytes(),
-};
-const REDEEMED_EVENT = {
-	eventType: `${cfg.packages.predictV1}::order_events::LiveOrderRedeemed`,
-	bcs: orderEvents.LiveOrderRedeemed.serialize({
-		expiry_market_id: MARKET_ID,
-		account_id: MARKET_ID,
-		order_id: 7n,
-		position_root_id: 7n,
-		owner: OWNER,
-		quantity_closed: 20_000_000n,
-		remaining_quantity: 30_000_000n,
-		replacement_order_id: 8n,
-		redeem_amount: 6_000_000n, // gross $6
-		trading_fee: 50_000n,
-		builder_fee: 0n,
-		penalty_fee: 0n,
-		inventory_impact_rebate: 25_000n, // $0.025 credited back on the close
-		builder_code_id: null,
-		onchain_timestamp_ms: 0n,
-		pyth_spot_source_timestamp_ms: 0n,
-		block_scholes_spot_source_timestamp_ms: 0n,
-		block_scholes_forward_source_timestamp_ms: 0n,
-		block_scholes_svi_source_timestamp_ms: 0n,
-	}).toBytes(),
-};
-
 // A mock ReadClient that dispatches canned return values by the first command's
 // move-call function, and counts how many times each function was simulated.
 function mockClient(
@@ -116,27 +58,8 @@ function mockClient(
 				const fns = cmds.map((c) => ('MoveCall' in c && c.MoveCall ? c.MoveCall.function : '?'));
 				const fn = fns[0];
 				counts[fn] = (counts[fn] ?? 0) + 1;
-				// Quote dry-runs: a simulated trade returns its emitted events.
-				if (fns.includes('mint_exact_quantity') || fns.includes('mint_exact_cost')) {
-					counts.quote_mint_sim = (counts.quote_mint_sim ?? 0) + 1;
-					return { $kind: 'Transaction', Transaction: { events: [MINTED_EVENT] } };
-				}
-				if (fns.includes('redeem_live')) {
-					return { $kind: 'Transaction', Transaction: { events: [REDEEMED_EVENT] } };
-				}
 				let results: Uint8Array[][];
-				if (fns.includes('range_price')) {
-					// price PTB: load_live_pricer → strike_from_tick ×3 → range_price ×2.
-					// read.price maps upRaw = commands[len-2], downRaw = commands[len-1].
-					results = [
-						[new Uint8Array(0)], // load_live_pricer
-						[new Uint8Array(0)], // strike_from_tick — finite
-						[new Uint8Array(0)], // strike_from_tick — +inf
-						[new Uint8Array(0)], // strike_from_tick — -inf
-						[bcs.u64().serialize(340_000_000n).toBytes()], // range_price up 0.34
-						[bcs.u64().serialize(660_000_000n).toBytes()], // range_price down 0.66
-					];
-				} else if (fn === 'active_expiry_markets') {
+				if (fn === 'active_expiry_markets') {
 					results = [[bcs.vector(bcs.Address).serialize([MARKET_ID]).toBytes()]];
 				} else if (fn === 'expiry_market_id') {
 					results = [[bcs.option(bcs.Address).serialize(MARKET_ID).toBytes()]];
@@ -384,45 +307,11 @@ describe('tx.deposit / tx.withdraw', () => {
 });
 
 describe('tx.mint (market resolution + unit conversion)', () => {
-	test('converts quantity and ticks against a resolved market', async () => {
-		const { client } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
-		const tx = await pc.tx.mint(
-			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-			{ quantity: 50 },
-		);
-		expect(targets(tx)).toEqual([
-			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-			`${ACCOUNT_CALLS}::account::generate_auth`,
-			`${cfg.packages.predict}::expiry_market::mint_exact_quantity`,
-		]);
-		// mint args: [market, wrapper, auth, config, pricer, lower, higher, quantity, maxCost, ...]
-		expect(argPureBytes(tx, 2, 5)).toBe(b64(10_500_000n)); // lower tick = strike/tickSize
-		expect(argPureBytes(tx, 2, 6)).toBe(b64(POS_INF_TICK)); // higher tick (up)
-		expect(argPureBytes(tx, 2, 7)).toBe(b64(50_000_000n)); // quantity 50 → 1e6
-	});
-
 	test('unknown market → PredictInputError /no market/', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockNoMarket() });
 		await expect(
-			pc.tx.mint(
-				OWNER,
-				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-				{ quantity: 50 },
-			),
+			pc.tx.claimSettled(OWNER, { underlying: 'BTC', expiryMs: EXPIRY }, { orderId: 1n }),
 		).rejects.toThrow(/no market/);
-	});
-
-	test('unknown underlying → PredictInputError', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		await expect(
-			pc.tx.mint(
-				OWNER,
-				{ underlying: 'DOGE', expiryMs: EXPIRY, strike: 1, side: 'up' },
-				{ quantity: 50 },
-			),
-		).rejects.toBeInstanceOf(PredictInputError);
 	});
 
 	test('unknown underlying → PredictInputError on the paths with no feed lookup', async () => {
@@ -463,57 +352,6 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		await expect(pc.read.market({ underlying: 'DOGE', expiryMs: EXPIRY })).rejects.toThrow(/DOGE/);
 	});
 
-	test('strike off the coarser ADMISSION grid throws before the chain sees it', async () => {
-		// The mock market reports tick_size $0.01 and admission_tick_size $0.01, so
-		// override the admission step to $100 the way the live deployment does: a strike
-		// on the fine grid but not the admission grid must be rejected locally rather
-		// than aborting on chain with EInvalidAdmissionTick.
-		const { client } = mockClient({ admissionTickSizeRaw: 100_000_000_000n });
-		const pc = new PredictClient({ network: 'testnet', client });
-		await expect(
-			pc.tx.mint(
-				OWNER,
-				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000.01, side: 'up' },
-				{ quantity: 50 },
-			),
-		).rejects.toThrow(/admission grid/);
-		// a strike ON the $100 admission grid passes the check
-		await expect(
-			pc.tx.mint(
-				OWNER,
-				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-				{ quantity: 50 },
-			),
-		).resolves.toBeDefined();
-	});
-
-	test('sub-lot quantity throws /lot/', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		await expect(
-			pc.tx.mint(
-				OWNER,
-				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-				{ quantity: 0.001 },
-			),
-		).rejects.toThrow(/lot/);
-	});
-
-	test('sub-lot close quantity throws /lot/ on redeem', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const m = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
-		await expect(pc.tx.redeem(OWNER, m, { orderId: 1n, quantity: 0.001 })).rejects.toThrow(/lot/);
-	});
-
-	test('mintAmount minQuantity is a floor — sub-lot values are accepted', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const tx = await pc.tx.mintAmount(
-			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-			{ spend: 10, minQuantity: 0.015 },
-		);
-		expect(tx).toBeTruthy();
-	});
-
 	test('read.markets returns tradeable summaries', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const markets = await pc.read.markets();
@@ -527,82 +365,6 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 				referencePrice: 105_000, // tick 10_500_000 × $0.01
 			},
 		]);
-	});
-
-	test('mint at the reference strike uses the on-chain reference tick directly', async () => {
-		const { client, counts } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
-		const tx = await pc.tx.mint(
-			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 'reference', side: 'up' },
-			{ quantity: 50 },
-		);
-		// The fresh reference read must have happened (never served from cache).
-		expect(counts.reference_tick).toBe(1);
-		// lowerTick input = the reference tick itself; higherTick = +inf sentinel.
-		const inputs = tx.getData().inputs;
-		const pureB64 = inputs
-			.filter((i) => 'Pure' in i && i.Pure)
-			.map((i) => (i as { Pure: { bytes: string } }).Pure.bytes);
-		expect(pureB64).toContain(b64(10_500_000n)); // reference tick
-		expect(pureB64).toContain(b64((1n << 30n) - 1n)); // POS_INF_TICK
-	});
-
-	test('mint at reference: DOWN side puts the tick on the higher bound', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const tx = await pc.tx.mint(
-			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 'reference', side: 'down' },
-			{ quantity: 50 },
-		);
-		const pureB64 = tx
-			.getData()
-			.inputs.filter((i) => 'Pure' in i && i.Pure)
-			.map((i) => (i as { Pure: { bytes: string } }).Pure.bytes);
-		expect(pureB64).toContain(b64(0n)); // -inf sentinel on the lower bound
-		expect(pureB64).toContain(b64(10_500_000n)); // reference tick on the higher
-	});
-
-	test('mint at reference: unset reference → PredictInputError', async () => {
-		const base = mockClient().client as unknown as {
-			core: { simulateTransaction: (o: { transaction: Transaction }) => Promise<unknown> };
-		};
-		// Wrap the mock: reference_tick returns None; everything else passes through.
-		const client = {
-			core: {
-				async simulateTransaction(opts: { transaction: Transaction }) {
-					const cmds = opts.transaction.getData().commands;
-					const fn = 'MoveCall' in cmds[0] && cmds[0].MoveCall ? cmds[0].MoveCall.function : '?';
-					if (fn === 'reference_tick') {
-						return {
-							$kind: 'Transaction',
-							Transaction: {},
-							commandResults: [
-								{
-									returnValues: [{ bcs: bcs.option(bcs.u64()).serialize(null).toBytes() }],
-									mutatedReferences: [],
-								},
-							],
-						};
-					}
-					return base.core.simulateTransaction(opts);
-				},
-			},
-		} as never;
-		const pc = new PredictClient({ network: 'testnet', client });
-		await expect(
-			pc.tx.mint(
-				OWNER,
-				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 'reference', side: 'up' },
-				{ quantity: 50 },
-			),
-		).rejects.toThrow(/reference price not set/);
-	});
-
-	test("read.price returns both sides from the chain's range_price", async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const p = await pc.read.price({ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000 });
-		expect(p).toEqual({ up: 0.34, down: 0.66 });
 	});
 
 	test('read.price rejects off-grid strikes', async () => {
@@ -619,99 +381,13 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		);
 	});
 
-	test('read.quoteMint dry-runs the mint and computes the all-in cost', async () => {
-		const { client, counts } = mockClient();
-		// The immediate quote, which a deployment without delayed execution recorded still uses.
-		const pc = new PredictClient({ network: 'testnet', client, config: LEGACY_CFG });
-		const q = await pc.read.quoteMint(
-			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-			{ quantity: 50 },
-		);
-		expect(counts.quote_mint_sim).toBe(1);
-		expect(q.entryProbability).toBeCloseTo(0.34);
-		expect(q.premium).toBe(17);
-		// Mirrors the deployed all_in_cost: premium + (trading − subsidy) + builder +
-		// penalty + inventoryImpact. `referral_fee` is a PORTION of the trader-paid fees
-		// and must NOT appear here — the non-zero fixture values make both halves of that
-		// statement falsifiable.
-		expect(q.raw.cost).toBe(17_000_000n + 80_000n + 30_000n + 5_000n + 40_000n);
-		expect(q.cost).toBeCloseTo(17.155);
-		expect(q.fees.inventoryImpact).toBeCloseTo(0.04);
-		expect(q.fees.referral).toBeCloseTo(0.011);
-		expect(q.quantity).toBe(50);
-		expect(q.feesExact).toBe(true);
-	});
-
-	test('read.quoteRedeem dry-runs the close and returns NET proceeds', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const q = await pc.read.quoteRedeem(
-			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-			{ orderId: 7n, quantity: 0.02 },
-		);
-		expect(q.gross).toBe(6);
-		// gross + rebate − trading − builder − penalty (the expression the chain asserts
-		// `min_proceeds` against); the non-zero rebate makes the term falsifiable.
-		expect(q.proceeds).toBe(5.975);
-		expect(q.fees.inventoryImpactRebate).toBeCloseTo(0.025);
-		expect(q.remaining).toBe(30);
-		expect(q.feesExact).toBe(true);
-	});
-
-	test('market resolution is cached: a second mint does not re-resolve', async () => {
+	test('market resolution is cached: a second build does not re-resolve', async () => {
 		const { client, counts } = mockClient();
 		const pc = new PredictClient({ network: 'testnet', client });
-		const m = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
-		await pc.tx.mint(OWNER, m, { quantity: 50 });
-		await pc.tx.mint(OWNER, m, { quantity: 50 });
+		const m = { underlying: 'BTC', expiryMs: EXPIRY } as const;
+		await pc.tx.claimSettled(OWNER, m, { orderId: 1n });
+		await pc.tx.claimSettled(OWNER, m, { orderId: 2n });
 		expect(counts.expiry_market_id).toBe(1);
-	});
-});
-
-describe('range markets', () => {
-	const RANGE = {
-		underlying: 'BTC',
-		expiryMs: EXPIRY,
-		side: 'range',
-		lower: 104_000,
-		upper: 106_000,
-	} as const;
-
-	test('mint converts both bounds to finite grid ticks', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const tx = await pc.tx.mint(OWNER, RANGE, { quantity: 50 });
-		expect(targets(tx)).toContain(`${cfg.packages.predict}::expiry_market::mint_exact_quantity`);
-		// mint args: [market, wrapper, auth, config, pricer, lower, higher, ...]
-		expect(argPureBytes(tx, 2, 5)).toBe(b64(10_400_000n)); // 104,000 / $0.01
-		expect(argPureBytes(tx, 2, 6)).toBe(b64(10_600_000n)); // 106,000 / $0.01 — finite, not +inf
-	});
-
-	test('off-grid bound → PredictInputError /tick grid/', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const bad = { ...RANGE, upper: 106_000.005 };
-		await expect(pc.tx.mint(OWNER, bad, { quantity: 50 })).rejects.toBeInstanceOf(
-			PredictInputError,
-		);
-		await expect(pc.tx.mint(OWNER, bad, { quantity: 50 })).rejects.toThrow(/tick grid/);
-	});
-
-	test('inverted or empty range → PredictInputError', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const inverted = { ...RANGE, lower: 106_000, upper: 104_000 };
-		await expect(pc.tx.mint(OWNER, inverted, { quantity: 50 })).rejects.toBeInstanceOf(
-			PredictInputError,
-		);
-		await expect(pc.tx.mint(OWNER, inverted, { quantity: 50 })).rejects.toThrow(/below upper/);
-		const empty = { ...RANGE, lower: 104_000, upper: 104_000 };
-		await expect(pc.tx.mint(OWNER, empty, { quantity: 50 })).rejects.toThrow(/below upper/);
-	});
-
-	test('bounds outside the finite tick domain → PredictInputError', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		await expect(pc.tx.mint(OWNER, { ...RANGE, lower: 0 }, { quantity: 50 })).rejects.toThrow(
-			/finite tick domain/,
-		);
 	});
 });
 
@@ -719,29 +395,23 @@ describe('marketId pin', () => {
 	test('skips the underlying+expiry ladder and reads the pinned market state', async () => {
 		const { client, counts } = mockClient();
 		const pc = new PredictClient({ network: 'testnet', client });
-		const tx = await pc.tx.mint(
+		const tx = await pc.tx.claimSettled(
 			OWNER,
-			{ underlying: 'BTC', expiryMs: EXPIRY, marketId: MARKET_ID, strike: 105_000, side: 'up' },
-			{ quantity: 50 },
+			{ underlying: 'BTC', expiryMs: EXPIRY, marketId: MARKET_ID },
+			{ orderId: 1n },
 		);
 		expect(counts.expiry_market_id).toBeUndefined(); // no ladder resolution
 		expect(counts.expiry).toBe(1); // the pinned market's state IS read (tickSizeRaw)
-		expect(targets(tx)).toContain(`${cfg.packages.predict}::expiry_market::mint_exact_quantity`);
+		expect(targets(tx)).toContain(`${cfg.packages.predict}::expiry_market::redeem_settled`);
 	});
 
 	test('pin disagreeing with the descriptor expiry → PredictInputError', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		await expect(
-			pc.tx.mint(
+			pc.tx.claimSettled(
 				OWNER,
-				{
-					underlying: 'BTC',
-					expiryMs: EXPIRY + 1,
-					marketId: MARKET_ID,
-					strike: 105_000,
-					side: 'up',
-				},
-				{ quantity: 50 },
+				{ underlying: 'BTC', expiryMs: EXPIRY + 1, marketId: MARKET_ID },
+				{ orderId: 1n },
 			),
 		).rejects.toThrow(/expires at/);
 	});
@@ -749,25 +419,18 @@ describe('marketId pin', () => {
 	test('malformed marketId → PredictInputError, not a silent ladder fallback', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		await expect(
-			pc.tx.mint(
+			pc.tx.claimSettled(
 				OWNER,
-				{ underlying: 'BTC', expiryMs: EXPIRY, marketId: '', strike: 105_000, side: 'up' },
-				{ quantity: 50 },
+				{ underlying: 'BTC', expiryMs: EXPIRY, marketId: '' },
+				{ orderId: 1n },
 			),
 		).rejects.toThrow(/invalid marketId/);
 	});
 });
 
 describe('read facade', () => {
-	test('market returns id + converted fields, or null when absent', async () => {
-		const { client } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
-		const m = await pc.read.market({ underlying: 'BTC', expiryMs: EXPIRY });
-		expect(m).not.toBeNull();
-		expect(m!.id).toBe(MARKET_ID);
-		expect(m!.expiryMs).toBe(BigInt(EXPIRY));
-		expect(m!.mintPaused).toBe(false);
-
+	// The NAV path, which prices the market off chain, is in `client-queue.test.ts`.
+	test('market is null when absent', async () => {
 		const none = await new PredictClient({
 			network: 'testnet',
 			client: mockNoMarket(),
@@ -777,56 +440,4 @@ describe('read facade', () => {
 		});
 		expect(none).toBeNull();
 	});
-});
-
-describe('v2 all-in budget mint', () => {
-	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
-	test('targets v2 and scales the budget and sub-lot minimum independently', async () => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		const tx = await pc.tx.mintCost(OWNER, market, { spend: 25.125, minQuantity: 0.015 });
-		expect(targets(tx)).toEqual([
-			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
-			`${ACCOUNT_CALLS}::account::generate_auth`,
-			`${cfg.packages.predict}::expiry_market::mint_exact_cost`,
-		]);
-		expect(argPureBytes(tx, 2, 7)).toBe(b64(25_125_000n));
-		expect(argPureBytes(tx, 2, 8)).toBe(b64(15_000n));
-	});
-	test('quote simulates the budget mint and decodes v1 events with all fees', async () => {
-		const { client, counts } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client, config: LEGACY_CFG });
-		const quote = await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 });
-		expect(counts.quote_mint_sim).toBe(1);
-		expect(quote.raw.cost).toBe(17_155_000n);
-		expect(quote.quantity).toBe(50);
-		expect(quote.fees.inventoryImpact).toBeCloseTo(0.04);
-		expect(quote.feesExact).toBe(true);
-	});
-	test.each([
-		{ spend: -1, minQuantity: 0 },
-		{ spend: 1, minQuantity: -1 },
-		{ spend: NaN, minQuantity: 0 },
-		{ spend: 1, minQuantity: Infinity },
-	])('rejects invalid amounts %j', async (opts) => {
-		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
-		await expect(pc.tx.mintCost(OWNER, market, opts)).rejects.toThrow();
-	});
-});
-
-test('custom latest call target and original event ID remain independent through the facade', async () => {
-	const latest = '0x' + 'ec'.repeat(32);
-	const config = { ...LEGACY_CFG, packages: { ...LEGACY_CFG.packages, predict: latest } };
-	const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
-	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
-	const tx = await pc.tx.mintCost(OWNER, market, { spend: 20, minQuantity: 0 });
-	expect(targets(tx)).toEqual([
-		`${latest}::expiry_market::load_live_pricer`,
-		// This legacy config records no `accountLatest`, so account calls stay on `account`.
-		`${config.packages.accountLatest ?? config.packages.account}::account::generate_auth`,
-		`${latest}::expiry_market::mint_exact_cost`,
-	]);
-	// The mock returns an event with the original type ID, not the custom call target.
-	expect((await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 })).raw.cost).toBe(
-		17_155_000n,
-	);
 });

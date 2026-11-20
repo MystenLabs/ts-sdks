@@ -927,10 +927,10 @@ export interface EnqueueExactQuantityArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	quantity: RawTransactionArgument<number | bigint>;
@@ -946,8 +946,8 @@ export interface EnqueueExactQuantityOptions {
 	};
 }
 /**
- * Queue an exact-quantity Predict mint in `market`'s order-flow queue for an
- * Account with an active session. Returns the queue record ID.
+ * The oracle-free `enqueue_exact_quantity_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 	const packageAddress =
@@ -980,10 +980,10 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'lowerTick',
 		'higherTick',
 		'quantity',
@@ -1005,6 +1005,80 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 			),
 		});
 }
+export interface EnqueueExactQuantityV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityV2Options {
+	package?: string;
+	arguments: EnqueueExactQuantityV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue an exact-quantity Predict mint in `market`'s order-flow queue for an
+ * Account with an active session. Returns the queue record ID.
+ */
+export function enqueueExactQuantityV2(options: EnqueueExactQuantityV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_quantity_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactQuantityWithBuilderArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1013,10 +1087,10 @@ export interface EnqueueExactQuantityWithBuilderArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	lowerTick: RawTransactionArgument<number | bigint>;
@@ -1034,10 +1108,8 @@ export interface EnqueueExactQuantityWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_exact_quantity` for a session-key mint that names a builder: `code` and
- * `builder_fee_per_contract` must be the session's approved code and at most its
- * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
- * session checks. Returns the new queue record ID.
+ * The oracle-free `enqueue_exact_quantity_with_builder_v2` under the signature
+ * earlier versions published: the Propbook arguments are ignored.
  */
 export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWithBuilderOptions) {
 	const packageAddress =
@@ -1072,10 +1144,10 @@ export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWit
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'lowerTick',
@@ -1099,6 +1171,90 @@ export function enqueueExactQuantityWithBuilder(options: EnqueueExactQuantityWit
 			),
 		});
 }
+export interface EnqueueExactQuantityWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueExactQuantityWithBuilderV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_quantity` for a session-key mint that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueExactQuantityWithBuilderV2(
+	options: EnqueueExactQuantityWithBuilderV2Options,
+) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_quantity_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactAmountArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1107,10 +1263,10 @@ export interface EnqueueExactAmountArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	maxPremium: RawTransactionArgument<number | bigint>;
@@ -1126,8 +1282,8 @@ export interface EnqueueExactAmountOptions {
 	};
 }
 /**
- * Queue a premium-budget Predict mint in `market`'s order-flow queue for an
- * Account with an active session. Returns the queue record ID.
+ * The oracle-free `enqueue_exact_amount_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 	const packageAddress =
@@ -1160,10 +1316,10 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'lowerTick',
 		'higherTick',
 		'maxPremium',
@@ -1185,6 +1341,80 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 			),
 		});
 }
+export interface EnqueueExactAmountV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountV2Options {
+	package?: string;
+	arguments: EnqueueExactAmountV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue a premium-budget Predict mint in `market`'s order-flow queue for an
+ * Account with an active session. Returns the queue record ID.
+ */
+export function enqueueExactAmountV2(options: EnqueueExactAmountV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_amount_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactAmountWithBuilderArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1193,10 +1423,10 @@ export interface EnqueueExactAmountWithBuilderArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	lowerTick: RawTransactionArgument<number | bigint>;
@@ -1214,10 +1444,8 @@ export interface EnqueueExactAmountWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_exact_amount` for a session-key mint that names a builder: `code` and
- * `builder_fee_per_contract` must be the session's approved code and at most its
- * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
- * session checks. Returns the new queue record ID.
+ * The oracle-free `enqueue_exact_amount_with_builder_v2` under the signature
+ * earlier versions published: the Propbook arguments are ignored.
  */
 export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBuilderOptions) {
 	const packageAddress =
@@ -1252,10 +1480,10 @@ export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBui
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'lowerTick',
@@ -1279,6 +1507,88 @@ export function enqueueExactAmountWithBuilder(options: EnqueueExactAmountWithBui
 			),
 		});
 }
+export interface EnqueueExactAmountWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueExactAmountWithBuilderV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_amount` for a session-key mint that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueExactAmountWithBuilderV2(options: EnqueueExactAmountWithBuilderV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_amount_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactCostArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1287,10 +1597,10 @@ export interface EnqueueExactCostArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
@@ -1305,8 +1615,8 @@ export interface EnqueueExactCostOptions {
 	};
 }
 /**
- * Queue an all-in-budget Predict mint in `market`'s order-flow queue for an
- * Account with an active session. Returns the queue record ID.
+ * The oracle-free `enqueue_exact_cost_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueExactCost(options: EnqueueExactCostOptions) {
 	const packageAddress =
@@ -1338,10 +1648,10 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'lowerTick',
 		'higherTick',
 		'maxCost',
@@ -1362,6 +1672,77 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 			),
 		});
 }
+export interface EnqueueExactCostV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostV2Options {
+	package?: string;
+	arguments: EnqueueExactCostV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue an all-in-budget Predict mint in `market`'s order-flow queue for an
+ * Account with an active session. Returns the queue record ID.
+ */
+export function enqueueExactCostV2(options: EnqueueExactCostV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_cost_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueExactCostWithBuilderArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1370,10 +1751,10 @@ export interface EnqueueExactCostWithBuilderArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	lowerTick: RawTransactionArgument<number | bigint>;
@@ -1390,10 +1771,8 @@ export interface EnqueueExactCostWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_exact_cost` for a session-key mint that names a builder: `code` and
- * `builder_fee_per_contract` must be the session's approved code and at most its
- * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
- * session checks. Returns the new queue record ID.
+ * The oracle-free `enqueue_exact_cost_with_builder_v2` under the signature earlier
+ * versions published: the Propbook arguments are ignored.
  */
 export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilderOptions) {
 	const packageAddress =
@@ -1427,10 +1806,10 @@ export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilder
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'lowerTick',
@@ -1453,6 +1832,85 @@ export function enqueueExactCostWithBuilder(options: EnqueueExactCostWithBuilder
 			),
 		});
 }
+export interface EnqueueExactCostWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueExactCostWithBuilderV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_exact_cost` for a session-key mint that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueExactCostWithBuilderV2(options: EnqueueExactCostWithBuilderV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_cost_with_builder_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueRedeemOpenArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1461,10 +1919,10 @@ export interface EnqueueRedeemOpenArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	recordId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
 	minProbability: RawTransactionArgument<number | bigint>;
@@ -1479,8 +1937,8 @@ export interface EnqueueRedeemOpenOptions {
 	};
 }
 /**
- * Queue an early sell of an Open order-flow queue record for an Account with an
- * active session. Returns the new queue record ID.
+ * The oracle-free `enqueue_redeem_open_v2` under the signature earlier versions
+ * published: the Propbook arguments are ignored.
  */
 export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 	const packageAddress =
@@ -1512,10 +1970,10 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'recordId',
 		'closeQuantity',
 		'minProbability',
@@ -1536,6 +1994,77 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 			),
 		});
 }
+export interface EnqueueRedeemOpenV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenV2Options {
+	package?: string;
+	arguments: EnqueueRedeemOpenV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue an early sell of an Open order-flow queue record for an Account with an
+ * active session. Returns the new queue record ID.
+ */
+export function enqueueRedeemOpenV2(options: EnqueueRedeemOpenV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_redeem_open_v2',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface EnqueueRedeemOpenWithBuilderArguments {
 	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -1544,10 +2073,10 @@ export interface EnqueueRedeemOpenWithBuilderArguments {
 	sessionsConfig?: RawTransactionArgument<string>;
 	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
+	PropbookRegistry: RawTransactionArgument<string>;
+	Pyth: RawTransactionArgument<string>;
+	BsValues: RawTransactionArgument<string>;
+	BsSvi: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	builderFeePerContract: RawTransactionArgument<number | bigint>;
 	recordId: RawTransactionArgument<number | bigint>;
@@ -1564,10 +2093,8 @@ export interface EnqueueRedeemOpenWithBuilderOptions {
 	};
 }
 /**
- * `enqueue_redeem_open` for a session-key sell that names a builder: `code` and
- * `builder_fee_per_contract` must be the session's approved code and at most its
- * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
- * session checks. Returns the new queue record ID.
+ * The oracle-free `enqueue_redeem_open_with_builder_v2` under the signature
+ * earlier versions published: the Propbook arguments are ignored.
  */
 export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuilderOptions) {
 	const packageAddress =
@@ -1601,10 +2128,10 @@ export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuild
 		'sessionsConfig',
 		'desk',
 		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
+		'PropbookRegistry',
+		'Pyth',
+		'BsValues',
+		'BsSvi',
 		'code',
 		'builderFeePerContract',
 		'recordId',
@@ -1617,6 +2144,85 @@ export function enqueueRedeemOpenWithBuilder(options: EnqueueRedeemOpenWithBuild
 			package: packageAddress,
 			module: 'sessions',
 			function: 'enqueue_redeem_open_with_builder',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueRedeemOpenWithBuilderV2Arguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	code: RawTransactionArgument<string>;
+	builderFeePerContract: RawTransactionArgument<number | bigint>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenWithBuilderV2Options {
+	package?: string;
+	arguments: EnqueueRedeemOpenWithBuilderV2Arguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * `enqueue_redeem_open` for a session-key sell that names a builder: `code` and
+ * `builder_fee_per_contract` must be the session's approved code and at most its
+ * approved fee (`EBuilderNotApproved`, `EBuilderFeeAboveApproved`), after the
+ * session checks. Returns the new queue record ID.
+ */
+export function enqueueRedeemOpenWithBuilderV2(options: EnqueueRedeemOpenWithBuilderV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'queue',
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'desk',
+		'config',
+		'code',
+		'builderFeePerContract',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_redeem_open_with_builder_v2',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

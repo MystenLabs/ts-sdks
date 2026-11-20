@@ -748,13 +748,13 @@ export function setTemplateCadenceConfig(options: SetTemplateCadenceConfigOption
 		});
 }
 export interface CreateAndShareExpiryMarketArguments {
-	registry?: RawTransactionArgument<string>;
-	poolVault?: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	lifecycleCap: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-	cadenceId: RawTransactionArgument<number>;
+	Registry?: RawTransactionArgument<string>;
+	PoolVault?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	LifecycleCap: RawTransactionArgument<string>;
+	PropbookUnderlyingId: RawTransactionArgument<number>;
+	CadenceId: RawTransactionArgument<number>;
 }
 export interface CreateAndShareExpiryMarketOptions {
 	package?: string;
@@ -768,15 +768,8 @@ export interface CreateAndShareExpiryMarketOptions {
 	};
 }
 /**
- * Create the next deployable `ExpiryMarket` for one cadence on a Propbook
- * underlying.
- *
- * Requires an allowlisted lifecycle capability, a registered underlying with all
- * canonical feed objects bound, and an enabled cadence with a deployable slot.
- * Slots owned by a longer enabled cadence and existing markets are skipped. The
- * market snapshots cadence and expiry policy, starts with zero cash, and cannot
- * mint until pool rebalancing funds it. Live pricing reads current Propbook
- * bindings.
+ * Retired: earlier versions checked Propbook's registry for the underlying's feeds
+ * here. Aborts `EUseV2`. Use `create_and_share_expiry_market_v2`.
  */
 export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOptions) {
 	const packageAddress =
@@ -792,13 +785,13 @@ export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOp
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'registry',
-		'poolVault',
-		'config',
-		'propbookRegistry',
-		'lifecycleCap',
-		'propbookUnderlyingId',
-		'cadenceId',
+		'Registry',
+		'PoolVault',
+		'Config',
+		'PropbookRegistry',
+		'LifecycleCap',
+		'PropbookUnderlyingId',
+		'CadenceId',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -808,10 +801,10 @@ export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOp
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					registry: options.arguments?.registry ?? options.config?.registry,
-					poolVault: options.arguments?.poolVault ?? options.config?.poolVault,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					Registry: options.arguments?.Registry ?? options.config?.registry,
+					PoolVault: options.arguments?.PoolVault ?? options.config?.poolVault,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -819,14 +812,14 @@ export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOp
 		});
 }
 export interface CreateAndShareExpiryMarketAtArguments {
-	registry?: RawTransactionArgument<string>;
-	poolVault?: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	lifecycleCap: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-	cadenceId: RawTransactionArgument<number>;
-	expectedExpiry: RawTransactionArgument<number | bigint>;
+	Registry?: RawTransactionArgument<string>;
+	PoolVault?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	LifecycleCap: RawTransactionArgument<string>;
+	PropbookUnderlyingId: RawTransactionArgument<number>;
+	CadenceId: RawTransactionArgument<number>;
+	ExpectedExpiry: RawTransactionArgument<number | bigint>;
 }
 export interface CreateAndShareExpiryMarketAtOptions {
 	package?: string;
@@ -840,9 +833,8 @@ export interface CreateAndShareExpiryMarketAtOptions {
 	};
 }
 /**
- * `create_and_share_expiry_market`, aborting unless the deployable expiry is
- * `expected_expiry`. A keeper that planned the expiry off chain uses this so that
- * a stale view of the cadence table fails instead of creating an unplanned market.
+ * Retired like `create_and_share_expiry_market`. Aborts `EUseV2`. Use
+ * `create_and_share_expiry_market_v2`.
  */
 export function createAndShareExpiryMarketAt(options: CreateAndShareExpiryMarketAtOptions) {
 	const packageAddress =
@@ -859,14 +851,14 @@ export function createAndShareExpiryMarketAt(options: CreateAndShareExpiryMarket
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'registry',
-		'poolVault',
-		'config',
-		'propbookRegistry',
-		'lifecycleCap',
-		'propbookUnderlyingId',
-		'cadenceId',
-		'expectedExpiry',
+		'Registry',
+		'PoolVault',
+		'Config',
+		'PropbookRegistry',
+		'LifecycleCap',
+		'PropbookUnderlyingId',
+		'CadenceId',
+		'ExpectedExpiry',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -876,10 +868,10 @@ export function createAndShareExpiryMarketAt(options: CreateAndShareExpiryMarket
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					registry: options.arguments?.registry ?? options.config?.registry,
-					poolVault: options.arguments?.poolVault ?? options.config?.poolVault,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+					Registry: options.arguments?.Registry ?? options.config?.registry,
+					PoolVault: options.arguments?.PoolVault ?? options.config?.poolVault,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -887,16 +879,16 @@ export function createAndShareExpiryMarketAt(options: CreateAndShareExpiryMarket
 		});
 }
 export interface CreateAndShareExpiryMarketWithBandArguments {
-	registry?: RawTransactionArgument<string>;
-	poolVault?: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	lifecycleCap: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-	cadenceId: RawTransactionArgument<number>;
-	expectedExpiry: RawTransactionArgument<number | bigint | null>;
-	minEntryProbability: RawTransactionArgument<number | bigint>;
-	maxEntryProbability: RawTransactionArgument<number | bigint>;
+	Registry?: RawTransactionArgument<string>;
+	PoolVault?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
+	PropbookRegistry?: RawTransactionArgument<string>;
+	LifecycleCap: RawTransactionArgument<string>;
+	PropbookUnderlyingId: RawTransactionArgument<number>;
+	CadenceId: RawTransactionArgument<number>;
+	ExpectedExpiry: RawTransactionArgument<number | bigint | null>;
+	MinEntryProbability: RawTransactionArgument<number | bigint>;
+	MaxEntryProbability: RawTransactionArgument<number | bigint>;
 }
 export interface CreateAndShareExpiryMarketWithBandOptions {
 	package?: string;
@@ -910,17 +902,8 @@ export interface CreateAndShareExpiryMarketWithBandOptions {
 	};
 }
 /**
- * `create_and_share_expiry_market` with the new market's mint entry band narrowed
- * to `[min_entry_probability, max_entry_probability]`, aborting unless the
- * deployable expiry is `expected_expiry` when that is set. The other two creation
- * entrypoints call this with `[0, u64::MAX]`, which keeps the template's band.
- *
- * The band can only tighten: each side keeps the tighter of the requested value
- * and the template's, so a bound looser than the template leaves that side at the
- * template's, and the call aborts when the two bands do not overlap. Like every
- * snapshotted term, the band is fixed for the market's life, and `MarketCreated`
- * reports it. A keeper uses this to admit fewer mints in markets open across a
- * chosen window.
+ * Retired like `create_and_share_expiry_market`. Aborts `EUseV2`. Use
+ * `create_and_share_expiry_market_v2`.
  */
 export function createAndShareExpiryMarketWithBand(
 	options: CreateAndShareExpiryMarketWithBandOptions,
@@ -941,10 +924,98 @@ export function createAndShareExpiryMarketWithBand(
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'Registry',
+		'PoolVault',
+		'Config',
+		'PropbookRegistry',
+		'LifecycleCap',
+		'PropbookUnderlyingId',
+		'CadenceId',
+		'ExpectedExpiry',
+		'MinEntryProbability',
+		'MaxEntryProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'create_and_share_expiry_market_with_band',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					Registry: options.arguments?.Registry ?? options.config?.registry,
+					PoolVault: options.arguments?.PoolVault ?? options.config?.poolVault,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
+					PropbookRegistry: options.arguments?.PropbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface CreateAndShareExpiryMarketV2Arguments {
+	registry?: RawTransactionArgument<string>;
+	poolVault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	lifecycleCap: RawTransactionArgument<string>;
+	propbookUnderlyingId: RawTransactionArgument<number>;
+	cadenceId: RawTransactionArgument<number>;
+	expectedExpiry: RawTransactionArgument<number | bigint | null>;
+	minEntryProbability: RawTransactionArgument<number | bigint>;
+	maxEntryProbability: RawTransactionArgument<number | bigint>;
+}
+export interface CreateAndShareExpiryMarketV2Options {
+	package?: string;
+	arguments: CreateAndShareExpiryMarketV2Arguments;
+	config?: {
+		registry: ConfigValue;
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Create the next deployable `ExpiryMarket` for one cadence on a Propbook
+ * underlying, the one creation entry point.
+ *
+ * Requires an allowlisted lifecycle capability, an underlying registered here with
+ * an oracle binding on `ProtocolConfig`
+ * (`protocol_config::EOracleBindingMissing`), and an enabled cadence with a
+ * deployable slot. Slots owned by a longer enabled cadence and existing markets
+ * are skipped. Aborts `EUnexpectedExpiry` unless the deployable expiry is
+ * `expected_expiry` when that is set: a keeper that planned the expiry off chain
+ * passes it so that a stale view of the cadence table fails instead of creating an
+ * unplanned market. The market snapshots cadence and expiry policy, starts with
+ * zero cash, and cannot mint until pool rebalancing funds it.
+ *
+ * The new market's mint entry band is narrowed to
+ * `[min_entry_probability,  max_entry_probability]`, and `[0, u64::MAX]` keeps the
+ * template's band. The band can only tighten: each side keeps the tighter of the
+ * requested value and the template's, so a bound looser than the template leaves
+ * that side at the template's, and the call aborts when the two bands do not
+ * overlap. Like every snapshotted term, the band is fixed for the market's life,
+ * and `MarketCreated` reports it. A keeper uses this to admit fewer mints in
+ * markets open across a chosen window.
+ */
+export function createAndShareExpiryMarketV2(options: CreateAndShareExpiryMarketV2Options) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u32',
+		'u8',
+		'0x1::option::Option<u64>',
+		'u64',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
 		'registry',
 		'poolVault',
 		'config',
-		'propbookRegistry',
 		'lifecycleCap',
 		'propbookUnderlyingId',
 		'cadenceId',
@@ -956,14 +1027,13 @@ export function createAndShareExpiryMarketWithBand(
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'create_and_share_expiry_market_with_band',
+			function: 'create_and_share_expiry_market_v2',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
 					registry: options.arguments?.registry ?? options.config?.registry,
 					poolVault: options.arguments?.poolVault ?? options.config?.poolVault,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
 				},
 				argumentsTypes,
 				parameterNames,

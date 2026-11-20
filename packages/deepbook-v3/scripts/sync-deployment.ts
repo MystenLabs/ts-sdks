@@ -39,7 +39,8 @@ const DEFAULT_MANIFEST = '../../../deepbookv3/packages/predict/deployment/deploy
 // manifests' key sets are identical, and their `initialConfiguration.units` agree field for
 // field. This script reads only `packages`, `objects`, `coinTypes`, `underlyings`,
 // `initialConfiguration.units` and `sourceCommit`, all present in both, plus
-// `oracleDependencies.pythLazerState` once the network records delayed execution.
+// `oracleDependencies.pythLazerState`, `blockScholesOraclePackage` and
+// `blockScholesSignerRegistry` once the network records delayed execution.
 const SUPPORTED_SCHEMA = [8, 9];
 
 interface Manifest {
@@ -274,6 +275,8 @@ const delayedOracle = predictOrders
 	? `
 	oracle: Object.freeze({
 		pythLazerState: ${lit(reqId((manifest.oracleDependencies ?? {}) as Record<string, unknown>, 'pythLazerState', 'oracleDependencies'))},
+		blockScholesPackage: ${lit(reqId((manifest.oracleDependencies ?? {}) as Record<string, unknown>, 'blockScholesOraclePackage', 'oracleDependencies'))},
+		blockScholesSignerRegistry: ${lit(reqId((manifest.oracleDependencies ?? {}) as Record<string, unknown>, 'blockScholesSignerRegistry', 'oracleDependencies'))},
 	}),`
 	: '';
 if (reqType(c, 'plp', 'coinTypes') !== `${predict.original}::plp::PLP`) {

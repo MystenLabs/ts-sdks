@@ -10,6 +10,18 @@ import { DelayedExecutionPolicy } from '../../src/contracts/deepbook_predict_ord
 import { OrderView } from '../../src/contracts/deepbook_predict_orders/order_queue.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
 import type { PredictConfig } from '../../src/predict/config/index.js';
+import { PredictMoveError } from '../../src/predict/errors.js';
+import type {
+	PricingInputs,
+	PricingInputsProvider,
+	ResolvedPricer,
+} from '../../src/predict/inputs.js';
+import type {
+	LocalMintQuote,
+	LocalMintQuoteInputs,
+	LocalSellQuote,
+	LocalSellQuoteInputs,
+} from '../../src/predict/quotes.js';
 import { deriveQueueId } from '../../src/predict/queue-id.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 
@@ -197,6 +209,14 @@ export interface QueueScenario {
 	refuseQuotes?: boolean;
 	/** The market reached its expiry: every quote aborts `pricing::ELivePricingExpired`. */
 	pastExpiry?: boolean;
+	/** The coarser grid new mint boundaries align to. Defaults to the tick size. */
+	admissionTickSizeRaw?: bigint;
+	/** The market's reference tick. Defaults to 10_500_000 ($105,000 at $0.01). */
+	referenceTick?: bigint | null;
+	/** The registry has no market for the coordinates. */
+	noMarket?: boolean;
+	/** `protocol_config::builder_fee_cap`. Default 5_000_000 (0.005 USDC a contract). */
+	builderFeeCap?: bigint;
 }
 
 export function scenario(overrides: Partial<QueueScenario> = {}): QueueScenario {
@@ -431,14 +451,16 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 		case 'tick_size':
 			return [u64(s.tickSizeRaw)];
 		case 'admission_tick_size':
-			return [u64(s.tickSizeRaw)];
+			return [u64(s.admissionTickSizeRaw ?? s.tickSizeRaw)];
 		case 'reference_tick':
-			return [optU64(10_500_000n)];
+			return [optU64(s.referenceTick === undefined ? 10_500_000n : s.referenceTick)];
+		case 'builder_fee_cap':
+			return [u64(s.builderFeeCap ?? 5_000_000n)];
 		case 'expiry_market_id':
 			return [
 				bcs
 					.option(bcs.Address)
-					.serialize('0x' + 'cd'.repeat(32))
+					.serialize(s.noMarket ? null : '0x' + 'cd'.repeat(32))
 					.toBytes(),
 			];
 		default:
@@ -480,8 +502,21 @@ export function queueClient(s: QueueScenario) {
 					};
 				}
 			},
-			async getObject() {
-				throw new Error('queueClient: getObject not mocked');
+			// The market's own object, for the off-chain quotes: the scenario's expiry, tick size,
+			// reference tick and fee policy, an empty payout tree and no sponsored balance.
+			async getObject(opts: { objectId: string }) {
+				if (opts.objectId !== MARKET) throw new Error(`queueClient: no object ${opts.objectId}`);
+				return {
+					object: {
+						objectId: MARKET,
+						type: `${DELAYED_PKG}::expiry_market::ExpiryMarket`,
+						content: marketObjectBytes(s),
+					},
+				};
+			},
+			// No fee bands: every price pays 1x.
+			async listDynamicFields() {
+				return { dynamicFields: [], hasNextPage: false, cursor: null };
 			},
 			// The facade's queue and account existence checks read objects.
 			async getObjects(opts: { objectIds: string[] }) {
@@ -506,4 +541,154 @@ export function moveCallTargets(tx: Transaction): string[] {
 		.commands.flatMap((c) =>
 			'MoveCall' in c && c.MoveCall ? [`${c.MoveCall.module}::${c.MoveCall.function}`] : [],
 		);
+}
+
+// A zero buffer parses into a valid `ExpiryMarket` (empty vectors, `none`s, zeros), so the fixture
+// sets only the fields the off-chain quotes read and the layout stays the generated one.
+const ZERO_MARKET = expiryMarket.ExpiryMarket.parse(new Uint8Array(8192));
+
+/** The scenario's market as its object's BCS, for `readMarketObject`. */
+export function marketObjectBytes(s: QueueScenario): Uint8Array {
+	const x = ZERO_MARKET.strike_exposure;
+	return expiryMarket.ExpiryMarket.serialize({
+		...ZERO_MARKET,
+		id: MARKET,
+		propbook_underlying_id: 1,
+		expiry: s.expiryMs,
+		cash: { cash_balance: { value: s.cashBalance }, inventory_impact_reserve: 0n },
+		strike_exposure: {
+			...x,
+			expiry_market_id: MARKET,
+			tick_size: s.tickSizeRaw,
+			admission_tick_size: s.admissionTickSizeRaw ?? s.tickSizeRaw,
+			reference_tick: s.referenceTick === undefined ? 10_500_000n : s.referenceTick,
+			config: {
+				...x.config,
+				base_fee: 100_000_000n,
+				min_fee: 22_000_000n,
+				expiry_fee_window_ms: 86_400_000n,
+				expiry_fee_max_multiplier: 1_000_000_000n,
+				min_entry_probability: s.minEntryProbability,
+				max_entry_probability: 990_000_000n,
+				inventory_impact_max_rate: 0n,
+				backing_buffer_lambda: s.backingBufferLambda,
+			},
+		},
+	}).toBytes();
+}
+
+/**
+ * A fixed pricer the tests stand in for `pricerAt`: BTC at 105,000, the fixtures' strike, with a
+ * short-dated smile, so the strike prices near the money.
+ */
+export function fixedPricer(): ResolvedPricer {
+	return {
+		forward: 105_000,
+		forwardRaw: 105_000n * 1_000_000_000n,
+		svi: { a: 0.00001, b: 0.0005, rho: -0.1, m: 0, sigma: 0.01 },
+		pricedAtMs: BigInt(Date.now()),
+		sources: {
+			pythSpotMs: 1_000,
+			blockScholesSpotMs: 2_000,
+			blockScholesForwardMs: 2_000,
+			blockScholesSviMs: 3_000,
+		},
+	};
+}
+
+/** Signed inputs the tests' provider returns. `pricerAt` is mocked, so they are never priced. */
+export const TEST_INPUTS: PricingInputs = {
+	spot: 100_000n * 1_000_000_000n,
+	spotMs: 1_000,
+	bsSpot: 100_000n * 1_000_000_000n,
+	bsForward: 100_000n * 1_000_000_000n,
+	valueMs: 2_000,
+	svi: { a: 10_000n, b: 500_000n, rho: -100_000_000n, m: 0n, sigma: 10_000_000n, decimals: 9 },
+	sviMs: 3_000,
+};
+
+/** A provider that hands out {@link TEST_INPUTS} and records each request. */
+export function testProvider(): PricingInputsProvider & { requests: unknown[] } {
+	const requests: unknown[] = [];
+	return {
+		requests,
+		async pricingInputs(request) {
+			requests.push(request);
+			return TEST_INPUTS;
+		},
+	};
+}
+
+const toCamel = (q: MintQuoteFields): LocalMintQuote => ({
+	quantity: q.quantity,
+	entryProbability: q.entry_probability,
+	premium: q.premium,
+	tradingFee: q.trading_fee,
+	feeIncentiveSubsidy: q.fee_incentive_subsidy,
+	builderFee: q.builder_fee,
+	penaltyFee: q.penalty_fee,
+	inventoryImpactCharge: q.inventory_impact_charge,
+	allInCost: q.all_in_cost,
+});
+
+const failsLimits = () =>
+	new PredictMoveError('expiry_market', E_ORDER_FAILS_LIMITS, 'EOrderFailsLimits');
+const pastExpiry = () =>
+	new PredictMoveError('pricing', E_LIVE_PRICING_EXPIRED, 'ELivePricingExpired');
+
+/**
+ * A stand-in for the off-chain mint quote that serves the scenario's canned quotes, as the chain's
+ * `quote_mint_for_account` (an account's quote, with `availableRaw`) and `quote_mint` (no
+ * account) did before Predict version 6. The facade's planning logic is tested against it; the
+ * quote engine itself is tested in `quotes.test.ts`.
+ */
+export function cannedMintQuote(s: QueueScenario, inputs: LocalMintQuoteInputs): LocalMintQuote {
+	if (s.pastExpiry) throw pastExpiry();
+	if (s.refuseQuotes) throw failsLimits();
+	const r = inputs.request;
+	if (inputs.availableRaw !== undefined) {
+		if (r.shape === 'exact-cost') {
+			if (s.refuseAccountBudgetQuote) throw failsLimits();
+			return toCamel(s.mintQuote);
+		}
+		if (r.shape === 'exact-amount') return toCamel(s.mintQuote);
+		const quote = s.accountQuoteAt?.(r.quantityRaw) ?? scaleQuote(s.mintQuote, r.quantityRaw);
+		if (quote.premium < MIN_PREMIUM) throw failsLimits();
+		return toCamel(quote);
+	}
+	if (r.shape === 'exact-cost')
+		throw new Error('cannedMintQuote: no anonymous all-in budget quote');
+	// Premium-budget mode buys the largest lot multiple whose premium fits max_premium. Like the
+	// chain, a premium below the 1 USDC minimum refuses.
+	const p = s.mintQuote.entry_probability;
+	const lot = BigInt(QUEUE_CFG.units.positionLotSize);
+	const minQuantity = r.shape === 'exact-quantity' ? r.quantityRaw : r.minQuantityRaw;
+	const quantity =
+		r.shape === 'exact-quantity'
+			? r.quantityRaw
+			: ((r.maxPremiumRaw * 1_000_000_000n) / p / lot) * lot;
+	const premium = (quantity * p) / 1_000_000_000n;
+	if (quantity < minQuantity || premium < MIN_PREMIUM) throw failsLimits();
+	return toCamel({
+		...s.mintQuote,
+		quantity,
+		premium,
+		builder_fee: 0n,
+		penalty_fee: 0n,
+		all_in_cost: (quantity * s.anonymousPricePerContract) / 1_000_000_000n,
+	});
+}
+
+/** A stand-in for the off-chain sell quote serving the scenario's canned `quote_redeem_open`. */
+export function cannedSellQuote(s: QueueScenario, _inputs: LocalSellQuoteInputs): LocalSellQuote {
+	if (s.pastExpiry) throw pastExpiry();
+	const q = s.redeemQuote;
+	return {
+		closeQuantity: q.close_quantity,
+		probability: q.probability,
+		proceeds: q.proceeds,
+		tradingFee: q.trading_fee,
+		builderFee: q.builder_fee,
+		inventoryImpactRebate: q.inventory_impact_rebate,
+	};
 }

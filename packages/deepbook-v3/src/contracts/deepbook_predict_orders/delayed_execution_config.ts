@@ -55,8 +55,9 @@ export const DelayedExecutionPolicy = new MoveStruct({
 		 */
 		pyth_channel: bcs.u8(),
 		/**
-		 * Oldest Block Scholes SVI a placement accepts into an order's volatility
-		 * snapshot.
+		 * Oldest Block Scholes SVI a version 5 placement accepted into an order's
+		 * volatility snapshot. Placement reads no oracle since version 6, so nothing reads
+		 * it. The setter still bounds it.
 		 */
 		svi_max_age_ms: U64,
 		/** Most unfinished queued mints per market. */
@@ -76,6 +77,14 @@ export const DelayedExecutionPolicy = new MoveStruct({
 		settle_refund_batch: U64,
 		/** Most records one `settle_step` call visits while paying Open records. */
 		settle_payout_batch: U64,
+	},
+});
+export const BsTiming = new MoveStruct({
+	name: `${$moduleName}::BsTiming`,
+	fields: {
+		value_lag_ms: U64,
+		svi_lag_ms: U64,
+		gap_wait_ms: U64,
 	},
 });
 export interface DelayMsArguments {
@@ -425,6 +434,81 @@ export function settlePayoutBatch(options: SettlePayoutBatchOptions) {
 			package: packageAddress,
 			module: 'delayed_execution_config',
 			function: 'settle_payout_batch',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsValueLagMsArguments {
+	timing: TransactionArgument;
+}
+export interface BsValueLagMsOptions {
+	package?: string;
+	arguments: BsValueLagMsArguments | [timing: TransactionArgument];
+	config?: {
+		predictOrdersPackageId?: string;
+	};
+}
+export function bsValueLagMs(options: BsValueLagMsOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['timing'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'delayed_execution_config',
+			function: 'bs_value_lag_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsSviLagMsArguments {
+	timing: TransactionArgument;
+}
+export interface BsSviLagMsOptions {
+	package?: string;
+	arguments: BsSviLagMsArguments | [timing: TransactionArgument];
+	config?: {
+		predictOrdersPackageId?: string;
+	};
+}
+export function bsSviLagMs(options: BsSviLagMsOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['timing'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'delayed_execution_config',
+			function: 'bs_svi_lag_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsGapWaitMsArguments {
+	timing: TransactionArgument;
+}
+export interface BsGapWaitMsOptions {
+	package?: string;
+	arguments: BsGapWaitMsArguments | [timing: TransactionArgument];
+	config?: {
+		predictOrdersPackageId?: string;
+	};
+}
+export function bsGapWaitMs(options: BsGapWaitMsOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['timing'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'delayed_execution_config',
+			function: 'bs_gap_wait_ms',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

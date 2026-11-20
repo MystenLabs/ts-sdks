@@ -97,32 +97,6 @@ describe('session lifecycle', () => {
 describe('Predict wrappers', () => {
 	// The wrapper's contract with Predict: NO `Auth` argument (app auth is minted and
 	// consumed inside the call), with `account_registry` and `sessions_config` threaded in.
-	const pricer = { $kind: 'Result', Result: 0 } as never;
-
-	test('mintExactQuantity: registry at index 1, SessionsConfig at index 3, no Auth', () => {
-		const tx = new Transaction();
-		tx.add(
-			contract.mintExactQuantity({
-				expiryMarketId: MARKET,
-				wrapperId: WRAPPER,
-				protocolConfig: PROTOCOL_CONFIG,
-				pricer,
-				lowerTick: 10n,
-				higherTick: 20n,
-				quantity: 1_000_000n,
-				maxCost: 5_000_000n,
-				maxProbability: 900_000_000n,
-			}),
-		);
-		expect(targets(tx)).toEqual([`${SESSIONS_PKG}::sessions::mint_exact_quantity`]);
-		// deployed order: market, account_registry, wrapper, sessions_config, config, pricer, …
-		expect(argObjectId(tx, 0, 0)).toBe(normalizeSuiAddress(MARKET));
-		expect(argObjectId(tx, 0, 1)).toBe(normalizeSuiAddress(ACCOUNT_REGISTRY));
-		expect(argObjectId(tx, 0, 2)).toBe(normalizeSuiAddress(WRAPPER));
-		expect(argObjectId(tx, 0, 3)).toBe(normalizeSuiAddress(SESSIONS_CONFIG));
-		expect(argObjectId(tx, 0, 4)).toBe(normalizeSuiAddress(PROTOCOL_CONFIG));
-	});
-
 	test('redeemSettled takes no pricer and no quantity — a settled claim is all-or-nothing', () => {
 		const tx = new Transaction();
 		tx.add(
@@ -138,24 +112,6 @@ describe('Predict wrappers', () => {
 		expect(argObjectId(tx, 0, 3)).toBe(normalizeSuiAddress(SESSIONS_CONFIG));
 		// market, account_registry, wrapper, sessions_config, config, order_id, root, clock
 		expect(call(tx, 0).arguments).toHaveLength(8);
-	});
-
-	test('redeemLive defaults both slippage floors to 0 (disabled)', () => {
-		const tx = new Transaction();
-		tx.add(
-			contract.redeemLive({
-				expiryMarketId: MARKET,
-				wrapperId: WRAPPER,
-				protocolConfig: PROTOCOL_CONFIG,
-				pricer,
-				orderId: 7n,
-				closeQuantity: 500_000n,
-			}),
-		);
-		expect(targets(tx)).toEqual([`${SESSIONS_PKG}::sessions::redeem_live`]);
-		const zero = Buffer.from(bcs.u64().serialize(0n).toBytes()).toString('base64');
-		const pure = tx.getData().inputs.flatMap((i) => ('Pure' in i && i.Pure ? [i.Pure.bytes] : []));
-		expect(pure.filter((b) => b === zero).length).toBeGreaterThanOrEqual(2);
 	});
 });
 
@@ -318,8 +274,6 @@ describe('same-typed argument slots are pinned, not merely counted', () => {
 	// the failure a slot-count or "two zeros are present" assertion cannot see — breaks a
 	// specific expectation. Slot indices come from the deployed signature: five `u64`s at
 	// 6..10 on both mints, and `u256` + three `u64`s at 6..9 on redeemLive.
-	const pricerArg = { $kind: 'Result', Result: 0 } as never;
-
 	/** Decode the pure input a given argument slot points at. */
 	function pureAt(tx: Transaction, argIdx: number, type: 'u64' | 'u256'): bigint {
 		const arg = call(tx, 0).arguments[argIdx] as { $kind: string; Input?: number };
@@ -331,89 +285,6 @@ describe('same-typed argument slots are pinned, not merely counted', () => {
 		// the generated bindings, not to this raw schema.
 		return BigInt(type === 'u64' ? bcs.u64().parse(raw) : bcs.u256().parse(raw));
 	}
-
-	test('mintExactQuantity: lowerTick, higherTick, quantity, maxCost, maxProbability in order', () => {
-		const tx = new Transaction();
-		tx.add(
-			contract.mintExactQuantity({
-				expiryMarketId: MARKET,
-				wrapperId: WRAPPER,
-				protocolConfig: PROTOCOL_CONFIG,
-				pricer: pricerArg,
-				lowerTick: 1001n,
-				higherTick: 1002n,
-				quantity: 1003n,
-				maxCost: 1004n,
-				maxProbability: 1005n,
-			}),
-		);
-		expect([6, 7, 8, 9, 10].map((i) => pureAt(tx, i, 'u64'))).toEqual([
-			1001n,
-			1002n,
-			1003n,
-			1004n,
-			1005n,
-		]);
-	});
-
-	test('mintExactAmount: lowerTick, higherTick, maxPremium, minQuantity, maxCost in order', () => {
-		const tx = new Transaction();
-		tx.add(
-			contract.mintExactAmount({
-				expiryMarketId: MARKET,
-				wrapperId: WRAPPER,
-				protocolConfig: PROTOCOL_CONFIG,
-				pricer: pricerArg,
-				lowerTick: 2001n,
-				higherTick: 2002n,
-				maxPremium: 2003n,
-				minQuantity: 2004n,
-				maxCost: 2005n,
-			}),
-		);
-		expect([6, 7, 8, 9, 10].map((i) => pureAt(tx, i, 'u64'))).toEqual([
-			2001n,
-			2002n,
-			2003n,
-			2004n,
-			2005n,
-		]);
-	});
-
-	test('redeemLive: orderId is u256, then closeQuantity, minProbability, minProceeds', () => {
-		const tx = new Transaction();
-		tx.add(
-			contract.redeemLive({
-				expiryMarketId: MARKET,
-				wrapperId: WRAPPER,
-				protocolConfig: PROTOCOL_CONFIG,
-				pricer: pricerArg,
-				orderId: 3001n,
-				closeQuantity: 3002n,
-				minProbability: 3003n,
-				minProceeds: 3004n,
-			}),
-		);
-		expect(pureAt(tx, 6, 'u256')).toBe(3001n);
-		expect([7, 8, 9].map((i) => pureAt(tx, i, 'u64'))).toEqual([3002n, 3003n, 3004n]);
-	});
-
-	test('redeemLive: an order id above 2**53 survives the builder exactly', () => {
-		// u256 order ids are full-width; a `number` hop here would round.
-		const big = 2n ** 200n + 12345n;
-		const tx = new Transaction();
-		tx.add(
-			contract.redeemLive({
-				expiryMarketId: MARKET,
-				wrapperId: WRAPPER,
-				protocolConfig: PROTOCOL_CONFIG,
-				pricer: pricerArg,
-				orderId: big,
-				closeQuantity: 1n,
-			}),
-		);
-		expect(pureAt(tx, 6, 'u256')).toBe(big);
-	});
 
 	test('redeemSettled: orderId is the only pure argument', () => {
 		const tx = new Transaction();
@@ -496,7 +367,7 @@ describe('decodeSessions rejects bytes it cannot fully account for', () => {
 	});
 });
 
-test('upgraded sessions keep the v1 grant field and call the v2 budget mint', () => {
+test('upgraded sessions keep the v1 grant field and call the latest package', () => {
 	const upgraded = new SessionsContract({
 		sessionsPackageId: '0x' + '99'.repeat(32),
 		sessionsPackageIdV1: SESSIONS_PKG,
@@ -507,30 +378,16 @@ test('upgraded sessions keep the v1 grant field and call the v2 budget mint', ()
 	expect(upgraded.deriveSessionsFieldId(OWNER)).toBe(contract.deriveSessionsFieldId(OWNER));
 	const tx = new Transaction();
 	tx.add(
-		upgraded.mintExactCost({
+		upgraded.redeemSettled({
 			expiryMarketId: MARKET,
 			wrapperId: WRAPPER,
 			protocolConfig: PROTOCOL_CONFIG,
-			pricer: { $kind: 'Result', Result: 0 } as never,
-			lowerTick: 10n,
-			higherTick: 20n,
-			maxCost: 50_000_000n,
-			minQuantity: 75_000_001n,
+			orderId: 42n,
 		}),
 	);
-	expect(targets(tx)).toEqual([`${'0x' + '99'.repeat(32)}::sessions::mint_exact_cost`]);
-	expect(call(tx, 0).arguments).toHaveLength(12);
+	expect(targets(tx)).toEqual([`${'0x' + '99'.repeat(32)}::sessions::redeem_settled`]);
 	expect(argObjectId(tx, 0, 1)).toBe(ACCOUNT_REGISTRY);
 	expect(argObjectId(tx, 0, 3)).toBe(SESSIONS_CONFIG);
-	expect(argObjectId(tx, 0, 4)).toBe(PROTOCOL_CONFIG);
-	expect(argPureBytes(tx, 0, 8)).toBe(
-		Buffer.from(bcs.u64().serialize(50_000_000n).toBytes()).toString('base64'),
-	);
-	expect(argPureBytes(tx, 0, 9)).toBe(
-		Buffer.from(bcs.u64().serialize(75_000_001n).toBytes()).toString('base64'),
-	);
-	expect(argObjectId(tx, 0, 10)).toBe(normalizeSuiAddress('0xacc'));
-	expect(argObjectId(tx, 0, 11)).toBe(normalizeSuiAddress('0x6'));
 });
 
 // Delayed execution (DBU-885): the queued Predict wrappers (Sessions v3). No Auth, no pricer:
@@ -657,6 +514,111 @@ describe('queued Predict wrappers', () => {
 		expect([11, 12, 13, 14].map((i) => argPureBytes(tx, 0, i))).toEqual(
 			[42n, 2_000_000n, 300_000_000n, 500_000n].map(u64),
 		);
+	});
+
+	// Sessions version 5 (Predict version 6): `enqueue_*_v2` take no Propbook object.
+	const V5 = '0x' + '5a'.repeat(32);
+	const v5 = new SessionsContract({
+		sessionsPackageId: SESSIONS_PKG,
+		sessionsPackageIdV5: V5,
+		sessionsConfig: SESSIONS_CONFIG,
+		accountPackageId: ACCOUNT_PKG,
+		accountRegistry: ACCOUNT_REGISTRY,
+	});
+	const v5Target = {
+		expiryMarketId: MARKET,
+		wrapperId: WRAPPER,
+		orderDesk: DESK,
+		queueRegistry: REGISTRY,
+		protocolConfig: PROTOCOL_CONFIG,
+	};
+	const v5Leading = (tx: Transaction) =>
+		expect([0, 1, 2, 3, 4, 5, 6].map((i) => argObjectId(tx, 0, i))).toEqual(
+			[QUEUE, MARKET, ACCOUNT_REGISTRY, WRAPPER, SESSIONS_CONFIG, DESK, PROTOCOL_CONFIG].map((id) =>
+				normalizeSuiAddress(id),
+			),
+		);
+
+	test('Sessions version 5 places with enqueue_*_v2 and no Propbook object', () => {
+		const tx = new Transaction();
+		tx.add(
+			v5.enqueueExactQuantity({
+				...v5Target,
+				lowerTick: 10n,
+				higherTick: 20n,
+				quantity: 1_000_000n,
+				maxCost: 600_000n,
+				maxProbability: 600_000_000n,
+			}),
+		);
+		expect(targets(tx)).toEqual([`${V5}::sessions::enqueue_exact_quantity_v2`]);
+		v5Leading(tx);
+		expect([7, 8, 9, 10, 11].map((i) => argPureBytes(tx, 0, i))).toEqual(
+			[10n, 20n, 1_000_000n, 600_000n, 600_000_000n].map(u64),
+		);
+		// The Propbook objects a version 4 target takes are ignored.
+		const withFeeds = new Transaction();
+		withFeeds.add(
+			v5.enqueueRedeemOpen({
+				...target,
+				recordId: 42n,
+				closeQuantity: 2_000_000n,
+				minProbability: 300_000_000n,
+				minProceeds: 500_000n,
+			}),
+		);
+		expect(targets(withFeeds)).toEqual([`${V5}::sessions::enqueue_redeem_open_v2`]);
+		v5Leading(withFeeds);
+		expect([7, 8, 9, 10].map((i) => argPureBytes(withFeeds, 0, i))).toEqual(
+			[42n, 2_000_000n, 300_000_000n, 500_000n].map(u64),
+		);
+		// Every other wrapper targets version 5 too.
+		const revoke = new Transaction();
+		revoke.add(v5.revokeSession({ wrapperId: WRAPPER, session: OWNER }));
+		expect(targets(revoke)).toEqual([`${V5}::sessions::revoke_session`]);
+	});
+
+	test('a builder selects the _with_builder_v2 wrapper, and needs Sessions version 5', () => {
+		const CODE = '0x' + 'c0'.repeat(32);
+		const tx = new Transaction();
+		tx.add(
+			v5.enqueueExactCost({
+				...v5Target,
+				builder: { codeId: CODE, feePerContract: 3_000_000n },
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 7n,
+				minQuantity: 8n,
+			}),
+		);
+		expect(targets(tx)).toEqual([`${V5}::sessions::enqueue_exact_cost_with_builder_v2`]);
+		v5Leading(tx);
+		expect(argObjectId(tx, 0, 7)).toBe(normalizeSuiAddress(CODE));
+		expect([8, 9, 10, 11, 12].map((i) => argPureBytes(tx, 0, i))).toEqual(
+			[3_000_000n, 1n, 2n, 7n, 8n].map(u64),
+		);
+		expect(() =>
+			contract.enqueueExactCost({
+				...target,
+				builder: { codeId: CODE, feePerContract: 1n },
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 7n,
+				minQuantity: 8n,
+			}),
+		).toThrow(/Sessions version 5/);
+	});
+
+	test('a version 4 target refuses an order without the Propbook objects', () => {
+		expect(() =>
+			contract.enqueueExactCost({
+				...v5Target,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 7n,
+				minQuantity: 8n,
+			}),
+		).toThrow(/Propbook objects/);
 	});
 
 	test('a zero or unlimited maxCost is refused on every queued mint', () => {
