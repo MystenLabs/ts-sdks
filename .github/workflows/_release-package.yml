@@ -164,11 +164,23 @@ jobs:
         working-directory: ${{ inputs.dir }}
         env:
           NPM_CONFIG_PROVENANCE: true
+          PACKAGE: ${{ inputs.package }}
         run: |
           set -euo pipefail
           if [ "$DRY_RUN" = "true" ]; then
-            # Verbose so the log shows whether the trusted-publishing token exchange succeeded.
-            NPM_CONFIG_LOGLEVEL=verbose pnpm publish --dry-run --access public --no-git-checks
+            # A dry run also validates the package's npm trusted-publishing config, which has to be
+            # used within 48 hours of being created. For a version that's already on npm, the dry
+            # run stops at npm's version check, which comes after the token exchange.
+            log="$RUNNER_TEMP/publish.log"
+            status=0
+            NPM_CONFIG_LOGLEVEL=verbose pnpm publish --dry-run --access public --no-git-checks 2>&1 | tee "$log" || status=$?
+            if ! grep -q 'oidc Successfully retrieved and set token' "$log"; then
+              echo "::error::npm trusted-publishing token exchange failed for $PACKAGE"
+              exit 1
+            fi
+            if [ "$status" -ne 0 ] && ! grep -q 'You cannot publish over the previously published versions' "$log"; then
+              exit "$status"
+            fi
           else
             pnpm publish --access public --no-git-checks
           fi
