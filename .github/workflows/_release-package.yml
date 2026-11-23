@@ -167,7 +167,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$DRY_RUN" = "true" ]; then
-            pnpm publish --dry-run --access public --no-git-checks
+            # Verbose so the log shows whether the trusted-publishing token exchange succeeded.
+            NPM_CONFIG_LOGLEVEL=verbose pnpm publish --dry-run --access public --no-git-checks
           else
             pnpm publish --access public --no-git-checks
           fi
