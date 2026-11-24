@@ -294,6 +294,15 @@ describe('codes tolerate unknown values', () => {
 			feeKept: false,
 			live: true,
 		});
+		// Reason 10 (Predict v6): the committed Block Scholes inputs build no price at the tick. The
+		// order fee is returned.
+		expect(queue.REFUND_REASON.NO_VOL).toBe(10);
+		expect(queue.refundReason(10)).toMatchObject({
+			code: 10,
+			key: 'no-vol',
+			feeKept: false,
+			live: true,
+		});
 		expect(queue.refundReason(42)).toEqual({
 			code: 42,
 			key: 'unknown',

@@ -160,17 +160,18 @@ describe('plain abort codes decode to their constant names', () => {
 		for (const names of Object.values(ABORT_NAMES)) {
 			expect(new Set(names).size).toBe(names.length);
 		}
-		expect(ABORT_NAMES.queue).toHaveLength(13);
+		expect(ABORT_NAMES.queue).toHaveLength(14);
 		expect(ABORT_NAMES.desk).toHaveLength(3);
-		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
-		expect(ABORT_NAMES.protocol_config).toHaveLength(18);
+		expect(ABORT_NAMES.expiry_market).toHaveLength(25);
+		expect(ABORT_NAMES.protocol_config).toHaveLength(20);
 		expect(ABORT_NAMES.config_constants).toHaveLength(30);
 		expect(ABORT_NAMES.pricing).toHaveLength(20);
 		expect(ABORT_NAMES.sessions).toHaveLength(6);
 		expect(ABORT_NAMES.session_config).toHaveLength(3);
 		expect(ABORT_NAMES.account_registry).toHaveLength(3);
 		expect(ABORT_NAMES.strike_payout_tree).toHaveLength(6);
-		expect(ABORT_NAMES.plp).toHaveLength(15);
+		expect(ABORT_NAMES.plp).toHaveLength(16);
+		expect(ABORT_NAMES.delayed_execution_config).toHaveLength(17);
 		// DeepBook core has `order` and `registry` modules too, so those stay unnamed.
 		expect(ABORT_NAMES).not.toHaveProperty('order');
 		expect(ABORT_NAMES).not.toHaveProperty('registry');
@@ -178,7 +179,7 @@ describe('plain abort codes decode to their constant names', () => {
 
 	test('an unknown module or a code past the table stays unnamed', () => {
 		expect(plain('oracle', 6)?.abortName).toBeNull();
-		expect(plain('queue', 13)?.abortName).toBeNull();
+		expect(plain('queue', 14)?.abortName).toBeNull();
 		expect(abortNameFor('queue', -1n)).toBeNull();
 		for (const inherited of ['__proto__', 'constructor', 'hasOwnProperty', 'toString']) {
 			expect(abortNameFor(inherited, 0n)).toBeNull();
@@ -186,6 +187,18 @@ describe('plain abort codes decode to their constant names', () => {
 		}
 		// A clever-error code packs bits far above any table index.
 		expect(abortNameFor('queue', 9223372036854775814n)).toBeNull();
+	});
+
+	test('Predict version 6 codes are named and described', () => {
+		expect(plain('expiry_market', 23)?.abortName).toBe('EUseV2');
+		expect(plain('expiry_market', 24)?.abortName).toBe('EWrongVol');
+		expect(plain('protocol_config', 18)?.abortName).toBe('EOracleBindingMissing');
+		expect(plain('protocol_config', 19)?.abortName).toBe('EInvalidOracleBinding');
+		expect(plain('plp', 15)?.abortName).toBe('EUseV2');
+		expect(plain('queue', 13)?.abortName).toBe('EUseV2');
+		expect(plain('delayed_execution_config', 16)?.abortName).toBe('EInvalidBsTiming');
+		expect(describePredictError(plain('expiry_market', 23)!)).toMatch(/retired/);
+		expect(describePredictError(plain('protocol_config', 18)!)).toMatch(/oracle binding/);
 	});
 
 	test('a clever-error name from the fullnode takes precedence over the table', () => {

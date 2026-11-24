@@ -10,8 +10,10 @@ import * as queueEvents from '../../src/contracts/deepbook_predict_orders/queue_
 import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
 import {
+	decodeBsTimingUpdates,
 	decodeEnqueues,
 	decodeExpiryPnlRealized,
+	decodeOracleBindingUpdates,
 	decodePolicyUpdates,
 	decodeQueueEvents,
 	decodeQueuedRefunds,
@@ -521,5 +523,79 @@ describe('ExpiryPnlRealized', () => {
 		expect(realizedPnlRaw([])).toBe(0n);
 		const pc = new PredictClient({ network: 'testnet', client: {} as never, config: cfg });
 		expect(pc.decode.expiryPnlRealized({ events: [realized(MARKET, true, 7n)] })).toHaveLength(1);
+	});
+});
+
+// Predict version 6: `OracleBindingUpdated` and `BsTimingUpdated` are types the upgrade defined, so
+// they carry the UPGRADED package IDs, while the events that existed before keep the original IDs.
+describe('version 6 config events', () => {
+	const V6 = '0x' + '66'.repeat(32);
+	const O3 = '0x' + '03'.repeat(32);
+	const v6 = { ...cfg, packages: { ...cfg.packages, predictV6: V6, predictOrdersV3: O3 } };
+	const binding = configEvents.OracleBindingUpdated.serialize({
+		propbook_underlying_id: 1,
+		lazer_feed_id: 1,
+		lazer_channel: 3,
+		block_scholes_base_asset: 'BTC',
+		svi_model: 'model-a',
+		svi_decimals: 18,
+		onchain_timestamp_ms: 5n,
+	}).toBytes();
+	const timing = queueEvents.BsTimingUpdated.serialize({
+		desk_id: DESK,
+		timing: { value_lag_ms: 500n, svi_lag_ms: 1_000n, gap_wait_ms: 1_000n },
+		onchain_timestamp_ms: 6n,
+	}).toBytes();
+
+	test('OracleBindingUpdated decodes under Predict version 6, not the original ID', () => {
+		const events = [
+			event(V6, 'config_events', 'OracleBindingUpdated', binding),
+			// The same layout under the original ID is not this event.
+			event(cfg.packages.predictV1!, 'config_events', 'OracleBindingUpdated', binding),
+		];
+		expect(decodeOracleBindingUpdates(v6, { events })).toEqual([
+			{
+				propbookUnderlyingId: 1,
+				lazerFeedId: 1,
+				lazerChannel: 3,
+				blockScholesBaseAsset: 'BTC',
+				sviModel: 'model-a',
+				sviDecimals: 18,
+				timestampMs: 5n,
+			},
+		]);
+		expect(() => decodeOracleBindingUpdates(cfg, { events })).toThrow(/predictV6/);
+	});
+
+	test("BsTimingUpdated decodes under orders version 3, not the companion's original ID", () => {
+		const events = [
+			event(O3, 'queue_events', 'BsTimingUpdated', timing),
+			event(ORDERS_PKG, 'queue_events', 'BsTimingUpdated', timing),
+		];
+		expect(decodeBsTimingUpdates(v6, { events })).toEqual([
+			{
+				deskId: DESK,
+				timing: { valueLagMs: 500n, sviLagMs: 1_000n, gapWaitMs: 1_000n },
+				timestampMs: 6n,
+			},
+		]);
+		expect(() => decodeBsTimingUpdates(cfg, { events })).toThrow(/predictOrdersV3/);
+	});
+
+	test('the queue events keep the original ID on a version 6 config', () => {
+		const enqueued = ENQUEUED(1n);
+		expect(decodeEnqueues(v6, { events: [enqueued] })).toHaveLength(1);
+	});
+
+	test('the facade exposes both decoders', () => {
+		const pc = new PredictClient({ network: 'testnet', client: {} as never, config: v6 });
+		expect(
+			pc.decode.oracleBindingUpdates({
+				events: [event(V6, 'config_events', 'OracleBindingUpdated', binding)],
+			}),
+		).toHaveLength(1);
+		expect(
+			pc.decode.bsTimingUpdates({ events: [event(O3, 'queue_events', 'BsTimingUpdated', timing)] }),
+		).toHaveLength(1);
 	});
 });

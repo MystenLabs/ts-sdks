@@ -14,7 +14,9 @@
  * full-pool valuation in-flight state (flag + flush ordinal, held across the
  * transactions a flush spans; keeper/config flows gate on it, trading flows read
  * it only to discard stale stamps lazily). Flow modules decide which gates apply
- * before they mutate expiry, oracle, pool, or account state.
+ * before they mutate expiry, oracle, pool, or account state. It also holds each
+ * underlying's oracle binding: the signed data that may price, settle, and value
+ * its markets.
  */
 
 import {
@@ -26,7 +28,7 @@ import {
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as pricing_config from './pricing_config.js';
 import * as strike_exposure_config from './strike_exposure_config.js';
 import * as ewma_config from './ewma_config.js';
@@ -167,6 +169,28 @@ export const BuilderFeeCapKey = new MoveTuple({
 export const FeeBandsKey = new MoveTuple({
 	name: `${$moduleName}::FeeBandsKey`,
 	fields: [bcs.bool()],
+});
+export const OracleBindingKey = new MoveTuple({
+	name: `${$moduleName}::OracleBindingKey`,
+	fields: [bcs.u32()],
+});
+export const OracleBinding = new MoveStruct({
+	name: `${$moduleName}::OracleBinding`,
+	fields: {
+		/** Pyth Lazer feed of the underlying's spot. */
+		lazer_feed_id: bcs.u32(),
+		/**
+		 * Lazer channel settlement, reference ticks, and the flush read:
+		 * `lazer_price::channel_fixed_rate_50ms!()` or `channel_fixed_rate_200ms!()`.
+		 * Orders keep the channel they were placed on.
+		 */
+		lazer_channel: bcs.u8(),
+		/** Block Scholes base asset of the spot, forward, and SVI series. */
+		block_scholes_base_asset: bcs.string(),
+		/** Block Scholes SVI model and the decimals it is signed at, `9` or `18`. */
+		svi_model: bcs.string(),
+		svi_decimals: bcs.u8(),
+	},
 });
 export interface IdArguments {
 	config?: RawTransactionArgument<string>;
@@ -595,6 +619,70 @@ export function isOrderFlow(options: IsOrderFlowOptions) {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface OracleBindingArguments {
+	config?: RawTransactionArgument<string>;
+	propbookUnderlyingId: RawTransactionArgument<number>;
+}
+export interface OracleBindingOptions {
+	package?: string;
+	arguments: OracleBindingArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return `propbook_underlying_id`'s oracle binding, or `none` when it has none.
+ * For SDK, keeper, and devInspect reads: keepers decode the signed data they pass
+ * to commit, settlement, the reference tick, and the flush under it.
+ */
+export function oracleBinding(options: OracleBindingOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
+	const parameterNames = ['config', 'propbookUnderlyingId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'oracle_binding',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface LazerFeedIdArguments {
+	binding: TransactionArgument;
+}
+export interface LazerFeedIdOptions {
+	package?: string;
+	arguments: LazerFeedIdArguments | [binding: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * The binding's Pyth Lazer feed. For the order-flow companion, which commits only
+ * orders admitted under the current feed.
+ */
+export function lazerFeedId(options: LazerFeedIdOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['binding'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'lazer_feed_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface VersionWatermarkArguments {
 	config?: RawTransactionArgument<string>;
 }
@@ -621,6 +709,71 @@ export function versionWatermark(options: VersionWatermarkOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'version_watermark',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetOracleBindingArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	propbookUnderlyingId: RawTransactionArgument<number>;
+	lazerFeedId: RawTransactionArgument<number>;
+	lazerChannel: RawTransactionArgument<number>;
+	blockScholesBaseAsset: RawTransactionArgument<string>;
+	sviModel: RawTransactionArgument<string>;
+	sviDecimals: RawTransactionArgument<number>;
+}
+export interface SetOracleBindingOptions {
+	package?: string;
+	arguments: SetOracleBindingArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set or replace `propbook_underlying_id`'s oracle binding and emit
+ * `OracleBindingUpdated`. Aborts `EInvalidOracleBinding` unless the channel is a
+ * fixed-rate Lazer channel, the decimals are `9` or `18`, and the base asset and
+ * model are each 1 to 32 bytes. A new binding applies to every later commit,
+ * settlement, reference tick, and flush of the underlying's markets, including
+ * orders already waiting, so change it under a mint pause.
+ */
+export function setOracleBinding(options: SetOracleBindingOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		'u32',
+		'u32',
+		'u8',
+		'0x1::string::String',
+		'0x1::string::String',
+		'u8',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'config',
+		'AdminCap',
+		'propbookUnderlyingId',
+		'lazerFeedId',
+		'lazerChannel',
+		'blockScholesBaseAsset',
+		'sviModel',
+		'sviDecimals',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_oracle_binding',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

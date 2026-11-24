@@ -275,6 +275,37 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   `packages.predictOrdersCurrentVersion`), so a network still on older call targets keeps an
   accurate `'retired'` guard. Move those pins whenever the network's call targets move.
 
+### Predict version 6: signed pricing inputs (`src/predict/{inputs,quotes}.ts`)
+
+- Predict v6 (with `deepbook_predict_orders` v3, `deepbook_predict_math` with `block_scholes`, and
+  Sessions v5) reads no Propbook object. The views that priced at the clock (`load_live_pricer`,
+  `quote_mint*`, `quote_close*`, `quote_redeem_open*`, `current_nav`, `live_order_value`) abort
+  `EUseV2`, so every price, quote, plan and NAV is computed off chain: `pricerAt` ports
+  `pricing::pricer_at` (forward and roll-down in integers, the digital in `pricing.ts` floats), and
+  `quotes.ts` ports version 5's `price_mint` / `quote_sell` / `current_nav` on top of `cost.ts`'s
+  fee primitives, adding the fee band (`band_mult`), the per-contract builder fee and the subsidy
+  cap. The inputs come from a caller-supplied `PricingInputsProvider` (the client's `pricingInputs`,
+  or a call's `inputs`). The SDK never fetches Pyth or Block Scholes data.
+- The v6 switch is `usesPredictV6(cfg)`: `packages.predictV6` AND `packages.predictOrdersV3` (one
+  without the other throws). Then every Predict and order-flow call targets them (the linkage rule),
+  placement uses `queue::enqueue_*_v2`, the filler `commit_v2`, and the version guards expect 6 / 3
+  (`PREDICT_PACKAGE_VERSION` / `ORDER_FLOW_PACKAGE_VERSION`, which mirror the generated sources and
+  are now 6 / 3, while the network configs still pin 5 / 2 for their v5 call targets). The network
+  records leave the three v6 ids `undefined` with a `TODO(predict-v6)` until the upgrade executes.
+  Sessions has the same switch on `sessionsPackageIdV5` (`SESSIONS_V5` in `sessions.ts`).
+- Types v6 adds carry the v6 package as type origin: `OracleBindingKey` / `OracleBindingUpdated`
+  (`packages.predictV6`) and `BsTimingKey` / `BsTimingUpdated` (`packages.predictOrdersV3`). The
+  reads in `reads/binding.ts` derive the dynamic-field IDs from them. A market's fee bands sit under
+  `protocol_config::FeeBandsKey` (defined by v5), found by listing the market's fields by name.
+- v6 underscore-prefixed the parameters of the retired functions and of the version 5 `enqueue_*`
+  forwarders, so codegen capitalizes their keys. `bindings/rename.ts`'s `withShippedKeys` keeps the
+  shipped keys on the public `*MoveCalls` exports (expiry_market, plp, registry, queue, sessions).
+- The facade tests stand in canned quotes for the engine (`vi.mock` of `quotes.js` with
+  `cannedMintQuote`) and a fixed pricer (`pricerAt`). `quotes.test.ts` pins the engine against
+  `cost.ts`, and the live `test/predict/testnet/pricing.test.ts` pins the float digital and the
+  off-chain mint quote against Testnet's version 5 `range_price` and `quote_mint` while those views
+  still answer.
+
 ### Account call target vs. identity (`InvalidLinkage`)
 
 - Sui rejects a PTB whose explicit call target is older than a version another package in the PTB
@@ -514,3 +545,5 @@ Track significant updates to this file:
   `deepbook_predict_math` (DBU-885)
 - **2026-11**: Version 5 rehearsal ids, Mainnet-numbered version mirrors, and the account call
   target vs. identity split (`InvalidLinkage`)
+- **2026-11**: Predict version 6 (no Propbook): off-chain pricing from signed inputs, the v6 switch,
+  shipped-key wrappers for the retired bindings

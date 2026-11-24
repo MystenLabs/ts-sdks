@@ -5,12 +5,8 @@ import { type GeneratedConfig } from '../config/generated.js';
 import { type UnderlyingConfig } from '../config/index.js';
 import { type FeePolicy } from '../cost.js';
 import { PredictMoveError } from '../errors.js';
-import { POS_INF_TICK } from '../ticks.js';
-import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
 import * as plp from '../../contracts/deepbook_predict/plp.js';
-import * as pricing from '../../contracts/deepbook_predict/pricing.js';
-import * as rangeCodec from '../../contracts/deepbook_predict/range_codec.js';
 import * as registry from '../../contracts/deepbook_predict/registry.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseOptionalId, parseOptionalU64, parseU64LE, parseVectorOfIds } from './parse.js';
@@ -117,54 +113,6 @@ export async function marketStates(
 	return marketIds.map((_, i) => parseStateAt(cmds, STATE_FNS.length * i));
 }
 
-// Anonymous both-sides pricing for one strike: the chain's own probability for
-// (strike, +inf] and (-inf, strike]. Deployed `pricing::range_price` takes typed
-// `range_codec::Strike`s (NOT raw u64) — each boundary is built via
-// `range_codec::strike_from_tick(tick, tick_size)`, which maps tick 0 → -inf,
-// POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is a
-// public fun on the deployed package. Both sides read the SAME pricer in one PTB, so
-// `down` is the chain's number, not 1 − up.
-//
-// `range_price` now returns a `RangePrice` carrying both boundary probabilities so the
-// fee can charge each leg separately; `probability()` is the combined range number this
-// function has always returned (`lower_up.saturating_sub(higher_up)`, unchanged). The
-// extra call per side is what keeps the u64 parse below reading a u64 rather than the
-// struct's BCS.
-export async function rangePrices(
-	client: ReadClient,
-	config: GeneratedConfig,
-	marketId: string,
-	feeds: MarketFeeds,
-	strikeRaw: bigint,
-	tickSizeRaw: bigint,
-): Promise<{ upRaw: bigint; downRaw: bigint }> {
-	const tx = new Transaction();
-	const pricer = tx.add(loadLivePricer(config, { expiryMarketId: marketId, ...feeds }));
-	// strikeRaw is a whole tick multiple (the caller validates divisibility), so the
-	// finite boundary is `strike_from_tick(strikeRaw / tickSize, tickSize)`.
-	const strikeTick = strikeRaw / tickSizeRaw;
-	const mkStrike = (tick: bigint) =>
-		tx.add(rangeCodec.strikeFromTick({ config, arguments: { tick, tickSize: tickSizeRaw } }));
-	const strike = mkStrike(strikeTick);
-	const posInf = mkStrike(POS_INF_TICK);
-	const negInf = mkStrike(0n);
-	// UP: (strike, +inf], then DOWN: (-inf, strike]. The two `probability` reductions are
-	// the last two commands, which is what the tail-relative parse below indexes.
-	const up = tx.add(
-		pricing.rangePrice({ config, arguments: { pricer, lower: strike, higher: posInf } }),
-	);
-	const down = tx.add(
-		pricing.rangePrice({ config, arguments: { pricer, lower: negInf, higher: strike } }),
-	);
-	tx.add(pricing.probability({ config, arguments: { price: up } }));
-	tx.add(pricing.probability({ config, arguments: { price: down } }));
-	const cmds = await inspectReturns(client, tx);
-	return {
-		upRaw: parseU64LE(cmds[cmds.length - 2][0]),
-		downRaw: parseU64LE(cmds[cmds.length - 1][0]),
-	};
-}
-
 // Fresh single read of the reference tick — used by mint-at-reference, which
 // must not trust a cached state (the reference is unset early in a window
 // until the keeper seeds it).
@@ -208,31 +156,6 @@ export async function settlementPrice(
 		}
 		throw e;
 	}
-}
-
-// A market's current NAV mark (the per-expiry recoverable value the flush prices
-// against). Loads a fresh live pricer, then reads `current_nav(market, &pricer)` —
-// see packages/predict/sources/expiry_market.move:236. `Pricer` has copy+drop, so
-// the unconsumed borrow is fine in a read-only inspect.
-export async function currentNav(
-	client: ReadClient,
-	config: GeneratedConfig,
-	marketId: string,
-	underlying: UnderlyingConfig,
-): Promise<bigint> {
-	const tx = new Transaction();
-	const pricer = tx.add(
-		loadLivePricer(config, {
-			expiryMarketId: marketId,
-			pythFeed: underlying.pythFeed,
-			blockScholesValueStore: underlying.blockScholesValueStore,
-			blockScholesSviStore: underlying.blockScholesSviStore,
-		}),
-	);
-	tx.add(expiryMarket.currentNav({ config, arguments: { market: marketId, pricer } }));
-	const cmds = await inspectReturns(client, tx);
-	// current_nav is the last command; load_live_pricer precedes it.
-	return parseU64LE(cmds[cmds.length - 1][0]);
 }
 
 /**

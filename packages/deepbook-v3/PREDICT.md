@@ -26,10 +26,12 @@ The SDK registers as a client extension — `$extend` it onto your `SuiGrpcClien
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { predict } from '@mysten/deepbook-v3/predict';
 
+// `pricingInputs` supplies the signed Pyth and Block Scholes data every price, quote and plan is
+// computed from (see "Signed pricing inputs" below). Builders and other reads don't need it.
 const client = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
-}).$extend(predict({ network: 'testnet' }));
+}).$extend(predict({ network: 'testnet', pricingInputs: myPricingInputs }));
 
 // One-time: create your Predict account (a shared AccountWrapper).
 const createTx = client.predict.tx.createManager();
@@ -75,20 +77,73 @@ const { transaction } = await client.predict.tx.enqueuePlan(myAddress, desc, pla
 const { recordId } = client.predict.decode.enqueue(result); // PERSIST THIS: sell or follow the order
 const outcome = await client.predict.read.waitForOutcome(desc, recordId); // 'filled' or 'refunded'
 
-// Read: one market's live state (+ NAV) and the pool.
+// Read: one market's state, its NAV mark (computed off chain) and the pool.
 const market = await client.predict.read.market({ underlying: 'BTC', expiryMs });
 console.log(market?.nav, market?.tickSize, market?.mintPaused);
 const pool = await client.predict.read.pool();
 ```
 
-> **Immediate trades retire with delayed execution.** Until a network's cutover,
-> `read.executionMode()` is `'immediate'` and orders fill in the transaction: quote with
-> `read.quoteMint`, trade with `tx.mint` (`quantity` and a `maxCost` ceiling), and decode with
-> `decode.mint`, whose `orderId` redeems or claims the position. `mint`, `mintAmount`, `mintCost`
-> and `redeem` work only while the config calls a pre-v4 Predict package. Predict v4 always aborts
-> them (`EDelayedExecutionRequired`), and the version watermark bump to 4 retires the older
-> packages. From then on orders are queued: see [Queued orders](#queued-orders-delayed-execution).
-> Branch on `read.executionMode()` rather than a release date.
+> **The immediate trades are gone.** `tx.mint`, `tx.mintAmount`, `tx.mintCost`, `tx.redeem` and
+> `read.quoteRedeem` traded and quoted in one transaction against a live on-chain price. Delayed
+> execution retired those trades (Predict v4), and Predict version 6 retires the live price they
+> read, so the builders are removed. Orders are queued: see
+> [Queued orders](#queued-orders-delayed-execution).
+
+## Signed pricing inputs (Predict version 6)
+
+From Predict version 6 the chain keeps no live oracle state. Every on-chain price is read from
+signed Pyth Lazer and Block Scholes data carried into the transaction that uses it: the filler's
+commit, settlement and the pool flush. The views that priced a market at the clock
+(`load_live_pricer`, `quote_mint*`, `quote_close*`, the queue's `quote_redeem_open*`, `current_nav`
+and `live_order_value`) abort `EUseV2`.
+
+So the SDK computes prices, quotes and NAV off chain, with the same pricing and fee math, from
+inputs you supply. Implement `PricingInputsProvider` (your frontend's or quote service's Pyth and
+Block Scholes access) and pass it as `pricingInputs`. The SDK never fetches Pyth or Block Scholes
+data itself.
+
+```ts
+import type { PricingInputsProvider } from '@mysten/deepbook-v3/predict';
+
+const myPricingInputs: PricingInputsProvider = {
+	async pricingInputs({ underlying, expiryMs, marketId }) {
+		// The latest data under the market's oracle binding (`read.oracleBinding(underlying)`).
+		return {
+			spot, // the Pyth Lazer spot of the binding's feed, at 1e9 (bigint)
+			spotMs, // the Lazer update's timestamp
+			bsSpot, // the Block Scholes spot and forward(expiry) of one value slot, at 1e9
+			bsForward,
+			valueMs, // their source time
+			svi: { a, b, rho, m, sigma, decimals }, // the SVI tuple as signed, at 9 or 18 decimals
+			sviMs, // its source time, which the roll-down anchors on
+		};
+	},
+};
+```
+
+These reads price off chain and throw `PredictInputError` without a provider (or a call's own
+`inputs`): `read.price`, `read.pricer`, `read.market` (its `nav`), `read.quoteMint`,
+`read.quoteMintCost`, `read.quoteSell`, `read.planMint` and `read.planSell`. Each also takes the
+inputs per call, for example `read.price(desc, { inputs })` or
+`read.planMint(owner, desc, { amount: 10, inputs })`.
+
+The pricer is Predict's own `pricing::pricer_at`, ported as `pricerAt(inputs, { expiryMs })`: the
+Block Scholes basis re-anchored on the Pyth spot, and the SVI `a` and `b` rolled down to now. Inputs
+must be fresh, by the windows the version 5 live pricer enforced (2 s for the spot, forward and
+Block Scholes spot, 60 s for the SVI tuple), and none may sit more than 1 s ahead of the clock.
+Staler inputs throw `EPythSpotStale`, `EBlockScholesPriceStale` or `EBlockScholesSVIStale`. Set
+other windows with `pricingFreshness`, or pass `false` to price old inputs on purpose. A quote
+charges what the version 5 quote did: the entry band, the minimum premium and the lot grid, the
+trading fee times the market's fee band (`read.feeBands`), the sponsor subsidy capped by the
+market's sponsored balance, no congestion penalty, and the payout bound. A refusal throws the
+`PredictMoveError` the chain's quote raised (`EOrderFailsLimits`, `ELivePricingExpired`,
+`EBlockScholesInputsInvalid`), so code that matched on those names keeps working. The probability
+comes from the float digital in `pricing`, which agrees with the chain to about 1e-4, so a quote is
+a preview: the fill prices at τ, within the order's limits. `read.market`'s NAV reads the market's
+whole payout tree (one page per 50 strikes) and marks it at the local pricer, as `current_nav` did.
+
+The engine itself is exported as `quotes` (`localMintQuote`, `localSellQuote`, `localNav`,
+`markedLiability`, `feeBandMultiplier`) for a quote service that prices many markets.
 
 ## Queued orders (delayed execution)
 
@@ -106,6 +161,19 @@ one `MarketQueue`, at an ID derived from the package's single `QueueRegistry` an
 `OrderDesk` holds the policy (delay, order fee, capacities). The math library
 `deepbook_predict_math` holds the pure pricing math. Every queued-order call goes to
 `deepbook_predict_orders`, while a fill still emits Predict's `OrderMinted` or `LiveOrderRedeemed`.
+
+> **Predict version 6.** Once a config records `packages.predictV6` and `packages.predictOrdersV3`
+> (the version 6 Predict and `deepbook_predict_orders` version 3 publications), every Predict and
+> order-flow call targets them, and placement uses the oracle-free `queue::enqueue_*_v2`: an order
+> names no Propbook object. The filler's commit is `queue::commit_v2`, which also carries signed
+> Block Scholes value and SVI batches (`tx.fill(m, { payloads, valueMessages, sviMessages })`, see
+> `queue.bsSlots` and `read.bsTiming()`), and needs `packages.predictMathV3`. The network records
+> leave the three unset (TODO placeholders) until the upgrade executes, and keep calling the version
+> 5 packages until then. A config that records only one of `predictV6` and `predictOrdersV3` is
+> refused. A version 6 refund can carry reason 10 (`queue.REFUND_REASON.NO_VOL`): the committed
+> Block Scholes inputs built no price at the tick, and the order fee is returned. A version 6 mint's
+> `OrderEnqueued.subsidy_bound` (`decode.enqueue(...).raw.subsidyBound`) is always 0, because
+> placement has no price to bound it with.
 
 > Both the Testnet and Mainnet configs record delayed execution. On a network without a record the
 > queued surface throws `PredictInputError`. Pass a `config` with
@@ -195,11 +263,10 @@ transaction, which an indexer serves. If the payout walk skipped a record
 #### A purchase form
 
 `read.planMint(owner, market, opts)` returns everything a purchase form shows, for a visitor without
-an account too (the quote then comes from the account-free `quote_mint`, which leaves out an
-account's builder fee). An account whose balance covers the order is quoted at its own pricing, and
-a budget that pricing refuses is never planned from the account-free quote. `amount` plans an all-in
-spend and is the whole debit by default, order fee included (`orderFee: 'exclusive'` charges the fee
-on top). `quantity` plans an exact payout instead.
+an account too (the quote is then for no particular account). An account whose balance covers the
+order is quoted with its balance as the cap, and a budget that quote refuses is never planned from
+the account-free one. `amount` plans an all-in spend and is the whole debit by default, order fee
+included (`orderFee: 'exclusive'` charges the fee on top). `quantity` plans an exact payout instead.
 
 | Form field                     | Plan field                                                                    |
 | ------------------------------ | ----------------------------------------------------------------------------- |
@@ -314,7 +381,10 @@ the room from the model.
   `read.balance`).
 - **The open filler.** `tx.fill(m, { payloads })` verifies signed Lazer payloads with the current
   Lazer package (read from Lazer's `State` per call), commits them and resolves up to `maxOrders`
-  records. Anyone with Lazer access can run one.
+  records. Anyone with Lazer access can run one. From Predict version 6 it also takes the signed
+  Block Scholes batches (`valueMessages`, `sviMessages`), verifies them with the Block Scholes
+  verifier (`config.oracle`, or `blockScholes`) and builds the committed volatility under the
+  market's oracle binding (`queueTx.commitV2`, `queueTx.fillV2`).
 - **Settlement.** After Predict's `try_settle`, the queue's `settle_step` refunds the orders still
   waiting (reason 5) and then pays each Open record its settled payout to the account's wrapper
   address (`OpenRecordSettled`, 0 for a loser). One call per transaction until it returns
@@ -327,9 +397,11 @@ the room from the model.
   `minProbability` that still needs product sign-off. `queueTx` has the thunks for composing an
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
   `createQueue` (registry, desk and market), `commit`, `resolve`, `refund`, `adminRefund`,
-  `settleStep`, `payOpen`, `claimParked` and `cleanup`. `SessionsContract` has the `enqueue*`
-  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3 or
-  later, which `getSessionsConfig` records on both networks.
+  `settleStep`, `payOpen`, `claimParked` and `cleanup`, and the version 6 `enqueue*V2` (which take
+  an optional `builder`), `commitV2` and `fillV2`. `SessionsContract` has the `enqueue*` session
+  wrappers, which take the `orderDesk` and the `queueRegistry`. They call Sessions version 5's
+  `enqueue_*_v2`, with no oracle object, once the config records `sessionsPackageIdV5`, and the
+  Sessions version 4 `enqueue_*` with the market's Propbook objects until then.
 
 #### Queued orders from a session key
 
@@ -350,6 +422,7 @@ const target = {
 	orderDesk: objects.orderDesk!,
 	queueRegistry: objects.queueRegistry!,
 	protocolConfig: objects.protocolConfig,
+	// Sessions version 4 only: Sessions version 5 places with no oracle object.
 	oracleRegistry: objects.oracleRegistry,
 	pythFeed: underlyings.BTC.pythFeed,
 	blockScholesValueStore: underlyings.BTC.blockScholesValueStore,
@@ -377,18 +450,6 @@ tx.add(
 
 A revoked or expired key aborts `sessions::ESessionNotAuthorized`, which `describePredictError`
 explains along with the other Sessions and account aborts.
-
-## ⚠ Slippage defaults are UNCAPPED
-
-`mint` mirrors the chain's semantics: when you omit `maxCost` and `maxProbability`, the mint is
-**uncapped** — if the price moves between your quote and execution, the position can cost up to your
-full account balance. **Call `read.quoteMint` and pass its `cost` (plus your buffer) as `maxCost`.**
-The same applies to `redeem`: the deployed `redeem_live` DOES take `min_probability` /
-`min_proceeds` floors, but the facade's `tx.redeem` does not surface them and always sends `0`
-(uncapped). `read.quoteRedeem` first, close fast. The floors are reachable through `/sessions`:
-`SessionsContract.redeemLive` takes `minProbability` / `minProceeds` (raw units —
-`probabilityToRaw`, `usdcToRaw`) plus a `pricer` from `loadLivePricer`, and is signed by a session
-key the owner has authorized (see the README's `/sessions` section).
 
 ## Units
 
@@ -431,11 +492,14 @@ anchor with `strike: "reference"`:
 const markets = await client.predict.read.markets();
 // each market: "BTC above $<referencePrice>?  ↑ / ↓"
 
-const tx = await client.predict.tx.mint(
-	myAddress,
-	{ underlying: 'BTC', expiryMs: markets[0].expiryMs, strike: 'reference', side: 'up' },
-	{ quantity: 25, maxCost: 15 },
-);
+const reference = {
+	underlying: 'BTC',
+	expiryMs: markets[0].expiryMs,
+	strike: 'reference',
+	side: 'up',
+} as const;
+const plan = await client.predict.read.planMint(myAddress, reference, { quantity: 25 });
+const { transaction } = await client.predict.tx.enqueuePlan(myAddress, reference, plan);
 ```
 
 The reference tick is read fresh at build time (it is unset briefly at the start of a window until
@@ -469,39 +533,43 @@ numeric strike. `strike: 'reference'` is binary-only — a range has no single r
 `read.price` is binary-only too; price a range locally with `pricer.range(lower, upper)`.
 
 ```ts
-const tx = await client.predict.tx.mint(
-	myAddress,
-	{ underlying: 'BTC', expiryMs, side: 'range', lower: 104_000, upper: 106_000 },
-	{ quantity: 25, maxCost: 10 },
-);
+const range = {
+	underlying: 'BTC',
+	expiryMs,
+	side: 'range',
+	lower: 104_000,
+	upper: 106_000,
+} as const;
+const plan = await client.predict.read.planMint(myAddress, range, { quantity: 25 });
+const { transaction } = await client.predict.tx.enqueuePlan(myAddress, range, plan);
 ```
 
 ## What's in the box
 
-- **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`,
-  `mintCost`, `redeem`, `claimSettled`, `supplyPlp`, `withdrawPlp`, `cancelSupplyPlp`,
-  `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`, and for queued orders `enqueuePlan`,
-  `enqueueMint`, `enqueueMintAmount`, `enqueueMintCost`, `enqueueSell`, `refund`, `claimParked`,
-  `payOpen`, `fill` (see [Queued orders](#queued-orders-delayed-execution)). Market-resolving
-  builders (`mint`/`mintAmount`/`mintCost`/`redeem`/`claimSettled`) are async: they resolve the
-  market object from `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per
-  client).
+- **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `claimSettled`, `supplyPlp`,
+  `withdrawPlp`, `cancelSupplyPlp`, `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`, and
+  for queued orders `enqueuePlan`, `enqueueMint`, `enqueueMintAmount`, `enqueueMintCost`,
+  `enqueueSell`, `refund`, `claimParked`, `payOpen`, `fill` (see
+  [Queued orders](#queued-orders-delayed-execution)). Market-resolving builders are async: they
+  resolve the market object from `{ underlying, expiryMs, strike, side }` via the on-chain registry
+  (cached per client).
 - **`client.predict.read`** — `markets()` (summaries of the pool's **active** markets — live and not
   yet settled, so a market past expiry that nobody has settled is still listed and quoting against
   it aborts; filter on `expiryMs` and `mintPaused` before trading: id, expiry, tick size, admission
-  tick size, mint-paused, reference price), `market(desc)` (state + live NAV), `price(m)` (anonymous
-  both-sides pricing for any strike, one chain call per strike), `pricer(m)` (a **client-side board
-  pricer** — one chain read of the resolved pricer, then price every strike locally; see below),
-  `quoteMint(owner, m, opts)` / `quoteMintCost(owner, m, opts)` / `quoteRedeem(owner, m, opts)`
-  (exact dry-run quotes: real fees from the real code path — and they throw the same typed errors
-  the real trade would, so a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`,
-  `pool()`, `feePolicy(m)` (the market's fee snapshot, for `cost`), `settlement(m)` (the settlement
-  price, which still reads after expiry, when `market` and the quotes abort), `positions(owner)`
-  (chain-only enumeration of open positions), `hasPosition(owner, marketId, orderId)`, and for
-  queued orders `executionMode()`, `queue(m)`, `planMint(owner, m, opts)`,
-  `planSell(owner, m, opts)`, `order(m, id)`, `orders(m, ids)`, `waitForOutcome(m, id)`,
-  `quoteSell(owner, m, opts)`, `pendingFunds(owner)`, `lazerPackages()`. All reads run over the
-  client's `simulateTransaction`; no indexer required.
+  tick size, mint-paused, reference price), `market(desc)` (state + NAV mark), `price(m)` (anonymous
+  both-sides pricing for any strike), `pricer(m)` (a **client-side board pricer** that prices every
+  strike locally, see below), `quoteMint(owner, m, opts)` / `quoteMintCost(owner, m, opts)` (the
+  queued fill's quote at the current price, which throws the typed refusals the chain's quote did),
+  the last five priced off chain from signed inputs (see
+  [Signed pricing inputs](#signed-pricing-inputs-predict-version-6)), `balance(owner)`,
+  `plpBalance(owner)`, `pool()`, `feePolicy(m)` (the market's fee snapshot, for `cost`),
+  `feeBands(m)` (the market's fee bands), `oracleBinding(underlying)` and `bsTiming()` (Predict
+  version 6 settings), `settlement(m)` (the settlement price, which still reads after expiry, when
+  `market` and the quotes abort), `positions(owner)` (chain-only enumeration of open positions),
+  `hasPosition(owner, marketId, orderId)`, and for queued orders `executionMode()`, `queue(m)`,
+  `planMint(owner, m, opts)`, `planSell(owner, m, opts)`, `order(m, id)`, `orders(m, ids)`,
+  `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`, `pendingFunds(owner)`, `lazerPackages()`.
+  All reads run over the client's `simulateTransaction` and object reads. No indexer is required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`. Each
   singular form throws unless exactly one matching event is present; `mints`, `redeems` and `claims`
@@ -515,7 +583,10 @@ const tx = await client.predict.tx.mint(
   `packages.predictDelayedExecution`, the Predict version that introduced it, and `policyUpdates`
   decodes the desk's `DelayedExecutionPolicyUpdated` and Predict's `FlushOperatorUpdated` and
   `OrderFlowUpdated`. `realizedPnlRaw` sums `expiryPnlRealized` receipts into the pool's gross
-  realized P&L.
+  realized P&L. `oracleBindingUpdates` and `bsTimingUpdates` decode the Predict version 6 events
+  `OracleBindingUpdated` and `BsTimingUpdated`. Those types are new in version 6, so they match
+  against `packages.predictV6` and `packages.predictOrdersV3`, while the events that existed before
+  keep matching their original IDs.
 - **PTB composition** — each `client.predict.tx.*` builder returns a finished `Transaction`, so to
   put a Predict call into a PTB you are building, use the generated move-call bindings `/predict`
   exports: one namespace of transaction thunks per Predict module (`plpMoveCalls`,
@@ -525,15 +596,14 @@ const tx = await client.predict.tx.mint(
   (`vaultEvents`, `orderEvents`, `configEvents`, `builderCodeEvents`). The order-flow package's
   bindings are `queueMoveCalls`, `deskMoveCalls`, `orderQueueMoveCalls`,
   `delayedExecutionConfigMoveCalls` and `queueEvents`, and the math library's are
-  `predictMathMoveCalls` and `lazerPriceMoveCalls`. Pass `config: toGeneratedConfig(cfg)` — the flat
-  config slice the bindings resolve the shared objects against, or `toOrdersConfig(cfg)` for the
-  order-flow package, which adds it and its desk — and give owner-authorized calls
-  `auth: tx.add(generateAuth(cfg))`, the hot-potato `Auth` the account calls consume. The account
-  itself (create, deposit, share) is `@mysten/deepbook-v3/account`'s `accountRegistryMoveCalls` /
-  `accountMoveCalls`. Also exported:
-  `loadLivePricer(toGeneratedConfig(cfg), { expiryMarketId, ...cfg.underlyings[sym] })` — the
-  `pricer` every live trade call borrows, which the `/sessions` Predict wrappers take as a PTB
-  result — and `deriveAccountWrapperId(cfg, owner)`.
+  `predictMathMoveCalls`, `lazerPriceMoveCalls` and `blockScholesMoveCalls`. The bindings of the
+  entry points Predict version 6 retires keep the argument keys they shipped with. Pass
+  `config: toGeneratedConfig(cfg)` — the flat config slice the bindings resolve the shared objects
+  against, or `toOrdersConfig(cfg)` for the order-flow package, which adds it and its desk — and
+  give owner-authorized calls `auth: tx.add(generateAuth(cfg))`, the hot-potato `Auth` the account
+  calls consume. The account itself (create, deposit, share) is `@mysten/deepbook-v3/account`'s
+  `accountRegistryMoveCalls` / `accountMoveCalls`. Also exported:
+  `deriveAccountWrapperId(cfg, owner)`.
 
   ```ts
   // Create an account, fund it, and queue a PLP supply — one PTB, one signature.
@@ -565,9 +635,8 @@ const tx = await client.predict.tx.mint(
 
 ## Client-side pricing (`read.pricer` + `pricing`)
 
-`read.price` runs the deployed SVI math on-chain and is authoritative, but it costs one chain call
-per strike. To paint a whole board — every strike, both sides, implied strikes — instantly, read the
-resolved pricer **once** and compute the rest locally:
+To paint a whole board — every strike, both sides, implied strikes — build the market's pricer
+**once** from signed inputs and compute the rest locally:
 
 ```ts
 const pricer = await client.predict.read.pricer({ underlying: 'BTC', expiryMs });
@@ -578,10 +647,10 @@ pricer.strikeAtProbability(0.25); // the strike whose UP price is 25¢
 pricer.forward; // the forward it prices against
 ```
 
-`read.pricer` does a single simulate of the chain's `load_live_pricer` and decodes the returned
-`Pricer` — so the forward selection (Pyth-vs-Block-Scholes) and the SVI roll-down already happened
-on-chain; the client only evaluates the digital. It throws the same typed stale-oracle/expired
-`PredictMoveError` that `read.price` would when the chain itself cannot quote.
+`read.pricer` builds the pricer with `pricerAt` from the provider's inputs: the forward re-anchored
+on the Pyth spot and the SVI rolled down to now, as the chain's `pricing::pricer_at` does. Its
+`asOf` carries the inputs' source times. It throws the typed `PredictMoveError` the chain's pricer
+load raised for an expired market or inputs outside the pricing-safe envelope.
 
 The math is a faithful float port of the deployed `pricing::compute_nd2` (SVI with the skew
 correction, signed params, and the remaining-time roll-down). It agrees with the chain closely —
@@ -651,16 +720,16 @@ close.raw.proceeds; // exact integer amount for min_proceeds (before your slippa
 close.raw.probability; // raw 1e9 probability for min_probability
 ```
 
-**Local preview or simulation?** If you already call `read.quoteRedeem`, you do not need a second
-quote for the same close. Use the local helper when a changing input needs an immediate preview; use
-the simulation to check the actual trade before submission.
+**`cost` or `read.quote*`?** `cost` prices from a snapshot you supply and reads nothing. The
+`read.quote*` reads use the version 5 quote rules (fee bands, the per-contract builder fee and the
+subsidy cap), read the market, the desk and the account, and price with your provider's inputs.
 
-| API                                                          | Returns                                                      | Reads the chain?                                                             |
-| ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `cost.mintCost`                                              | Cost and fee breakdown for an exact payout quantity          | No; uses the supplied snapshot                                               |
-| `cost.mintCostForBudget`                                     | The same result, with quantity sized within an all-in budget | No; uses the supplied snapshot                                               |
-| `cost.redeemLiveProceeds`                                    | Net proceeds, gross value, closed quantity and fee breakdown | No; uses the supplied snapshot                                               |
-| `read.quoteMint` / `read.quoteMintCost` / `read.quoteRedeem` | A simulated trade receipt, including cost or proceeds        | Yes; executes the transaction in simulation against account and market state |
+| API                                                        | Returns                                                      | Reads the chain?                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| `cost.mintCost`                                            | Cost and fee breakdown for an exact payout quantity          | No, it uses the supplied snapshot                   |
+| `cost.mintCostForBudget`                                   | The same result, with quantity sized within an all-in budget | No, it uses the supplied snapshot                   |
+| `cost.redeemLiveProceeds`                                  | Net proceeds, gross value, closed quantity and fee breakdown | No, it uses the supplied snapshot                   |
+| `read.quoteMint` / `read.quoteMintCost` / `read.quoteSell` | The queued fill's cost or proceeds at the current price      | Yes, the market, desk and account, priced off chain |
 
 The `cost` functions return synchronously. Their top-level amounts are human-readable numbers; `raw`
 carries integer amounts as bigints. `quantity` is the mint's maximum potential payout; it is not
@@ -673,13 +742,13 @@ supplied `positionQuantity`), pauses, the no-trade window, oracle freshness or a
 backing. A simulation checks the execution path, but its quote can still change before submission;
 keep the transaction's `maxCost` / `minProceeds` slippage bounds.
 
-**Why the budget form exists.** Every fee is charged _on top of_ the premium, and `mintAmount` sizes
-on premium alone — so "spend exactly $X" means quoting, subtracting an estimated fee load, padding
-it so the mint does not abort, and systematically underspending. `mintCostForBudget` runs the same
-lot search the contract's `mint_exact_cost` runs, over the same cost function, so it returns the
-fill that entrypoint would size. On v2 deployments, use
-`tx.mintCost(owner, market, { spend: 50, minQuantity })` to let the chain size the fill against the
-same all-in budget. When only the budget binds, one more lot would exceed it. The maximum-payout
+**Why the budget form exists.** Every fee is charged _on top of_ the premium, and
+`enqueueMintAmount` sizes on premium alone — so "spend exactly $X" means quoting, subtracting an
+estimated fee load, padding it so the mint does not abort, and systematically underspending.
+`mintCostForBudget` runs the same lot search the contract's `mint_exact_cost` runs, over the same
+cost function, so it returns the fill that entrypoint would size.
+`tx.enqueueMintCost(owner, market, { spend: 50, minQuantity })` lets the fill size against the same
+all-in budget at τ. When only the budget binds, one more lot would exceed it. The maximum-payout
 bound or the lot cap can leave a larger remainder. If the budget fill costs more than its payout,
 the contract uses a best-effort step-down search. Integer rounding makes that condition nonmonotone:
 the fallback can miss a larger admissible fill or throw for `minQuantity` even when another fill
@@ -709,9 +778,9 @@ consistent, and enabled inventory impact requires a positive scale.
 
 Admission is enforced locally too: the entry-probability band, the `min_premium` floor, the lot
 grid, and the "a contract may never cost more than it can pay out" bound each throw the
-`PredictInputError` naming the abort the chain would have raised. `read.quoteMint` /
-`read.quoteRedeem` remain the authoritative pre-trade quote — they run the real code path against
-real account state; `cost` is what you reach for when you cannot afford a round trip per keystroke.
+`PredictInputError` naming the abort the chain would have raised. `read.quoteMint` and
+`read.quoteSell` add the market's own state (fee bands, the sponsored balance) and the account's
+balance. `cost` is what you reach for when you cannot afford a round trip per keystroke.
 
 The components are exported too (`tradingFee`, `builderFee`, `feeIncentiveSubsidy`,
 `congestionPenaltyRate`, `mintInventoryImpact`, `closeInventoryImpact`, `expiryFeeMultiplier`,
@@ -753,7 +822,10 @@ defining ID on each one. For example, `MintRange` was introduced in v2 on both n
 `vault_events::UsdcAddedToPlp` is defined by Mainnet v3 (`0x08fa3ef1…`) and Testnet v3
 (`0xb5155d4c…`), neither of them the current call target. The types and events delayed execution
 added are defined by Mainnet v4 and Testnet v5, which the configs record as
-`packages.predictDelayedExecution`.
+`packages.predictDelayedExecution`. The types Predict version 6 adds (`OracleBindingKey`,
+`OracleBinding`, `OracleBindingUpdated`, and `BsTimingKey`, `BsTiming` and `BsTimingUpdated` in
+`deepbook_predict_orders` version 3) are defined by those publications, which the configs record as
+`packages.predictV6` and `packages.predictOrdersV3` once they exist.
 
 **Adding USDC to the pool without minting PLP:** `plpMoveCalls.addUsdcToPlp` wraps
 `add_usdc_to_plp`, which pays a `Coin<USDC>` into the pool's idle cash and mints nothing in return.
@@ -774,29 +846,6 @@ other five-minute marks. Every market is still an ordinary expiry market, so tra
 orders need nothing cadence-specific. `CadenceAdded` is defined by Testnet v7 and Mainnet v5, so
 match it against that version's ID, not `predictV1`. A registry that has never added a cadence reads
 the six built-in ones.
-
-**All-in budget mint (v2 and later):** `spend` caps the debit including all trade fees, and
-`minQuantity` is the minimum payout quantity accepted. It may spend less than the budget because of
-lot rounding, balance limits or the contract's sizing constraints. Network gas is separate.
-`mintAmount` retains its existing premium-only budget semantics.
-
-```ts
-const quote = await client.predict.read.quoteMintCost(myAddress, desc, {
-	spend: 100,
-	minQuantity: 0,
-});
-// Render quote.cost, quote.quantity, and quote.fees (including inventoryImpact).
-const tx = await client.predict.tx.mintCost(myAddress, desc, {
-	spend: 100,
-	minQuantity: Number((quote.quantity * 0.99).toFixed(6)), // 1% payout slippage
-});
-```
-
-`read.quoteMintCost` simulates the actual budget mint with the owner's current balance and fees; it
-requires an existing funded account. Sessions callers can compose `SessionsContract.mintExactCost`
-with a live pricer using raw Move units. The generated `expiryMarketMoveCalls` also exposes
-`quoteMintExactCostForAccount` for lower-level PTBs. These entrypoints require v2 or later. Both
-recorded deployments qualify, but a custom deployment still on v1 does not.
 
 An expired market stays in `read.markets()` until someone settles it — the list is the pool's
 live-and-not-yet-settled set, not a tradeable set. On either network, check `expiryMs` against the

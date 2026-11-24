@@ -6,7 +6,7 @@
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { ProtocolConfig } from '../../src/contracts/deepbook_predict/protocol_config.js';
 import { PredictClient, type MarketDescriptor } from '../../src/predict/client.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
@@ -15,20 +15,29 @@ import { PredictInputError, PredictPreflightError } from '../../src/predict/erro
 import { cashNeedBudget, cashNeedExactQuantity } from '../../src/predict/queue.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
+import { localMintQuote, localSellQuote } from '../../src/predict/quotes.js';
+import { readMarketObject } from '../../src/predict/reads/book.js';
 import {
 	LEGACY_CFG,
-	DELAYED_PKG,
 	MARKET,
-	ORDERS_PKG,
 	QUEUE,
 	QUEUE_CFG as cfg,
+	fixedPricer,
 	moveCallTargets,
 	policyFields,
 	queueClient,
 	recordFields,
 	scenario,
+	testProvider,
 	type QueueScenario,
 } from './queue-fixtures.js';
+
+// The pricer is fixed (`pricerAt` is tested in `inputs.test.ts`), and the quotes run the real
+// off-chain engine on the fixture market.
+vi.mock('../../src/predict/inputs.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../../src/predict/inputs.js')>();
+	return { ...actual, pricerAt: vi.fn(() => fixedPricer()) };
+});
 
 const OWNER = '0x' + 'ab'.repeat(32);
 // The commands every facade enqueue starts with: they hold the desk's fee at execution to the
@@ -47,9 +56,35 @@ const spare = (raw: bigint): Partial<QueueScenario> => ({ cashBalance: 500_000_0
 // An order ID carrying `lots` payout lots (the quantity field sits at bit 100).
 const orderIdWithLots = (lots: bigint) => (lots << 100n) | (10_500_000n << 70n) | (1n << 40n) | 1n;
 
-function client(s: QueueScenario) {
+function client(s: QueueScenario, config = cfg) {
 	const q = queueClient(s);
-	return { pc: new PredictClient({ network: 'testnet', client: q.client, config: cfg }), ...q };
+	const pc = new PredictClient({
+		network: 'testnet',
+		client: q.client,
+		config,
+		pricingInputs: testProvider(),
+	});
+	return { pc, ...q };
+}
+
+// What the off-chain engine quotes on the fixture market at the fixed pricer.
+async function expectedMint(
+	s: QueueScenario,
+	request: Parameters<typeof localMintQuote>[0]['request'],
+	availableRaw?: bigint,
+) {
+	const object = await readMarketObject(queueClient(s).client, MARKET);
+	const pricer = fixedPricer();
+	return localMintQuote({
+		market: { ...object, feeBands: [] },
+		pricer,
+		lowerTick: 10_500_000n,
+		higherTick: (1n << 30n) - 1n,
+		request,
+		nowMs: pricer.pricedAtMs,
+		feeIncentiveSubsidyRate: s.subsidyRate,
+		availableRaw,
+	});
 }
 
 function market(s: QueueScenario): MarketDescriptor {
@@ -601,57 +636,96 @@ describe('quotes', () => {
 		);
 	});
 
-	test('quoteMint previews a queued fill: no penalty in the cost, the order fee apart', async () => {
+	test('quoteMint prices the queued fill off chain, with the order fee apart', async () => {
 		const s = scenario();
 		const { pc, simulated } = client(s);
 		const q = await pc.read.quoteMint(OWNER, market(s), { quantity: 10 });
-		// The quote is Predict's (the upgrade), the fee the companion desk's.
-		const packages = simulated
-			.at(-1)!
-			.getData()
-			.commands.map((c) => `${normalizeSuiAddress(c.MoveCall!.package)}::${c.MoveCall!.module}`);
-		expect(packages).toEqual([
-			`${DELAYED_PKG}::expiry_market`,
-			`${DELAYED_PKG}::expiry_market`,
-			`${ORDERS_PKG}::desk`,
-		]);
+		// One simulate for the desk, the protocol's subsidy rate and builder cap, and the balance.
+		// No retired view is called.
+		const targets = simulated.flatMap(moveCallTargets);
+		expect(targets).not.toContain('expiry_market::load_live_pricer');
+		expect(targets).not.toContain('expiry_market::quote_mint_for_account');
 		expect(moveCallTargets(simulated.at(-1)!)).toEqual([
-			'expiry_market::load_live_pricer',
-			'expiry_market::quote_mint_for_account',
 			'desk::policy',
+			'protocol_config::fee_incentive_subsidy_rate',
+			'protocol_config::builder_fee_cap',
+			'account::load_account',
+			'account::balance',
 		]);
-		// The delayed-execution package quotes no penalty; the fixture's 0.007 shows any penalty
-		// still comes out of the queued cost.
-		expect(q).toMatchObject({ queued: true, cost: 4.083, orderFee: 0.02, fees: { penalty: 0 } });
-		expect(q.raw.cost).toBe(4_083_000n);
+		const expected = await expectedMint(
+			s,
+			{ shape: 'exact-quantity', quantityRaw: 10_000_000n },
+			s.available,
+		);
+		expect(q).toMatchObject({ queued: true, orderFee: 0.02, fees: { penalty: 0 } });
+		expect(q.raw.cost).toBe(expected.allInCost);
+		expect(q.raw.entryProbability).toBe(expected.entryProbability);
+		expect(q.raw.quantity).toBe(10_000_000n);
 	});
 
 	test('quoteMintCost quotes at the escrowable budget, min(spend, available − fee)', async () => {
 		const s = scenario({ available: 3_020_000n });
-		const { pc, simulated } = client(s);
-		await pc.read.quoteMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 });
-		const quoteTx = simulated.at(-1)!;
-		expect(moveCallTargets(quoteTx)[1]).toBe('expiry_market::quote_mint_exact_cost_for_account');
-		const maxCostArg = quoteTx.getData().commands[1].MoveCall!.arguments[6] as { Input: number };
-		const bytes = quoteTx.getData().inputs[maxCostArg.Input].Pure!.bytes;
-		expect(Buffer.from(bytes, 'base64').readBigUInt64LE()).toBe(3_000_000n);
+		const { pc } = client(s);
+		const q = await pc.read.quoteMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 });
+		const expected = await expectedMint(
+			s,
+			{ shape: 'exact-cost', maxCostRaw: 3_000_000n, minQuantityRaw: 0n },
+			s.available,
+		);
+		expect(q.raw.cost).toBe(expected.allInCost);
+		expect(q.raw.cost).toBeLessThanOrEqual(3_000_000n);
+		expect(q.raw.quantity).toBe(expected.quantity);
 	});
 
-	test('quoteSell nets the order fee off the proceeds', async () => {
-		const s = scenario({ records: new Map([[3n, recordFields({ status: 2 })]]) });
-		const { pc, simulated } = client(s);
-		const q = await pc.read.quoteSell(OWNER, market(s), { recordId: 3n, quantity: 2 });
-		expect(moveCallTargets(simulated.at(-1)!)).toEqual([
-			'expiry_market::load_live_pricer',
-			'queue::quote_redeem_open',
-			'desk::policy',
-		]);
-		expect(q).toMatchObject({
-			proceeds: 0.79,
-			net: 0.77,
-			fees: { order: 0.02 },
-			quantityClosed: 2,
+	test('quoteSell nets the order fee off the proceeds, and refuses a record that is not Open', async () => {
+		// 5 USDC of an UP position at $105,000: lots, lower tick, +∞ higher tick, sequence.
+		const POS_INF = (1n << 30n) - 1n;
+		const held = (500n << 100n) | (10_500_000n << 70n) | (POS_INF << 40n) | 1n;
+		const s = scenario({
+			records: new Map([
+				[3n, recordFields({ status: 2, position: { order_id: held } })],
+				[4n, recordFields({ status: 1 })],
+			]),
 		});
+		const { pc } = client(s);
+		const q = await pc.read.quoteSell(OWNER, market(s), { recordId: 3n, quantity: 2 });
+		const object = await readMarketObject(queueClient(s).client, MARKET);
+		const pricer = fixedPricer();
+		const expected = localSellQuote({
+			market: { ...object, feeBands: [] },
+			pricer,
+			order: { lowerTick: 10_500_000n, higherTick: POS_INF, quantity: 5_000_000n },
+			closeQuantityRaw: 2_000_000n,
+			nowMs: pricer.pricedAtMs,
+		});
+		expect(q.raw.proceeds).toBe(expected.proceeds);
+		expect(q.raw.probability).toBe(expected.probability);
+		expect(q.quantityClosed).toBe(2);
+		expect(q.fees.order).toBe(0.02);
+		expect(q.net).toBeCloseTo(q.proceeds - 0.02, 9);
+		expect(q.proceeds).toBeGreaterThan(0);
+		await expect(
+			pc.read.quoteSell(OWNER, market(s), { recordId: 4n, quantity: 2 }),
+		).rejects.toMatchObject({ abortName: 'ERecordNotOpen' });
+	});
+
+	test('a quote without signed inputs is refused, typed', async () => {
+		const s = scenario();
+		const q = queueClient(s);
+		const bare = new PredictClient({ network: 'testnet', client: q.client, config: cfg });
+		await expect(bare.read.quoteMint(OWNER, market(s), { quantity: 10 })).rejects.toThrow(
+			/pricingInputs/,
+		);
+		await expect(bare.read.price({ ...market(s), strike: 105_000 })).rejects.toThrow(
+			PredictInputError,
+		);
+		// A call's own inputs stand in for the provider.
+		const { TEST_INPUTS } = await import('./queue-fixtures.js');
+		const prices = await bare.read.price(
+			{ underlying: 'BTC', expiryMs: s.expiryMs, marketId: MARKET, strike: 105_000 },
+			{ inputs: TEST_INPUTS },
+		);
+		expect(prices.up + prices.down).toBeCloseTo(1, 9);
 	});
 });
 
@@ -750,4 +824,248 @@ test('the queued-order surface is on the public /predict entry point', async () 
 	expect('setOrderFee' in predict.protocolConfigMoveCalls).toBe(false);
 	expect('enqueueExactCost' in predict.expiryMarketMoveCalls).toBe(false);
 	expect('isPreviewUnavailable' in predict).toBe(false);
+});
+
+// Market resolution and strike conversion, through the queued mint (the immediate trades that
+// used to carry these checks are retired).
+describe('market resolution and strikes', () => {
+	const POS_INF = (1n << 30n) - 1n;
+	// The version 5 placement: queue, market, wrapper, auth, desk, config, the four Propbook
+	// objects, then lower tick (10), higher tick (11) and quantity (12).
+	function placed(tx: Transaction) {
+		const data = tx.getData();
+		const idx = data.commands.findIndex((c) =>
+			c.MoveCall?.function.startsWith('enqueue_exact_quantity'),
+		);
+		const u64At = (arg: number) => {
+			const a = data.commands[idx].MoveCall!.arguments[arg] as { Input: number };
+			return Buffer.from(data.inputs[a.Input].Pure!.bytes, 'base64').readBigUInt64LE();
+		};
+		return { lower: u64At(10), higher: u64At(11), quantity: u64At(12) };
+	}
+	const mint = (pc: PredictClient, m: MarketDescriptor, quantity = 50) =>
+		pc.tx.enqueueMint(OWNER, m, { quantity, maxCost: quantity, maxProbability: 0.99 });
+
+	test('converts quantity and ticks against a resolved market', async () => {
+		const s = scenario();
+		const { transaction } = await mint(client(s).pc, market(s));
+		expect(placed(transaction)).toEqual({
+			lower: 10_500_000n,
+			higher: POS_INF,
+			quantity: 50_000_000n,
+		});
+	});
+
+	test('a strike off the coarser admission grid is refused before the chain sees it', async () => {
+		const s = scenario({ admissionTickSizeRaw: 100_000_000_000n });
+		const { pc } = client(s);
+		await expect(mint(pc, { ...market(s), strike: 105_000.01 })).rejects.toThrow(/admission grid/);
+		await expect(mint(pc, market(s))).resolves.toBeDefined();
+	});
+
+	test('a sub-lot quantity is refused, for mints and sells', async () => {
+		const s = scenario({ records: new Map([[3n, recordFields({ status: 2 })]]) });
+		const { pc } = client(s);
+		await expect(mint(pc, market(s), 0.001)).rejects.toThrow(/lot/);
+		await expect(
+			pc.tx.enqueueSell(OWNER, market(s), {
+				recordId: 3n,
+				quantity: 0.001,
+				minProbability: 0,
+				minProceeds: 0,
+			}),
+		).rejects.toThrow(/lot/);
+	});
+
+	test('the reference strike uses the market reference tick, on either bound', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const up = await mint(pc, { ...market(s), strike: 'reference' });
+		expect(placed(up.transaction)).toMatchObject({ lower: 10_500_000n, higher: POS_INF });
+		const down = await mint(pc, { ...market(s), strike: 'reference', side: 'down' });
+		expect(placed(down.transaction)).toMatchObject({ lower: 0n, higher: 10_500_000n });
+		const unset = scenario({ referenceTick: null });
+		await expect(mint(client(unset).pc, { ...market(unset), strike: 'reference' })).rejects.toThrow(
+			/reference price not set/,
+		);
+	});
+
+	test('a range converts both bounds to finite grid ticks, and refuses bad bounds', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const range = {
+			underlying: 'BTC',
+			expiryMs: s.expiryMs,
+			marketId: MARKET,
+			side: 'range',
+			lower: 104_000,
+			upper: 106_000,
+		} as const;
+		const { transaction } = await mint(pc, range);
+		expect(placed(transaction)).toMatchObject({ lower: 10_400_000n, higher: 10_600_000n });
+		await expect(mint(pc, { ...range, upper: 106_000.005 })).rejects.toThrow(/tick grid/);
+		await expect(mint(pc, { ...range, lower: 106_000, upper: 104_000 })).rejects.toThrow(
+			/below upper/,
+		);
+		await expect(mint(pc, { ...range, upper: 104_000 })).rejects.toThrow(/below upper/);
+		await expect(mint(pc, { ...range, lower: 0 })).rejects.toThrow(/finite tick domain/);
+	});
+});
+
+// The reads that price a market off chain, at the fixed pricer.
+describe('off-chain prices and NAV', () => {
+	test('read.price prices both sides of a strike from one pricer', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const p = await pc.read.price({
+			underlying: 'BTC',
+			expiryMs: s.expiryMs,
+			marketId: MARKET,
+			strike: 105_000,
+		});
+		const { upProbability } = await import('../../src/predict/pricing.js');
+		expect(p.up).toBeCloseTo(upProbability(fixedPricer(), 105_000), 9);
+		expect(p.up + p.down).toBeCloseTo(1, 9);
+		const board = await pc.read.pricer({
+			underlying: 'BTC',
+			expiryMs: s.expiryMs,
+			marketId: MARKET,
+		});
+		expect(board.up(105_000)).toBeCloseTo(p.up, 9);
+		expect(board.asOf.blockScholesSviMs).toBe(3_000);
+	});
+
+	test('read.market reports the NAV mark: free cash less the marked liability', async () => {
+		const s = scenario({ cashBalance: 750_000_000n });
+		const q = queueClient(s);
+		const pc = new PredictClient({
+			network: 'testnet',
+			client: q.client,
+			config: cfg,
+			pricingInputs: testProvider(),
+		});
+		const summary = await pc.read.market({ underlying: 'BTC', expiryMs: s.expiryMs });
+		// The fixture market's payout tree is empty, so the whole free cash is the mark.
+		expect(summary).toMatchObject({ id: MARKET, nav: 750, mintPaused: false });
+	});
+});
+
+// Predict version 6, `deepbook_predict_orders` version 3 and the math library with
+// `block_scholes`: placement takes no Propbook object, and every call targets the new packages.
+describe('Predict version 6', () => {
+	const V6 = '0x' + '66'.repeat(32);
+	const O3 = '0x' + '03'.repeat(32);
+	const M3 = '0x' + '3b'.repeat(32);
+	const V6_CFG = {
+		...cfg,
+		packages: { ...cfg.packages, predictV6: V6, predictOrdersV3: O3, predictMathV3: M3 },
+	};
+	const propbookIds = [
+		cfg.objects.oracleRegistry,
+		cfg.underlyings.BTC.pythFeed,
+		cfg.underlyings.BTC.blockScholesValueStore,
+		cfg.underlyings.BTC.blockScholesSviStore,
+	].map((id) => normalizeSuiAddress(id));
+	const objectInputs = (tx: Transaction) =>
+		tx
+			.getData()
+			.inputs.flatMap((i) =>
+				i.UnresolvedObject ? [normalizeSuiAddress(i.UnresolvedObject.objectId)] : [],
+			);
+	const packagesOf = (tx: Transaction) =>
+		tx
+			.getData()
+			.commands.flatMap((c) =>
+				c.MoveCall
+					? [
+							`${normalizeSuiAddress(c.MoveCall.package)}::${c.MoveCall.module}::${c.MoveCall.function}`,
+						]
+					: [],
+			);
+
+	test('a queued mint places with enqueue_*_v2 on orders v3, naming no Propbook object', async () => {
+		const s = scenario({ watermark: 6n, deskWatermark: 3n });
+		const { pc } = client(s, V6_CFG);
+		const { transaction } = await pc.tx.enqueueMintCost(OWNER, market(s), {
+			spend: 5,
+			minQuantity: 0,
+		});
+		const calls = packagesOf(transaction);
+		expect(calls).toContain(`${O3}::queue::enqueue_exact_cost_v2`);
+		expect(calls).toContain(`${O3}::desk::policy`);
+		expect(objectInputs(transaction).filter((id) => propbookIds.includes(id))).toEqual([]);
+	});
+
+	test('a funded sell places with enqueue_redeem_open_v2 and funds through Predict version 6', async () => {
+		const held = (500n << 100n) | (10_500_000n << 70n) | (((1n << 30n) - 1n) << 40n) | 1n;
+		const s = scenario({
+			watermark: 6n,
+			deskWatermark: 3n,
+			records: new Map([
+				[7n, recordFields({ status: 2, accountId: ACCOUNT_ID, position: { order_id: held } })],
+			]),
+		});
+		const { pc } = client(s, V6_CFG);
+		const { transaction } = await pc.tx.enqueueSell(OWNER, market(s), {
+			recordId: 7n,
+			quantity: 2,
+			minProbability: 0,
+			minProceeds: 0,
+			fundMarket: 'always',
+		});
+		const calls = packagesOf(transaction);
+		expect(calls).toContain(`${O3}::queue::enqueue_redeem_open_v2`);
+		expect(calls).toContain(`${V6}::plp::rebalance_expiry_cash`);
+		expect(objectInputs(transaction).filter((id) => propbookIds.includes(id))).toEqual([]);
+	});
+
+	test('the version guards expect Predict 6 and orders 3 once the config records them', async () => {
+		const s = scenario({ watermark: 6n, deskWatermark: 3n });
+		expect((await client(s, V6_CFG).pc.read.queue(market(s))).refusal.mint).toBeNull();
+		// The same watermarks retire a config still calling the version 5 packages.
+		expect((await client(s).pc.read.queue(market(s))).refusal.mint).toBe('retired');
+		const later = scenario({ watermark: 7n, deskWatermark: 3n });
+		expect((await client(later, V6_CFG).pc.read.queue(market(later))).refusal.mint).toBe('retired');
+	});
+
+	test('a config recording only one of Predict 6 and orders 3 is refused', () => {
+		const s = scenario();
+		const q = queueClient(s);
+		for (const packages of [
+			{ ...cfg.packages, predictV6: V6 },
+			{ ...cfg.packages, predictOrdersV3: O3 },
+		]) {
+			const pc = new PredictClient({
+				network: 'testnet',
+				client: q.client,
+				config: { ...cfg, packages },
+			});
+			expect(() => pc.queueIdFor(MARKET)).toThrow(/version 6/);
+		}
+	});
+
+	test('the version 6 fill needs the math library with block_scholes and the Block Scholes batches', async () => {
+		const s = scenario({ watermark: 6n, deskWatermark: 3n });
+		const noMath = client(s, {
+			...V6_CFG,
+			packages: { ...V6_CFG.packages, predictMathV3: undefined },
+		});
+		const lazerClient = {
+			core: {
+				...noMath.client.core,
+				async getObject() {
+					const bytes = new Uint8Array(32 + 1 + 32 + 32 + 8 + 1);
+					return { object: { type: `0x${'3c'.repeat(32)}::state::State`, content: bytes } };
+				},
+			},
+		} as unknown as ReadClient;
+		const pc = new PredictClient({
+			network: 'testnet',
+			client: lazerClient,
+			config: { ...V6_CFG, packages: { ...V6_CFG.packages, predictMathV3: undefined } },
+		});
+		await expect(pc.tx.fill(market(s), { payloads: [new Uint8Array([1])] })).rejects.toThrow(
+			/predictMathV3/,
+		);
+	});
 });

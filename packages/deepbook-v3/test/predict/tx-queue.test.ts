@@ -14,12 +14,18 @@ import {
 	claimParked,
 	cleanup,
 	commit,
+	commitV2,
 	createQueue,
 	enqueueExactAmount,
+	enqueueExactAmountV2,
 	enqueueExactCost,
+	enqueueExactCostV2,
 	enqueueExactQuantity,
+	enqueueExactQuantityV2,
 	enqueueRedeemOpen,
+	enqueueRedeemOpenV2,
 	fill,
+	fillV2,
 	payOpen,
 	rebalanceExpiryCash,
 	refund,
@@ -477,5 +483,239 @@ describe('refunds, rebalance and the keeper steps', () => {
 		expect(() => commit(config, { expiryMarketId: MARKET, payloads: [], lazer })).toThrow(
 			PredictInputError,
 		);
+	});
+});
+
+// Predict version 6 (`deepbook_predict_orders` v3): placement with no oracle object, and the
+// commit that carries signed Block Scholes data.
+describe('version 6 placement and commit', () => {
+	const O3 = '0x' + '03'.repeat(32);
+	const M3 = '0x' + '3b'.repeat(32);
+	const V6 = '0x' + '66'.repeat(32);
+	const v6Config = toOrdersConfig({
+		...cfg,
+		packages: { ...cfg.packages, predictV6: V6, predictOrdersV3: O3, predictMathV3: M3 },
+	});
+	const v2Target = { expiryMarketId: MARKET, wrapperId: WRAPPER };
+	const CODE = '0x' + 'c0'.repeat(32);
+	const BS = {
+		signerRegistryId: '0x' + '4d'.repeat(32),
+		packageId: '0x' + '5e'.repeat(32),
+		originalId: '0x' + '6f'.repeat(32),
+	};
+
+	test('the version 6 config calls orders v3 and Predict v6, and keeps the original type IDs', () => {
+		expect(v6Config.predictOrdersPackageId).toBe(O3);
+		expect(v6Config.predictPackageId).toBe(V6);
+		expect(v6Config.predictMathPackageId).toBe(M3);
+		expect(v6Config.predictOrdersPackageIdV1).toBe(config.predictOrdersPackageIdV1);
+		expect(v6Config.predictPackageIdV1).toBe(config.predictPackageIdV1);
+	});
+
+	test('each placement calls its _v2 form with no Propbook object, after the auth', () => {
+		const cases = [
+			[
+				enqueueExactQuantityV2(v6Config, {
+					...v2Target,
+					lowerTick: 1n,
+					higherTick: 2n,
+					quantityRaw: 10_000_000n,
+					maxCostRaw: 6_000_000n,
+					maxProbabilityRaw: 600_000_000n,
+				}),
+				'enqueue_exact_quantity_v2',
+				[1n, 2n, 10_000_000n, 6_000_000n, 600_000_000n],
+			],
+			[
+				enqueueExactAmountV2(v6Config, {
+					...v2Target,
+					lowerTick: 1n,
+					higherTick: 2n,
+					maxPremiumRaw: 2_000_000n,
+					minQuantityRaw: 3n,
+					maxCostRaw: 4_000_000n,
+				}),
+				'enqueue_exact_amount_v2',
+				[1n, 2n, 2_000_000n, 3n, 4_000_000n],
+			],
+			[
+				enqueueExactCostV2(v6Config, {
+					...v2Target,
+					lowerTick: 1n,
+					higherTick: 2n,
+					maxCostRaw: 5_000_000n,
+					minQuantityRaw: 6n,
+				}),
+				'enqueue_exact_cost_v2',
+				[1n, 2n, 5_000_000n, 6n],
+			],
+			[
+				enqueueRedeemOpenV2(v6Config, {
+					...v2Target,
+					recordId: 9n,
+					closeQuantityRaw: 2_000_000n,
+					minProbabilityRaw: 0n,
+					minProceedsRaw: 7n,
+				}),
+				'enqueue_redeem_open_v2',
+				[9n, 2_000_000n, 0n, 7n],
+			],
+		] as const;
+		for (const [thunk, fn, terms] of cases) {
+			const tx = build(thunk);
+			expect(moveCallTargets(tx)).toEqual(['account::generate_auth', `queue::${fn}`]);
+			expect(id(call(tx, 1).package)).toBe(id(O3));
+			// queue, market, wrapper, auth, desk, config, then the terms.
+			expect(objectId(tx, 1, 0)).toBe(id(QUEUE));
+			expect(objectId(tx, 1, 1)).toBe(id(MARKET));
+			expect(objectId(tx, 1, 2)).toBe(id(WRAPPER));
+			expect(call(tx, 1).arguments[3]).toEqual({ $kind: 'Result', Result: 0 });
+			expect(objectId(tx, 1, 4)).toBe(id(DESK));
+			expect(objectId(tx, 1, 5)).toBe(id(cfg.objects.protocolConfig));
+			terms.forEach((v, i) => expect(pure(tx, 1, 6 + i)).toBe(b64(v)));
+			const objects = tx
+				.getData()
+				.inputs.flatMap((i) => (i.UnresolvedObject ? [id(i.UnresolvedObject.objectId)] : []));
+			for (const propbook of [
+				cfg.objects.oracleRegistry,
+				btc.pythFeed,
+				btc.blockScholesValueStore,
+				btc.blockScholesSviStore,
+			]) {
+				expect(objects).not.toContain(id(propbook));
+			}
+		}
+	});
+
+	test('a builder selects the _with_builder_v2 placement, code and fee after the config', () => {
+		const tx = build(
+			enqueueExactCostV2(v6Config, {
+				...v2Target,
+				builder: { codeId: CODE, feePerContract: 3_000_000n },
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCostRaw: 5_000_000n,
+				minQuantityRaw: 6n,
+			}),
+		);
+		expect(moveCallTargets(tx)).toEqual([
+			'account::generate_auth',
+			'queue::enqueue_exact_cost_with_builder_v2',
+		]);
+		expect(objectId(tx, 1, 6)).toBe(id(CODE));
+		expect(pure(tx, 1, 7)).toBe(b64(3_000_000n));
+		expect(pure(tx, 1, 8)).toBe(b64(1n));
+	});
+
+	test('the version 6 placements keep the static checks', () => {
+		expect(() =>
+			enqueueExactCostV2(v6Config, {
+				...v2Target,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCostRaw: 0n,
+				minQuantityRaw: 0n,
+			}),
+		).toThrow(PredictInputError);
+		expect(() =>
+			enqueueExactQuantityV2(v6Config, {
+				...v2Target,
+				lowerTick: 1n,
+				higherTick: 2n,
+				quantityRaw: 1n,
+				maxCostRaw: 1n,
+				maxProbabilityRaw: 0n,
+			}),
+		).toThrow(/maxProbabilityRaw/);
+		expect(() =>
+			enqueueExactAmountV2(v6Config, {
+				...v2Target,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxPremiumRaw: 999_999n,
+				minQuantityRaw: 0n,
+				maxCostRaw: 5n,
+			}),
+		).toThrow(/minimum premium/);
+	});
+
+	test('commitV2 verifies Lazer and Block Scholes data, builds the vols, then commits', () => {
+		const tx = build(
+			commitV2(v6Config, {
+				expiryMarketId: MARKET,
+				payloads: [new Uint8Array([1]), new Uint8Array([2])],
+				lazer: LAZER,
+				valueMessages: [new Uint8Array([3]), new Uint8Array([4])],
+				sviMessages: [new Uint8Array([5])],
+				blockScholes: BS,
+				binding: { blockScholesBaseAsset: 'BTC', sviModel: 'model-a', sviDecimals: 18 },
+				expiryMs: 1_700_000_060_000n,
+			}),
+		);
+		expect(moveCallTargets(tx)).toEqual([
+			'pyth_lazer::parse_and_verify_le_ecdsa_update',
+			'pyth_lazer::parse_and_verify_le_ecdsa_update',
+			'verify::verify_and_create_value_batch',
+			'verify::into_value_updates',
+			'verify::verify_and_create_value_batch',
+			'verify::into_value_updates',
+			'vector::append',
+			'verify::verify_and_create_svi_batch',
+			'verify::into_svi_updates',
+			'block_scholes::vols',
+			'queue::commit_v2',
+		]);
+		const data = tx.getData();
+		const appendCall = data.commands.find((c) => c.MoveCall?.function === 'append')!.MoveCall!;
+		expect(appendCall.typeArguments).toEqual([`${BS.originalId}::verify::ValueUpdate`]);
+		const vols = data.commands.find((c) => c.MoveCall?.function === 'vols')!.MoveCall!;
+		expect(id(vols.package)).toBe(id(M3));
+		const verify = data.commands.find(
+			(c) => c.MoveCall?.function === 'verify_and_create_svi_batch',
+		)!.MoveCall!;
+		expect(id(verify.package)).toBe(id(BS.packageId));
+		const commitIdx = data.commands.findIndex((c) => c.MoveCall?.function === 'commit_v2');
+		expect(id(call(tx, commitIdx).package)).toBe(id(O3));
+		// queue, market, desk, config, updates, vols, clock.
+		expect(objectId(tx, commitIdx, 0)).toBe(id(QUEUE));
+		expect(objectId(tx, commitIdx, 2)).toBe(id(DESK));
+		expect(call(tx, commitIdx).arguments[5]).toEqual({
+			$kind: 'Result',
+			Result: data.commands.findIndex((c) => c.MoveCall?.function === 'vols'),
+		});
+	});
+
+	test('fillV2 commits, resolves and optionally refunds', () => {
+		const tx = build(
+			fillV2(v6Config, {
+				expiryMarketId: MARKET,
+				payloads: [new Uint8Array([1])],
+				lazer: LAZER,
+				valueMessages: [new Uint8Array([3])],
+				sviMessages: [new Uint8Array([5])],
+				blockScholes: BS,
+				binding: { blockScholesBaseAsset: 'BTC', sviModel: 'model-a', sviDecimals: 9 },
+				expiryMs: 1n,
+				maxOrders: 15,
+				refundOverdue: true,
+			}),
+		);
+		expect(moveCallTargets(tx).slice(-3)).toEqual([
+			'queue::commit_v2',
+			'queue::resolve',
+			'queue::refund',
+		]);
+		expect(() =>
+			commitV2(v6Config, {
+				expiryMarketId: MARKET,
+				payloads: [new Uint8Array([1])],
+				lazer: LAZER,
+				valueMessages: [],
+				sviMessages: [new Uint8Array([5])],
+				blockScholes: BS,
+				binding: { blockScholesBaseAsset: 'BTC', sviModel: 'model-a', sviDecimals: 9 },
+				expiryMs: 1n,
+			}),
+		).toThrow(/Block Scholes/);
 	});
 });

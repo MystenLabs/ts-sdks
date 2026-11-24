@@ -143,3 +143,15 @@ describe('boardPricer', () => {
 		expect(bp.strikeAtProbability(0.4)).toBeCloseTo(strikeAtProbability(F100(SKEWED), 0.4)!, 10);
 	});
 });
+
+describe('the skew correction rounds as the chain does', () => {
+	test('a slope times b below 1e-9 applies no correction', () => {
+		// At the money with a near-flat rolled surface: b · slope = 5e-10, which the chain floors to
+		// zero at 1e9, so it prices N(d2) ≈ 0.5 with no skew correction.
+		const inputs = { forward: 100_000, svi: { a: 1e-18, b: 1e-9, rho: 0.5, m: 0, sigma: 1e-7 } };
+		expect(upProbability(inputs, 100_000)).toBeCloseTo(0.5, 7);
+		// With b a hundred times larger the correction applies again.
+		const steeper = { ...inputs, svi: { ...inputs.svi, b: 1e-7 } };
+		expect(upProbability(steeper, 100_000)).toBeLessThan(0.49);
+	});
+});

@@ -8,6 +8,7 @@ import { getConfig, type PredictConfig, type UnderlyingConfig } from './config/i
 import {
 	toGeneratedConfig,
 	toOrdersConfig,
+	usesPredictV6,
 	type GeneratedConfig,
 	type OrdersGeneratedConfig,
 } from './config/generated.js';
@@ -21,8 +22,10 @@ import {
 	decodeEnqueues,
 	decodeExpiryPnlRealized,
 	decodeMarketPayoutsCompleted,
+	decodeBsTimingUpdates,
 	decodeMints,
 	decodeOpenRecordPayouts,
+	decodeOracleBindingUpdates,
 	decodePlpCancels,
 	decodePlpRequests,
 	decodePolicyUpdates,
@@ -43,6 +46,21 @@ import {
 	type PredictPreflightCode,
 } from './errors.js';
 import {
+	pricerAt,
+	type PricingFreshness,
+	type PricingInputs,
+	type PricingInputsProvider,
+	type ResolvedPricer,
+} from './inputs.js';
+import {
+	localMintQuote,
+	localNav,
+	localSellQuote,
+	rangeBoundaries,
+	type FeeBand,
+	type QuoteMarket,
+} from './quotes.js';
+import {
 	ORDER_FLOW_PACKAGE_VERSION,
 	PREDICT_PACKAGE_VERSION,
 	ORDER_KIND,
@@ -60,6 +78,7 @@ import {
 	previewTiming,
 	sellLimits,
 	slippageBand,
+	type BsTiming,
 	type DelayedExecutionPolicy,
 	type MaxMintNow,
 	type OrderKindName,
@@ -68,23 +87,27 @@ import {
 	type TimingPreview,
 } from './queue.js';
 import { deriveQueueId } from './queue-id.js';
-import { simulateWithEvents } from './reads/inspect.js';
+import {
+	blockScholesPackages,
+	readBsTiming,
+	readOracleBinding,
+	type OracleBinding,
+} from './reads/binding.js';
+import { readFeeBands, readMarketObject, readMarketWithBook } from './reads/book.js';
 import {
 	executionModeFor,
 	lazerPackages,
 	marketQueueState,
-	orderFeeAndBalance,
 	pendingFunds,
 	queuedOrders,
-	quoteMintAnonymous,
-	quoteMintForAccount,
-	quoteRedeemOpen,
+	quoteContext,
 	versionWatermark,
 	type AnonymousMintQuoteRequest,
 	type ExecutionMode,
 	type MarketQueueState,
 	type MintQuoteRaw,
 	type MintQuoteRequest,
+	type RedeemOpenQuoteRaw,
 } from './reads/queue.js';
 import {
 	positionsFromTable,
@@ -95,18 +118,16 @@ import {
 import { accountBalance, hasPosition } from './reads/balances.js';
 import {
 	activeMarketIds,
-	currentNav,
 	expiryMarketId,
 	marketFeePolicy,
 	marketState,
 	marketStates,
-	rangePrices,
 	referenceTick,
 	settlementPrice,
 	type MarketState,
 } from './reads/markets.js';
 import { poolStats } from './reads/pool.js';
-import { readPricerSnapshot, type PricerSnapshot } from './reads/pricing.js';
+import type { PricerSnapshot } from './reads/pricing.js';
 import { boardPricer, type BoardPricer } from './pricing.js';
 import { POS_INF_TICK, binaryRangeTicks, type Side } from './ticks.js';
 import {
@@ -125,23 +146,22 @@ import {
 	assertOrderFeeAtMost,
 	claimParked,
 	enqueueExactAmount,
+	enqueueExactAmountV2,
 	enqueueExactCost,
+	enqueueExactCostV2,
 	enqueueExactQuantity,
+	enqueueExactQuantityV2,
 	enqueueRedeemOpen,
+	enqueueRedeemOpenV2,
 	fill,
+	fillV2,
 	payOpen,
 	rebalanceExpiryCash,
 	refund,
 	type LazerPackages,
 } from './tx/queue.js';
 import type { MarketFeeds } from './tx/trade.js';
-import {
-	mintExactAmount,
-	mintExactCost,
-	mintExactQuantity,
-	redeemLive,
-	redeemSettled,
-} from './tx/trade.js';
+import { redeemSettled } from './tx/trade.js';
 import {
 	priceToRaw,
 	probabilityToRaw,
@@ -319,7 +339,12 @@ export interface PoolSummary {
 	withdrawRequestsPending: number;
 }
 
-/** Exact pre-trade quote: the dry-run receipt of the mint you are about to send. */
+/**
+ * Pre-trade quote of a queued mint at the current price. From Predict version 6 the chain keeps no
+ * live price, so it is computed off chain (`quotes.localMintQuote`) from the signed inputs a
+ * `PricingInputsProvider` supplies, with the chain's fee arithmetic. Its probability comes from the
+ * local pricer, which agrees with the chain to about 1e-4.
+ */
 export interface MintQuote {
 	/** Fill price, 0..1 per $1 payout. */
 	entryProbability: number;
@@ -347,34 +372,18 @@ export interface MintQuote {
 	cost: number;
 	quantity: number;
 	raw: { premium: bigint; cost: bigint; quantity: bigint; entryProbability: bigint };
-	/** True: computed by the real mint code path against real account state. */
-	feesExact: true;
 	/**
-	 * True when this previews a queued (delayed-execution) fill: read from the chain's
-	 * `quote_*` functions with the congestion penalty removed, since a queued fill pays none.
-	 * Set when the network's config records delayed execution.
+	 * True: the fees are the chain's integer arithmetic on the quote's probability. The probability
+	 * is the local pricer's, so the quote is a preview, not the fill.
 	 */
+	feesExact: true;
+	/** True: this previews a queued (delayed-execution) fill, which pays no congestion penalty. */
 	queued?: boolean;
 	/**
 	 * Queued previews only: the flat order fee, charged once at enqueue on top of `cost`. Show
 	 * it once per order, not per contract.
 	 */
 	orderFee?: number;
-}
-
-/** Exact pre-close quote: the dry-run receipt of the redeem you are about to send. */
-export interface RedeemQuote {
-	/** NET quote credited to the account. */
-	proceeds: number;
-	/** Gross close value before fees. */
-	gross: number;
-	/** `inventoryImpactRebate` is credited back on the close, so `proceeds` is
-	 * gross + rebate − trading − builder − penalty. */
-	fees: { trading: number; builder: number; penalty: number; inventoryImpactRebate: number };
-	quantityClosed: number;
-	remaining: number;
-	raw: { proceeds: bigint; gross: bigint; quantityClosed: bigint };
-	feesExact: true;
 }
 
 interface ResolvedMarket {
@@ -384,6 +393,15 @@ interface ResolvedMarket {
 
 /** A market by its underlying and expiry, optionally pinned to an exact object. */
 export type MarketCoordinates = Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>;
+
+/**
+ * Per-call pricing inputs for the reads that price a market off chain (`read.price`,
+ * `read.pricer`, `read.market`, the quotes and the plans). Pass `inputs` to price this call with
+ * them instead of asking the client's `PricingInputsProvider`.
+ */
+export interface PricingOptions {
+	inputs?: PricingInputs;
+}
 
 /** Options for `enqueueMint`: a queued mint of an exact payout quantity. */
 export interface EnqueueMintOptions {
@@ -482,6 +500,7 @@ export interface SlippageOptions {
  * and `quantity` plans an exact payout.
  */
 export type PlanMintOptions = SlippageOptions &
+	PricingOptions &
 	(
 		| {
 				/** The purchase amount in USDC. */
@@ -515,8 +534,8 @@ export interface MintPlan {
 	/** The quote at the current price. */
 	quote: MintQuote;
 	/**
-	 * Whether the quote is the account's own (`quote_mint_*_for_account`, with its builder fee). A
-	 * visitor without an account, or a balance below the order, gets `quote_mint`'s quote instead,
+	 * Whether the quote is the account's own, with its balance as the budget's cap. A visitor
+	 * without an account, or a balance below the order, gets a quote for no particular account,
 	 * with a budget's quantity found by a short search.
 	 */
 	quoteForAccount: boolean;
@@ -562,12 +581,12 @@ export interface MintPlan {
 	/** τ, deadline and cutoff for an order placed now, from the local clock. */
 	timing: TimingPreview;
 	/**
-	 * Whether `tx.enqueuePlan` would build the order now and admission would take it at the current
+	 * Whether `tx.enqueuePlan` would build the order now and the fill would take it at the current
 	 * price: the builder's preflight (the queue gates, the order fee, the minimum premium and the
 	 * market's cash), the balance against `totalDebit`, the payout bound and, for a budget, the
-	 * floor admission buys without the fee subsidy. Two admission conditions are checked only on
-	 * chain, at placement: the market's SVI age under the order desk's `svi_max_age_ms`, and room in
-	 * the payout tree for a new strike's boundary nodes.
+	 * floor the fill buys without the fee subsidy. From Predict version 6 placement checks no price,
+	 * so an order outside its limits or the entry band at τ is refunded then, with the order fee
+	 * kept (reasons 1 and 2).
 	 */
 	accepting: boolean;
 	/**
@@ -607,12 +626,13 @@ export interface PlanTarget {
 }
 
 /** Options for `read.planSell`. */
-export type PlanSellOptions = SlippageOptions & {
-	/** The Open record to sell from. */
-	recordId: bigint;
-	/** Payout quantity to close. */
-	quantity: number;
-};
+export type PlanSellOptions = SlippageOptions &
+	PricingOptions & {
+		/** The Open record to sell from. */
+		recordId: bigint;
+		/** Payout quantity to close. */
+		quantity: number;
+	};
 
 /** `read.planSell`: what an early sell shows, and the enqueue options that carry its slippage. */
 export interface SellPlan {
@@ -636,9 +656,7 @@ export interface SellPlan {
 	timing: TimingPreview;
 	/**
 	 * Whether `tx.enqueuePlan` would build the sell now: the builder's preflight, which checks the
-	 * queue gates, that the record is Open and the owner's, the order fee and the minimum sell. The
-	 * market's SVI age under the order desk's `svi_max_age_ms` is checked only on chain, at
-	 * placement.
+	 * queue gates, that the record is Open and the owner's, the order fee and the minimum sell.
 	 */
 	accepting: boolean;
 	/** The `PredictPreflightError` code the sell would get now, or null. */
@@ -685,7 +703,10 @@ export interface QueuedOrderOutcome {
 	order: QueuedOrderView | null;
 }
 
-/** A quote for selling an Open record early (`quote_redeem_open`). */
+/**
+ * A quote for selling an Open record early, computed off chain (`quotes.localSellQuote`) as
+ * version 5's `quote_redeem_open` did.
+ */
 export interface SellQuote {
 	/** The live per-contract probability. */
 	probability: number;
@@ -720,14 +741,21 @@ export function predict<Name extends string = 'predict'>({
 	name = 'predict' as Name,
 	network,
 	config,
+	pricingInputs,
+	pricingFreshness,
 }: {
 	name?: Name;
 	network: 'testnet' | 'mainnet';
 	config?: PredictConfig;
+	/** Supplies the signed inputs the off-chain prices, quotes and NAV need. See {@link PredictClient}. */
+	pricingInputs?: PricingInputsProvider;
+	/** How old those inputs may be. See {@link PredictClient}. */
+	pricingFreshness?: PricingFreshness | false;
 }): SuiClientRegistration<PredictCompatibleClient, Name, PredictClient> {
 	return {
 		name,
-		register: (client) => new PredictClient({ client, network, config }),
+		register: (client) =>
+			new PredictClient({ client, network, config, pricingInputs, pricingFreshness }),
 	};
 }
 
@@ -768,14 +796,35 @@ export class PredictClient {
 	// Queue IDs confirmed to exist. A `MarketQueue` is shared and never deleted, so a confirmed
 	// queue is cached forever; a missing one is not cached, since the keeper creates it later.
 	#knownQueues = new Set<string>();
+	// market id → fee bands. A market copies the template at creation and keeps it for life.
+	#feeBandsCache = new Map<string, FeeBand[]>();
+	#pricingInputs: PricingInputsProvider | undefined;
+	#pricingFreshness: PricingFreshness | false | undefined;
 
+	/**
+	 * `pricingInputs` supplies the signed Pyth and Block Scholes inputs every off-chain price needs:
+	 * `read.price`, `read.pricer`, `read.market`'s NAV, `read.quoteMint`, `read.quoteMintCost`,
+	 * `read.quoteSell`, `read.planMint` and `read.planSell`. From Predict version 6 the chain keeps
+	 * no live price, so those reads throw `PredictInputError` without it, unless the call passes its
+	 * own `inputs`. The SDK never fetches Pyth or Block Scholes data itself: the frontend or a quote
+	 * service provides it. Transaction builders and the other reads don't need it.
+	 *
+	 * `pricingFreshness` bounds how old those inputs may be (the version 5 live pricer's windows
+	 * by default: 2 s for the spot, forward and Block Scholes spot, 60 s for the SVI tuple). A read
+	 * given staler inputs throws the chain's stale-oracle abort names (`EPythSpotStale`,
+	 * `EBlockScholesPriceStale`, `EBlockScholesSVIStale`). Pass `false` to price them anyway.
+	 */
 	constructor(opts: {
 		network: 'testnet' | 'mainnet';
 		client: PredictCompatibleClient;
 		config?: PredictConfig;
+		pricingInputs?: PricingInputsProvider;
+		pricingFreshness?: PricingFreshness | false;
 	}) {
 		this.cfg = opts.config ?? getConfig(opts.network);
 		this.#client = opts.client;
+		this.#pricingInputs = opts.pricingInputs;
+		this.#pricingFreshness = opts.pricingFreshness;
 	}
 
 	/** The deterministic id of an owner's canonical account wrapper — no chain read. */
@@ -987,7 +1036,7 @@ export class PredictClient {
 	// chain refuses at the current price (`EOrderFailsLimits`) is diagnosed by `#entryBandRefusal`.
 	async #quoteRefusal(
 		error: unknown,
-		mint?: { m: MarketDescriptor; quantityRaw?: bigint },
+		mint?: { m: MarketDescriptor; quantityRaw?: bigint; pricing?: PricingOptions },
 	): Promise<unknown> {
 		if (isPastExpiry(error)) {
 			return new PredictPreflightError(
@@ -996,7 +1045,7 @@ export class PredictClient {
 			);
 		}
 		if (mint != null && isOrderFailsLimits(error)) {
-			return (await this.#entryBandRefusal(mint.m, mint.quantityRaw)) ?? error;
+			return (await this.#entryBandRefusal(mint.m, mint.quantityRaw, mint.pricing)) ?? error;
 		}
 		return error;
 	}
@@ -1008,10 +1057,13 @@ export class PredictClient {
 	async #entryBandRefusal(
 		m: MarketDescriptor,
 		quantityRaw?: bigint,
+		pricing: PricingOptions = {},
 	): Promise<PredictPreflightError | null> {
 		if (m.side === 'range') return null;
-		// Best effort: a failed diagnosis read leaves the chain's own error to the caller.
-		const read = await Promise.all([this.read.price(m), this.read.feePolicy(m)]).catch(() => null);
+		// Best effort: a failed diagnosis read leaves the quote's own error to the caller.
+		const read = await Promise.all([this.read.price(m, pricing), this.read.feePolicy(m)]).catch(
+			() => null,
+		);
 		if (read == null) return null;
 		const [prices, policy] = read;
 		const probability = probabilityToRaw(m.side === 'up' ? prices.up : prices.down);
@@ -1091,7 +1143,7 @@ export class PredictClient {
 		return { refusal: 'min-premium' };
 	}
 
-	// A budget mint's quote for no particular account. `quote_mint` has no all-in budget mode, so
+	// A budget mint's quote for no particular account. That quote has no all-in budget mode, so
 	// this searches for the largest lot multiple whose all-in cost fits the budget. The first probe
 	// is its premium-budget mode with the whole budget as the premium, whose premium clears the
 	// 1 USDC minimum whenever the purchase can. Each next probe divides the budget by the last price
@@ -1101,7 +1153,7 @@ export class PredictClient {
 	// minimum premium plus a lot: the first probe's premium is above `budget − lot` (a lot costs
 	// under $1), so the minimum premium didn't refuse it, and the chain's own refusal stands.
 	async #searchBudgetQuote(
-		ticks: { expiryMarketId: string; lowerTick: bigint; higherTick: bigint } & MarketFeeds,
+		anonymous: (request: AnonymousMintQuoteRequest) => MintQuoteRaw,
 		budgetRaw: bigint,
 		lot: bigint,
 	): Promise<MintQuoteRaw> {
@@ -1110,10 +1162,7 @@ export class PredictClient {
 		let priced = false;
 		const probeQuote = async (request: AnonymousMintQuoteRequest) => {
 			try {
-				const { quote } = await quoteMintAnonymous(this.#client, this.#config, {
-					...ticks,
-					request,
-				});
+				const quote = anonymous(request);
 				priced = true;
 				return quote;
 			} catch (e) {
@@ -1157,97 +1206,107 @@ export class PredictClient {
 		}
 	}
 
-	// Shared construction for tx.mint and read.quoteMint. The quote dry-runs the
-	// same mint the trade sends; quoteMint omits the caller's cost/probability caps
-	// (they only gate via abort and don't change the receipt numbers).
-	async #buildMint(owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> {
-		const feeds = this.#feeds(m.underlying);
-		const { id, state } = await this.#resolveMarket(m);
-		const quantityRaw = usdcToRaw(opts.quantity);
-		this.#assertLot(quantityRaw);
-		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-		return txOf(
-			mintExactQuantity(this.#config, {
-				expiryMarketId: id,
-				wrapperId: this.wrapperIdFor(owner),
-				lowerTick,
-				higherTick,
-				quantityRaw,
-				maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
-				maxProbabilityRaw:
-					opts.maxProbability != null ? probabilityToRaw(opts.maxProbability) : undefined,
-				...feeds,
-			}),
-		);
+	// === off-chain pricing (Predict version 6) ===
+
+	// The signed inputs a market prices from: the call's own, else the client's provider.
+	async #inputsFor(
+		m: { underlying: string },
+		marketId: string,
+		expiryMs: bigint,
+		pricing: PricingOptions = {},
+	): Promise<PricingInputs> {
+		if (pricing.inputs) return pricing.inputs;
+		if (!this.#pricingInputs) {
+			throw new PredictInputError(
+				'this read prices the market off chain and needs signed pricing inputs: pass ' +
+					'`pricingInputs` (a PricingInputsProvider) to PredictClient, or `inputs` to this call',
+			);
+		}
+		return this.#pricingInputs.pricingInputs({
+			marketId,
+			underlying: m.underlying,
+			propbookUnderlyingId: this.#underlying(m.underlying).propbookUnderlyingId,
+			expiryMs,
+		});
 	}
 
-	async #buildMintCost(
-		owner: string,
-		m: MarketDescriptor,
-		opts: MintCostOptions,
-	): Promise<Transaction> {
-		const feeds = this.#feeds(m.underlying);
-		const maxCostRaw = usdcToRaw(opts.spend);
-		const minQuantityRaw = usdcToRaw(opts.minQuantity);
-		const { id, state } = await this.#resolveMarket(m);
-		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-		return txOf(
-			mintExactCost(this.#config, {
-				expiryMarketId: id,
-				wrapperId: this.wrapperIdFor(owner),
-				lowerTick,
-				higherTick,
-				maxCostRaw,
-				minQuantityRaw,
-				...feeds,
-			}),
-		);
+	// A market's pricer now, built off chain from signed inputs (`pricing::pricer_at`).
+	async #localPricer(
+		m: { underlying: string },
+		marketId: string,
+		expiryMs: bigint,
+		pricing: PricingOptions = {},
+	): Promise<ResolvedPricer> {
+		const inputs = await this.#inputsFor(m, marketId, expiryMs, pricing);
+		return pricerAt(inputs, { expiryMs }, Date.now(), this.#pricingFreshness);
 	}
 
-	async #quoteMintTransaction(owner: string, tx: Transaction): Promise<MintQuote> {
-		const events = await simulateWithEvents(this.#client, tx, owner);
-		const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
-		// Mirrors the deployed `compute_mint_quote`'s all_in_cost exactly:
-		// premium + (trading − subsidy) + builder + penalty + inventory-impact.
-		// `referral_fee` is deliberately NOT added — it is a portion OF the
-		// trader-paid trading fee and congestion surcharge, not an extra debit.
-		const costRaw =
-			r.raw.premium +
-			(r.raw.tradingFee - r.raw.feeIncentiveSubsidy) +
-			r.raw.builderFee +
-			r.raw.penaltyFee +
-			r.raw.inventoryImpactCharge;
+	// The market state a local quote prices with: its object (fee policy, the sponsored balance,
+	// which moves, so it is read each time), its fee bands (kept for life, so cached) and, while
+	// inventory impact is enabled, its payout tree.
+	async #quoteMarket(marketId: string): Promise<QuoteMarket> {
+		const [first, feeBands] = await Promise.all([
+			readMarketObject(this.#client, marketId),
+			this.#feeBands(marketId),
+		]);
+		// With inventory impact on, the charge reads the payout tree, which must be the same state as
+		// the market's own fields.
+		const market =
+			first.fees.inventoryImpactMaxRate > 0n
+				? await readMarketWithBook(this.#client, marketId)
+				: { ...first, boundaries: undefined };
+		const book = market.boundaries
+			? { base: market.payout.base, boundaries: market.boundaries }
+			: undefined;
 		return {
-			entryProbability: r.entryProbability,
-			premium: r.premium,
-			fees: r.fees,
-			cost: rawToUsdc(costRaw),
-			quantity: r.quantity,
-			raw: {
-				premium: r.raw.premium,
-				cost: costRaw,
-				quantity: r.raw.quantity,
-				entryProbability: r.raw.entryProbability,
-			},
-			feesExact: true,
+			expiryMs: market.expiryMs,
+			tickSizeRaw: market.tickSizeRaw,
+			admissionTickSizeRaw: market.admissionTickSizeRaw,
+			referenceTickRaw: market.referenceTickRaw,
+			fees: market.fees,
+			feeBands,
+			feeIncentiveBalance: market.feeIncentiveBalance,
+			book,
 		};
 	}
 
-	// Shared construction for tx.redeem and read.quoteRedeem.
-	async #buildRedeem(owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> {
-		const feeds = this.#feeds(m.underlying);
-		const { id } = await this.#resolveMarket(m);
-		const closeQuantityRaw = usdcToRaw(opts.quantity);
-		this.#assertLot(closeQuantityRaw);
-		return txOf(
-			redeemLive(this.#config, {
-				expiryMarketId: id,
-				wrapperId: this.wrapperIdFor(owner),
-				orderId: opts.orderId,
-				closeQuantityRaw,
-				...feeds,
-			}),
-		);
+	async #feeBands(marketId: string): Promise<FeeBand[]> {
+		const hit = this.#feeBandsCache.get(marketId);
+		if (hit) return hit;
+		const bands = await readFeeBands(this.#client, marketId);
+		this.#feeBandsCache.set(marketId, bands);
+		return bands;
+	}
+
+	// One pricing snapshot for a mint quote and every probe a plan makes with it: the market's
+	// state and pricer now. The returned function prices one request: the account's own quote with
+	// `availableRaw` (its balance caps a budget), else a quote for no particular account. A queued
+	// order placed by this client names no builder, so it pays no builder fee.
+	async #mintQuoter(
+		m: MarketDescriptor,
+		id: string,
+		expiryMs: bigint,
+		ticks: { lowerTick: bigint; higherTick: bigint },
+		subsidyRate: bigint,
+		pricing: PricingOptions = {},
+	): Promise<(request: MintQuoteRequest, availableRaw?: bigint | null) => MintQuoteRaw> {
+		const [market, pricer] = await Promise.all([
+			this.#quoteMarket(id),
+			this.#localPricer(m, id, expiryMs, pricing),
+		]);
+		const lotSize = BigInt(this.cfg.units.positionLotSize);
+		return (request, availableRaw) =>
+			localMintQuote({
+				market,
+				pricer,
+				lowerTick: ticks.lowerTick,
+				higherTick: ticks.higherTick,
+				request,
+				nowMs: pricer.pricedAtMs,
+				feeIncentiveSubsidyRate: subsidyRate,
+				availableRaw: availableRaw ?? undefined,
+				lotSize,
+			});
 	}
 
 	// Raw strike for anonymous pricing: numeric strikes validate against the tick
@@ -1271,6 +1330,37 @@ export class PredictClient {
 		return tick * state.tickSizeRaw;
 	}
 
+	// An early sell of an Open record, quoted locally against its range and held quantity. A record
+	// that isn't Open has no quote, as the chain's `quote_redeem_open` refused it.
+	async #sellQuote(
+		m: MarketCoordinates,
+		id: string,
+		expiryMs: bigint,
+		state: MarketQueueState,
+		recordId: bigint,
+		closeQuantityRaw: bigint,
+		pricing: PricingOptions,
+	): Promise<RedeemOpenQuoteRaw> {
+		const record = state.records[0];
+		if (!record || record.status !== ORDER_STATUS.OPEN || record.position.order_id === 0n) {
+			throw new PredictMoveError('queue', 9n, 'ERecordNotOpen');
+		}
+		const lotSize = BigInt(this.cfg.units.positionLotSize);
+		const [market, pricer] = await Promise.all([
+			this.#quoteMarket(id),
+			this.#localPricer(m, id, expiryMs, pricing),
+		]);
+		void recordId;
+		return localSellQuote({
+			market,
+			pricer,
+			order: decodeOrderRange(record.position.order_id, lotSize),
+			closeQuantityRaw,
+			nowMs: pricer.pricedAtMs,
+			lotSize,
+		});
+	}
+
 	// === delayed execution (DBU-885) ===
 
 	// The config slice the queue calls take, or a typed refusal: without the Predict upgrade, the
@@ -1289,12 +1379,21 @@ export class PredictClient {
 
 	// The version constants the configured call targets compile: the network's own pins, else the
 	// versions these bindings were generated from. A watermark above one retires that code.
+	// A config that records Predict version 6 calls the version 6 packages, which compile the
+	// versions these bindings were generated from. The network pins describe its version 5 targets.
 	#predictCurrentVersion(): bigint {
+		if (usesPredictV6(this.cfg)) return PREDICT_PACKAGE_VERSION;
 		return this.cfg.packages.predictCurrentVersion ?? PREDICT_PACKAGE_VERSION;
 	}
 
 	#ordersCurrentVersion(): bigint {
+		if (usesPredictV6(this.cfg)) return ORDER_FLOW_PACKAGE_VERSION;
 		return this.cfg.packages.predictOrdersCurrentVersion ?? ORDER_FLOW_PACKAGE_VERSION;
+	}
+
+	// The Propbook objects a version 5 placement names, or none once the config calls version 6.
+	#placementFeeds(underlying: string): MarketFeeds | null {
+		return usesPredictV6(this.cfg) ? null : this.#feeds(underlying);
 	}
 
 	// The market's queue ID, once its `MarketQueue` is known to exist. A missing queue would abort
@@ -1449,20 +1548,24 @@ export class PredictClient {
 				wrapperId: string;
 				lowerTick: bigint;
 				higherTick: bigint;
-			} & MarketFeeds,
+			},
+			feeds: MarketFeeds | null,
 		) => (tx: Transaction) => TransactionResult,
 	): Promise<QueuedOrderPlan> {
 		const orders = this.#requireDelayedExecution();
-		const feeds = this.#feeds(m.underlying);
+		const feeds = this.#placementFeeds(m.underlying);
 		const { id, state: market } = await this.#resolveMarket(m);
 		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, market);
-		const thunk = build(orders, {
-			expiryMarketId: id,
-			wrapperId: this.wrapperIdFor(owner),
-			lowerTick,
-			higherTick,
-			...feeds,
-		});
+		const thunk = build(
+			orders,
+			{
+				expiryMarketId: id,
+				wrapperId: this.wrapperIdFor(owner),
+				lowerTick,
+				higherTick,
+			},
+			feeds,
+		);
 		const state = await this.#queueState(orders, id, { owner });
 		const { policy, timing } = this.#assertQueueOpen(state, 'mint', BigInt(Date.now()));
 		const { budget, cashNeed } = PredictClient.#assertMintOrder(state, policy, order);
@@ -1592,19 +1695,21 @@ export class PredictClient {
 		opts: EnqueueSellOptions,
 	): Promise<QueuedOrderPlan> {
 		const orders = this.#requireDelayedExecution();
-		const feeds = this.#feeds(m.underlying);
+		const feeds = this.#placementFeeds(m.underlying);
 		const { id } = await this.#resolveMarket(m);
 		const closeQuantityRaw = usdcToRaw(opts.quantity);
 		this.#assertLot(closeQuantityRaw);
-		const thunk = enqueueRedeemOpen(orders, {
+		const sell = {
 			expiryMarketId: id,
 			wrapperId: this.wrapperIdFor(owner),
 			recordId: opts.recordId,
 			closeQuantityRaw,
 			minProbabilityRaw: probabilityToRaw(opts.minProbability),
 			minProceedsRaw: usdcToRaw(opts.minProceeds),
-			...feeds,
-		});
+		};
+		const thunk = feeds
+			? enqueueRedeemOpen(orders, { ...sell, ...feeds })
+			: enqueueRedeemOpenV2(orders, sell);
 		const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
 		const { policy, timing } = this.#assertQueueOpen(state, 'sell', BigInt(Date.now()));
 		this.#assertSellOrder(state, policy, opts.recordId, closeQuantityRaw);
@@ -1754,69 +1859,6 @@ export class PredictClient {
 		},
 
 		/**
-		 * Immediate exact-quantity mint (`mint_exact_quantity`).
-		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
-		 * (`EDelayedExecutionRequired`), so it works only while the config calls a pre-v4 package.
-		 * Use {@link PredictClient.tx.enqueueMint}, and `read.executionMode()` to know which path a
-		 * network is on.
-		 */
-		mint: (owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> =>
-			this.#buildMint(owner, m, opts),
-
-		/**
-		 * V2 all-in budget mint; use minQuantity to protect the fill against slippage.
-		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
-		 * (`EDelayedExecutionRequired`). Use `tx.enqueueMintCost`.
-		 */
-		mintCost: (owner: string, m: MarketDescriptor, opts: MintCostOptions): Promise<Transaction> =>
-			this.#buildMintCost(owner, m, opts),
-
-		/**
-		 * Immediate premium-budget mint (`mint_exact_amount`).
-		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
-		 * (`EDelayedExecutionRequired`). Use `tx.enqueueMintAmount`.
-		 */
-		mintAmount: async (
-			owner: string,
-			m: MarketDescriptor,
-			opts: MintAmountOptions,
-		): Promise<Transaction> => {
-			const feeds = this.#feeds(m.underlying);
-			// The chain requires a positive all-in cost cap (EMintCostCapRequired);
-			// reject a zero cap pre-flight rather than surface a cryptic Move abort.
-			if (opts.maxCost != null && opts.maxCost <= 0) {
-				throw new PredictInputError('maxCost must be > 0');
-			}
-			const { id, state } = await this.#resolveMarket(m);
-			// No lot check: min_quantity is a floor the chain compares against an
-			// already-lot-floored minted quantity, so any floor value is legal.
-			const minQuantityRaw = usdcToRaw(opts.minQuantity);
-			const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-			return txOf(
-				mintExactAmount(this.#config, {
-					expiryMarketId: id,
-					wrapperId: this.wrapperIdFor(owner),
-					lowerTick,
-					higherTick,
-					maxPremiumRaw: usdcToRaw(opts.spend),
-					minQuantityRaw,
-					maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
-					...feeds,
-				}),
-			);
-		},
-
-		/**
-		 * Immediate close of an account position (`redeem_live`).
-		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
-		 * (`EDelayedExecutionRequired`). A position held in the account then has no early exit and
-		 * is paid at settlement with `claimSettled`. Queued fills are Open records in the market's
-		 * queue, sold with `tx.enqueueSell`.
-		 */
-		redeem: (owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> =>
-			this.#buildRedeem(owner, m, opts),
-
-		/**
 		 * Pay a settled position held in the ACCOUNT (`redeem_settled`), in full. Unchanged by delayed
 		 * execution, for positions minted before it. It doesn't pay Open queue records: the queue's
 		 * settlement walk (`settle_step`) pays those to the account's wrapper address.
@@ -1863,13 +1905,12 @@ export class PredictClient {
 				owner,
 				m,
 				{ kind: ORDER_KIND.EXACT_QUANTITY, maxCostRaw, quantityRaw },
-				(orders, target) =>
-					enqueueExactQuantity(orders, {
-						...target,
-						quantityRaw,
-						maxCostRaw,
-						maxProbabilityRaw,
-					}),
+				(orders, target, feeds) => {
+					const terms = { ...target, quantityRaw, maxCostRaw, maxProbabilityRaw };
+					return feeds
+						? enqueueExactQuantity(orders, { ...terms, ...feeds })
+						: enqueueExactQuantityV2(orders, terms);
+				},
 			);
 		},
 
@@ -1897,13 +1938,12 @@ export class PredictClient {
 				owner,
 				m,
 				{ kind: ORDER_KIND.EXACT_AMOUNT, maxCostRaw, maxPremiumRaw },
-				(orders, target) =>
-					enqueueExactAmount(orders, {
-						...target,
-						maxPremiumRaw,
-						minQuantityRaw,
-						maxCostRaw,
-					}),
+				(orders, target, feeds) => {
+					const terms = { ...target, maxPremiumRaw, minQuantityRaw, maxCostRaw };
+					return feeds
+						? enqueueExactAmount(orders, { ...terms, ...feeds })
+						: enqueueExactAmountV2(orders, terms);
+				},
 			);
 		},
 
@@ -1922,7 +1962,12 @@ export class PredictClient {
 				owner,
 				m,
 				{ kind: ORDER_KIND.EXACT_COST, maxCostRaw },
-				(orders, target) => enqueueExactCost(orders, { ...target, maxCostRaw, minQuantityRaw }),
+				(orders, target, feeds) => {
+					const terms = { ...target, maxCostRaw, minQuantityRaw };
+					return feeds
+						? enqueueExactCost(orders, { ...terms, ...feeds })
+						: enqueueExactCostV2(orders, terms);
+				},
 			);
 		},
 
@@ -2072,6 +2117,11 @@ export class PredictClient {
 		 * The open filler: verify signed Pyth Lazer payloads, commit them to the market's waiting
 		 * cohorts, then resolve up to `maxOrders` (default 15) records. Reads the current Lazer
 		 * package from Lazer's `State` first (`lazerStateId`, or `config.oracle.pythLazerState`).
+		 *
+		 * Once the config records Predict version 6 the commit is `queue::commit_v2`, which also needs
+		 * the signed Block Scholes value and SVI batches for each τ's slots (`valueMessages`,
+		 * `sviMessages`, see `queue.bsSlots`). It verifies them with the Block Scholes verifier
+		 * (`blockScholes`, else `config.oracle`) and decodes them under the market's oracle binding.
 		 */
 		fill: async (
 			m: MarketCoordinates,
@@ -2080,6 +2130,12 @@ export class PredictClient {
 				maxOrders?: number;
 				refundOverdue?: boolean;
 				lazerStateId?: string;
+				/** Signed Block Scholes value batches. Predict version 6 only. */
+				valueMessages?: readonly Uint8Array[];
+				/** Signed Block Scholes SVI batches. Predict version 6 only. */
+				sviMessages?: readonly Uint8Array[];
+				/** The Block Scholes verifier. Defaults to `config.oracle`. Predict version 6 only. */
+				blockScholes?: { packageId?: string; signerRegistryId?: string };
 			},
 		): Promise<Transaction> => {
 			const orders = this.#requireDelayedExecution();
@@ -2087,9 +2143,48 @@ export class PredictClient {
 			if (!stateId) {
 				throw new PredictInputError('fill needs the Pyth Lazer State: pass `lazerStateId`');
 			}
-			const { id } = await this.#resolveMarket(m);
+			const { id, state } = await this.#resolveMarket(m);
 			const queueId = await this.#existingQueueId(orders, id);
 			const lazer = await lazerPackages(this.#client, stateId);
+			if (usesPredictV6(this.cfg)) {
+				if (!this.cfg.packages.predictMathV3) {
+					throw new PredictInputError(
+						'the version 6 commit builds its volatility with the `block_scholes` module of `deepbook_predict_math`: record `packages.predictMathV3`',
+					);
+				}
+				const packageId = opts.blockScholes?.packageId ?? this.cfg.oracle?.blockScholesPackage;
+				const signerRegistryId =
+					opts.blockScholes?.signerRegistryId ?? this.cfg.oracle?.blockScholesSignerRegistry;
+				if (!packageId || !signerRegistryId) {
+					throw new PredictInputError(
+						'fill needs the Block Scholes verifier: pass `blockScholes.packageId` and `blockScholes.signerRegistryId`',
+					);
+				}
+				const [blockScholes, binding] = await Promise.all([
+					blockScholesPackages(this.#client, { packageId, signerRegistryId }),
+					this.read.oracleBinding(m.underlying),
+				]);
+				if (!binding) {
+					throw new PredictInputError(
+						`${m.underlying} has no oracle binding yet, so its orders can't be committed`,
+					);
+				}
+				return txOf(
+					fillV2(orders, {
+						expiryMarketId: id,
+						queueId,
+						payloads: opts.payloads,
+						lazer,
+						valueMessages: opts.valueMessages ?? [],
+						sviMessages: opts.sviMessages ?? [],
+						blockScholes,
+						binding,
+						expiryMs: state.expiryMs,
+						maxOrders: BigInt(opts.maxOrders ?? 15),
+						refundOverdue: opts.refundOverdue,
+					}),
+				);
+			}
 			return txOf(
 				fill(orders, {
 					expiryMarketId: id,
@@ -2230,162 +2325,165 @@ export class PredictClient {
 			return positionsFromTable(this.#client, handle.positionsTableId);
 		},
 
-		// Anonymous board pricing: the chain's probability for both sides of a
-		// strike, from one fresh pricer (no account needed). This is the ↑/↓
-		// button price before a user has onboarded.
-		price: async (m: BinaryMarketCoordinates): Promise<{ up: number; down: number }> => {
-			const feeds = this.#feeds(m.underlying);
+		/**
+		 * Anonymous board pricing: the probability of both sides of a strike, from one pricer (no
+		 * account needed). This is the ↑/↓ button price before a user has onboarded. Computed off
+		 * chain from signed inputs (see the constructor's `pricingInputs`), as Predict version 5's
+		 * `range_price` did on chain, to about 1e-4. Throws `ELivePricingExpired` (a
+		 * `PredictMoveError`) at or past expiry, as the chain read did.
+		 */
+		price: async (
+			m: BinaryMarketCoordinates,
+			pricing: PricingOptions = {},
+		): Promise<{ up: number; down: number }> => {
 			const { id, state } = await this.#resolveMarket(m);
 			const strikeRaw = await this.#strikeRawFor(m, id, state);
-			const { upRaw, downRaw } = await rangePrices(
-				this.#client,
-				this.#config,
-				id,
-				feeds,
-				strikeRaw,
-				state.tickSizeRaw,
-			);
+			const pricer = await this.#localPricer(m, id, state.expiryMs, pricing);
+			const tick = strikeRaw / state.tickSizeRaw;
+			// UP is (strike, +∞] and DOWN is (−∞, strike], each priced as the chain's `range_price`.
+			const up = rangeBoundaries(pricer, tick, POS_INF_TICK, state.tickSizeRaw);
+			const down = rangeBoundaries(pricer, 0n, tick, state.tickSizeRaw);
+			const upRaw = up.lowerUp ?? 0n;
+			const downRaw = 1_000_000_000n - (down.higherUp ?? 0n);
 			return { up: rawToProbability(upRaw), down: rawToProbability(downRaw) };
 		},
 
-		// A client-side board pricer for one market: ONE simulate reads the chain's
-		// resolved pricer (already forward-selected + rolled to now), then prices every
-		// strike LOCALLY with no further chain calls — `pricer.up(strike)`,
-		// `.down(strike)`, `.range(lo,hi)`, `.strikeAtProbability(p)`. Use this to paint a
-		// whole board instantly; `read.price` / `read.quoteMint` stay the authoritative
-		// per-strike quote at trade time. Throws the same typed stale-oracle/expired
-		// PredictMoveError `read.price` would when the chain itself cannot quote.
+		/**
+		 * A client-side board pricer for one market: one pricer built off chain from signed inputs
+		 * (the forward re-anchored on the Pyth spot, the SVI rolled down to now), then every strike
+		 * priced LOCALLY — `pricer.up(strike)`, `.down(strike)`, `.range(lo,hi)`,
+		 * `.strikeAtProbability(p)`. `asOf` carries the inputs' source times. Throws the
+		 * `PredictMoveError` the chain's pricer load raised in the same case (`ELivePricingExpired`,
+		 * `EBlockScholesInputsInvalid`, `EBlockScholesMinVarianceInvalid`).
+		 */
 		pricer: async (
-			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
+			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>,
+			pricing: PricingOptions = {},
 		): Promise<BoardPricer & { asOf: PricerSnapshot['sources'] }> => {
-			const feeds = this.#feeds(m.underlying);
-			const { id } = await this.#resolveMarket(m);
-			const snap = await readPricerSnapshot(this.#client, this.#config, id, feeds);
+			const { id, state } = await this.#resolveMarket(m);
+			const snap = await this.#localPricer(m, id, state.expiryMs, pricing);
 			return { ...boardPricer(snap), asOf: snap.sources };
 		},
 
 		/**
-		 * Exact pre-trade quote for an exact-quantity mint. Requires a funded account.
-		 *
-		 * Where the config records the delayed-execution upgrade (`packages.predictDelayedExecution`),
-		 * this reads Predict's own `quote_mint_for_account` (the immediate mint is retired there) and
-		 * the order desk's fee, and previews a QUEUED fill at the clock: `queued: true`, no
-		 * congestion penalty in `cost`, and the order fee in `orderFee`. The fill itself prices at
-		 * its committed Pyth tick. It throws `PredictInputError` when that config lacks the
-		 * order-flow package or its desk. Elsewhere it dry-runs the immediate mint and decodes its
-		 * receipt, as before.
+		 * Pre-trade quote of a queued exact-quantity mint at the current price, for one account:
+		 * the order fee read from the desk, no congestion penalty in `cost` (a queued fill pays
+		 * none), and `queued: true`. Computed off chain from signed inputs (see the constructor's
+		 * `pricingInputs`) as Predict version 5's `quote_mint_for_account` did. Throws
+		 * `EOrderFailsLimits` (a `PredictMoveError`) where that quote refused, and
+		 * `PredictInputError` while the config doesn't record delayed execution.
 		 */
 		quoteMint: async (
 			owner: string,
 			m: MarketDescriptor,
-			opts: Pick<MintOptions, 'quantity'>,
+			opts: Pick<MintOptions, 'quantity'> & PricingOptions,
 		): Promise<MintQuote> => {
-			if (this.cfg.packages.predictDelayedExecution) {
-				const orders = this.#requireDelayedExecution();
-				const feeds = this.#feeds(m.underlying);
-				const { id, state } = await this.#resolveMarket(m);
-				const quantityRaw = usdcToRaw(opts.quantity);
-				this.#assertLot(quantityRaw);
-				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-				const { quote, policy } = await quoteMintForAccount(this.#client, this.#config, {
-					expiryMarketId: id,
-					wrapperId: this.wrapperIdFor(owner),
-					lowerTick,
-					higherTick,
-					request: { shape: 'exact-quantity', quantityRaw },
-					ordersConfig: orders,
-					...feeds,
-				});
-				return PredictClient.#queuedMintQuote(quote, policy);
-			}
-			const tx = await this.#buildMint(owner, m, opts);
-			return this.#quoteMintTransaction(owner, tx);
+			const orders = this.#requireDelayedExecution();
+			const { id, state } = await this.#resolveMarket(m);
+			const quantityRaw = usdcToRaw(opts.quantity);
+			this.#assertLot(quantityRaw);
+			const ticks = await this.#strikeTicks(m, id, state);
+			const ctx = await quoteContext(this.#client, orders, {
+				owner,
+				coinType: this.cfg.quoteCoinType,
+			});
+			const quote = await this.#mintQuoter(
+				m,
+				id,
+				state.expiryMs,
+				ticks,
+				ctx.feeIncentiveSubsidyRate,
+				opts,
+			);
+			return PredictClient.#queuedMintQuote(
+				quote({ shape: 'exact-quantity', quantityRaw }, ctx.availableRaw),
+				ctx.policy,
+			);
 		},
 
 		/**
-		 * Quote the all-in budget mint against current account and market state. Where the config
-		 * records the delayed-execution upgrade, it reads `quote_mint_exact_cost_for_account` at
-		 * `min(spend, available − fee)`, the budget enqueue escrows, and previews a queued fill as
-		 * `quoteMint` does (and throws as it does on a partial config). Elsewhere it simulates the
-		 * immediate v2 mint.
+		 * Quote the queued all-in budget mint at `min(spend, available − fee)`, the budget enqueue
+		 * escrows, as `quoteMint` does. Requires the owner's account.
 		 */
 		quoteMintCost: async (
 			owner: string,
 			m: MarketDescriptor,
-			opts: MintCostOptions,
+			opts: MintCostOptions & PricingOptions,
 		): Promise<MintQuote> => {
-			if (this.cfg.packages.predictDelayedExecution) {
-				const orders = this.#requireDelayedExecution();
-				const feeds = this.#feeds(m.underlying);
-				const { id, state } = await this.#resolveMarket(m);
-				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-				const { policy, availableRaw } = await orderFeeAndBalance(
-					this.#client,
-					orders,
-					owner,
-					this.cfg.quoteCoinType,
-				);
-				const fee = policy.orderFee;
-				const spendRaw = usdcToRaw(opts.spend);
-				const escrowable = availableRaw > fee ? availableRaw - fee : 0n;
-				const { quote } = await quoteMintForAccount(this.#client, this.#config, {
-					expiryMarketId: id,
-					wrapperId: this.wrapperIdFor(owner),
-					lowerTick,
-					higherTick,
-					request: {
+			const orders = this.#requireDelayedExecution();
+			const { id, state } = await this.#resolveMarket(m);
+			const ticks = await this.#strikeTicks(m, id, state);
+			const ctx = await quoteContext(this.#client, orders, {
+				owner,
+				coinType: this.cfg.quoteCoinType,
+			});
+			const fee = ctx.policy.orderFee;
+			const availableRaw = ctx.availableRaw ?? 0n;
+			const spendRaw = usdcToRaw(opts.spend);
+			const escrowable = availableRaw > fee ? availableRaw - fee : 0n;
+			const quote = await this.#mintQuoter(
+				m,
+				id,
+				state.expiryMs,
+				ticks,
+				ctx.feeIncentiveSubsidyRate,
+				opts,
+			);
+			return PredictClient.#queuedMintQuote(
+				quote(
+					{
 						shape: 'exact-cost',
 						maxCostRaw: spendRaw < escrowable ? spendRaw : escrowable,
 						minQuantityRaw: usdcToRaw(opts.minQuantity),
 					},
-					...feeds,
-				});
-				return PredictClient.#queuedMintQuote(quote, policy);
-			}
-			return this.#quoteMintTransaction(owner, await this.#buildMintCost(owner, m, opts));
+					availableRaw,
+				),
+				ctx.policy,
+			);
 		},
 
 		/**
-		 * Quote an early sell of an Open record (the queue's `quote_redeem_open`) at a fresh live
-		 * pricer. `proceeds` is before the order fee, with no congestion penalty, and `net` takes the
-		 * fee off. Throws `ERecordNotOpen` when the record isn't Open.
+		 * Quote an early sell of an Open record at the current price, computed off chain from signed
+		 * inputs as Predict version 5's `quote_redeem_open` did. `proceeds` is before the order fee,
+		 * with no congestion penalty, and `net` takes the fee off. Throws `ERecordNotOpen` (a
+		 * `PredictMoveError`, as the chain's quote did) when the record isn't Open.
 		 */
 		quoteSell: async (
-			owner: string,
+			_owner: string,
 			m: MarketCoordinates,
-			opts: { recordId: bigint; quantity: number },
+			opts: { recordId: bigint; quantity: number } & PricingOptions,
 		): Promise<SellQuote> => {
 			const orders = this.#requireDelayedExecution();
-			const feeds = this.#feeds(m.underlying);
-			const { id } = await this.#resolveMarket(m);
+			const { id, state: market } = await this.#resolveMarket(m);
 			const closeQuantityRaw = usdcToRaw(opts.quantity);
 			this.#assertLot(closeQuantityRaw);
-			const queueId = await this.#existingQueueId(orders, id);
-			const { quote, policy } = await quoteRedeemOpen(this.#client, orders, {
-				expiryMarketId: id,
-				queueId,
-				wrapperId: this.wrapperIdFor(owner),
-				recordId: opts.recordId,
+			const state = await this.#queueState(orders, id, { recordIds: [opts.recordId] });
+			const raw = await this.#sellQuote(
+				m,
+				id,
+				market.expiryMs,
+				state,
+				opts.recordId,
 				closeQuantityRaw,
-				...feeds,
-			});
-			const orderFee = policy.orderFee;
+				opts,
+			);
+			const orderFee = state.desk.policy.orderFee;
 			return {
-				probability: rawToProbability(quote.probability),
-				proceeds: rawToUsdc(quote.proceeds),
-				net: rawToUsdc(quote.proceeds - orderFee),
+				probability: rawToProbability(raw.probability),
+				proceeds: rawToUsdc(raw.proceeds),
+				net: rawToUsdc(raw.proceeds - orderFee),
 				fees: {
-					trading: rawToUsdc(quote.tradingFee),
-					builder: rawToUsdc(quote.builderFee),
-					inventoryImpactRebate: rawToUsdc(quote.inventoryImpactRebate),
+					trading: rawToUsdc(raw.tradingFee),
+					builder: rawToUsdc(raw.builderFee),
+					inventoryImpactRebate: rawToUsdc(raw.inventoryImpactRebate),
 					order: rawToUsdc(orderFee),
 				},
-				quantityClosed: rawToUsdc(quote.closeQuantity),
+				quantityClosed: rawToUsdc(raw.closeQuantity),
 				raw: {
-					probability: quote.probability,
-					proceeds: quote.proceeds,
+					probability: raw.probability,
+					proceeds: raw.proceeds,
 					orderFee,
-					quantityClosed: quote.closeQuantity,
+					quantityClosed: raw.closeQuantity,
 				},
 			};
 		},
@@ -2474,7 +2572,7 @@ export class PredictClient {
 		 * the market takes now, the timing and the queue gates, plus the enqueue options that carry
 		 * the slippage. `amount` plans an all-in spend (`enqueueMintCost`, refunded below the payout
 		 * floor), and `quantity` an exact payout (`enqueueMint`, capped by probability and cost).
-		 * Works for a visitor without an account: the quote then comes from `quote_mint`.
+		 * Works for a visitor without an account: the quote is then for no particular account.
 		 *
 		 * `slippageCents` is cents per contract, never a percentage: a 10¢ limit fills while the
 		 * all-in price per contract stays within 10¢ of the quote's price without its fee subsidy.
@@ -2485,7 +2583,6 @@ export class PredictClient {
 			opts: PlanMintOptions,
 		): Promise<MintPlan> => {
 			const orders = this.#requireDelayedExecution();
-			const feeds = this.#feeds(m.underlying);
 			const { id, state: market } = await this.#resolveMarket(m);
 			const { lowerTick, higherTick } = await this.#strikeTicks(m, id, market);
 			const hasAccount = await this.#hasAccount(owner);
@@ -2495,13 +2592,22 @@ export class PredictClient {
 			const fee = policy.orderFee;
 			const availableRaw = state.account?.availableRaw ?? null;
 			const lot = BigInt(this.cfg.units.positionLotSize);
-			const ticks = { expiryMarketId: id, lowerTick, higherTick, ...feeds };
-			const forAccount = (request: MintQuoteRequest) =>
-				quoteMintForAccount(this.#client, this.#config, {
-					...ticks,
-					wrapperId: this.wrapperIdFor(owner),
-					request,
-				}).then((r) => r.quote);
+			const pricing: PricingOptions = { inputs: opts.inputs };
+			// One pricer for the quote and every probe the plan sizes with. A pricer that can't be built
+			// (a market past its expiry, say) is refused as the quote would be.
+			const quoter = await this.#mintQuoter(
+				m,
+				id,
+				market.expiryMs,
+				{ lowerTick, higherTick },
+				state.protocol.feeIncentiveSubsidyRate,
+				pricing,
+			).catch(async (error: unknown) => {
+				throw await this.#quoteRefusal(error);
+			});
+			// The account's own quote caps a budget at its balance. The anonymous one doesn't.
+			const forAccount = async (request: MintQuoteRequest) => quoter(request, availableRaw);
+			const anonymous = (request: AnonymousMintQuoteRequest) => quoter(request);
 
 			let quote: MintQuoteRaw;
 			let quoteForAccount: boolean;
@@ -2535,13 +2641,13 @@ export class PredictClient {
 					availableRaw != null && availableRaw > fee && availableRaw - fee >= budgetRequested;
 				const budget = budgetRequested;
 				const search = () =>
-					this.#searchBudgetQuote(ticks, budget, lot).catch(async (error: unknown) => {
+					this.#searchBudgetQuote(anonymous, budget, lot).catch(async (error: unknown) => {
 						// Every probe refused ends the search in 'min-premium', which a strike outside
 						// the entry band also explains.
 						if (error instanceof PredictPreflightError && error.code === 'min-premium') {
-							throw (await this.#entryBandRefusal(m)) ?? error;
+							throw (await this.#entryBandRefusal(m, undefined, pricing)) ?? error;
 						}
-						throw await this.#quoteRefusal(error, { m });
+						throw await this.#quoteRefusal(error, { m, pricing });
 					});
 				if (quoteForAccount) {
 					try {
@@ -2572,14 +2678,9 @@ export class PredictClient {
 				try {
 					quote = hasAccount
 						? await forAccount({ shape: 'exact-quantity', quantityRaw })
-						: (
-								await quoteMintAnonymous(this.#client, this.#config, {
-									...ticks,
-									request: { shape: 'exact-quantity', quantityRaw },
-								})
-							).quote;
+						: anonymous({ shape: 'exact-quantity', quantityRaw });
 				} catch (error) {
-					throw await this.#quoteRefusal(error, { m, quantityRaw });
+					throw await this.#quoteRefusal(error, { m, quantityRaw, pricing });
 				}
 			}
 
@@ -2622,13 +2723,10 @@ export class PredictClient {
 						? quote.quantity
 						: ((budgetRaw * quote.quantity) / unsubsidizedCost / lot) * lot;
 				admitted = await this.#admittedFloor(
-					(quantityRaw) =>
+					async (quantityRaw) =>
 						quoteForAccount
 							? forAccount({ shape: 'exact-quantity', quantityRaw })
-							: quoteMintAnonymous(this.#client, this.#config, {
-									...ticks,
-									request: { shape: 'exact-quantity', quantityRaw },
-								}).then((r) => r.quote),
+							: anonymous({ shape: 'exact-quantity', quantityRaw }),
 					budgetRaw,
 					start < quote.quantity ? start : quote.quantity,
 					lot,
@@ -2795,7 +2893,11 @@ export class PredictClient {
 			const record = PredictClient.#assertRecordOpen(state, opts.recordId);
 			this.#assertSellQuantity(record, usdcToRaw(opts.quantity));
 			const quote = await this.read
-				.quoteSell(owner, m, { recordId: opts.recordId, quantity: opts.quantity })
+				.quoteSell(owner, m, {
+					recordId: opts.recordId,
+					quantity: opts.quantity,
+					inputs: opts.inputs,
+				})
 				.catch(async (error: unknown) => {
 					throw await this.#quoteRefusal(error);
 				});
@@ -2933,36 +3035,16 @@ export class PredictClient {
 		},
 
 		/**
-		 * Exact pre-close quote for an ACCOUNT position: dry-runs the immediate redeem and decodes
-		 * the receipt.
-		 * @deprecated `redeem_live` is retired by delayed execution (DBU-885): Predict v4 always
-		 * aborts it. Queued fills are Open records: quote them with `read.quoteSell`.
+		 * A market's state and its NAV mark, or `null` when no market exists for the coordinates.
+		 * The NAV is computed off chain from signed inputs (see the constructor's `pricingInputs`),
+		 * as Predict version 5's `current_nav` did on chain: free cash less the payout tree's
+		 * marked liability, priced by the local pricer. It reads the market's whole payout tree (one
+		 * page per 50 strikes) and throws `ELivePricingExpired` at or past expiry, as the chain read
+		 * did.
 		 */
-		quoteRedeem: async (
-			owner: string,
-			m: MarketDescriptor,
-			opts: CloseOptions,
-		): Promise<RedeemQuote> => {
-			const tx = await this.#buildRedeem(owner, m, opts);
-			const events = await simulateWithEvents(this.#client, tx, owner);
-			const r = exactlyOne(decodeRedeems(this.cfg, { events }), 'order-redeemed');
-			return {
-				proceeds: r.proceeds,
-				gross: r.gross,
-				fees: r.fees,
-				quantityClosed: r.quantityClosed,
-				remaining: r.remaining,
-				raw: {
-					proceeds: r.raw.proceeds,
-					gross: r.raw.gross,
-					quantityClosed: r.raw.quantityClosed,
-				},
-				feesExact: true,
-			};
-		},
-
 		market: async (
 			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
+			pricing: PricingOptions = {},
 		): Promise<MarketSummary | null> => {
 			const expiryMs = BigInt(m.expiryMs);
 			// Deliberately re-queries and overwrites the cache instead of reading
@@ -2973,7 +3055,18 @@ export class PredictClient {
 			if (!id) return null;
 			const state = await marketState(this.#client, this.#config, id);
 			this.#marketCache.set(`${m.underlying}:${expiryMs}`, { id, state });
-			const navRaw = await currentNav(this.#client, this.#config, id, u);
+			// The cash and the payout tree are read as one state (`readMarketWithBook`).
+			const [object, pricer] = await Promise.all([
+				readMarketWithBook(this.#client, id),
+				this.#localPricer(m, id, state.expiryMs, pricing),
+			]);
+			const navRaw = localNav({
+				cashBalance: object.cashBalance,
+				inventoryImpactReserve: object.inventoryImpactReserve,
+				book: { base: object.payout.base, boundaries: object.boundaries },
+				pricer,
+				tickSizeRaw: state.tickSizeRaw,
+			});
 			return {
 				id,
 				expiryMs: state.expiryMs,
@@ -3014,6 +3107,51 @@ export class PredictClient {
 		 */
 		feePolicy: async (m: MarketCoordinates): Promise<FeePolicy> =>
 			marketFeePolicy(this.#client, (await this.#resolveMarket(m)).id),
+
+		/**
+		 * A market's fee bands: trades whose price is in `[low, high)` pay `multiplier` × the trading
+		 * fee. The template the market copied at creation, kept for life, so it is cached per market.
+		 * `[]` charges every price 1x.
+		 */
+		feeBands: async (m: MarketCoordinates): Promise<FeeBand[]> =>
+			this.#feeBands((await this.#resolveMarket(m)).id),
+
+		/**
+		 * An underlying's oracle binding (Predict version 6): the Pyth Lazer feed and channel, and the
+		 * Block Scholes base asset, SVI model and decimals its markets price, settle and value with.
+		 * Decoded from the `OracleBindingKey` dynamic field on `ProtocolConfig`. `null` while the admin
+		 * hasn't set one. Throws `PredictInputError` while the config doesn't record version 6.
+		 */
+		oracleBinding: async (underlying: string): Promise<OracleBinding | null> => {
+			const predictV6 = this.cfg.packages.predictV6;
+			if (!predictV6) {
+				throw new PredictInputError(
+					`oracle bindings are a Predict version 6 setting, which isn't recorded for ${this.cfg.network}: record \`packages.predictV6\``,
+				);
+			}
+			return readOracleBinding(this.#client, {
+				protocolConfigId: this.cfg.objects.protocolConfig,
+				predictV6,
+				propbookUnderlyingId: this.#underlying(underlying).propbookUnderlyingId,
+			});
+		},
+
+		/**
+		 * The order desk's Block Scholes slot timing (`desk::bs_timing`, `deepbook_predict_orders`
+		 * version 3): which value and SVI slots a commit at τ takes, and the gap wait before the next
+		 * slot is accepted. The defaults while unset. Throws `PredictInputError` while the config
+		 * doesn't record version 3.
+		 */
+		bsTiming: async (): Promise<BsTiming & { isDefault: boolean }> => {
+			const predictOrdersV3 = this.cfg.packages.predictOrdersV3;
+			const orderDesk = this.cfg.objects.orderDesk;
+			if (!predictOrdersV3 || !orderDesk) {
+				throw new PredictInputError(
+					`the Block Scholes timing is a deepbook_predict_orders version 3 setting, which isn't recorded for ${this.cfg.network}`,
+				);
+			}
+			return readBsTiming(this.#client, { orderDeskId: orderDesk, predictOrdersV3 });
+		},
 
 		balance: async (owner: string): Promise<number> =>
 			rawToUsdc(await accountBalance(this.#client, this.#config, owner, this.cfg.quoteCoinType)),
@@ -3087,6 +3225,17 @@ export class PredictClient {
 		 * them with `realizedPnlRaw`.
 		 */
 		expiryPnlRealized: (r: DecodableTransactionResult) => decodeExpiryPnlRealized(this.cfg, r),
+		/**
+		 * `OracleBindingUpdated` (Predict version 6): an underlying's oracle binding set or replaced.
+		 * Matched against `packages.predictV6`, the version that defines it.
+		 */
+		oracleBindingUpdates: (r: DecodableTransactionResult) =>
+			decodeOracleBindingUpdates(this.cfg, r),
+		/**
+		 * `BsTimingUpdated` (`deepbook_predict_orders` version 3): the order desk's Block Scholes slot
+		 * timing set. Matched against `packages.predictOrdersV3`, the version that defines it.
+		 */
+		bsTimingUpdates: (r: DecodableTransactionResult) => decodeBsTimingUpdates(this.cfg, r),
 	};
 }
 

@@ -31,6 +31,13 @@ export const MAINNET_CONFIG: PredictConfig = Object.freeze({
 		// 2. Move them with the call targets.
 		predictCurrentVersion: 5n,
 		predictOrdersCurrentVersion: 2n,
+		// TODO(predict-v6): the Predict version 6, `deepbook_predict_orders` version 3 and
+		// `deepbook_predict_math` publications that read no Propbook object. Not published yet, so
+		// unset: this config keeps calling the version 5 packages above. Record all three once the
+		// upgrade executes, with the regenerated ids above (`pnpm sync-deployment`).
+		predictV6: undefined,
+		predictOrdersV3: undefined,
+		predictMathV3: undefined,
 	}),
 	objects: Object.freeze({
 		...MAINNET_PREDICT.objects,

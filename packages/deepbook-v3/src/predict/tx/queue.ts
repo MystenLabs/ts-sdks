@@ -17,8 +17,11 @@
 // is globally paused: a fill for such a receive address is refused (reason 9), a refund or change
 // is parked in its record (`RecordFundsParked`), and a payout is skipped until `pay_open`.
 //
-// Queued orders read the oracle objects directly for their volatility snapshot, so unlike the
-// retired immediate trades there is no `load_live_pricer` command before them.
+// Up to Predict version 5, queued orders read Propbook's oracle objects directly for their
+// volatility snapshot (`enqueue_*`, which take the market's feeds). From version 6 (`deepbook_predict_orders`
+// v3) placement takes no oracle object at all (`enqueue_*_v2`, the `*V2` thunks below): the order is
+// priced at its τ from signed Pyth and Block Scholes data the filler commits (`commitV2`). The
+// version 5 `enqueue_*` stay as forwarders that ignore their Propbook arguments.
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { GeneratedConfig, OrdersGeneratedConfig } from '../config/generated.js';
 import { MIN_PREMIUM } from '../cost.js';
@@ -29,6 +32,7 @@ import * as plp from '../../contracts/deepbook_predict/plp.js';
 import * as delayedExecutionConfig from '../../contracts/deepbook_predict_orders/delayed_execution_config.js';
 import * as desk from '../../contracts/deepbook_predict_orders/desk.js';
 import * as queue from '../../contracts/deepbook_predict_orders/queue.js';
+import * as blockScholes from '../../contracts/deepbook_predict_math/block_scholes.js';
 import { withAuth } from './common.js';
 import type { MarketFeeds } from './trade.js';
 
@@ -40,6 +44,14 @@ const authed = {
 	enqueueExactAmount: withAuth(queue.enqueueExactAmount),
 	enqueueExactCost: withAuth(queue.enqueueExactCost),
 	enqueueRedeemOpen: withAuth(queue.enqueueRedeemOpen),
+	enqueueExactQuantityV2: withAuth(queue.enqueueExactQuantityV2),
+	enqueueExactAmountV2: withAuth(queue.enqueueExactAmountV2),
+	enqueueExactCostV2: withAuth(queue.enqueueExactCostV2),
+	enqueueRedeemOpenV2: withAuth(queue.enqueueRedeemOpenV2),
+	enqueueExactQuantityWithBuilderV2: withAuth(queue.enqueueExactQuantityWithBuilderV2),
+	enqueueExactAmountWithBuilderV2: withAuth(queue.enqueueExactAmountWithBuilderV2),
+	enqueueExactCostWithBuilderV2: withAuth(queue.enqueueExactCostWithBuilderV2),
+	enqueueRedeemOpenWithBuilderV2: withAuth(queue.enqueueRedeemOpenWithBuilderV2),
 };
 
 /** One market's queue. */
@@ -66,16 +78,43 @@ interface QueuedOrderTarget extends MarketFeeds, QueueTarget {
 	wrapperId: string;
 }
 
-// The leading arguments every placement shares, after `queue` and `market`.
+// The leading arguments every version 5 placement shares, after `queue` and `market`. Version 6
+// underscore-prefixed the Propbook parameters of these forwarders, so codegen capitalizes their
+// keys. The emitted call is unchanged.
 function placement(config: OrdersGeneratedConfig, args: QueuedOrderTarget) {
 	return {
 		queue: queueIdOf(config, args),
 		market: args.expiryMarketId,
 		wrapper: args.wrapperId,
-		pyth: args.pythFeed,
-		bsValues: args.blockScholesValueStore,
-		bsSvi: args.blockScholesSviStore,
+		Pyth: args.pythFeed,
+		BsValues: args.blockScholesValueStore,
+		BsSvi: args.blockScholesSviStore,
 	};
+}
+
+/**
+ * A builder an order names: its `BuilderCode` object and the fee it charges per contract (1e9 is
+ * $1). Predict caps the fee at `protocol_config::builder_fee_cap` and records it in the receipt.
+ */
+export interface OrderBuilder {
+	codeId: string;
+	feePerContract: bigint;
+}
+
+/** The market, queue and account a version 6 placement names: no oracle object. */
+export interface QueuedOrderTargetV2 extends QueueTarget {
+	wrapperId: string;
+	/** Name a builder to call the `_with_builder_v2` placement. */
+	builder?: OrderBuilder;
+}
+
+function placementV2(config: OrdersGeneratedConfig, args: QueuedOrderTargetV2) {
+	return { queue: queueIdOf(config, args), market: args.expiryMarketId, wrapper: args.wrapperId };
+}
+
+function builderArgs(builder: OrderBuilder) {
+	assertU64(builder.feePerContract, 'builder.feePerContract');
+	return { code: builder.codeId, builderFeePerContract: builder.feePerContract };
 }
 
 // The chain refuses a zero or "unlimited" cap (`EMintCostCapRequired`), so a queued mint always
@@ -239,6 +278,168 @@ export function enqueueRedeemOpen(
 			minProceeds: args.minProceedsRaw,
 		},
 	});
+}
+
+// === Version 6 placement (`deepbook_predict_orders` v3) ===
+
+function assertMaxProbability(maxProbabilityRaw: bigint): void {
+	if (
+		typeof maxProbabilityRaw !== 'bigint' ||
+		maxProbabilityRaw <= 0n ||
+		maxProbabilityRaw > FLOAT_SCALING
+	) {
+		throw new PredictInputError(
+			`maxProbabilityRaw must be in (0, 1e9], got ${String(maxProbabilityRaw)}`,
+		);
+	}
+}
+
+/**
+ * Queue a mint of an exact payout quantity with no oracle object (`queue::enqueue_exact_quantity_v2`,
+ * or `enqueue_exact_quantity_with_builder_v2` when `builder` is given). The order is priced at its
+ * τ from the signed data the filler commits. Same caps and escrow as {@link enqueueExactQuantity}.
+ * Needs a config whose order-flow call target is `deepbook_predict_orders` version 3. Returns the
+ * record ID. Command order is auth → enqueue.
+ */
+export function enqueueExactQuantityV2(
+	config: OrdersGeneratedConfig,
+	args: QueuedOrderTargetV2 & {
+		lowerTick: bigint;
+		higherTick: bigint;
+		quantityRaw: bigint;
+		maxCostRaw: bigint;
+		maxProbabilityRaw: bigint;
+	},
+): (tx: Transaction) => TransactionResult {
+	assertMaxCost(args.maxCostRaw);
+	assertU64(args.quantityRaw, 'quantityRaw');
+	assertMaxProbability(args.maxProbabilityRaw);
+	const terms = {
+		lowerTick: args.lowerTick,
+		higherTick: args.higherTick,
+		quantity: args.quantityRaw,
+		maxCost: args.maxCostRaw,
+		maxProbability: args.maxProbabilityRaw,
+	};
+	return args.builder
+		? authed.enqueueExactQuantityWithBuilderV2({
+				config,
+				arguments: { ...placementV2(config, args), ...builderArgs(args.builder), ...terms },
+			})
+		: authed.enqueueExactQuantityV2({
+				config,
+				arguments: { ...placementV2(config, args), ...terms },
+			});
+}
+
+/**
+ * Queue a premium-budget mint with no oracle object (`queue::enqueue_exact_amount_v2`, or the
+ * `_with_builder_v2` form). Same checks as {@link enqueueExactAmount}.
+ */
+export function enqueueExactAmountV2(
+	config: OrdersGeneratedConfig,
+	args: QueuedOrderTargetV2 & {
+		lowerTick: bigint;
+		higherTick: bigint;
+		maxPremiumRaw: bigint;
+		minQuantityRaw: bigint;
+		maxCostRaw: bigint;
+	},
+): (tx: Transaction) => TransactionResult {
+	assertMaxCost(args.maxCostRaw);
+	assertU64(args.maxPremiumRaw, 'maxPremiumRaw');
+	assertU64(args.minQuantityRaw, 'minQuantityRaw');
+	if (args.maxPremiumRaw < MIN_PREMIUM) {
+		throw new PredictInputError(
+			`maxPremiumRaw ${args.maxPremiumRaw} is below the ${MIN_PREMIUM} minimum premium (EOrderFailsLimits)`,
+		);
+	}
+	const terms = {
+		lowerTick: args.lowerTick,
+		higherTick: args.higherTick,
+		maxPremium: args.maxPremiumRaw,
+		minQuantity: args.minQuantityRaw,
+		maxCost: args.maxCostRaw,
+	};
+	return args.builder
+		? authed.enqueueExactAmountWithBuilderV2({
+				config,
+				arguments: { ...placementV2(config, args), ...builderArgs(args.builder), ...terms },
+			})
+		: authed.enqueueExactAmountV2({
+				config,
+				arguments: { ...placementV2(config, args), ...terms },
+			});
+}
+
+/**
+ * Queue an all-in-budget mint with no oracle object (`queue::enqueue_exact_cost_v2`, or the
+ * `_with_builder_v2` form). Same checks as {@link enqueueExactCost}.
+ */
+export function enqueueExactCostV2(
+	config: OrdersGeneratedConfig,
+	args: QueuedOrderTargetV2 & {
+		lowerTick: bigint;
+		higherTick: bigint;
+		maxCostRaw: bigint;
+		minQuantityRaw: bigint;
+	},
+): (tx: Transaction) => TransactionResult {
+	assertMaxCost(args.maxCostRaw);
+	assertU64(args.minQuantityRaw, 'minQuantityRaw');
+	const terms = {
+		lowerTick: args.lowerTick,
+		higherTick: args.higherTick,
+		maxCost: args.maxCostRaw,
+		minQuantity: args.minQuantityRaw,
+	};
+	return args.builder
+		? authed.enqueueExactCostWithBuilderV2({
+				config,
+				arguments: { ...placementV2(config, args), ...builderArgs(args.builder), ...terms },
+			})
+		: authed.enqueueExactCostV2({
+				config,
+				arguments: { ...placementV2(config, args), ...terms },
+			});
+}
+
+/**
+ * Queue an early sell of an Open record with no oracle object (`queue::enqueue_redeem_open_v2`, or
+ * the `_with_builder_v2` form). Same checks as {@link enqueueRedeemOpen}.
+ */
+export function enqueueRedeemOpenV2(
+	config: OrdersGeneratedConfig,
+	args: QueuedOrderTargetV2 & {
+		recordId: bigint;
+		closeQuantityRaw: bigint;
+		minProbabilityRaw: bigint;
+		minProceedsRaw: bigint;
+	},
+): (tx: Transaction) => TransactionResult {
+	assertU64(args.recordId, 'recordId');
+	assertU64(args.minProbabilityRaw, 'minProbabilityRaw');
+	assertU64(args.minProceedsRaw, 'minProceedsRaw');
+	if (typeof args.closeQuantityRaw !== 'bigint' || args.closeQuantityRaw <= 0n) {
+		throw new PredictInputError(
+			`closeQuantityRaw must be above 0, got ${String(args.closeQuantityRaw)}`,
+		);
+	}
+	const terms = {
+		recordId: args.recordId,
+		closeQuantity: args.closeQuantityRaw,
+		minProbability: args.minProbabilityRaw,
+		minProceeds: args.minProceedsRaw,
+	};
+	return args.builder
+		? authed.enqueueRedeemOpenWithBuilderV2({
+				config,
+				arguments: { ...placementV2(config, args), ...builderArgs(args.builder), ...terms },
+			})
+		: authed.enqueueRedeemOpenV2({
+				config,
+				arguments: { ...placementV2(config, args), ...terms },
+			});
 }
 
 /**
@@ -445,8 +646,9 @@ export function parseLazerUpdate(
 }
 
 /**
- * Verify the signed Lazer payloads and commit them to the market's waiting cohorts
- * (`queue::commit`). Permissionless. Pass the payloads for a cohort's exact τ, or a backup tick
+ * Version 5 only: `queue::commit` aborts `EUseV2` from `deepbook_predict_orders` version 3, where
+ * {@link commitV2} replaces it. Verify the signed Lazer payloads and commit them to the market's
+ * waiting cohorts (`queue::commit`). Permissionless. Pass the payloads for a cohort's exact τ, or a backup tick
  * once τ + gap wait has passed with τ uncommitted (when the policy's price buffer is on). Commit
  * matches each update to its own cohort by τ and skips one that matches nothing, so no
  * head-of-line ordering is assumed. Resolve `lazer` per batch with `read.lazerPackages` and never
@@ -468,7 +670,119 @@ export function commit(
 		return tx.add(
 			queue.commit({
 				config,
-				arguments: { queue: queueIdOf(config, args), market: args.expiryMarketId, updates: vector },
+				arguments: { Queue: queueIdOf(config, args), Market: args.expiryMarketId, Updates: vector },
+			}),
+		);
+	};
+}
+
+/** The Block Scholes verifier (`bs_oracle`) a version 6 commit verifies its batches with. */
+export interface BlockScholesPackages {
+	/** The verifier's shared `SignerRegistry`. */
+	signerRegistryId: string;
+	/** The package to call `verify::verify_and_create_*_batch` on. */
+	packageId: string;
+	/** The original package ID, which types `verify::ValueUpdate` and `verify::SviUpdate`. */
+	originalId: string;
+}
+
+/** The market's oracle binding fields a version 6 commit decodes Block Scholes data under. */
+export interface CommitBinding {
+	blockScholesBaseAsset: string;
+	sviModel: string;
+	sviDecimals: number;
+}
+
+// Verify every signed Block Scholes message of one kind and gather their updates into one vector.
+function blockScholesUpdates(
+	bs: BlockScholesPackages,
+	kind: 'value' | 'svi',
+	messages: readonly Uint8Array[],
+): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		const verify =
+			kind === 'value' ? 'verify_and_create_value_batch' : 'verify_and_create_svi_batch';
+		const into = kind === 'value' ? 'into_value_updates' : 'into_svi_updates';
+		const type = `${bs.originalId}::verify::${kind === 'value' ? 'ValueUpdate' : 'SviUpdate'}`;
+		const updatesOf = (message: Uint8Array) => {
+			const batch = tx.moveCall({
+				target: `${bs.packageId}::verify::${verify}`,
+				arguments: [tx.object(bs.signerRegistryId), tx.pure.vector('u8', message)],
+			});
+			return tx.moveCall({ target: `${bs.packageId}::verify::${into}`, arguments: [batch] });
+		};
+		const all = updatesOf(messages[0]);
+		for (const message of messages.slice(1)) {
+			tx.moveCall({
+				target: '0x1::vector::append',
+				typeArguments: [type],
+				arguments: [all, updatesOf(message)],
+			});
+		}
+		return all;
+	};
+}
+
+/**
+ * Verify signed Pyth Lazer payloads and Block Scholes value and SVI batches, and commit them to the
+ * market's waiting cohorts (`queue::commit_v2`, Predict version 6). Permissionless. Pass the Lazer
+ * payloads for each cohort's τ (or its backup tick), and Block Scholes batches holding, for the
+ * market's expiry, the spot and forward at each τ's value slot and the SVI at its SVI slot
+ * (`queue.bsSlots`). `vols` is built on chain from the verified updates
+ * (`block_scholes::vols`) under the market's oracle binding. A cohort with no admissible slot is
+ * skipped and refunded at its deadline. Needs a config whose call targets are `deepbook_predict_orders`
+ * version 3 and the `deepbook_predict_math` publication with `block_scholes`.
+ */
+export function commitV2(
+	config: OrdersGeneratedConfig,
+	args: QueueTarget & {
+		payloads: readonly Uint8Array[];
+		lazer: LazerPackages;
+		valueMessages: readonly Uint8Array[];
+		sviMessages: readonly Uint8Array[];
+		blockScholes: BlockScholesPackages;
+		binding: CommitBinding;
+		expiryMs: bigint;
+	},
+): (tx: Transaction) => TransactionResult {
+	if (args.payloads.length === 0) {
+		throw new PredictInputError('commitV2 needs at least one signed Lazer payload');
+	}
+	if (args.valueMessages.length === 0 || args.sviMessages.length === 0) {
+		throw new PredictInputError(
+			'commitV2 needs at least one signed Block Scholes value batch and one SVI batch',
+		);
+	}
+	return (tx) => {
+		const updates = args.payloads.map((payload) => tx.add(parseLazerUpdate(args.lazer, payload)));
+		const vector = tx.makeMoveVec({
+			type: `${args.lazer.originalId}::update::Update`,
+			elements: updates,
+		});
+		const values = tx.add(blockScholesUpdates(args.blockScholes, 'value', args.valueMessages));
+		const svis = tx.add(blockScholesUpdates(args.blockScholes, 'svi', args.sviMessages));
+		const vols = tx.add(
+			blockScholes.vols({
+				config,
+				arguments: {
+					values,
+					svis,
+					baseAsset: args.binding.blockScholesBaseAsset,
+					sviModel: args.binding.sviModel,
+					sviDecimals: args.binding.sviDecimals,
+					expiriesMs: [args.expiryMs],
+				},
+			}),
+		);
+		return tx.add(
+			queue.commitV2({
+				config,
+				arguments: {
+					queue: queueIdOf(config, args),
+					market: args.expiryMarketId,
+					updates: vector,
+					vols,
+				},
 			}),
 		);
 	};
@@ -493,6 +807,29 @@ export function resolve(
 			maxOrders: args.maxOrders,
 		},
 	});
+}
+
+/**
+ * The version 6 open filler: {@link commitV2} the signed Lazer and Block Scholes data, then
+ * {@link resolve} up to `maxOrders` records, and with `refundOverdue` a final `refund`.
+ */
+export function fillV2(
+	config: OrdersGeneratedConfig,
+	args: Parameters<typeof commitV2>[1] & {
+		maxOrders: bigint | number;
+		refundOverdue?: boolean;
+	},
+): (tx: Transaction) => TransactionResult {
+	const commit = commitV2(config, args);
+	const target = { expiryMarketId: args.expiryMarketId, queueId: queueIdOf(config, args) };
+	return (tx) => {
+		tx.add(commit);
+		const resolved = tx.add(resolve(config, { ...target, maxOrders: args.maxOrders }));
+		if (args.refundOverdue) {
+			tx.add(refund(config, { ...target, maxOrders: args.maxOrders }));
+		}
+		return resolved;
+	};
 }
 
 /**

@@ -40,18 +40,20 @@ export const DELAYED_EXECUTION_VERSION = 4n;
  * `ProtocolConfig.version_watermark` is above it, so a higher watermark retires the Predict code
  * this SDK calls. Bump it with Predict when regenerating. Like `DELAYED_EXECUTION_VERSION` it is the
  * code's version constant, which follows the Mainnet package number (5 ships as Mainnet v5 and runs
- * as Testnet package v8), never the Testnet package number.
+ * as Testnet package v8), never the Testnet package number. The bindings are generated from version
+ * 6, which reads no Propbook object. A network config whose call targets are still version 5 pins
+ * `packages.predictCurrentVersion` instead, and a config that records `packages.predictV6` uses 6.
  */
-export const PREDICT_PACKAGE_VERSION = 5n;
+export const PREDICT_PACKAGE_VERSION = 6n;
 
 /**
  * `desk::current_version` of the order-flow package these bindings were generated from. The desk's
  * version floor retires older companion code, so a floor above it means the package this SDK calls
  * aborts `EPackageVersionDisabled`. Bump it with the companion when regenerating. It follows the
  * Mainnet package number (2 ships as Mainnet v2 and runs as Testnet package v3), never the Testnet
- * package number.
+ * package number. Version 3 places orders with no Propbook object (`queue::enqueue_*_v2`).
  */
-export const ORDER_FLOW_PACKAGE_VERSION = 2n;
+export const ORDER_FLOW_PACKAGE_VERSION = 3n;
 
 /** `queue::phase_*`: what `settle_step` returns, the phase the next call runs. */
 export const SETTLE_PHASE = Object.freeze({
@@ -97,6 +99,11 @@ export const REFUND_REASON = Object.freeze({
 	ADMIN: 7,
 	NO_CASH: 8,
 	RECIPIENT_DENIED: 9,
+	/**
+	 * Predict v6: the order was committed, but its committed Block Scholes inputs build no price at
+	 * the tick. The order fee is returned.
+	 */
+	NO_VOL: 10,
 } as const);
 
 /** The Pyth Lazer channels the queue prices on (`delayed_execution_config`). */
@@ -173,6 +180,7 @@ export interface RefundReasonInfo {
 		| 'admin'
 		| 'no-cash'
 		| 'recipient-denied'
+		| 'no-vol'
 		| 'unknown';
 	/** Display text for the refund. */
 	text: string;
@@ -182,7 +190,7 @@ export interface RefundReasonInfo {
 	live: boolean;
 }
 
-/** Every reason code v4 defines, with its text and fee treatment. */
+/** Every reason code the queue defines (v4, plus 10 from Predict v6), with its text and fee treatment. */
 export const REFUND_REASONS: Readonly<Record<number, RefundReasonInfo>> = Object.freeze({
 	1: {
 		code: 1,
@@ -241,6 +249,13 @@ export const REFUND_REASONS: Readonly<Record<number, RefundReasonInfo>> = Object
 		feeKept: false,
 		live: true,
 	},
+	10: {
+		code: 10,
+		key: 'no-vol',
+		text: "The order's volatility data couldn't price it at the fill time. Refunded in full.",
+		feeKept: false,
+		live: true,
+	},
 });
 
 /** A reason code's meaning. Unknown codes map to `key: 'unknown'` rather than throwing. */
@@ -279,6 +294,50 @@ export interface DelayedExecutionPolicy {
 	minSellQuantity: bigint;
 	settleRefundBatch: bigint;
 	settlePayoutBatch: bigint;
+}
+
+/**
+ * `delayed_execution_config::BsTiming` with camelCase keys (`desk::bs_timing`), in ms: which Block
+ * Scholes slots a commit at τ takes. Predict v6 (`deepbook_predict_orders` v3).
+ */
+export interface BsTiming {
+	/** τ minus this, floored to {@link BS_VALUE_STEP_MS}, is the spot and forward slot. */
+	valueLagMs: bigint;
+	/** τ minus this, floored to {@link BS_SVI_STEP_MS}, is the SVI slot. */
+	sviLagMs: bigint;
+	/** How long after τ a commit may take the next slot of either series instead. */
+	gapWaitMs: bigint;
+}
+
+/** `desk::bs_timing` while the admin hasn't set one: value lag 500, SVI lag 1,000, gap wait 1,000. */
+export const DEFAULT_BS_TIMING: Readonly<BsTiming> = Object.freeze({
+	valueLagMs: 500n,
+	sviLagMs: 1_000n,
+	gapWaitMs: 1_000n,
+});
+
+/** `delayed_execution_config::bs_value_step_ms`: Block Scholes spot and forward slots are 500 ms apart. */
+export const BS_VALUE_STEP_MS = 500n;
+/** `delayed_execution_config::bs_svi_step_ms`: Block Scholes SVI slots are 1,000 ms apart. */
+export const BS_SVI_STEP_MS = 1_000n;
+
+/**
+ * The canonical Block Scholes slots a commit at `tauMs` takes: the spot and forward at
+ * `floor((τ − valueLag) / 500) · 500` and the SVI at `floor((τ − sviLag) / 1000) · 1000`. After
+ * `gapWaitMs` past τ the next slot of either series is accepted too (`nextValueMs`, `nextSviMs`).
+ */
+export function bsSlots(
+	tauMs: bigint,
+	timing: BsTiming = DEFAULT_BS_TIMING,
+): { valueMs: bigint; sviMs: bigint; nextValueMs: bigint; nextSviMs: bigint } {
+	const valueMs = ((tauMs - timing.valueLagMs) / BS_VALUE_STEP_MS) * BS_VALUE_STEP_MS;
+	const sviMs = ((tauMs - timing.sviLagMs) / BS_SVI_STEP_MS) * BS_SVI_STEP_MS;
+	return {
+		valueMs,
+		sviMs,
+		nextValueMs: valueMs + BS_VALUE_STEP_MS,
+		nextSviMs: sviMs + BS_SVI_STEP_MS,
+	};
 }
 
 /** Map the generated policy layout to {@link DelayedExecutionPolicy}. */

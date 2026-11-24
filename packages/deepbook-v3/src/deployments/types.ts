@@ -105,6 +105,14 @@ export interface PredictIds {
 	coinTypes: { plp: string; deep: string };
 	units: DeploymentUnits;
 	underlyings: Record<string, UnderlyingIds>;
-	/** Pyth Lazer's shared `State`, recorded with delayed execution. */
-	oracle?: { pythLazerState: string };
+	/**
+	 * Pyth Lazer's shared `State`, and the Block Scholes verifier package and its signer registry,
+	 * recorded with delayed execution. A commit or flush that carries signed data verifies the Block
+	 * Scholes batches with them.
+	 */
+	oracle?: {
+		pythLazerState: string;
+		blockScholesPackage: string;
+		blockScholesSignerRegistry: string;
+	};
 }

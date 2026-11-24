@@ -10,7 +10,7 @@ import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { bcs } from '@mysten/sui/bcs';
 import { Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import type { GeneratedConfig, OrdersGeneratedConfig } from '../config/generated.js';
+import type { OrdersGeneratedConfig } from '../config/generated.js';
 import {
 	DELAYED_EXECUTION_VERSION,
 	PREDICT_PACKAGE_VERSION,
@@ -21,7 +21,7 @@ import {
 } from '../queue.js';
 import { deriveAccountIdFrom, deriveAccountWrapperIdFrom } from '../tx/common.js';
 import { queueIdOf, type QueueTarget } from '../tx/queue.js';
-import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
+import type { LocalMintQuote, LocalMintRequest, LocalSellQuote } from '../quotes.js';
 import { accountMoveCalls as account } from '../../account.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
 import * as protocolConfig from '../../contracts/deepbook_predict/protocol_config.js';
@@ -29,7 +29,6 @@ import { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../../contr
 import * as desk from '../../contracts/deepbook_predict_orders/desk.js';
 import { OrderView as OrderViewBcs } from '../../contracts/deepbook_predict_orders/order_queue.js';
 import * as queue from '../../contracts/deepbook_predict_orders/queue.js';
-import { quoteRedeemOpen as quoteRedeemOpenCall } from '../bindings/queue.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseOptionalU64, parseU64LE } from './parse.js';
 
@@ -374,213 +373,58 @@ export async function lazerPackages(
 	};
 }
 
-/** `expiry_market::RedeemQuote` with camelCase keys. `proceeds` is before the order fee. */
-export interface RedeemOpenQuoteRaw {
-	closeQuantity: bigint;
-	probability: bigint;
-	proceeds: bigint;
-	tradingFee: bigint;
-	builderFee: bigint;
-	inventoryImpactRebate: bigint;
-}
+/** A local sell quote (`quotes.localSellQuote`). `proceeds` is before the order fee. */
+export type RedeemOpenQuoteRaw = LocalSellQuote;
 
 /**
- * Quote an early sell of an Open record at a fresh live pricer (`load_live_pricer`, then the
- * queue's `quote_redeem_open`, which prices through Predict's `quote_close`), and read the desk's
- * policy for the order fee. `proceeds` is before the order fee, with no congestion penalty.
- * Aborts `ERecordNotOpen` when the record isn't Open. It doesn't check that the wrapper's account
- * owns the record: the wrapper only supplies the builder code.
+ * A local mint quote (`quotes.localMintQuote`), the fields of `expiry_market::MintQuote`.
+ * `penaltyFee` is always 0: a queued fill pays no congestion penalty.
  */
-export async function quoteRedeemOpen(
-	client: ReadClient,
-	config: OrdersGeneratedConfig,
-	args: QueueTarget & {
-		wrapperId: string;
-		recordId: bigint;
-		closeQuantityRaw: bigint;
-	} & MarketFeeds,
-): Promise<{ quote: RedeemOpenQuoteRaw; policy: DelayedExecutionPolicy }> {
-	const tx = new Transaction();
-	const pricer = tx.add(loadLivePricer(config, args));
-	tx.add(
-		quoteRedeemOpenCall({
-			config,
-			arguments: {
-				queue: queueIdOf(config, args),
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				pricer,
-				recordId: args.recordId,
-				closeQuantity: args.closeQuantityRaw,
-			},
-		}),
-	);
-	tx.add(desk.policy({ config }));
-	const cmds = await inspectReturns(client, tx);
-	const q = expiryMarket.RedeemQuote.parse(cmds[1][0]);
-	return {
-		quote: {
-			closeQuantity: q.close_quantity,
-			probability: q.probability,
-			proceeds: q.proceeds,
-			tradingFee: q.trading_fee,
-			builderFee: q.builder_fee,
-			inventoryImpactRebate: q.inventory_impact_rebate,
-		},
-		policy: policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[2][0])),
-	};
-}
-
-/**
- * `expiry_market::MintQuote` with camelCase keys. `allInCost` includes `penaltyFee`, which the
- * delayed-execution package always quotes as 0: its quotes price like a queued fill.
- */
-export interface MintQuoteRaw {
-	quantity: bigint;
-	entryProbability: bigint;
-	premium: bigint;
-	tradingFee: bigint;
-	feeIncentiveSubsidy: bigint;
-	builderFee: bigint;
-	penaltyFee: bigint;
-	inventoryImpactCharge: bigint;
-	allInCost: bigint;
-}
+export type MintQuoteRaw = LocalMintQuote;
 
 /** What to quote: an exact quantity, a premium budget, or an all-in budget. */
-export type MintQuoteRequest =
-	| { shape: 'exact-quantity'; quantityRaw: bigint }
-	| { shape: 'exact-amount'; maxPremiumRaw: bigint; minQuantityRaw: bigint }
-	| { shape: 'exact-cost'; maxCostRaw: bigint; minQuantityRaw: bigint };
+export type MintQuoteRequest = LocalMintRequest;
 
-/**
- * Quote a mint for one account without placing it: Predict's `quote_mint_for_account` (exact
- * quantity and premium budget) or `quote_mint_exact_cost_for_account` (all-in budget), at a fresh
- * live pricer. Both read the account's builder code and cap a budget at its balance. From the
- * delayed-execution package on they price like a queued fill at the clock: no congestion penalty,
- * and no trade-window or Pyth-staleness abort. They abort `EOrderFailsLimits` when the mint would
- * be refused at the clock. With `ordersConfig`, also reads the order desk's policy.
- */
-export async function quoteMintForAccount(
-	client: ReadClient,
-	config: GeneratedConfig,
-	args: {
-		expiryMarketId: string;
-		wrapperId: string;
-		lowerTick: bigint;
-		higherTick: bigint;
-		request: MintQuoteRequest;
-		/** Also read the order desk's policy, in the same simulate. */
-		ordersConfig?: OrdersGeneratedConfig;
-	} & MarketFeeds,
-): Promise<{ quote: MintQuoteRaw; policy: DelayedExecutionPolicy | null }> {
-	const tx = new Transaction();
-	const pricer = tx.add(loadLivePricer(config, args));
-	const base = {
-		market: args.expiryMarketId,
-		wrapper: args.wrapperId,
-		pricer,
-		lowerTick: args.lowerTick,
-		higherTick: args.higherTick,
-	};
-	const r = args.request;
-	if (r.shape === 'exact-cost') {
-		tx.add(
-			expiryMarket.quoteMintExactCostForAccount({
-				config,
-				arguments: { ...base, maxCost: r.maxCostRaw, minQuantity: r.minQuantityRaw },
-			}),
-		);
-	} else {
-		tx.add(
-			expiryMarket.quoteMintForAccount({
-				config,
-				arguments:
-					r.shape === 'exact-quantity'
-						? { ...base, maxPremium: 0n, minQuantity: r.quantityRaw, exactQuantity: true }
-						: {
-								...base,
-								maxPremium: r.maxPremiumRaw,
-								minQuantity: r.minQuantityRaw,
-								exactQuantity: false,
-							},
-			}),
-		);
-	}
-	if (args.ordersConfig) tx.add(desk.policy({ config: args.ordersConfig }));
-	const cmds = await inspectReturns(client, tx);
-	const q = expiryMarket.MintQuote.parse(cmds[1][0]);
-	const quote: MintQuoteRaw = {
-		quantity: q.quantity,
-		entryProbability: q.entry_probability,
-		premium: q.premium,
-		tradingFee: q.trading_fee,
-		feeIncentiveSubsidy: q.fee_incentive_subsidy,
-		builderFee: q.builder_fee,
-		penaltyFee: q.penalty_fee,
-		inventoryImpactCharge: q.inventory_impact_charge,
-		allInCost: q.all_in_cost,
-	};
-	const policy = args.ordersConfig
-		? policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[2][0]))
-		: null;
-	return { quote, policy };
-}
-
-/** What `quote_mint` quotes: an exact quantity, or the largest quantity a premium budget buys. */
+/** What an anonymous quote prices: an exact quantity, or the largest quantity a premium budget buys. */
 export type AnonymousMintQuoteRequest = Exclude<MintQuoteRequest, { shape: 'exact-cost' }>;
 
 /**
- * Quote a mint for no particular account: Predict's `quote_mint`, at a fresh live pricer. It
- * prices like a queued fill at the clock with no builder fee, so it previews a mint for a visitor
- * without an account or a funded balance. It has no all-in budget mode. It aborts
- * `EOrderFailsLimits` when the mint would be refused at the clock, for example below the 1 USDC
- * minimum premium. With `ordersConfig`, also reads the order desk's policy.
+ * The protocol and desk terms a local quote prices with, in one simulate: the order desk's policy
+ * (its order fee), the protocol's fee subsidy rate and builder fee cap and, with `owner`, the
+ * account's USDC balance (the owner must have an account).
  */
-export async function quoteMintAnonymous(
+export async function quoteContext(
 	client: ReadClient,
-	config: GeneratedConfig,
-	args: {
-		expiryMarketId: string;
-		lowerTick: bigint;
-		higherTick: bigint;
-		request: AnonymousMintQuoteRequest;
-		ordersConfig?: OrdersGeneratedConfig;
-	} & MarketFeeds,
-): Promise<{ quote: MintQuoteRaw; policy: DelayedExecutionPolicy | null }> {
+	config: OrdersGeneratedConfig,
+	opts: { owner?: string; coinType?: string } = {},
+): Promise<{
+	policy: DelayedExecutionPolicy;
+	feeIncentiveSubsidyRate: bigint;
+	builderFeeCap: bigint;
+	availableRaw: bigint | null;
+}> {
 	const tx = new Transaction();
-	const pricer = tx.add(loadLivePricer(config, args));
-	const r = args.request;
-	tx.add(
-		expiryMarket.quoteMint({
-			config,
-			arguments: {
-				market: args.expiryMarketId,
-				pricer,
-				lowerTick: args.lowerTick,
-				higherTick: args.higherTick,
-				...(r.shape === 'exact-quantity'
-					? { maxPremium: 0n, minQuantity: r.quantityRaw, exactQuantity: true }
-					: { maxPremium: r.maxPremiumRaw, minQuantity: r.minQuantityRaw, exactQuantity: false }),
-			},
-		}),
-	);
-	if (args.ordersConfig) tx.add(desk.policy({ config: args.ordersConfig }));
+	tx.add(desk.policy({ config }));
+	tx.add(protocolConfig.feeIncentiveSubsidyRate({ config }));
+	tx.add(protocolConfig.builderFeeCap({ config }));
+	if (opts.owner) {
+		if (!opts.coinType) throw new Error('quoteContext: owner reads need coinType');
+		const loaded = tx.add(
+			account.loadAccount({
+				config,
+				arguments: { self: deriveAccountWrapperIdFrom(config, opts.owner) },
+			}),
+		);
+		tx.add(
+			account.balance({ config, typeArguments: [opts.coinType], arguments: { self: loaded } }),
+		);
+	}
 	const cmds = await inspectReturns(client, tx);
-	const q = expiryMarket.MintQuote.parse(cmds[1][0]);
 	return {
-		quote: {
-			quantity: q.quantity,
-			entryProbability: q.entry_probability,
-			premium: q.premium,
-			tradingFee: q.trading_fee,
-			feeIncentiveSubsidy: q.fee_incentive_subsidy,
-			builderFee: q.builder_fee,
-			penaltyFee: q.penalty_fee,
-			inventoryImpactCharge: q.inventory_impact_charge,
-			allInCost: q.all_in_cost,
-		},
-		policy: args.ordersConfig ? policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[2][0])) : null,
+		policy: policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[0][0])),
+		feeIncentiveSubsidyRate: parseU64LE(cmds[1][0]),
+		builderFeeCap: parseU64LE(cmds[2][0]),
+		availableRaw: opts.owner ? parseU64LE(cmds[4][0]) : null,
 	};
 }
 
