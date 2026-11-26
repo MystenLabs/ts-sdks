@@ -35,7 +35,7 @@ export const mainPackage: Config = {
 			packageIdV1: '0xdd0a4a34152a80d7841710e916a407b2a62961eee5b2188dcfdaa24194f66286',
 		},
 		bbb: {
-			packageId: '0xed799c2fb6fc64bedc7df4fddb272af8718b2fe53a20b7c60ea927ad36b5b6ae',
+			packageId: '0xe21cf5b96597441b2599f84bf7df141b747b7c46b9427e1eab0488474c77a573',
 			vault: '0x869f5100c0ecc0b35c7edad87ba3d488fd291bdba4a7aae84b70d188f440f393',
 		},
 		pyth: {
