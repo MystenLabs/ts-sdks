@@ -1,0 +1,38 @@
+{
+  "name": "@mysten/confidential-transactions",
+  "collaborators": [
+    "jonaslindstrom"
+  ],
+  "version": "0.2.0",
+  "private": false,
+  "main": "index.js",
+  "types": "./web/confidential-transactions.d.ts",
+  "repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+  "scripts": {
+    "build:wasm": "pnpm build:nodejs && pnpm build:web",
+    "build:nodejs": "wasm-pack build --target nodejs --release --out-dir nodejs --no-pack && rm nodejs/.gitignore",
+    "build:web": "wasm-pack build --target web --release --out-dir web --no-pack && rm web/.gitignore",
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": {
+      "types": "./web/confidential-transactions.d.ts",
+      "browser": "./web/confidential-transactions.js",
+      "import": "./index.mjs",
+      "require": "./index.js"
+    },
+    "./web/confidential-transactions_bg.wasm": {
+      "browser": "./web/confidential-transactions_bg.wasm",
+      "import": "./web/confidential-transactions_bg.wasm",
+      "require": "./web/confidential-transactions_bg.wasm"
+    }
+  },
+  "devDependencies": {
+    "@mysten/bcs": "workspace:*",
+    "vite": "^7.2.6",
+    "vitest": "^4.0.15"
+  }
+}
