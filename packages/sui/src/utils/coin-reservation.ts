@@ -7,7 +7,7 @@ import { parse } from 'valibot';
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import { deriveDynamicFieldID } from './dynamic-fields.js';
-import { normalizeSuiAddress } from './index.js';
+import { normalizeSuiAddress } from './sui-types.js';
 
 const SUI_ACCUMULATOR_ROOT_OBJECT_ID = normalizeSuiAddress('0xacc');
 const ACCUMULATOR_KEY_TYPE_TAG = TypeTagSerializer.parseFromStr(
@@ -19,8 +19,15 @@ export const COIN_RESERVATION_MAGIC = new Uint8Array([
 	0xac, 0xac, 0xac, 0xac,
 ]);
 
+/**
+ * Whether a gas payment digest is the placeholder ref the SDK adds when gas is paid from an
+ * address balance; such refs have version 0 and do not exist on chain.
+ */
 export function isCoinReservationDigest(digestBase58: string): boolean {
 	const digestBytes = fromBase58(digestBase58);
+	if (digestBytes.length !== 32) {
+		return false;
+	}
 	const last20Bytes = digestBytes.slice(12, 32);
 	return last20Bytes.every((byte, i) => byte === COIN_RESERVATION_MAGIC[i]);
 }
